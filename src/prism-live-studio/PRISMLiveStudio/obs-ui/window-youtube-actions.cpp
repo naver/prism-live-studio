@@ -382,7 +382,7 @@ bool OBSYoutubeActions::CreateEventAction(YoutubeApiWrappers *api, BroadcastDesc
 	autostart = broadcast.auto_start;
 	autostop = broadcast.auto_stop;
 
-	blog(LOG_DEBUG, "Scheduled date and time: %s", broadcast.schedul_date_time.toStdString().c_str());
+	blog(LOG_DEBUG, "Scheduled date and time: %s", broadcast.schedul_date_time.toUtf8().constData());
 	if (!apiYouTube->InsertBroadcast(broadcast)) {
 		blog(LOG_DEBUG, "No broadcast created.");
 		return false;
@@ -393,7 +393,7 @@ bool OBSYoutubeActions::CreateEventAction(YoutubeApiWrappers *api, BroadcastDesc
 		return false;
 	}
 	if (!thumbnailFile.isEmpty()) {
-		blog(LOG_INFO, "Uploading thumbnail file \"%s\"...", thumbnailFile.toStdString().c_str());
+		blog(LOG_INFO, "Uploading thumbnail file \"%s\"...", thumbnailFile.toUtf8().constData());
 		if (!apiYouTube->SetVideoThumbnail(broadcast.id, thumbnailFile)) {
 			blog(LOG_DEBUG, "No thumbnail set.");
 			return false;
@@ -420,7 +420,7 @@ bool OBSYoutubeActions::CreateEventAction(YoutubeApiWrappers *api, BroadcastDesc
 
 #ifdef YOUTUBE_ENABLED
 	if (OBSBasic::Get()->GetYouTubeAppDock())
-		OBSBasic::Get()->GetYouTubeAppDock()->BroadcastCreated(broadcast.id.toStdString().c_str());
+		OBSBasic::Get()->GetYouTubeAppDock()->BroadcastCreated(broadcast.id.toUtf8().constData());
 #endif
 
 	return true;
@@ -467,7 +467,7 @@ bool OBSYoutubeActions::ChooseAnEventAction(YoutubeApiWrappers *api, StreamDescr
 
 #ifdef YOUTUBE_ENABLED
 	if (OBSBasic::Get()->GetYouTubeAppDock())
-		OBSBasic::Get()->GetYouTubeAppDock()->BroadcastSelected(selectedBroadcast.toStdString().c_str());
+		OBSBasic::Get()->GetYouTubeAppDock()->BroadcastSelected(selectedBroadcast.toUtf8().constData());
 #endif
 
 	return true;

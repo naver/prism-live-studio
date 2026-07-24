@@ -162,7 +162,7 @@ void PLSPermissionHelper::showPermissionAlertIfNeeded(AVType avType, AVStatus he
 	PLS_INFO(MAC_PERMISSION, "mac permission show alert with type: %d", avType);
 
 	PLSAlertView alertView(parent, PLSAlertView::Icon::Warning, QObject::tr("Alert.Title"), alertMsg, QString(),
-			       QMap<PLSAlertView::Button, QString>({{PLSAlertView::Button::Ok, QObject::tr("Ok")}, {PLSAlertView::Button::Open, QObject::tr("Mac.Permission.Open.System.Btn")}}),
+						   QMap<PLSAlertView::Button, pls_text_t>({{PLSAlertView::Button::Ok, QObject::tr("Ok")}, {PLSAlertView::Button::Open, QObject::tr("Mac.Permission.Open.System.Btn")}}),
 			       PLSAlertView::Button::Open, {{"minBtnWidth", 180}});
 	PLSAlertView::Button button = static_cast<PLSAlertView::Button>(alertView.exec());
 

@@ -14,6 +14,7 @@
 #include <QMenu>
 
 #include <libui.h>
+#include "pls/pls-action-util.h"
 
 using namespace common;
 PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
@@ -22,6 +23,8 @@ PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
 	  enabledSignal(obs_source_get_signal_handler(source), "enable", OBSSourceEnabled, this),
 	  renamedSignal(obs_source_get_signal_handler(source), "rename", OBSSourceRenamed, this)
 {
+	//pls_add_css(this, {"OBSBasicFilters", "VisibilityCheckBox"}); // PRISM_PC-5466: its called in OBSBasicFilters::OBSBasicFilters
+
 	uint32_t flags = obs_source_get_output_flags(source_);
 	async = (flags & OBS_SOURCE_ASYNC) != 0;
 
@@ -32,7 +35,6 @@ PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
 	ui->visibleButton->setProperty("visibilityCheckBox", true);
 	setProperty("showHandCursor", true);
 	setContentsMargins(0, 0, 0, 0);
-	pls_add_css(this, {"OBSBasicFilters", "VisibilityCheckBox"});
 
 	name = obs_source_get_name(source);
 	UpdateNameStyle();
@@ -55,6 +57,11 @@ PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
 
 	connect(ui->visibleButton, &QPushButton::clicked, this, &PLSFiltersItemView::OnVisibilityButtonClicked);
 	connect(ui->advButton, &QPushButton::clicked, this, [=]() { emit OnCreateCustomContextMenu(QCursor::pos(), async); });
+
+	pls_uistep_v2_set_title(this, QStringLiteral("Filter List"));
+	pls_uistep_v2_set_value(ui->visibleButton, [this]() { return ui->visibleButton->isChecked() ? QStringLiteral("Show") : QStringLiteral("Hide"); });
+	pls_uistep_v2_set_value(ui->advButton, QStringLiteral("Advanced"));
+	pls_uistep_v2_custom(this, QStringLiteral("Clicked"), QStringLiteral("Clicked"), QStringLiteral("list"), name);
 }
 
 PLSFiltersItemView::~PLSFiltersItemView()
@@ -93,7 +100,6 @@ void PLSFiltersItemView::mousePressEvent(QMouseEvent *event)
 {
 	PLS_UI_STEP(MAINFILTER_MODULE, QT_TO_UTF8(name), ACTION_CLICK);
 	OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_PRESSED);
-
 	emit CurrentItemChanged(this);
 	QWidget::mousePressEvent(event);
 }
@@ -180,6 +186,9 @@ void PLSFiltersItemView::OnMouseStatusChanged(const QString &status)
 
 void PLSFiltersItemView::OnVisibilityButtonClicked(bool visible) const
 {
+	pls_on_source_property_changed(source, "filter_visible");
+	pls_on_source_property_updated(source);
+
 	QString log = QString("[%1 : %2] visibility button: %3").arg(obs_source_get_id(source)).arg(name).arg(visible ? "checked" : "unchecked");
 	PLS_UI_STEP(MAINFILTER_MODULE, QT_TO_UTF8(log), ACTION_CLICK);
 	obs_source_set_enabled(source, visible);

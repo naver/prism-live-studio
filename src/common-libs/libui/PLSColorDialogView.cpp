@@ -1,13 +1,46 @@
 #include "PLSColorDialogView.h"
 
+#include <cstring>
+
 #include <qboxlayout.h>
 #include <qvariant.h>
+#include <qevent.h>
 #include <qpushbutton.h>
-#include <qstyle.h>
+#include <qtimer.h>
+#include <qwidget.h>
 
 #include "PLSDialogButtonBox.h"
 
 #include <libutils-api.h>
+
+namespace {
+
+// Keep in sync with resource/css/QColorDialog.css (QColorDialog QColorLuminancePicker background-color).
+constexpr QRgb kQColorDialogLuminanceBgRgb = qRgb(0x2c, 0x2c, 0x2c);
+
+void setWidgetPaletteWindowBase(QWidget *w, const QColor &c)
+{
+	QPalette pal = w->palette();
+	pal.setColor(QPalette::Window, c);
+	pal.setColor(QPalette::Base, c);
+	w->setPalette(pal);
+}
+
+void syncQtLuminancePickersInColorDialog(QWidget *root)
+{
+	if (!root)
+		return;
+	const QColor bg(kQColorDialogLuminanceBgRgb);
+	for (QWidget *w : root->findChildren<QWidget *>(QString(), Qt::FindChildrenRecursively)) {
+		const char *const cn = w->metaObject()->className();
+		if (!cn || !std::strstr(cn, "QColorLuminancePicker"))
+			continue;
+		setWidgetPaletteWindowBase(w, bg);
+		return;
+	}
+}
+
+} // namespace
 
 class PLSColorDialogImpl : public QColorDialog {
 public:
@@ -15,6 +48,7 @@ public:
 	{
 		setWindowFlags(Qt::Widget);
 
+		// layout is null
 		if (layout()) {
 			layout()->setSizeConstraint(QLayout::SetDefaultConstraint);
 		}
@@ -37,8 +71,9 @@ PLSColorDialogView::PLSColorDialogView(QWidget *parent) : PLSColorDialogView(Qt:
 
 PLSColorDialogView::PLSColorDialogView(const QColor &initial, QWidget *parent) : PLSDialogView(parent)
 {
+	pls_add_css(this, {"PLSColorDialogView"});
 	impl = pls_new<PLSColorDialogImpl>(this, initial, this->content());
-	initSize(QSize(630, 635));
+	initSize(QSize(630, 570));
 
 	QHBoxLayout *l = pls_new<QHBoxLayout>(this->content());
 	l->setSpacing(0);
@@ -96,7 +131,19 @@ void PLSColorDialogView::setVisible(bool visible)
 	PLSDialogView::setVisible(visible);
 }
 
-QColor PLSColorDialogView::PLSColorDialogView::getColor(const QColor &initial, QWidget *parent, const QString &title, ColorDialogOptions options)
+void PLSColorDialogView::showEvent(QShowEvent *event)
+{
+	PLSDialogView::showEvent(event);
+	// QColorLuminancePicker::eraseRect uses QPainter::bgBrush from QWidget::initPainter (palette), not QSS.
+	QTimer::singleShot(0, this, [this] { syncQtLuminancePickerEraseBackground(); });
+}
+
+void PLSColorDialogView::syncQtLuminancePickerEraseBackground()
+{
+	syncQtLuminancePickersInColorDialog(impl);
+}
+
+QColor PLSColorDialogView::getColor(const QColor &initial, QWidget *parent, const QString &title, ColorDialogOptions options)
 {
 	QCursor cursor;
 	if (parent)

@@ -7,19 +7,13 @@
 
 #include <QPixmap>
 
-#include <QOpenGLWidget>
-#include <QOpenGLFunctions>
-#include <QOpenGLShaderProgram>
-#include <QOpenGLBuffer>
-#include <QOpenGLTexture>
-
 #include <QMediaPlayer>
 #include <QVideoSink>
 #include <QVideoFrame>
 
 #include "PLSSceneTemplateBorderLabel.h"
 
-class PLSMediaRender : public QOpenGLWidget, protected QOpenGLFunctions {
+class PLSMediaRender : public QWidget {
 	Q_OBJECT
 public:
 	explicit PLSMediaRender(QWidget *parent = nullptr);
@@ -32,6 +26,10 @@ public:
 	void setHasBorder(bool bBorder);
 	void setSceneName(const QString &name);
 	void showAIBadge(const QPixmap &pixmap, bool bLongAIBadge);
+	void showPlusBadge(const QPixmap &pixmap);
+
+	void setDefaultBgImagePath(const QString &path);
+	void setDefaultBgImagePixmap(const QPixmap &pixmap);
 
 signals:
 	void clicked();
@@ -40,28 +38,15 @@ protected slots:
 	void onVideoFrame(const QVideoFrame &frame);
 
 protected:
-	void initializeGL() override;
-	void resizeGL(int w, int h) override;
-	void paintGL() override;
-
-	bool uploadFrame();
-
+	void paintEvent(QPaintEvent *event) override;
 	void mouseReleaseEvent(QMouseEvent *event) override;
 
 private:
-	QScopedPointer<QOpenGLShaderProgram> m_shaderProgram;
-	QVideoFrameFormat::PixelFormat m_programPixelFormat = QVideoFrameFormat::Format_Invalid;
-	QScopedPointer<QOpenGLBuffer> m_bufferVertex;
-	QScopedPointer<QOpenGLTexture> m_glTextureY;
-	QScopedPointer<QOpenGLTexture> m_glTextureU;
-	QScopedPointer<QOpenGLTexture> m_glTextureV;
 	QPointer<QMediaPlayer> m_mediaPlayer;
 	QScopedPointer<QVideoSink> m_videoSink;
-	std::mutex m_frameMutex;
 	QVideoFrame m_frameVideo;
-	QVideoFrameFormat::PixelFormat m_framePixelFormat = QVideoFrameFormat::Format_Invalid;
-
-	bool m_bOpenGLFailed = false;
-
+	QString m_defaultBgImagePath;
+	QPixmap m_defaultBgImagePixmap;
+	QPixmap m_defaultPixmap;
 	PLSSceneTemplateBorderLabel *imageLabel;
 };

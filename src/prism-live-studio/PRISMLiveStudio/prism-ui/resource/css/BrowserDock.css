@@ -1,11 +1,19 @@
-PLSDock#browserDock {
-	qproperty-contentMarginLeft: /*hdpi*/ 0;
-	qproperty-contentMarginRight: /*hdpi*/ 0;
-	qproperty-contentMarginBottom: /*hdpi*/ 0;
+PLSDock#browserDock[floating="false"], 
+PLSDock#ncb2bDock[floating="false"], 
+PLSDock#youtubeLiveControlPanel[floating="false"]
+{
+	qproperty-contentMarginLeft:  1;
+	qproperty-contentMarginRight: 1;
+	qproperty-contentMarginBottom: 1;
 	background-color: #1e1e1f;
 }
-
-PLSDock#browserDock PLSDockTitle {
+PLSDock#browserDock, PLSDock#ncb2bDock{
+	qproperty-contentMarginLeft: 0;
+	qproperty-contentMarginRight: 0;
+	qproperty-contentMarginBottom: 0;
+	background-color: #1e1e1f;
+}
+PLSDock#browserDock PLSDockTitle, PLSDock#ncb2bDock PLSDockTitle{
 	qproperty-marginLeft: /*hdpi*/ 19;
 	qproperty-marginRight: /*hdpi*/ 9;
 	qproperty-contentSpacing: /*hdpi*/ 10;
@@ -15,7 +23,7 @@ PLSDock#browserDock PLSDockTitle {
 
 }
 
-PLSDock#browserDock {
+PLSDock#browserDock, PLSDock#ncb2bDock {
 	border-top:  1px solid #111111;
 	border-left:1px solid #111111;
 	border-bottom:  1px solid #111111;
@@ -26,14 +34,14 @@ PLSDock#browserDock {
 	min-height: /*hdpi*/ 132px;
 }
 
-PLSDock#browserDock[movingAndFloating="true"] {
+PLSDock#browserDock[movingAndFloating="true"], PLSDock#ncb2bDock[movingAndFloating="true"] {
 		border-top: 1px solid #effc35;
 		border-left:  1px solid #effc35;
 		border-bottom: 1px solid #effc35;
 		border-right:  1px solid #effc35;
 }
 
-#youtubeLiveControlPanel {
+PLSDock#youtubeLiveControlPanel {
 	border-top: 1px solid #111111;
 	border-left: 1px solid #111111;
 	border-bottom: 1px solid #111111;
@@ -41,12 +49,9 @@ PLSDock#browserDock[movingAndFloating="true"] {
 	background-color: #1e1e1f;
 	min-width: /*hdpi*/ 182px;
 	min-height: /*hdpi*/ 132px;
-	qproperty-contentMarginLeft: /*hdpi*/ 0;
-	qproperty-contentMarginRight: /*hdpi*/ 0;
-	qproperty-contentMarginBottom: /*hdpi*/ 0;
 }
 
-	#youtubeLiveControlPanel PLSDockTitle {
+PLSDock#youtubeLiveControlPanel PLSDockTitle {
 		qproperty-marginLeft: /*hdpi*/ 19;
 		qproperty-marginRight: /*hdpi*/ 9;
 		qproperty-contentSpacing: /*hdpi*/ 10;
@@ -55,7 +60,7 @@ PLSDock#browserDock[movingAndFloating="true"] {
 		border-bottom: /*hdpi*/ 1px solid #111111;
 	}
 
-	#youtubeLiveControlPanel[movingAndFloating="true"] {
+PLSDock#youtubeLiveControlPanel[movingAndFloating="true"] {
 		border-top: 1px solid #effc35;
 		border-left: 1px solid #effc35;
 		border-bottom: 1px solid #effc35;

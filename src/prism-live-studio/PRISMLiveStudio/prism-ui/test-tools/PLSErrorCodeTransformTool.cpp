@@ -2,8 +2,19 @@
 #include "ui_PLSErrorCodeTransformTool.h"
 #include <QFileDialog>
 #include <QProcess>
+#include <QStandardPaths>
 #include <libresource.h>
+#include "frontend-api.h"
 #include "obs-app.hpp"
+
+namespace {
+
+QString defaultErrorCodeTransformPythonExe()
+{
+	return pls_is_os_sys_macos() ? QStringLiteral("python3") : QStringLiteral("python");
+}
+
+} // namespace
 
 PLSErrorCodeTransformTool::PLSErrorCodeTransformTool(QWidget *parent) : PLSToolView<PLSErrorCodeTransformTool>(parent), ui(new Ui::PLSErrorCodeTransformTool)
 {
@@ -12,7 +23,8 @@ PLSErrorCodeTransformTool::PLSErrorCodeTransformTool(QWidget *parent) : PLSToolV
 	initSize(1200, 680);
 	setWindowTitle("Error Code Transform Tool");
 
-	m_defaultOutputPath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/errorCode.json"));
+	const QString appDirPath = pls_get_app_data_path_pn(QStringLiteral("resources/errorCode"));
+	m_defaultOutputPath = pls_get_app_user_data_dir_path_pn(QStringLiteral("resources/library/Library_Policy_PC/errorCode.json"), false);
 	ui->plainTextEdit_2->setPlaceholderText(QString("eg: %1").arg(m_defaultOutputPath));
 
 	QString placeholderText =
@@ -26,15 +38,28 @@ PLSErrorCodeTransformTool::PLSErrorCodeTransformTool(QWidget *parent) : PLSToolV
 		ui->plainTextEdit_2->setPlainText(m_defaultOutputPath);
 	}
 
+	const QString defaultPythonExe = defaultErrorCodeTransformPythonExe();
+	QString savedPython = QString(config_get_string(App()->GetUserConfig(), "ErrorCodeTransform", "PythonInterpreter")).trimmed();
+	ui->lineEdit_python->setText(savedPython.isEmpty() ? defaultPythonExe : savedPython);
+
 	connect(ui->pushButton, &QPushButton::clicked, this, [this]() {
 		auto tmp = ui->plainTextEdit->toPlainText().trimmed();
 		if (tmp.isEmpty()) {
 			tmp = QString(config_get_string(App()->GetUserConfig(), "ErrorCodeTransform", "InputFile")).trimmed();
 		}
+		if (tmp.isEmpty()) {
+			tmp = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+		}
 
-		QString imageFilePath = QFileDialog::getOpenFileName(this, tr("Browse"), QFileInfo(tmp).absolutePath(), "Excel Files (*.xlsx)");
+		QString startDir;
+		if (!tmp.isEmpty()) {
+			const QFileInfo fi(tmp);
+			startDir = fi.isDir() ? fi.absoluteFilePath() : fi.absolutePath();
+		}
+		QString imageFilePath = QFileDialog::getOpenFileName(this, tr("Browse"), startDir, "Excel Files (*.xlsx)");
 		if (!imageFilePath.isEmpty()) {
 			ui->plainTextEdit->setPlainText(imageFilePath);
+			config_set_string(App()->GetUserConfig(), "ErrorCodeTransform", "InputFile", imageFilePath.toUtf8().constData());
 		}
 #ifdef Q_OS_MACOS
 		pls_bring_mac_window_to_front(winId());
@@ -49,16 +74,38 @@ PLSErrorCodeTransformTool::PLSErrorCodeTransformTool(QWidget *parent) : PLSToolV
 		QString imageFilePath = QFileDialog::getOpenFileName(this, tr("Browse"), QFileInfo(tmp).absolutePath(), "Excel Files (*.json)");
 		if (!imageFilePath.isEmpty()) {
 			ui->plainTextEdit_2->setPlainText(imageFilePath);
+			config_set_string(App()->GetUserConfig(), "ErrorCodeTransform", "OutputFile", imageFilePath.toUtf8().constData());
 		}
 #ifdef Q_OS_MACOS
 		pls_bring_mac_window_to_front(winId());
 #endif
 	});
 
-	connect(ui->pushButton_default, &QPushButton::clicked, this, [this]() { ui->plainTextEdit_2->setPlainText(m_defaultOutputPath); });
+	connect(ui->pushButton_default, &QPushButton::clicked, this, [this]() {
+		if (m_defaultOutputPath.isEmpty()) {
+			m_defaultOutputPath = PLS_RSM_getLibraryPolicy_Path(QStringLiteral("Library_Policy_PC/errorCode.json"));
+		}
+		ui->plainTextEdit_2->setPlainText(m_defaultOutputPath);
+		config_set_string(App()->GetUserConfig(), "ErrorCodeTransform", "OutputFile", m_defaultOutputPath.toUtf8().constData());
+	});
 
 	connect(ui->pushButton_start, &QPushButton::clicked, this, &PLSErrorCodeTransformTool::startTransform);
 	connect(ui->pushButton_clear, &QPushButton::clicked, this, [this]() { ui->textEdit->clear(); });
+
+	connect(ui->pushButton_test, &QPushButton::clicked, this, &PLSErrorCodeTransformTool::testPrismCodeAlert);
+	connect(ui->lineEdit_prismCode, &QLineEdit::returnPressed, this, &PLSErrorCodeTransformTool::testPrismCodeAlert);
+}
+
+void PLSErrorCodeTransformTool::testPrismCodeAlert()
+{
+	bool ok = false;
+	const int code = ui->lineEdit_prismCode->text().trimmed().toInt(&ok);
+	if (!ok) {
+		ui->textEdit->append(tr("[test] Invalid prism code: enter a decimal integer."));
+		return;
+	}
+	PLSErrorHandler::showAlertByPrismCode(static_cast<PLSErrorHandler::ErrCode>(code), PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("ErrorCodeTransformTool test alert"), this);
+	ui->textEdit->append(tr("[test] Prism code %1: alert dialog shown.").arg(code));
 }
 
 void PLSErrorCodeTransformTool::startTransform()
@@ -84,13 +131,30 @@ void PLSErrorCodeTransformTool::startTransform()
 	process.setWorkingDirectory(path);
 	auto args = QStringList() << "errorExcel2Json.py"
 				  << "-o" << outputFile << "-i" << inputFile << "--fromui";
-	QString exe = pls_is_os_sys_macos() ? "python3" : "python";
+	QString exe = ui->lineEdit_python->text().trimmed();
+	if (exe.isEmpty()) {
+		exe = defaultErrorCodeTransformPythonExe();
+	}
+	process.setProcessChannelMode(QProcess::MergedChannels);
 	process.start(exe, args);
-	qDebug() << "cmd: " << QString("cd %1 && %2 errorExcel2Json.py -o \"%3\" -i \"%4\" --fromui").arg(path).arg(exe).arg(outputFile).arg(inputFile);
+	qDebug() << "cmd: " << QString("%1 %2/errorExcel2Json.py -o \"%3\" -i \"%4\" --fromui").arg(exe, path, outputFile, inputFile);
 
-	while (process.waitForReadyRead()) {
-		while (process.canReadLine()) {
-			ui->textEdit->insertPlainText("\n" + process.readLine().trimmed());
+	constexpr int kStartTimeoutMs = 30000;
+	if (!process.waitForStarted(kStartTimeoutMs)) {
+		ui->textEdit->insertPlainText(QString("\nprocess failed to start: %1").arg(process.errorString()));
+		ui->textEdit->insertPlainText(QString("\nQProcess::ProcessError: %1").arg(static_cast<int>(process.error())));
+		ui->textEdit->insertPlainText("\nexitCode: N/A");
+		ui->textEdit->insertPlainText("\ndone: failed");
+		ui->textEdit->insertPlainText("\n---------\n");
+		return;
+	}
+
+	process.waitForFinished(-1);
+	const QString mergedOutput = QString::fromUtf8(process.readAllStandardOutput());
+	for (const QString &line : mergedOutput.split('\n')) {
+		const QString t = line.trimmed();
+		if (!t.isEmpty()) {
+			ui->textEdit->insertPlainText("\n" + t);
 		}
 	}
 	ui->textEdit->insertPlainText(QString("\nexitCode: %1").arg(process.exitCode()));
@@ -101,6 +165,7 @@ void PLSErrorCodeTransformTool::startTransform()
 	}
 	config_set_string(App()->GetUserConfig(), "ErrorCodeTransform", "InputFile", inputFile.toUtf8().constData());
 	config_set_string(App()->GetUserConfig(), "ErrorCodeTransform", "OutputFile", outputFile.toUtf8().constData());
+	config_set_string(App()->GetUserConfig(), "ErrorCodeTransform", "PythonInterpreter", exe.toUtf8().constData());
 
 	if (outputFile == m_defaultOutputPath) {
 		PLSErrorHandler::instance()->loadJson();

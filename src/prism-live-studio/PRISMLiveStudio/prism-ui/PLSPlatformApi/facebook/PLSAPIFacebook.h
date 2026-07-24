@@ -5,6 +5,10 @@
 #include "libhttp-client.h"
 #include "PLSErrorHandler.h"
 
+#if defined(Q_OS_WIN)
+class QLocalServer;
+#endif
+
 enum class PLSAPIFacebookType {
 	PLSFacebookSuccess,
 	PLSFacebookFailed,
@@ -76,6 +80,7 @@ struct FacebookPrivacyInfo {
 using MyRequestTypeFunction = std::function<void(const PLSErrorHandler::RetData &retData)>;
 using GetLongAccessTokenCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QString &accessToken)>;
 using GetUserInfoCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QString &username, const QString &imagePath, const QString &userId)>;
+using GetUserIdByTokenCallback = std::function<void(bool ok, const QString &userId)>;
 using GetMyGroupListCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QList<FacebookGroupInfo> &list)>;
 using GetMyPageListCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QList<FacebookPageInfo> &list)>;
 using GetMyGameListCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QList<FacebookGameInfo> &list)>;
@@ -95,6 +100,10 @@ public:
 	enum PLSAPI {
 		PLSAPIGetLongLiveUserAccessToken,
 		PLSAPIGetUserInfo,
+		// PRISM_PC-6311: separate request-type key from PLSAPIGetUserInfo so a token-explicit
+		// identity lookup (e.g. for a fresh, not-yet-associated OAuth login) never aborts, or
+		// gets aborted by, an in-flight getUserInfo() call for the currently loaded channel.
+		PLSAPIGetUserIdByToken,
 		PLSAPIGetMyGroupListRequest,
 		PLSAPIGetMyPageListRequest,
 		PLSAPIGetMyGameListRequest,
@@ -132,10 +141,26 @@ public:
 	};
 
 	static PLSAPIFacebook *instance();
-	void getLongLiveUserAccessToken(const GetLongAccessTokenCallback &onFinished);
-	void getUserInfo(const GetUserInfoCallback &onFinished);
-	void checkPermission(PLSAPI requestType, QStringList permission, const MyRequestTypeFunction &onFinished, QWidget *parent);
-	PLSErrorHandler::RetData checkPermissionSuccess(const QJsonObject &root, const QStringList &permissionList, PLSAPIFacebook::PLSAPI requestType, QWidget *parent) const;
+	// PRISM_PC-6311: both take the access token (and, for getUserInfo(), the channel UUID for its
+	// icon-cache lookup) explicitly instead of reading PLS_PLATFORM_FACEBOOK->getAccessToken()/
+	// getChannelUUID(): that macro always resolves to the FIRST Facebook platform instance in
+	// platformList, which is only correct by accident when at most one Facebook channel exists.
+	// With multiple connected Facebook channels, a caller refreshing any channel other than the
+	// first would otherwise silently exchange/fetch using the first channel's token and overwrite
+	// the intended channel with the first channel's identity.
+	void getLongLiveUserAccessToken(const QString &accessToken, const GetLongAccessTokenCallback &onFinished);
+	void getUserInfo(const QString &accessToken, const QString &channelUUID, const GetUserInfoCallback &onFinished);
+	// PRISM_PC-6311: same /me identity lookup as getUserInfo(), but takes the access token
+	// explicitly instead of reading PLS_PLATFORM_FACEBOOK->getAccessToken(), so it is safe to
+	// call for a fresh, not-yet-associated OAuth code without risking reading the wrong
+	// channel's token.
+	void getUserIdByToken(const QString &accessToken, const GetUserIdByTokenCallback &onFinished);
+	// onRequestingPermission (optional): invoked exactly once, right before opening the Facebook
+	// consent browser flow, i.e. only when the me/permissions pre-check finds a genuinely missing
+	// permission. Not invoked when the requested permissions are already all granted (the common
+	// fast path). Lets a caller (e.g. the GoLive button) disable itself only for the slow,
+	// browser-round-trip path instead of for every permission check.
+	void checkPermission(PLSAPI requestType, QStringList permission, const MyRequestTypeFunction &onFinished, QWidget *parent, const std::function<void()> &onRequestingPermission = nullptr);
 	void getMyGroupListRequestAndCheckPermission(const GetMyGroupListCallback &onFinished, QWidget *parent);
 	void getMyGroupListRequest(const GetMyGroupListCallback &onFinished);
 	void getMyPageListRequestAndCheckPermission(const GetMyPageListCallback &onFinished, QWidget *parent);
@@ -152,18 +177,33 @@ public:
 
 	static PLSErrorHandler::RetData makeRetData(PLSErrorHandler::ErrCode prismCode);
 	QString customErrorUpdateLiveinfoFailed() const { return QStringLiteral("UpdateLiveInfoFailedNoService"); }
+	// PRISM_PC-6307: invokes the pending callback synchronously and inline (never queued or
+	// deferred) if one is pending. Callers (e.g. PLSLiveInfoFacebook's timeout-suppression
+	// flag) rely on this to distinguish a synthesized cancellation from a later real one.
+	void cancelFacebookRequestPermission() const;
 
 private:
-	bool containsRequestPermissionList(const QString &url, const QStringList &requestPermissionList) const;
+	void checkPermissionSuccess(const QJsonObject &root, const QStringList &permissionList, PLSAPIFacebook::PLSAPI requestType, QWidget *parent, const MyRequestTypeFunction &onFinished,
+				     const std::function<void()> &onRequestingPermission) const;
 	static QString getFaceboolURL(const QString &endpoint);
 	QUrl getPermissionRequestUrl(const QString &permission) const;
-	bool goFacebookRequestPermission(const QStringList &permissionList, QWidget *parent) const;
+	void goFacebookRequestPermission(const QStringList &permissionList, QWidget *parent, std::function<void(bool)> callback) const;
 	void startRequestApi(PLSAPI requestType, const pls::http::Request &request, const MyRequestSuccessFunction &successFunction, const MyRequestTypeFunction &failedFunction);
 	PLSErrorHandler::RetData handleApiErrorCode(PLSAPI requestType, int statusCode, QByteArray data, QNetworkReply::NetworkError error) const;
 	const char *getApiName(PLSAPI requestType) const;
 	void printRequestStartLog(PLSAPI requestType, const QString &uri, const QString &log = QString()) const;
 	void printRequestSuccessLog(PLSAPI requestType, const QString &log = QString()) const;
+	QString downloadImageAsync(const QJsonObject &root);
 	QMap<PLSAPI, pls::http::Request> m_reply;
+
+	// PRISM_PC-6307: in-flight Facebook re-permission request state, so an external
+	// timeout can cancel it and the pending callback is only ever consumed once.
+#if defined(Q_OS_WIN)
+	mutable QLocalServer *m_permissionServer = nullptr;
+#elif defined(Q_OS_MACOS)
+	mutable QMetaObject::Connection *m_permissionConnPtr = nullptr;
+#endif
+	mutable std::function<void(bool)> m_permissionCallback;
 };
 
 #endif // PLSAPIFacebook_H

@@ -246,6 +246,7 @@ void PLSAudioControl::UpdateMasterSwitch(bool mute)
 			break;
 		}
 	}
+
 	if (PLSBasic::instance()->getApi()) {
 		PLSBasic::instance()->getApi()->on_event(pls_frontend_event::PLS_FRONTEND_EVENT_ALL_MUTE, {mute});
 	}

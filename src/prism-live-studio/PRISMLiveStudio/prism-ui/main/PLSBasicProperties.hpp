@@ -1,6 +1,7 @@
 #pragma once
 
 #include "window-basic-properties.hpp"
+#include <pls/pls-obs-api.h>
 
 class PLSBasicProperties;
 class PLSPropertiesView;
@@ -13,6 +14,10 @@ public:
 	PLSBasicProperties(QWidget *parent, OBSSource source_, unsigned flag);
 	~PLSBasicProperties();
 	void cancelSavePropertyData();
+
+	//PRISM/FanZirong/20251103/PRISM_PC-3577/source capture failed guidance
+	void setFailedCode(obs_source_failed_status_sub_code code);
+	obs_source_failed_status_sub_code getFailedCode();
 
 signals:
 	void OpenMusicButtonClicked();
@@ -27,6 +32,7 @@ protected:
 	void resizeEvent(QResizeEvent *event) override;
 	void moveEvent(QMoveEvent *event) override;
 	void showEvent(QShowEvent *event) override;
+	bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
 	void onReloadOldSettings() const;
@@ -38,7 +44,6 @@ private:
 	void HideLoading();
 	void AsyncLoadTextmotionProperties();
 	void asyncLoadChatWidgetproperties();
-	void ShowMobileNotice();
 	void ShowPrismLensNaverRunNotice(bool isMobileSource);
 
 	QLabel *labelQRImage;
@@ -49,6 +54,7 @@ public slots:
 	void setToastMessage(const QString &message);
 	void showGuideText(const QString &guideText);
 	void hideGuideText();
+	void setFailureState(const QString &failedText, bool needLoading);
 
 private:
 	QLabel *imagePreview;
@@ -61,6 +67,9 @@ private:
 	QWidget *toast = nullptr;
 	QLabel *toastLabel = nullptr;
 	QPushButton *toastButton = nullptr;
+
+	//PRISM/FanZirong/20251103/PRISM_PC-3577/source capture failed guidance
+	obs_source_failed_status_sub_code failedCode = OBS_SOURCE_STATUS_SUCCESS;
 
 	static void UpdatePropertiesOkButtonEnable(void *data, calldata_t *params);
 	static void PropertyUpdateNotify(void *data, calldata_t *params);

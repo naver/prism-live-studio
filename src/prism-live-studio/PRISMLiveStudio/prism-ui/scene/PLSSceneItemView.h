@@ -19,11 +19,6 @@ template<typename PLSRef> struct SignalContainer {
 	std::vector<std::shared_ptr<OBSSignal>> handlers;
 };
 
-enum class DisplayMethod {
-	DynamicRealtimeView = 0,
-	ThumbnailView,
-	TextView,
-};
 enum class MouseState {
 	None,
 	Normal,
@@ -48,11 +43,14 @@ struct texture_info {
 namespace Ui {
 class PLSSceneItemView;
 }
-
+class PLSPreviewMaskWidget;
 class PLSSceneItemView;
 class PLSSceneDisplay : public OBSQTDisplay {
 	Q_OBJECT
 public:
+	enum class DisplayMethod { TextView = 0, ThumbnailView, InvalidMethod };
+	Q_ENUM(DisplayMethod)
+
 	explicit PLSSceneDisplay(QWidget *parent = nullptr);
 	~PLSSceneDisplay() final;
 	PLSSceneDisplay(const PLSSceneDisplay &) = delete;
@@ -68,6 +66,7 @@ public:
 	void CustomCreateDisplay();
 	void SetRefreshThumbnail(bool refresh);
 	bool GetRefreshThumbnail();
+	bool getForceRealtimeRendering();
 	void SetSceneDisplayMethod(DisplayMethod displayMethod);
 	bool TestSceneDisplayMethod(DisplayMethod displayMethod);
 	void AddRenderCallback();
@@ -90,6 +89,7 @@ public:
 	QSize GetWidgetSize() override;
 	void ResizeDisplay();
 	void SetDpi(float dpi);
+	void clearHoverState();
 
 protected:
 	void mousePressEvent(QMouseEvent *event) override;
@@ -99,6 +99,7 @@ protected:
 	void resizeEvent(QResizeEvent *event) override;
 	void mouseMoveEvent(QMouseEvent *event) override;
 	void changeEvent(QEvent *event) override;
+	void focusOutEvent(QFocusEvent *event) override;
 
 private:
 	static void RenderScene(void *data, uint32_t cx, uint32_t cy);
@@ -110,6 +111,7 @@ private:
 private slots:
 	void OnDisplayCreated();
 	void CaptureImageFinished(const QImage &image);
+	void SizeChanged(int x, int y, int cx, int cy);
 
 signals:
 	void MouseLeftButtonClicked();
@@ -117,6 +119,8 @@ signals:
 	void CaptureImageFinishedSignal(const QImage &image);
 	void CaptureSceneImageSignal(const QImage &image);
 	void DeleteBtnClicked();
+	void SizeChangedSignal(int x, int y, int cx, int cy);
+	void focusLost();
 
 private:
 	bool render{false};
@@ -129,13 +133,13 @@ private:
 	bool btn_visible{false};
 	std::atomic_bool isHover{false};
 	std::mutex mutex;
-
 	OBSScene scene;
 	PLSSceneItemView *parent{};
 	QPoint startPos{};
 
 	// scene display method
 	bool refreshThumbnail{true};
+	bool m_forceRealtimeRendering{false};
 	DisplayMethod displayMethod{DisplayMethod::TextView};
 	uint64_t curDisplay;
 	// static thumbnail texture
@@ -164,6 +168,8 @@ private:
 	double dpi = 1.0;
 };
 
+using DisplayMethod = PLSSceneDisplay::DisplayMethod;
+
 class PLSSceneItemView : public QFrame {
 	Q_OBJECT
 public:
@@ -185,9 +191,10 @@ public:
 	QString GetName() const;
 	SignalContainer<OBSScene> GetSignalHandler() const;
 	bool GetCurrentFlag() const;
-	void RefreshSceneThumbnail() const;
+	void RefreshSceneThumbnail(bool refresh = true) const;
 	void RepaintDisplay();
 	void SetDpi(float dpi);
+	void clearSceneItemHover();
 
 	// set status badge
 	void SetStatusBadge();
@@ -204,6 +211,7 @@ protected:
 	void resizeEvent(QResizeEvent *event) override;
 	void enterEvent(QEnterEvent *event) override;
 	void leaveEvent(QEvent *event) override;
+	void focusOutEvent(QFocusEvent *event) override;
 
 private slots:
 	void OnMouseButtonClicked();
@@ -212,6 +220,9 @@ private slots:
 	void OnFinishingEditName(bool cancel);
 	void SetContentMargins(bool state) const;
 	void OnCaptureImageFinished(const QImage &image);
+	void OnSizeChanged(int x, int y, int cx, int cy);
+	void HandleResizeTrackerBeginEvent();
+	void HandleResizeTrackerEndEvent();
 
 private:
 	void setEnterPropertyState(bool state, QWidget *widget) const;
@@ -249,6 +260,8 @@ private:
 	QPoint startPos;
 	DisplayMethod displayMethod{DisplayMethod::TextView};
 	BadgeType badgeType;
+
+	QPointer<PLSPreviewMaskWidget> sceneDisplayMaskWidget;
 };
 
 #endif // PLSSCENEITEMVIEW_H

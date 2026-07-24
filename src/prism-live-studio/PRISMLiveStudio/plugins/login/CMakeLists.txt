@@ -1,0 +1,10 @@
+add_subdirectory(band-login)
+add_subdirectory(afreecatv-login)
+add_subdirectory(facebook-login)
+add_subdirectory(navertv-login)
+add_subdirectory(twitch-login)
+add_subdirectory(youtube-login)
+add_subdirectory(naver-shopping-live-login)
+add_subdirectory(ncb2b-login)
+add_subdirectory(chzzk-login)
+

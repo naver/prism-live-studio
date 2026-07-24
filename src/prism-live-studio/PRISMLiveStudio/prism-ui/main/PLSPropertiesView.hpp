@@ -1,7 +1,11 @@
 #pragma once
 
 #include "properties-view.hpp"
+#include "PLSLoadingButton.h"
 #include <QFontDatabase>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <QFormLayout>
 
 class QButtonGroup;
 class QFormLayout;
@@ -90,38 +94,42 @@ private:
 	void colorToolButtonChanged(const char *setting);
 };
 
+struct PLSPropertiesData {
+	int minSize = 0;
+	int maxSize = -1;
+	bool showFiltersBtn = false;
+	bool showColorFilterPath = true;
+	bool colorFilterOriginalPressed = false;
+	bool refreshProperties = true;
+	bool reloadPropertyOnInit = false;
+	bool bChzzkKeyframeTip = false;
+	bool bFromSetting = false;
+};
+
 class PLSPropertiesView : public OBSPropertiesView {
 	Q_OBJECT
 
 	friend class WidgetInfo;
 	friend class PLSWidgetInfo;
+	friend class PLSVbChromakey;
 
 public:
-	PLSPropertiesView(OBSData settings, obs_object_t *obj, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, PropertiesVisualUpdateCb cb = nullptr, int minSize = 0,
-			  int maxSize = -1, bool showFiltersBtn = false, bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true,
-			  bool reloadPropertyOnInit = true);
-	PLSPropertiesView(OBSData settings, void *obj, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, PropertiesVisualUpdateCb cb = nullptr, int minSize = 0,
-			  int maxSize = -1, bool showFiltersBtn = false, bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true,
-			  bool reloadPropertyOnInit = true);
+	PLSPropertiesView(OBSData settings, obs_object_t *obj, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, PropertiesVisualUpdateCb cb = nullptr,
+			  const PLSPropertiesData &pData = {});
+	PLSPropertiesView(OBSData settings, void *obj, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, PropertiesVisualUpdateCb cb = nullptr,
+			  const PLSPropertiesData &pData = {});
 	PLSPropertiesView(const QWidget *parent, OBSData settings, obs_object_t *obj, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, PropertiesVisualUpdateCb cb = nullptr,
-			  int minSize = 0, int maxSize = -1, bool showFiltersBtn = false, bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true,
-			  bool reloadPropertyOnInit = true);
+			  const PLSPropertiesData &pData = {});
 	PLSPropertiesView(const QWidget *parent, OBSData settings, void *obj, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, PropertiesVisualUpdateCb cb = nullptr,
-			  int minSize = 0, int maxSize = -1, bool showFiltersBtn = false, bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true,
-			  bool reloadPropertyOnInit = true);
-	PLSPropertiesView(OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, int minSize = 0, int maxSize = -1, bool showFiltersBtn = false, bool showColorFilterPath = true,
-			  bool colorFilterOriginalPressed = false, bool refreshProperties = true, bool reloadPropertyOnInit = true);
-	PLSPropertiesView(OBSBasicSettings *basicSettings, OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, int minSize = 0, int maxSize = -1, bool showFiltersBtn = false,
-			  bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true, bool reloadPropertyOnInit = true, bool bChzzkKeyframeTip = false,
-			  bool bFromSetting = false);
+			  const PLSPropertiesData &pData = {});
+	PLSPropertiesView(OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, const PLSPropertiesData &pData = {});
+	PLSPropertiesView(OBSBasicSettings *basicSettings, OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, const PLSPropertiesData &pData = {});
 	~PLSPropertiesView() override;
 
 #define obj_constructor(type)                                                                                                                                                               \
 	inline PLSPropertiesView(OBSData settings, obs_##type##_t *type, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, PropertiesVisualUpdateCb cb = nullptr, \
-				 int minSize = 0, int maxSize = -1, bool showFiltersBtn = false, bool showColorFilterPath = true, bool colorFilterOriginalPressed = false,                  \
-				 bool refreshProperties = true, bool reloadPropertyOnInit = true)                                                                                           \
-		: PLSPropertiesView(settings, (obs_object_t *)type, reloadCallback, callback, cb, minSize, maxSize, showFiltersBtn, colorFilterOriginalPressed, refreshProperties,          \
-				    reloadPropertyOnInit)                                                                                                                                   \
+				 const PLSPropertiesData &pData = {})                                                                                                                       \
+		: PLSPropertiesView(settings, (obs_object_t *)type, reloadCallback, callback, cb, pData)                                                                                    \
 	{                                                                                                                                                                                   \
 	}
 
@@ -144,6 +152,8 @@ public:
 	void CheckValues();
 
 	void addWidgetToBottom(QWidget *addWid);
+
+	void printRefreshUILog(bool isRefreshed) override;
 
 public slots:
 	void ReloadProperties() override;
@@ -168,13 +178,14 @@ signals:
 protected:
 	void AddProperty(obs_property_t *property, QFormLayout *layout) override;
 	QWidget *AddList(obs_property_t *prop, bool &warning) override;
+	void HookLoadingEvent(QPointer<PLSLoadingButton> openLensBtn) override;
+
+	int GetCurrentLensIndex();
+	void AddVbChromakey(QWidget *parent, QFormLayout *formLayout) override;
 
 private:
-	OBSSource m_source;
-	int maxSize;
-	bool showColorFilterPath = true;
+	OBSSource m_source = nullptr;
 	bool isColorFilter = false;
-	bool colorFilterOriginalPressed = false;
 	bool isForPropertyWindow = false;
 	bool resolutionChanged = false; // zhangdewen check camera(dshow) resolution changed
 	SliderIgnoreScroll *sliderView{};
@@ -193,9 +204,9 @@ private:
 	OBSBasicSettings *m_basicSettings = nullptr;
 	QList<QPointer<PLSCheckBox>> m_platfromCheckBoxs;
 
-	bool m_bChzzkKeyframeTip = false;
+	PLSPropertiesData m_propertiesData{};
 
-	void setInitData(bool showFiltersBtn_, bool refreshProperties_, bool reloadPropertyOnInit_);
+	void setInitData();
 	void AddMobileGuider(obs_property_t *prop, QFormLayout *layout);
 	void AddHLine(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 	void AddRadioButtonGroup(obs_property_t *prop, QFormLayout *layout);
@@ -215,12 +226,12 @@ private:
 	void AddTmTextContent(obs_property_t *prop, QFormLayout *layout);
 	void AddTmColor(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 	void AddTmMotion(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
-	void AddDefaultText(obs_property_t *prop, QFormLayout *layout, QLabel *&label) const;
+	void AddDefaultText(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 
 	QWidget *AddSelectRegion(obs_property_t *prop, bool &warning);
 	void AddImageGroup(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 	void AddvirtualCustomGroup(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
-	QWidget *addIntForCustomGroup(obs_property_t *prop, int index);
+	PLSSpinBox *addIntForCustomGroup(obs_property_t *prop, int index);
 	void AddPrismCheckbox(obs_property_t *prop, QFormLayout *layout, Qt::LayoutDirection layoutDirection);
 	void AddCameraVirtualBackgroundState(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 	void AddVirtualBackgroundResource(obs_property_t *prop, QBoxLayout *layout);
@@ -245,29 +256,32 @@ private:
 
 	void AddInt(obs_property_t *prop, QFormLayout *layout, QLabel **label) override;
 
+	//PRISM/FanZirong/20251103/PRISM_PC-3577/source capture failed guidance
+	void addCaptureGuide(obs_property_t *prop, QFormLayout *layout);
+
 	/*tm ui*/
-	void creatColorList(obs_property_t *prop, QGridLayout *&hLayout, int index, const long long colorValue, const QString &colorList);
-	void createTMSlider(obs_property_t *prop, int propertyValue, int minVal, int maxVal, int stepVal, int val, QHBoxLayout *&hLayout, bool isSuffix, bool isEnable = true,
+	void creatColorList(QString resumeID, obs_property_t *prop, QGridLayout *&hLayout, int index, const long long colorValue, const QString &colorList);
+	void createTMSlider(QString resumeID, obs_property_t *prop, int propertyValue, int minVal, int maxVal, int stepVal, int val, QHBoxLayout *&hLayout, bool isSuffix, bool isEnable = true,
 			    bool isShowSliderIcon = false, const QString &sliderName = QString(), int indexOffset = 0);
 	void createTMSlider(SliderIgnoreScroll *&slider, PLSSpinBox *&spinBox, obs_property_t *prop, int minVal, int maxVal, int stepVal, int val, QHBoxLayout *&hLayout, bool isSuffix,
 			    bool isEnable = true);
-	void createTMColorCheckBox(PLSCheckBox *&controlCheckBox, obs_property_t *prop, QFrame *&frame, int index, const QString &labelName, const QHBoxLayout *layout, bool isControlOn,
-				   bool isControl);
-	void createColorButton(obs_property_t *prop, QGridLayout *&gLayout, const PLSCheckBox *checkBox, const QString &opationName, int index, bool isSuffix, bool isEnable, int indexOffset = 0);
+	void createTMColorCheckBox(QString resumeID, PLSCheckBox *&controlCheckBox, obs_property_t *prop, QFrame *&frame, int index, const QString &labelName, const QHBoxLayout *layout,
+				   bool isControlOn, bool isControl);
+	void createColorButton(QString resumeID, obs_property_t *prop, QGridLayout *&gLayout, const PLSCheckBox *checkBox, const QString &opationName, int index, bool isSuffix, bool isEnable,
+			       int indexOffset = 0);
 	void setLabelColor(QLabel *label, const long long colorValue, const int alaphValue, bool frameStyle = true) const;
 	void getTmColor(obs_data_t *textData, int tabIndex, bool &isControlOn, bool &isColor, long long &color, bool &isAlaph, int &alaph, int indexOffset = 0) const;
-	void createTMButton(const int buttonCount, obs_data_t *textData, QHBoxLayout *&hLayout, QButtonGroup *&group, ButtonType buttonType, const QStringList &buttonObjs = QStringList(),
-			    bool isShowText = false, bool isAutoExclusive = true) const;
-	void createRadioButton(const int buttonCount, obs_data_t *textData, QHBoxLayout *&hLayout, PLSRadioButtonGroup *&group, const QStringList &buttonObjs = QStringList(), bool isShowText = false,
-			       QWidget *parent = nullptr);
+	void createTMButton(QString resumeID, const int buttonCount, obs_data_t *textData, QHBoxLayout *&hLayout, QButtonGroup *&group, ButtonType buttonType,
+			    const QStringList &buttonObjs = QStringList(), bool isShowText = false, bool isAutoExclusive = true);
+	void createRadioButton(QString resumeID, const int buttonCount, obs_data_t *textData, QHBoxLayout *&hLayout, PLSRadioButtonGroup *&group, const QStringList &buttonObjs = QStringList(),
+			       bool isShowText = false, QWidget *parent = nullptr);
 	void creatTMTextWidget(obs_property_t *prop, const int textCount, obs_data_t *textData, QHBoxLayout *&hLayout);
 	void updateTMTemplateButtons(const int templateTabIndex, const QString &templateTabName, QGridLayout *gLayout);
 	void updateCTTemplateButtons(const int templateTabIndex, const QString &tempalteTabName, QGridLayout *glayout);
 	void updateFontSytle(const QString &family, PLSComboBox *fontStyleBox) const;
 	void setLayoutEnable(const QLayout *layout, bool isEnable);
 	void createColorTemplate(obs_property_t *prop, QLabel *colorLabel, QPushButton *button, QHBoxLayout *subLayout);
-	void setPlaceholderColor_666666(QWidget *widget) const;
-	QHBoxLayout *createColorButtonNoSlider(obs_property_t *prop, long long colorValue, int colorAlpha, int index);
+	QHBoxLayout *createColorButtonNoSlider(QString resumeID, obs_property_t *prop, long long colorValue, int colorAlpha, int index, const QString &colorButtonName);
 	void ShowLoading();
 	void HideLoading();
 	void AddChzzkSponsor(obs_property_t *prop, QFormLayout *layout);

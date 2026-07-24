@@ -25,6 +25,8 @@
 #include <QFileDialog>
 
 #include <qt-wrappers.hpp>
+#include "PLSErrorHandler.h"
+#include "frontend-api.h"
 
 enum MissingFilesColumn {
 	Source,
@@ -254,7 +256,7 @@ QVariant MissingFilesModel::data(const QModelIndex &index, int role) const
 		}
 	} else if (role == Qt::DecorationRole && index.column() == MissingFilesColumn::Source) {
 		OBSBasic *main = reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
-		OBSSourceAutoRelease source = obs_get_source_by_name(files[index.row()].source.toStdString().c_str());
+		OBSSourceAutoRelease source = obs_get_source_by_name(files[index.row()].source.toUtf8().constData());
 
 		if (source) {
 			result = main->GetSourceIcon(obs_source_get_id(source));
@@ -330,13 +332,14 @@ void MissingFilesModel::fileCheckLoop(QList<MissingFileEntry> files, QString pat
 		QString filename = origFile.fileName();
 		QString testFile = dir + filename;
 
-		if (os_file_exists(testFile.toStdString().c_str())) {
+		if (os_file_exists(testFile.toUtf8().constData())) {
 			if (!prompted) {
-				QMessageBox::StandardButton button =
-					OBSMessageBox::question(nullptr, QTStr("MissingFiles.AutoSearch"),
-								QTStr("MissingFiles.AutoSearchText"));
-
-				if (button == QMessageBox::No)
+				const PLSErrorHandler::RetData ret = PLSErrorHandler::showAlertByPrismCode(
+					PLSErrorHandler::ALERT_MISSINGFILES_AUTOSEARCHTEXT, PLSErrKeyAllAlert,
+					QString(),
+					PLSErrorHandler::ExtraData(QStringLiteral("MissingFilesModel::fileCheckLoop")),
+					nullptr);
+				if (ret.clickedBtn != PLSAlertView::Button::Yes)
 					break;
 
 				prompted = true;
@@ -431,8 +434,8 @@ OBSMissingFiles::OBSMissingFiles(obs_missing_files_t *files, QWidget *parent)
 	setupUi(ui);
 	pls_add_css(this, {"QToolButton"});
 
-	setMinimumSize(700, pls_is_os_sys_macos() ? 372 : 400);
-	initSize(848, pls_is_os_sys_macos() ? 502 : 530);
+	setMinimumSize(700, pls_is_os_sys_macos() ? (400 - PLS_TITLE_BAR_HEIGHT) : 400);
+	initSize(848, pls_is_os_sys_macos() ? (530 - -PLS_TITLE_BAR_HEIGHT) : 530);
 
 	ui->tableView->setModel(filesModel);
 	ui->tableView->setItemDelegateForColumn(MissingFilesColumn::OriginalPath,
@@ -504,7 +507,7 @@ void OBSMissingFiles::saveFiles()
 			if (state == MissingFilesState::Cleared) {
 				obs_missing_file_issue_callback(f, "");
 			} else {
-				char *p = bstrdup(path.toStdString().c_str());
+				char *p = bstrdup(path.toUtf8().constData());
 				obs_missing_file_issue_callback(f, p);
 				bfree(p);
 			}

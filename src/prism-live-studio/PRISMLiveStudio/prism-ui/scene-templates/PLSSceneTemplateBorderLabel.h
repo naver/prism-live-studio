@@ -18,6 +18,7 @@ public:
 	void setSceneNameLabel(const QString &sceneName);
 
 	void showAIBadge(const QPixmap &pixmap, bool bLongAIBadge);
+	void showPlusBadge(const QPixmap &pixmap);
 
 private:
 	Ui::PLSSceneTemplateBorderLabel *ui;

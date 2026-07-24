@@ -24,6 +24,7 @@ PLSLoadingComboxMenu::PLSLoadingComboxMenu(QWidget *parent) : QMenu(parent)
 	this->installEventFilter(this);
 	pls_add_css(this, {"PLSLoadingComboxMenu"});
 	setWindowFlags(windowFlags() | Qt::NoDropShadowWindowHint);
+	pls_uistep_v2_enable(m_listWidget, PLS_UI_STEPS_V2_SIGNAL_CURRENTITEMCHANGED, false);
 }
 
 PLSLoadingComboxMenu::~PLSLoadingComboxMenu()

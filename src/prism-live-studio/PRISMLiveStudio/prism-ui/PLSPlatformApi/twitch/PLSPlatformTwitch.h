@@ -1,7 +1,6 @@
 /*
 * @file		PLSPlatformTwitch.h
 * @brief	All twitch relevant api is implemented in this file
-* @author	wu.longyue@navercorp.com
 * @date		2020-01-06
 */
 
@@ -15,6 +14,7 @@
 #include "PLSErrorHandler.h"
 
 using streamKeyCallback = std::function<void(bool isSuccess)>;
+using refreshTokenCallback = std::function<void(bool isRefreshok)>;
 class PLSPlatformTwitch : public PLSPlatformBase {
 	Q_OBJECT
 
@@ -45,6 +45,11 @@ public:
 	QString getServiceLiveLinkEnc() override;
 	void requestStreamKey(bool showAlert, const streamKeyCallback &callback);
 	void getChannelInfo(const std::function<void(bool)> &channelInfoCallback);
+	void pollingCheckToken(bool isFoceUpdate = false, const refreshTokenCallback &callback = nullptr);
+
+protected:
+	void onResumeStreaming(const QMap<QString, QVariant> &params) override;
+	QMap<QString, QVariant> getResumeStreamingParams() const override;
 
 signals:
 	void onGetChannel(PLSPlatformApiResult);

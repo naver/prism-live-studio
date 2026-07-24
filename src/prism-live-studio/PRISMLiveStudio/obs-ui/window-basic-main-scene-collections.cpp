@@ -33,6 +33,7 @@
 #include "log/module_names.h"
 #include "libutils-api.h"
 #include "PLSSceneDataMgr.h"
+#include "PLSErrorHandler.h"
 
 // MARK: Constant Expressions
 
@@ -301,20 +302,20 @@ void duplicateScene(bool &duplicateCurrentFlag, const std::string &name, const s
 		duplicateCurrentFlag = true;
 	} else {
 		QString dupPath = pls_get_user_path("PRISMLiveStudio/basic/scenes/")
-					  .append(dupFile.toStdString().c_str())
+					  .append(dupFile.toUtf8().constData())
 					  .append(".json");
 		QString newPath =
 			pls_get_user_path("PRISMLiveStudio/basic/scenes/").append(file.c_str()).append(".json");
-		int res = os_copyfile(dupPath.toStdString().c_str(), newPath.toStdString().c_str());
+		int res = os_copyfile(dupPath.toUtf8().constData(), newPath.toUtf8().constData());
 		if (res == 0) {
-			OBSData scenedata = obs_data_create_from_json_file(newPath.toStdString().c_str());
+			OBSData scenedata = obs_data_create_from_json_file(newPath.toUtf8().constData());
 			obs_data_release(scenedata);
 			obs_data_set_string(scenedata, "name", name.c_str());
-			obs_data_save_json_safe(scenedata, newPath.toStdString().c_str(), "tmp", "bak");
+			obs_data_save_json_safe(scenedata, newPath.toUtf8().constData(), "tmp", "bak");
 		} else {
 			PLS_WARN(MAIN_SCENE_COLLECTION, "CopyCollection: Failed to copy file %s to %s",
-				 pls_get_path_file_name(dupPath.toStdString().c_str()),
-				 pls_get_path_file_name(newPath.toStdString().c_str()));
+				 pls_get_path_file_name(dupPath.toUtf8().constData()),
+				 pls_get_path_file_name(newPath.toUtf8().constData()));
 		}
 	}
 }
@@ -350,8 +351,8 @@ bool OBSBasic::AddSceneCollection(bool create_new, QWidget *parent, const QStrin
 			config_set_string(App()->GetUserConfig(), "Basic", "SceneCollection", name.c_str());
 			config_set_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile", file.c_str());
 			CreateDefaultScene(true);
-			ui->scenesFrame->StartRefreshThumbnailTimer();
 			obs_display_add_draw_callback(ui->preview->GetDisplay(), OBSBasic::RenderMain, this);
+			ui->preview->show();
 		}
 
 		SaveProjectNow();
@@ -661,7 +662,7 @@ QString OBSBasic::getSceneCollectionFilePath(const QString &name) const
 void OBSBasic::on_actionExportSceneCollection_triggered_with_path(const QString &name, const QString &fileName,
 								  QWidget *parent)
 {
-	ExportSceneCollection(name, fileName, parent, true);
+	ExportSceneCollection(name, fileName, parent, false);
 }
 
 void OBSBasic::ChangeSceneCollection()
@@ -692,6 +693,7 @@ void OBSBasic::ChangeSceneCollection()
 	const char *newFile = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile");
 
 	blog(LOG_INFO, "Switched to scene collection '%s' (%s.json)", newName, newFile);
+	PLS_UI_ACTION("Switched to scene collection '%s' (%s.json)", newName, newFile);
 	blog(LOG_INFO, "------------------------------------------------");
 
 	UpdateTitleBar();
@@ -701,15 +703,22 @@ void OBSBasic::ChangeSceneCollection()
 void OBSBasic::on_actionRemigrateSceneCollection_triggered()
 {
 	if (Active()) {
-		OBSMessageBox::warning(this, QTStr("Basic.Main.RemigrateSceneCollection.Title"),
-				       QTStr("Basic.Main.RemigrateSceneCollection.CannotMigrate.Active"));
+		PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ALERT_BASIC_MAIN_REMIGRATESCENECOLLECTION_CANNOTMIGRATE_ACTIVE,
+			PLSErrKeyAllAlert, QString(),
+			PLSErrorHandler::ExtraData(
+				QStringLiteral("OBSBasic::on_actionRemigrateSceneCollection_triggered.Active")),
+			this);
 		return;
 	}
 
 	if (!usingAbsoluteCoordinates && !migrationBaseResolution) {
-		OBSMessageBox::warning(
-			this, QTStr("Basic.Main.RemigrateSceneCollection.Title"),
-			QTStr("Basic.Main.RemigrateSceneCollection.CannotMigrate.UnknownBaseResolution"));
+		PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ALERT_BASIC_MAIN_REMIGRATESCENECOLLECTION_CANNOTMIGRATE_UNKNOWNBASERESOLUTION,
+			PLSErrKeyAllAlert, QString(),
+			PLSErrorHandler::ExtraData(QStringLiteral(
+				"OBSBasic::on_actionRemigrateSceneCollection_triggered.UnknownBaseResolution")),
+			this);
 		return;
 	}
 
@@ -718,19 +727,26 @@ void OBSBasic::on_actionRemigrateSceneCollection_triggered()
 
 	if (!usingAbsoluteCoordinates && migrationBaseResolution->first == ovi.base_width &&
 	    migrationBaseResolution->second == ovi.base_height) {
-		OBSMessageBox::warning(
-			this, QTStr("Basic.Main.RemigrateSceneCollection.Title"),
-			QTStr("Basic.Main.RemigrateSceneCollection.CannotMigrate.BaseResolutionMatches"));
+		PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ALERT_BASIC_MAIN_REMIGRATESCENECOLLECTION_CANNOTMIGRATE_BASERESOLUTIONMATCHES,
+			PLSErrKeyAllAlert, QString(),
+			PLSErrorHandler::ExtraData(QStringLiteral(
+				"OBSBasic::on_actionRemigrateSceneCollection_triggered.BaseResolutionMatches")),
+			this);
 		return;
 	}
 
 	const char *name = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
-	QString message =
-		QTStr("Basic.Main.RemigrateSceneCollection.Text").arg(name).arg(ovi.base_width).arg(ovi.base_height);
 
-	auto answer = OBSMessageBox::question(this, QTStr("Basic.Main.RemigrateSceneCollection.Title"), message);
+	PLSErrorHandler::ExtraData extraConfirm(
+		QStringLiteral("OBSBasic::on_actionRemigrateSceneCollection_triggered"));
+	extraConfirm.defaultArg =
+		QStringList{QString::fromUtf8(name), QString::number(ovi.base_width), QString::number(ovi.base_height)};
+	const PLSErrorHandler::RetData ret =
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_BASIC_MAIN_REMIGRATESCENECOLLECTION_TEXT,
+						      PLSErrKeyAllAlert, QString(), extraConfirm, this);
 
-	if (answer == QMessageBox::No)
+	if (ret.clickedBtn != PLSAlertView::Button::Yes)
 		return;
 
 	lastOutputResolution = {ovi.base_width, ovi.base_height};
@@ -741,9 +757,12 @@ void OBSBasic::on_actionRemigrateSceneCollection_triggered()
 		ovi.base_height = migrationBaseResolution->second;
 
 		if (obs_reset_video(&ovi) != OBS_VIDEO_SUCCESS) {
-			OBSMessageBox::critical(
-				this, QTStr("Basic.Main.RemigrateSceneCollection.Title"),
-				QTStr("Basic.Main.RemigrateSceneCollection.CannotMigrate.FailedVideoReset"));
+			PLSErrorHandler::showAlertByPrismCode(
+				PLSErrorHandler::ALERT_BASIC_MAIN_REMIGRATESCENECOLLECTION_CANNOTMIGRATE_FAILEDVIDEORESET,
+				PLSErrKeyAllAlert, QString(),
+				PLSErrorHandler::ExtraData(QStringLiteral(
+					"OBSBasic::on_actionRemigrateSceneCollection_triggered.FailedVideoReset")),
+				this);
 			return;
 		}
 	}
@@ -756,7 +775,7 @@ void OBSBasic::on_actionRemigrateSceneCollection_triggered()
 	if (!usingAbsoluteCoordinates) {
 		ResetVideo();
 	}
-	Load(getSceneCollectionFilePath(name).toStdString().c_str(), !usingAbsoluteCoordinates);
+	Load(getSceneCollectionFilePath(name).toUtf8().constData(), !usingAbsoluteCoordinates);
 	UpdateTitleBar();
 
 	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED);

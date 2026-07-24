@@ -6,13 +6,42 @@
 //
 
 #import <Foundation/Foundation.h>
+#import <AppKit/AppKit.h>
 
 NS_ASSUME_NONNULL_BEGIN
+
+typedef NS_ENUM(NSInteger, PLSMacAppWindowState) {
+	PLSMacAppWindowStateNotRunning,
+	PLSMacAppWindowStateRunningNoWindows,
+	PLSMacAppWindowStateRunningWindowsHidden, // running, windows exist, none visible
+	PLSMacAppWindowStateRunningWindowsVisible // running, at least one visible
+};
+
+@interface PLSMacWindowInfo : NSObject
+@property (nonatomic, strong) NSString *windowName;
+@property (nonatomic, strong) NSString *ownerName;
+@property (nonatomic, assign) NSInteger windowPID;
+@property (nonatomic, assign) NSInteger windowLayer;
+@property (nonatomic, assign) NSInteger windowNumber;
+@property (nonatomic, assign) BOOL onscreen;
+@end
+
+@interface PLSMacWindowDetectionResult : NSObject
+@property (nonatomic, strong) NSString *bundleID;
+@property (nonatomic, assign) PLSMacAppWindowState state;
+@property (nonatomic, strong) NSArray<NSNumber *> *pids;
+@property (nonatomic, strong) NSArray<PLSMacWindowInfo *> *visibleWindows;
+@property (nonatomic, strong) NSArray<PLSMacWindowInfo *> *nonVisibleWindows;
+@end
 
 @interface PLSMacProcessHandle : NSObject
 @property (nonatomic, strong) NSTask *task;
 @property (nonatomic, assign) NSInteger errorCode;
 @property (nonatomic, assign) uint32_t processId;
+@end
+
+@interface PLSMacProcessObserver : NSObject
+- (instancetype)initWithApp:(NSRunningApplication *)app completion:(void (^)(BOOL launched))completion;
 @end
 
 @interface PLSMacFunction : NSObject
@@ -32,6 +61,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (bool)process_is_running:(PLSMacProcessHandle *)handle;
 
 + (NSTaskTerminationReason)process_terminite_status:(PLSMacProcessHandle *)handle;
+
++ (PLSMacWindowDetectionResult *)detectWindowStateForBundleID:(NSString *)bundleID;
 
 @end
 

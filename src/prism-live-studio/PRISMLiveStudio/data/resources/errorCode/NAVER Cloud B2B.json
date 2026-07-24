@@ -1,0 +1,137 @@
+{
+    "data": [
+        {
+            "phase": "channel",
+            "api": {
+                "subCode": "1022"
+            },
+            "err": {
+                "prismCode": 26000,
+                "prismName": "CHANNEL_NCP_B2B_1022_SERVICE_DELETED",
+                "msgKey": "Ncb2b.Living.Service.Deleted",
+                "msgText": "This service has been deleted. Live streaming cannot start."
+            }
+        },
+        {
+            "phase": "login,dashBoard",
+            "api": {
+                "subCode": "1022"
+            },
+            "err": {
+                "prismCode": 19001,
+                "prismName": "PRISM_LOGIN_NCP_B2B_SERVICE_DELETED",
+                "msgKey": "Ncb2b.Login.Service.Deleted",
+                "msgText": "This service has been deleted."
+            }
+        },
+        {
+            "phase": "login,channel",
+            "api": {
+                "subCode": "1101"
+            },
+            "err": {
+                "prismCode": 26001,
+                "prismName": "CHANNEL_NCP_B2B_1101_SERVICE_DISABLED",
+                "msgKey": "Ncb2b.Living.Service.Disable",
+                "msgText": "This service has been disabled. Live streaming cannot start."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "subCode": "1102"
+            },
+            "err": {
+                "prismCode": 26002,
+                "prismName": "CHANNEL_NCP_B2B_1102_CHANNEL_DISABLED",
+                "msgKey": "Ncb2b.Living.Service.Channel.Disable",
+                "msgText": "This channel has been disabled. Live streaming cannot start."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "subCode": "1103"
+            },
+            "err": {
+                "prismCode": 26003,
+                "prismName": "CHANNEL_NCP_B2B_1103_PARTNERCHANNELDISABLEDBYTRIAL",
+                "msgKey": "ncpb2b.channel.exceeded.trial.limit",
+                "msgText": "Unable to start the live stream as it exceeds the maximum number of channel usage. (Trial mode allows up to 3.)"
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "subCode": "1104"
+            },
+            "err": {
+                "prismCode": 26004,
+                "prismName": "CHANNEL_NCP_B2B_1104_RESOURCE_NOT_FOUND",
+                "msgKey": "Ncb2b.Living.Service.No.Found",
+                "msgText": "Live streaming is not available for the current user account. Please re-log in to the app and try again."
+            }
+        },
+        {
+            "phase": "login,dashBoard",
+            "api": {
+                "subCode": "1104"
+            },
+            "err": {
+                "prismCode": 19000,
+                "prismName": "PRISM_LOGIN_NCP_B2B_SERVICE_NOT_FOUND",
+                "msgKey": "Ncb2b.Login.Service.No.Found",
+                "msgText": "Please check the name of your service."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "401",
+                "str_isPrepareLive": "1"
+            },
+            "err": {
+                "prismCode": 26005,
+                "prismName": "CHANNEL_NCP_B2B_401_PREPARELIVE",
+                "msgKey": "Ncb2b.Token.Expired",
+                "errorType": "TokenExpired",
+                "msgText": "Your %1 account verification information has expired. \nYou will be transferred to the login page.",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "login",
+            "api": {
+                "subCode": "1110"
+            },
+            "err": {
+                "prismCode": 19002,
+                "prismName": "PRISM_LOGIN_NCP_B2B_USERINFO_NO_EXIT",
+                "msgKey": "Prism.Ncb2b.No.Exist",
+                "msgText": "The account does not exist.",
+                "alertType": "Normal_Code"
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "subCode": [
+                "code"
+            ],
+            "message": [
+                "message"
+            ],
+            "exception": [
+                "exception"
+            ]
+        },
+        "logAppend": [
+            "subCode: {{subCode}}",
+            "message: {{message}}",
+            "exception: {{exception}}"
+        ],
+        "inherit": [
+            "PRISM"
+        ]
+    }
+}

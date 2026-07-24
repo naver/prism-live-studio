@@ -3,6 +3,7 @@
 
 #include <quuid.h>
 #include <QSignalBlocker>
+#include <QEventLoop>
 
 #include "properties-view.hpp"
 #include "display-helpers.hpp"
@@ -27,6 +28,8 @@
 #include <util/platform.h>
 #include "PLSAlertView.h"
 #include "PLSCommonFunc.h"
+#include "properties-view.hpp"
+#include "pls/pls-lens-event.h"
 
 #include <QStandardItemModel>
 
@@ -233,6 +236,7 @@ void PLSTakeCameraSnapshotTakeTimerMask::draw(void *data, uint32_t baseWidth, ui
 
 PLSTakeCameraSnapshot::PLSTakeCameraSnapshot(QString &camera_, QWidget *parent) : PLSDialogView(parent), camera(camera_)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	ui = pls_new<Ui::PLSTakeCameraSnapshot>();
 
 	pls_add_css(this, {"PLSLoadingBtn", "PLSTakeCameraSnapshot"});
@@ -247,10 +251,18 @@ PLSTakeCameraSnapshot::PLSTakeCameraSnapshot(QString &camera_, QWidget *parent) 
 	ui->preview->installEventFilter(this);
 	ui->preview->setMinimumSize({20, 150});
 	ui->preview->setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding));
+#if defined(Q_OS_MACOS)
+	setFixedSize(510, 521 - PLS_TITLE_BAR_HEIGHT);
+#else
 	initSize({510, 521});
+#endif
 
 	cameraUninitMask = pls_new<QFrame>(content());
 	cameraUninitMask->setObjectName("cameraUninitMask");
+
+#if defined(Q_OS_MACOS)
+	cameraUninitMask->setAttribute(Qt::WA_NativeWindow);
+#endif
 
 	QVBoxLayout *cameraUninitMaskLayout = pls_new<QVBoxLayout>(cameraUninitMask);
 	cameraUninitMaskLayout->setContentsMargins(0, 0, 0, 0);
@@ -287,45 +299,108 @@ PLSTakeCameraSnapshot::PLSTakeCameraSnapshot(QString &camera_, QWidget *parent) 
 	ui->cameraSettingButton->hide();
 #endif
 
+	RegisterLensState();
+
 	pls_async_call(this, [this]() { InitCameraList(); });
 }
 
 PLSTakeCameraSnapshot::~PLSTakeCameraSnapshot()
 {
+	UnregisterLensState();
+
 	HideLoading();
-	ClearSource();
+
+	// Destroy source on dtor
+	destroySource();
+
 	obs_display_remove_draw_callback(ui->preview->GetDisplay(), PLSTakeCameraSnapshot::drawPreview, this);
 	if (m_pScreenCapture)
 		pls_delete(m_pScreenCapture);
 	pls_delete(ui, nullptr);
 }
 
-QString PLSTakeCameraSnapshot::getSnapshot()
+QString PLSTakeCameraSnapshot::getSnapshot(CloseMode closeMode)
 {
-	if (hasError) {
-		return QString();
-	} else if (exec() == Accepted) {
-		return imageFilePath;
-	}
-	return QString();
-}
+	m_closeMode = closeMode;
+	m_shouldDestroy = false;
 
-QList<QPair<QString, QString>> PLSTakeCameraSnapshot::getCameraList()
-{
-	QList<QPair<QString, QString>> cameraList;
-	if (obs_properties_t *properties = obs_get_source_properties(OBS_DSHOW_SOURCE_ID); properties) {
-		if (obs_property_t *property = obs_properties_get(properties, takephoto::CSTR_VIDEO_DEVICE_ID); property) {
-			for (size_t i = 0, count = obs_property_list_item_count(property); i < count; ++i) {
-				QString name = QString::fromUtf8(obs_property_list_item_name(property, i));
-				QString value = QString::fromUtf8(obs_property_list_item_string(property, i));
-				cameraList.append({name, value});
+	if (hasError) {
+		if (closeMode == Destroy) {
+			destroyWindow();
+		}
+		return QString();
+	}
+
+	// Non-blocking: use event loop + signals
+	QString result;
+	QEventLoop loop;
+
+	// Connect signals
+	auto selectedConnection = connect(this, &PLSTakeCameraSnapshot::imageSelected, [&result, &loop](const QString &path) {
+		result = path;
+		loop.quit();
+	});
+
+	auto cancelledConnection = connect(this, &PLSTakeCameraSnapshot::cancelled, [&loop]() { loop.quit(); });
+
+	// Reset window state
+	resetWindowState();
+
+	// Restore source state if it exists (even when sourceValid is false after hideWindow)
+	if (source) {
+		// Get current camera from list if camera is empty
+		QString currentCamera = camera;
+		if (currentCamera.isEmpty() && ui->cameraList->count() > 0) {
+			int currentIndex = ui->cameraList->currentIndex();
+			if (currentIndex >= 0) {
+				currentCamera = ui->cameraList->itemData(currentIndex).toString();
 			}
 		}
 
-		obs_properties_destroy(properties);
+		// Check if source is valid (matches current camera); allow empty camera on first open
+		bool sourceValid = currentCamera.isEmpty() || checkSourceReallyValid(source, currentCamera);
+
+		if (sourceValid) {
+			// Reconnect signals (disconnect is safe even if not connected)
+			signal_handler_disconnect(obs_source_get_signal_handler(source), takephoto::CSTR_CAPTURE_STATE, &PLSTakeCameraSnapshot::onSourceCaptureState, this);
+			signal_handler_disconnect(obs_source_get_signal_handler(source), takephoto::CSTR_SOURCE_IMAGE_STATUS, &PLSTakeCameraSnapshot::onSourceImageStatus, this);
+
+			signal_handler_connect_ref(obs_source_get_signal_handler(source), takephoto::CSTR_CAPTURE_STATE, &PLSTakeCameraSnapshot::onSourceCaptureState, this);
+			signal_handler_connect_ref(obs_source_get_signal_handler(source), takephoto::CSTR_SOURCE_IMAGE_STATUS, &PLSTakeCameraSnapshot::onSourceImageStatus, this);
+
+			// Restore showing count (was decreased in hideWindow)
+			obs_source_inc_showing(source);
+
+			this->sourceValid = true;
+			onSourceCaptureState();
+		} else {
+			// Source invalid; clear only (init() will be called later when user selects camera)
+			ClearSource();
+		}
 	}
-	return cameraList;
+
+	// Application modal: block other windows while this dialog is open
+	setWindowModality(Qt::ApplicationModal);
+	show();
+	raise();
+	activateWindow();
+
+	loop.exec();
+
+	disconnect(selectedConnection);
+	disconnect(cancelledConnection);
+
+	// Destroy or hide based on close mode and user action
+	if (m_shouldDestroy || closeMode == Destroy) {
+		destroyWindow();
+	} else {
+		// Hide only (photo taken, may enter crop dialog)
+		hideWindow();
+	}
+
+	return result;
 }
+
 void PLSTakeCameraSnapshot::setSourceValid(bool isValid)
 {
 	sourceValid = isValid;
@@ -368,6 +443,27 @@ void PLSTakeCameraSnapshot::init(const QString &camera_)
 	cameraUninitMask->show();
 	ui->okButton->setEnabled(false);
 
+	// Reuse existing source if valid for this camera
+	if (source && checkSourceReallyValid(source, camera)) {
+		sourceValid = true;
+
+		// Reconnect signals
+		updatePropertiesSignal.Connect(obs_source_get_signal_handler(source), "update_properties", PLSTakeCameraSnapshot::updateProperties, this);
+
+		signal_handler_connect_ref(obs_source_get_signal_handler(source), takephoto::CSTR_CAPTURE_STATE, &PLSTakeCameraSnapshot::onSourceCaptureState, this);
+		signal_handler_connect_ref(obs_source_get_signal_handler(source), takephoto::CSTR_SOURCE_IMAGE_STATUS, &PLSTakeCameraSnapshot::onSourceImageStatus, this);
+
+		obs_source_inc_showing(source);
+		onSourceCaptureState();
+
+		inprocess = false;
+		ui->cameraList->setEnabled(true);
+		cameraUninitMask->hide();
+		ui->okButton->setEnabled(true);
+		return;
+	}
+
+	// Source missing or invalid, create new one
 	ClearSource();
 
 	QByteArray name = "take-camera-snapshot-" + QUuid::createUuid().toString().toUtf8();
@@ -402,7 +498,7 @@ void PLSTakeCameraSnapshot::init(const QString &camera_)
 	if (failed || not_support_hdr) {
 		hasError = true;
 		sourceValid = false;
-		obs_source_release(source);
+		source = nullptr;
 
 		if (failed)
 			cameraUninitMaskText->setText(tr("TakeCameraSnapshot.DeviceError"));
@@ -426,19 +522,99 @@ void PLSTakeCameraSnapshot::init(const QString &camera_)
 
 	obs_source_inc_showing(source);
 
-	obs_source_release(source);
+	// Do not release here; keep source owned by this dialog
+}
+
+bool PLSTakeCameraSnapshot::checkSourceReallyValid(const obs_source_t *source, const QString &cameraId) const
+{
+	if (!source)
+		return false;
+
+	// Check if source's camera ID matches
+	obs_data_t *settings = obs_source_get_settings(source);
+	if (!settings) {
+		return false;
+	}
+
+	const char *sourceCamera = obs_data_get_string(settings, takephoto::CSTR_VIDEO_DEVICE_ID);
+	bool valid = (sourceCamera && QString::fromUtf8(sourceCamera) == cameraId);
+	obs_data_release(settings);
+
+	return valid;
 }
 
 void PLSTakeCameraSnapshot::ClearSource()
 {
+	clearSourceConnections();
+}
+
+void PLSTakeCameraSnapshot::clearSourceConnections()
+{
 	if (source) {
-		//PLSBasicProperties::SetOwnerWindow(source, 0);
+		// Disconnect signals
 		signal_handler_disconnect(obs_source_get_signal_handler(source), takephoto::CSTR_CAPTURE_STATE, &PLSTakeCameraSnapshot::onSourceCaptureState, this);
 		signal_handler_disconnect(obs_source_get_signal_handler(source), takephoto::CSTR_SOURCE_IMAGE_STATUS, &PLSTakeCameraSnapshot::onSourceImageStatus, this);
+
+		// Decrease showing count (do not destroy source)
 		obs_source_dec_showing(source);
+
+		// Keep source reference; only clear valid flag
 		sourceValid = false;
-		source = nullptr;
 	}
+}
+
+void PLSTakeCameraSnapshot::destroySource()
+{
+	if (source) {
+		// Release dialog's ref via OBSSourceAutoRelease; scene-held sources stay alive if others still hold refs
+		clearSourceConnections();
+		source = nullptr;
+		sourceValid = false;
+	}
+}
+
+void PLSTakeCameraSnapshot::hideWindow()
+{
+	// Hide window (do not destroy source)
+	hide();
+	clearSourceConnections();
+}
+
+void PLSTakeCameraSnapshot::destroyWindow()
+{
+	destroySource();
+	hide();
+}
+
+void PLSTakeCameraSnapshot::resetWindowState()
+{
+	// Stop countdown mask
+#if defined(Q_OS_WINDOWS)
+	if (timerMask) {
+		timerMask->stop();
+		timerMask->hide();
+	}
+#else
+	if (timerMask) {
+		timerMask->stop();
+	}
+#endif
+
+	// Clear screenshot object
+	if (m_pScreenCapture) {
+		pls_delete(m_pScreenCapture);
+		m_pScreenCapture = nullptr;
+	}
+
+	// Reset button state
+	ui->cameraList->setEnabled(true);
+	ui->cameraSettingButton->setEnabled(true);
+	ui->okButton->setEnabled(true);
+	ui->cancelButton->setEnabled(true);
+
+	hasError = false;
+	inprocess = false;
+	imageFilePath.clear();
 }
 
 void PLSTakeCameraSnapshot::drawPreview(void *data, uint32_t cx, uint32_t cy)
@@ -574,6 +750,8 @@ void PLSTakeCameraSnapshot::InitCameraList()
 
 void PLSTakeCameraSnapshot::initCameraListLambda(obs_properties_t *properties)
 {
+	assert(QThread::currentThread() == QCoreApplication::instance()->thread());
+
 	HideLoading();
 	QList<QPair<QString, QString>> cameraList;
 	if (obs_property_t *property = obs_properties_get(properties, takephoto::CSTR_VIDEO_DEVICE_ID); property) {
@@ -589,11 +767,25 @@ void PLSTakeCameraSnapshot::initCameraListLambda(obs_properties_t *properties)
 
 	if (!cameraList.isEmpty()) {
 		QSignalBlocker blocker(ui->cameraList);
+
 		ui->cameraList->clear();
+		m_cameraList.clear();
+
 		int cameraIndex = -1;
 		for (int index = 0, count = cameraList.count(); index < count; ++index) {
 			const auto &camera_ = cameraList[index];
-			ui->cameraList->addItem(camera_.first, camera_.second);
+			m_cameraList.push_back(camera_);
+
+			int lens = OBSPropertiesView::GetLensIndexFromDeviceString(camera_.second);
+			if (lens >= 0 && lens < MAX_LENS_COUNT) {
+				bool actived = pls_is_lens_active(lens);
+				std::string realName = camera_.first.toStdString();
+				std::string displayName = OBSPropertiesView::GenerateLensName(realName.c_str(), actived);
+				ui->cameraList->addItem(QString::fromStdString(displayName), camera_.second);
+			} else {
+				ui->cameraList->addItem(camera_.first, camera_.second);
+			}
+
 			if (!this->camera.isEmpty() && this->camera == camera_.second) {
 				cameraIndex = index;
 			}
@@ -664,6 +856,68 @@ void PLSTakeCameraSnapshot::stopTimer()
 	ui->cancelButton->setEnabled(true);
 }
 
+void PLSTakeCameraSnapshot::RegisterLensState()
+{
+	QPointer<QWidget> ptr(this);
+	auto active_hander = [this, ptr](int lens, bool actived) { // called from UI thread
+		if (!ptr)
+			return;
+
+		if (lens < 0 || lens >= MAX_LENS_COUNT)
+			return;
+
+		QComboBox *combo = ui->cameraList;
+		if (!combo)
+			return;
+
+		auto itemCount = combo->count();
+		auto devCount = m_cameraList.size();
+		if (!itemCount || !devCount || itemCount != devCount)
+			return;
+
+		for (int i = 0; i < itemCount; ++i) {
+			QString var = combo->itemData(i).toString();
+			int index = OBSPropertiesView::GetLensIndexFromDeviceString(var);
+			if (index != lens)
+				continue;
+
+			if (i >= m_cameraList.size()) {
+				assert(false);
+				break;
+			}
+
+			std::string realName = m_cameraList[i].first.toStdString();
+			std::string displayName = OBSPropertiesView::GenerateLensName(realName.c_str(), actived);
+			combo->setItemText(i, QT_UTF8(displayName.c_str()));
+			break;
+		}
+	};
+
+	auto active_cb = [=](int lens, bool actived) {
+		if (!ptr)
+			return;
+
+		QMetaObject::invokeMethod(
+			ptr,
+			[=]() {
+				if (!ptr)
+					return;
+
+				active_hander(lens, actived);
+			},
+			Qt::QueuedConnection);
+	};
+
+	LensEvents evts;
+	evts.active_cb = active_cb;
+	pls_register_lens_events(this, evts);
+}
+
+void PLSTakeCameraSnapshot::UnregisterLensState()
+{
+	pls_unregister_lens_events(this);
+}
+
 void PLSTakeCameraSnapshot::on_cameraList_currentIndexChanged(int index)
 {
 	if (QString camera_ = ui->cameraList->itemData(index).toString(); !camera_.isEmpty()) {
@@ -693,14 +947,31 @@ void PLSTakeCameraSnapshot::on_okButton_clicked()
 #else
 	timerMask->start(ui->preview->GetDisplay(), 3);
 #endif
+	PLS_UI_ACTION("Take a Photo Start To Count Down");
 }
 void PLSTakeCameraSnapshot::on_cancelButton_clicked()
 {
-	reject();
+	// Cancel: always destroy dialog
+	m_closeMode = Destroy;
+	m_shouldDestroy = true;
+	emit cancelled();
+	hide(); // exit event loop
 }
 
 void PLSTakeCameraSnapshot::onTimerEnd()
 {
+	// Stop and hide countdown mask immediately so it does not stay visible when opening crop dialog
+#if defined(Q_OS_WINDOWS)
+	if (timerMask) {
+		timerMask->stop();
+		timerMask->hide();
+	}
+#else
+	if (timerMask) {
+		timerMask->stop();
+	}
+#endif
+
 	/*obs_source_get_capture_valid(source, &error);
 	bool ok = error == OBS_SOURCE_ERROR_OK;
 	ui->okButton->setEnabled(ok);*/
@@ -717,7 +988,9 @@ void PLSTakeCameraSnapshot::onTimerEnd()
 	m_pScreenCapture = pls_new<ScreenshotObj>(source);
 	connect(m_pScreenCapture, &ScreenshotObj::Finished, this, [this](const QString &path) {
 		imageFilePath = path;
-		QMetaObject::invokeMethod(this, &PLSTakeCameraSnapshot::accept, Qt::QueuedConnection);
+		// Photo taken; destroy/hide decided by getSnapshot() according to closeMode
+		emit imageSelected(imageFilePath);
+		hide(); // exit event loop
 	});
 	m_pScreenCapture->Start(false);
 }
@@ -770,7 +1043,17 @@ void PLSTakeCameraSnapshot::done(int result)
 #else
 	timerMask->stop();
 #endif
-	PLSDialogView::done(result);
+
+	// Emit signal and mark destroy if needed
+	if (result == Accepted) {
+		emit imageSelected(imageFilePath);
+	} else {
+		emit cancelled();
+	}
+	if (m_closeMode == Destroy) {
+		m_shouldDestroy = true;
+	}
+	hide(); // actual destroy/hide handled in getSnapshot()
 }
 
 bool PLSTakeCameraSnapshot::eventFilter(QObject *watched, QEvent *event)

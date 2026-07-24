@@ -46,17 +46,15 @@ void CategorySceneTemplate::getItemDownloadUrlAndHowSaves(pls::rsm::IResourceMan
 						 return pls::rsm::unzip(filePath, dstDir.absolutePath());
 					 }));
 }
+
 void CategorySceneTemplate::itemDownloaded(pls::rsm::IResourceManager *mgr, pls::rsm::Item item, bool ok, const std::list<pls::rsm::DownloadResult> &results) const
 {
 	PLS_INFO(moduleName(), "%p-%s: item=%s, state=%s", this, __FUNCTION__, qUtf8Printable(item.itemId()), ok ? "ok" : "failed");
 
-	if (ok) {
-		SceneTemplateItem _item(item);
+	SceneTemplateItem _item(item);
+	findResource(_item);
 
-		findResource(_item);
-
-		emit onItemDownloaded(_item);
-	}
+	emit onItemDownloaded(_item, ok);
 }
 
 void CategorySceneTemplate::groupDownloaded(pls::rsm::IResourceManager *mgr, pls::rsm::Group group, bool ok, const std::list<pls::rsm::DownloadResult> &results) const
@@ -89,6 +87,7 @@ bool CategorySceneTemplate::checkItem(const SceneTemplateItem &item) const
 void CategorySceneTemplate::allDownload(pls::rsm::IResourceManager *mgr, bool ok)
 {
 	PLS_INFO(moduleName(), "%p-%s: %d", this, __FUNCTION__, ok);
+	emit onAllDownloaded(ok);
 }
 
 void CategorySceneTemplate::findResource(SceneTemplateItem &item) const

@@ -97,9 +97,9 @@ constexpr const char *CSTR_USERID = "userId";
 constexpr const char *CSTR_USERNAME = "username";
 constexpr const char *CSTR_REFERER = "Referer";
 constexpr const char *CSTR_CLIENT_ID = "client_id";
-constexpr const char *CSTR_CLIENT_ID_VALUE = "jZNIoee3IBi6sujuw4w0";
+constexpr const char *CSTR_CLIENT_ID_VALUE = "";
 constexpr const char *CSTR_CLIENT_SECRET = "client_secret";
-constexpr const char *CSTR_CLIENT_SECRET_VALUE = "8nJdGLYNMb";
+constexpr const char *CSTR_CLIENT_SECRET_VALUE = "";
 constexpr const char *CSTR_GRANT_TYPE = "grant_type";
 constexpr const char *CSTR_GRANT_TYPE_AUTHORIZATION_CODE = "authorization_code";
 constexpr const char *CSTR_RESPONSE_TYPE = "response_type";
@@ -724,9 +724,8 @@ void PLSPlatformNaverTV::getAuth2(const QString &url, const char *log, const Aut
 				   .receiver(this)
 				   .withLog(pls_masking_person_info(url))
 				   .result([this, log, callback](const pls::http::Reply &reply) {
-					   PLSErrorHandler::ExtraData exData;
+					   PLSErrorHandler::ExtraData exData("NaverTV auth");
 					   exData.pathValueMap = {{"type", "auth"}};
-					   exData.urlEn = "NaverTV auth";
 
 					   auto statusCode = reply.statusCode();
 					   auto error = reply.error();
@@ -1025,15 +1024,6 @@ void PLSPlatformNaverTV::quickStart(const QuickStartCallback &callback, bool isS
 #endif
 		}
 
-		if (isShareOnTwitter) {
-#if 0
-			 share["twitterConsumerKey"] = ;
-			 share["twitterConsumerSecret"] = ;
-			 share["twitterToken"] = ;
-			 share["twitterTokenSecret"] = ;
-#endif
-		}
-
 		reqJson["share"] = share;
 	}
 
@@ -1088,15 +1078,6 @@ void PLSPlatformNaverTV::liveOpen(const LiveOpenCallback &callback, bool isShare
 		if (isShareOnFacebook) {
 #if 0
 			share["facebookToken"] = ;
-#endif
-		}
-
-		if (isShareOnTwitter) {
-#if 0
-			 share["twitterConsumerKey"] = ;
-			 share["twitterConsumerSecret"] = ;
-			 share["twitterToken"] = ;
-			 share["twitterTokenSecret"] = ;
 #endif
 		}
 
@@ -1475,6 +1456,89 @@ void PLSPlatformNaverTV::convertScheduleListToMapList()
 	mySharedData().m_scheduleList = tmpRet;
 }
 
+void PLSPlatformNaverTV::onResumeStreaming(const QMap<QString, QVariant> &params)
+{
+	selectedScheLiveInfoId = params[QStringLiteral("selectedScheLiveInfoId")].toInt();
+
+	if (params[QStringLiteral("liveInfo")].toBool()) {
+		auto liveInfo = getLiveInfo();
+		liveInfo->isScheLive = params[QStringLiteral("liveInfo_isScheLive")].toBool();
+		liveInfo->isRehearsal = params[QStringLiteral("liveInfo_isRehearsal")].toBool();
+		liveInfo->liveNo = params[QStringLiteral("liveInfo_liveNo")].toInt();
+		liveInfo->oliveId = params[QStringLiteral("liveInfo_oliveId")].toInt();
+		liveInfo->startDate = params[QStringLiteral("liveInfo_startDate")].toLongLong();
+		liveInfo->endDate = params[QStringLiteral("liveInfo_endDate")].toLongLong();
+		liveInfo->title = params[QStringLiteral("liveInfo_title")].toString();
+		liveInfo->status = params[QStringLiteral("liveInfo_status")].toString();
+		liveInfo->channelId = params[QStringLiteral("liveInfo_channelId")].toString();
+		liveInfo->categoryCode = params[QStringLiteral("liveInfo_categoryCode")].toString();
+		liveInfo->openYn = params[QStringLiteral("liveInfo_openYn")].toString();
+		liveInfo->notice = params[QStringLiteral("liveInfo_notice")].toString();
+		liveInfo->thumbnailImageUrl = params[QStringLiteral("liveInfo_thumbnailImageUrl")].toString();
+		liveInfo->thumbnailImagePath = params[QStringLiteral("liveInfo_thumbnailImagePath")].toString();
+	}
+
+	if (params[QStringLiteral("live")].toBool()) {
+		auto live = getLive();
+		live->manager = params[QStringLiteral("live_manager")].toBool();
+		live->oliveId = params[QStringLiteral("live_oliveId")].toInt();
+		live->likeCount = params[QStringLiteral("live_likeCount")].toLongLong();
+		live->watchCount = params[QStringLiteral("live_watchCount")].toLongLong();
+		live->commentCount = params[QStringLiteral("live_commentCount")].toLongLong();
+		live->ticketId = params[QStringLiteral("live_ticketId")].toString();
+		live->objectId = params[QStringLiteral("live_objectId")].toString();
+		live->templateId = params[QStringLiteral("live_templateId")].toString();
+		live->groupId = params[QStringLiteral("live_groupId")].toString();
+		live->idNo = params[QStringLiteral("live_idNo")].toString();
+		live->pcLiveUrl = params[QStringLiteral("live_pcLiveUrl")].toString();
+		live->mobileLiveUrl = params[QStringLiteral("live_mobileLiveUrl")].toString();
+
+		PLSCHANNELS_API->setValueOfChannel(getChannelUUID(), ChannelData::g_shareUrl, live->pcLiveUrl);
+	}
+}
+
+QMap<QString, QVariant> PLSPlatformNaverTV::getResumeStreamingParams() const
+{
+	QMap<QString, QVariant> params;
+	params[QStringLiteral("selectedScheLiveInfoId")] = selectedScheLiveInfoId;
+
+	params[QStringLiteral("liveInfo")] = liveInfo ? true : false;
+	if (liveInfo) {
+		params[QStringLiteral("liveInfo_isScheLive")] = liveInfo->isScheLive;
+		params[QStringLiteral("liveInfo_isRehearsal")] = liveInfo->isRehearsal;
+		params[QStringLiteral("liveInfo_liveNo")] = liveInfo->liveNo;
+		params[QStringLiteral("liveInfo_oliveId")] = liveInfo->oliveId;
+		params[QStringLiteral("liveInfo_startDate")] = liveInfo->startDate;
+		params[QStringLiteral("liveInfo_endDate")] = liveInfo->endDate;
+		params[QStringLiteral("liveInfo_title")] = liveInfo->title;
+		params[QStringLiteral("liveInfo_status")] = liveInfo->status;
+		params[QStringLiteral("liveInfo_channelId")] = liveInfo->channelId;
+		params[QStringLiteral("liveInfo_categoryCode")] = liveInfo->categoryCode;
+		params[QStringLiteral("liveInfo_openYn")] = liveInfo->openYn;
+		params[QStringLiteral("liveInfo_notice")] = liveInfo->notice;
+		params[QStringLiteral("liveInfo_thumbnailImageUrl")] = liveInfo->thumbnailImageUrl;
+		params[QStringLiteral("liveInfo_thumbnailImagePath")] = liveInfo->thumbnailImagePath;
+	}
+
+	params[QStringLiteral("live")] = live ? true : false;
+	if (live) {
+		params[QStringLiteral("live_manager")] = live->manager;
+		params[QStringLiteral("live_oliveId")] = live->oliveId;
+		params[QStringLiteral("live_likeCount")] = live->likeCount;
+		params[QStringLiteral("live_watchCount")] = live->watchCount;
+		params[QStringLiteral("live_commentCount")] = live->commentCount;
+		params[QStringLiteral("live_ticketId")] = live->ticketId;
+		params[QStringLiteral("live_objectId")] = live->objectId;
+		params[QStringLiteral("live_templateId")] = live->templateId;
+		params[QStringLiteral("live_groupId")] = live->groupId;
+		params[QStringLiteral("live_idNo")] = live->idNo;
+		params[QStringLiteral("live_pcLiveUrl")] = live->pcLiveUrl;
+		params[QStringLiteral("live_mobileLiveUrl")] = live->mobileLiveUrl;
+	}
+
+	return params;
+}
+
 void PLSPlatformNaverTV::onCheckStatus()
 {
 	liveStatus([this](bool ok, qint64, qint64, qint64, bool closed) {
@@ -1483,7 +1547,9 @@ void PLSPlatformNaverTV::onCheckStatus()
 			deleteTimer(checkStreamPublishingTimer);
 			deleteTimer(checkStatusTimer);
 
-			pls_alert_error_message(nullptr, tr("Alert.Title"), tr("LiveInfo.live.error.stoped.byRemote").arg("NAVER TV"));
+			PLSErrorHandler::ExtraData extraData("PLSPlatformNaverTV");
+			extraData.defaultArg = {"NAVER TV"};
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LIVEINFO_LIVE_ERROR_STOPED_BYREMOTE, PLSErrKeyAllAlert, {}, extraData);
 
 			clearLiveInfo();
 			clearLive();
@@ -1493,7 +1559,6 @@ void PLSPlatformNaverTV::onCheckStatus()
 
 			PLS_LIVE_INFO_KR(MODULE_PLATFORM_NAVERTV, "FinishedBy Naver TV server end live, channel: %s", SUB_CHANNEL_NAME);
 			PLS_LIVE_ABORT_INFO(MODULE_PlatformService, abortReason, "FinishedBy Naver TV server end live, channel: %s", SUB_CHANNEL_NAME_MASK);
-			PLS_PLATFORM_API->sendLiveAnalog(false, "live abort because navertv stop streaming", common::ANALOG_LIVE_ABORT_NAVERTV_STOP);
 			PLS_PLATFORM_API->stopStreaming("end live because Naver TV server end live");
 		}
 	});
@@ -1641,15 +1706,16 @@ void PLSPlatformNaverTV::processFailed(const char *log, const QByteArray &respJs
 		customErrName = ApiId::LiveOpen == apiId ? "NaverTVUnknown" : "TempErrorTryAgain";
 	}
 
-	PLSErrorHandler::ExtraData exData;
+	PLSErrorHandler::ExtraData exData(urlEn);
 	exData.defaultArg = QStringList(getNameForChannelType());
-	exData.urlEn = urlEn;
 	auto data = PLSErrorHandler::getAlertString({statusCode, networkError, respJson}, NAVER_TV, customErrName, exData);
 
 	switch (data.prismCode) {
 	case PLSErrorHandler::COMMON_NETWORK_ERROR:
 		mySharedData().m_lastError = createScheduleGetError(getChannelName(), data);
-		PLSErrorHandler::directShowAlert(data, nullptr);
+		if (popupNeedShow) {
+			PLSErrorHandler::directShowAlert(data, nullptr);
+		}
 		break;
 
 	case PLSErrorHandler::COMMON_TOKEN_EXPIRED_ERROR:

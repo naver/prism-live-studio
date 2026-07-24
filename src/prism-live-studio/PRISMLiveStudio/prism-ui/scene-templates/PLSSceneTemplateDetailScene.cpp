@@ -5,12 +5,14 @@
 #include "libui.h"
 #include "PLSSceneTemplateMediaManage.h"
 #include "PLSSceneTemplateImageView.h"
+#include "PLSNodeManager.h"
 #include "PLSBasic.h"
 
 PLSSceneTemplateDetailScene::PLSSceneTemplateDetailScene(QWidget *parent) : QWidget(parent), ui(new Ui::PLSSceneTemplateDetailScene)
 {
 	ui->setupUi(this);
 	connect(ui->returnButton, &PLSSceneTemplateReturnButton::clicked, this, [=] {
+		PLS_UI_ACTION("In Scene Template Detail Window, the return button has been clicked.");
 		removeImageAndVideoView();
 		PLS_SCENE_TEMPLATE_MEDIA_MANAGE->enterMainScenePage();
 	});
@@ -50,14 +52,18 @@ void PLSSceneTemplateDetailScene::removeImageAndVideoView()
 	for (PLSSceneTemplateImageView *imageView : initImageViewCache.values()) {
 		imageView->disconnect();
 		imageView->setVisible(false);
+		imageView->setProperty("keepAspectRatioByExpanding", false);
 	}
 	for (auto *videoView : initVideoViewCache.values()) {
 		videoView->disconnect();
 		videoView->setVisible(false);
+		videoView->setProperty("keepAspectRatioByExpanding", false);
 		PLS_SCENE_TEMPLATE_MEDIA_MANAGE->stopPlayVideo(videoView);
 	}
 	initVideoViewCache.clear();
 	initImageViewCache.clear();
+	ui->mainSceneImageView->updateImagePath("");
+	ui->mainSceneVideoView->setDefaultBgImagePixmap(QPixmap());
 	PLS_SCENE_TEMPLATE_MEDIA_MANAGE->stopPlayVideo(ui->mainSceneVideoView);
 }
 
@@ -65,6 +71,11 @@ void PLSSceneTemplateDetailScene::updateMainSceneResourcePath(const QString &pat
 {
 	PLS_SCENE_TEMPLATE_MEDIA_MANAGE->stopPlayVideo(ui->mainSceneVideoView);
 	if (PLS_SCENE_TEMPLATE_MEDIA_MANAGE->isVideoType(path)) {
+		PLS_SCENE_TEMPLATE_MEDIA_MANAGE->getVideoFirstFrame(path, [this](bool success, QPixmap pixmap) {
+			if (success) {
+				ui->mainSceneVideoView->setDefaultBgImagePixmap(pixmap);
+			}
+		});
 		ui->mainSceneVideoView->setVisible(true);
 		ui->mainSceneVideoView->setSceneName(iIndex > 0 ? m_sceneNames.value(iIndex - 1) : QString());
 		ui->mainSceneImageView->setVisible(false);
@@ -74,6 +85,9 @@ void PLSSceneTemplateDetailScene::updateMainSceneResourcePath(const QString &pat
 		ui->mainSceneImageView->updateImagePath(path);
 		ui->mainSceneImageView->setVisible(true);
 		ui->mainSceneImageView->setSceneName(iIndex > 0 ? m_sceneNames.value(iIndex - 1) : QString());
+	} else {
+		ui->mainSceneImageView->updateImagePath(path);
+		ui->mainSceneVideoView->setDefaultBgImagePixmap(QPixmap());
 	}
 }
 
@@ -82,6 +96,7 @@ void PLSSceneTemplateDetailScene::updateUI(const SceneTemplateItem &model)
 	removeImageAndVideoView();
 
 	m_item = model;
+	m_sceneNames = PLSNodeManager::instance()->getScenesNames(m_item);
 
 	ui->detailSceneNameLabel->setText(model.title());
 	QString resolution = QString("%1 x %2").arg(model.width()).arg(model.height());
@@ -100,6 +115,12 @@ void PLSSceneTemplateDetailScene::updateUI(const SceneTemplateItem &model)
 		const QString &path = thumbnailList[i];
 		if (PLS_SCENE_TEMPLATE_MEDIA_MANAGE->isVideoType(path)) {
 			auto *videoView = PLS_SCENE_TEMPLATE_MEDIA_MANAGE->getVideoViewByPath(path);
+			videoView->setProperty("keepAspectRatioByExpanding", true);
+			PLS_SCENE_TEMPLATE_MEDIA_MANAGE->getVideoFirstFrame(path, [this, videoView](bool success, QPixmap pixmap) {
+				if (success) {
+					videoView->setDefaultBgImagePixmap(pixmap);
+				}
+			});
 			PLS_SCENE_TEMPLATE_MEDIA_MANAGE->startPlayVideo(path, videoView);
 			connect(videoView, &PLSMediaRender::clicked, this, [=]() { setSelectedViewBorder(path, i); });
 			ui->verticalResourceLayout->addWidget(videoView);
@@ -109,6 +130,7 @@ void PLSSceneTemplateDetailScene::updateUI(const SceneTemplateItem &model)
 			PLSSceneTemplateImageView *imageView = PLS_SCENE_TEMPLATE_MEDIA_MANAGE->getImageViewByPath(path);
 			connect(imageView, &PLSSceneTemplateImageView::clicked, this, [=](PLSSceneTemplateImageView *imageView) { setSelectedViewBorder(imageView->imagePath(), i); });
 			ui->verticalResourceLayout->addWidget(imageView);
+			imageView->setProperty("keepAspectRatioByExpanding", true);
 			imageView->setVisible(true);
 			initImageViewCache.insert(path, imageView);
 		}
@@ -162,6 +184,7 @@ void PLSSceneTemplateDetailScene::setSelectedViewBorder(const QString &path, int
 	}
 
 	updateMainSceneResourcePath(path, iIndex);
+	PLS_UI_ACTION("In Scene Template Detail Window, resource path was changed.");
 }
 
 void PLSSceneTemplateDetailScene::on_installButton_clicked()

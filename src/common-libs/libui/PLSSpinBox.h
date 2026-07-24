@@ -11,8 +11,12 @@ public:
 	~PLSSpinBox() override = default;
 	void makeTextVCenter() const;
 
+public:
+	void stepBy(int steps) override;
+
 protected:
 	void wheelEvent(QWheelEvent *event) override;
+	QValidator::State validate(QString &input, int &pos) const override;
 };
 
 class LIBUI_API PLSDoubleSpinBox : public QDoubleSpinBox {
@@ -21,6 +25,9 @@ class LIBUI_API PLSDoubleSpinBox : public QDoubleSpinBox {
 public:
 	explicit PLSDoubleSpinBox(QWidget *parent = nullptr);
 	~PLSDoubleSpinBox() override = default;
+
+public:
+	void stepBy(int steps) override;
 
 protected:
 	void wheelEvent(QWheelEvent *event) override;

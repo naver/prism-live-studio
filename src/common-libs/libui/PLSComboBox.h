@@ -12,18 +12,21 @@ class LIBUI_API PLSComboBoxListView : public QListView {
 	Q_PROPERTY(bool scrollBarShow READ scrollBarShow)
 
 public:
-	explicit PLSComboBoxListView(QWidget *parent = nullptr);
+	explicit PLSComboBoxListView(QComboBox *comboBox);
 
 	bool scrollBarShow() const;
 
 protected:
-	bool eventFilter(QObject *i_Object, QEvent *i_Event) override;
+	bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
 	void verticalScrollbarValueChanged(int value) override;
 	void selectionChanged(const QItemSelection &selected, const QItemSelection &deselected) override;
 	void dataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles = QVector<int>()) override;
 	QItemSelectionModel::SelectionFlags selectionCommand(const QModelIndex &index, const QEvent *event = nullptr) const override;
+
+private:
+	QComboBox *m_comboBox;
 };
 
 class LIBUI_API PLSComboBox : public QComboBox {

@@ -1,20 +1,20 @@
 GoLivePannel {
 	background-color: transparent;
-	margin:/*hdpi*/0px/*hdpi*/25px/*hdpi*/0px/*hdpi*/20px;
+	margin:0px 25px 0px 20px;
 }
 
 GoLivePannel #GoLiveShift {
-	margin:/*hdpi*/0;
-	padding:/*hdpi*/0px;
-	border:/*hdpi*/ none;
+	margin:0;
+	padding:0px;
+	border: none;
 	border-image: none;
 	background-color: #effc35;
-	min-width:/*hdpi*/ 122px;
-	max-width:/*hdpi*/ 122px;
-	min-height:/*hdpi*/ 32px;
-	max-height:/*hdpi*/ 32px;
-	border-radius:/*hdpi*/ 3px;
-	font-size:/*hdpi*/ 14px;
+	min-width: 122px;
+	max-width: 122px;
+	min-height: 32px;
+	max-height: 32px;
+	border-radius: 3px;
+	font-size: 14px;
 	font-weight: 700;
 	font-style: normal;
 	text-align: center;
@@ -36,17 +36,17 @@ GoLivePannel #GoLiveShift:disabled {
 
 
 	GoLivePannel #Record {
-		margin: /*hdpi*/ 0;
-		padding: /*hdpi*/ 0px;
-		border: /*hdpi*/ none;
+		margin: 0;
+		padding: 0px;
+		border: none;
 		border-image: none;
 		background-color: #c34151;
-		min-width: /*hdpi*/ 122px;
-		max-width: /*hdpi*/ 122px;
-		min-height: /*hdpi*/ 32px;
-		max-height: /*hdpi*/ 32px;
-		border-radius: /*hdpi*/ 3px;
-		font-size: /*hdpi*/ 14px;
+		min-width: 122px;
+		max-width: 122px;
+		min-height: 32px;
+		max-height: 32px;
+		border-radius: 3px;
+		font-size: 14px;
 		font-weight: 700;
 		font-style: normal;
 		text-align: center;
@@ -85,34 +85,52 @@ GoLivePannel #Record:checked:disabled {
 }*/
 
 GoLivePannel #GoLiveShift PLSAddingFrame {
-	padding: /*hdpi*/ 0px;
-	margin: /*hdpi*/ 0px;
-	min-width: /*hdpi*/ 122px;
-	max-width: /*hdpi*/ 122px;
-	min-height: /*hdpi*/ 32px;
-	max-height: /*hdpi*/ 32px;
-	border-radius: /*hdpi*/ 3px;
-	border: /*hdpi*/ none;
+	padding: 0px;
+	margin: 0px;
+	min-width: 122px;
+	max-width: 122px;
+	min-height: 32px;
+	max-height: 32px;
+	border-radius: 3px;
+	border:none;
 	background-color: #effc35;
 }
 
 GoLivePannel #GoLiveShift PLSAddingFrame #PixLabel {
-	qproperty-maximumSize: /*hdpi*/ 24px /*hdpi*/ 24px;
-	qproperty-minimumSize: /*hdpi*/ 24px /*hdpi*/ 24px;
+	qproperty-maximumSize: 24px 24px;
+	qproperty-minimumSize: 24px 24px;
 }
 
+
+	GoLivePannel #Record PLSAddingFrame {
+		padding:  0px;
+		margin:  0px;
+		min-width: 122px;
+		max-width: 122px;
+		min-height: 32px;
+		max-height: 32px;
+		border-radius: 3px;
+		border: none;
+		background-color: #c34151;
+	}
+
+		GoLivePannel #Record PLSAddingFrame #PixLabel {
+			qproperty-maximumSize: 24px 24px;
+			qproperty-minimumSize: 24px 24px;
+		}
+
 	GoLivePannel #RecPauseBtn {
-		margin: /*hdpi*/ 0;
-		padding: /*hdpi*/ 2px;
-		border: /*hdpi*/ none;
+		margin: 0;
+		padding: 2px;
+		border: none;
 		border-image: none;
 		background-color: #c34151;
-		min-width: /*hdpi*/ 28px;
-		max-width: /*hdpi*/ 28px;
-		min-height: /*hdpi*/ 28px;
-		max-height: /*hdpi*/ 28px;
-		border-radius: /*hdpi*/ 3px;
-		font-size: /*hdpi*/ 14px;
+		min-width: 28px;
+		max-width: 28px;
+		min-height: 28px;
+		max-height: 28px;
+		border-radius: 3px;
+		font-size: 14px;
 		font-weight: bold;
 		font-style: normal;
 		text-align: center;

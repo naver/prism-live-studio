@@ -1,5 +1,6 @@
 #include <QObject>
 #include <QMediaPlayer>
+#include <QReadWriteLock>
 #include "PLSSceneTemplateMainSceneItem.h"
 #include "PLSSceneTemplateModel.h"
 #include <qmediaplayer.h>
@@ -29,10 +30,9 @@ public:
 	void enterMainScenePage();
 	bool isVideoType(const QString &path);
 	bool isImageType(const QString &path);
+	bool getVideoFirstFrame(const QString &videoPath, std::function<void(bool, QPixmap)> callback);
 
 private:
-	bool getVideoFirstFrame(const QString &videoPath, QPixmap &pixmap);
-
 private slots:
 	void showError(QMediaPlayer::Error error, const QString &errorString);
 
@@ -41,6 +41,7 @@ private:
 	QMap<QString, PLSSceneTemplateImageView *> imageViewCache;
 	PLSSceneTemplateContainer *m_sceneContainer{nullptr};
 	QMap<QString, QPixmap> videoThumbnailCache;
+	QReadWriteLock videoThumbnailCacheLock{QReadWriteLock::Recursive};
 };
 
 #define PLS_SCENE_TEMPLATE_MEDIA_MANAGE PLSSceneTemplateMediaManage::instance()

@@ -14,6 +14,7 @@
 #include <QButtonGroup>
 #include <QJsonDocument>
 #include <QEventLoop>
+#include <QSet>
 
 #include <stdio.h>
 #include "utils-api.h"
@@ -21,6 +22,7 @@
 
 #include <QtConcurrent/QtConcurrent>
 #include <QFutureWatcher>
+#include "pls/pls-source.h"
 
 constexpr auto CATEGORY_ID_ALL = "All";
 constexpr auto CATEGORY_ID_RECENT = "Recent";
@@ -43,6 +45,9 @@ const int MARGIN_RIGHT = 20;
 const int MARGIN_TOP = 15;
 const int MARGIN_BOTTOM = 15;
 
+//Update Sticker Layout
+const int UPDATE_STICKER_HEIGHT = 80;
+
 const int REQUST_TIME_OUT_MS = 10 * 1000;
 const int DOWNLOAD_TIME_OUT_MS = 30 * 1000;
 using namespace common;
@@ -53,18 +58,23 @@ using namespace pls::rsm;
 #define CATEGORY_INSTANCE CategoryPrismSticker::instance()
 #define GET_RECENT_USED_ITEMS CATEGORY_INSTANCE->getUsedItems(RECENT_USED_GROUP_ID)
 
-static void loadItems(const pls::rsm::Group &group, std::list<Item> &itemsOut)
+static void loadItems(const pls::rsm::Group &group, std::list<Item> &itemsOut, QSet<QString> &seenItemIds)
 {
 	for (const auto &item : group.items()) {
+		if (seenItemIds.contains(item.itemId())) {
+			continue;
+		}
+		seenItemIds.insert(item.itemId());
 		itemsOut.push_back(item);
 	}
 }
 
 static void loadAllItems(std::list<Item> &items)
 {
+	QSet<QString> seenItemIds;
 	auto groups = CATEGORY_INSTANCE->getGroups();
 	for (auto &group : groups) {
-		loadItems(group, items);
+		loadItems(group, items, seenItemIds);
 	}
 }
 
@@ -130,10 +140,11 @@ static std::optional<std::pair<QString, QString>> getStickerConfigInfo(const pls
 
 PLSPrismSticker::PLSPrismSticker(QWidget *parent) : PLSSideBarDialogView({298, 817, 5, ConfigId::PrismStickerConfig}, parent)
 {
+	pls_uistep_v2_set_custom_show_hide_name(this, "PRISM STICKER");
 	ui = pls_new<Ui::PLSPrismSticker>();
 	setupUi(ui);
 	qRegisterMetaType<StickerPointer>("StickerPointer");
-	pls_add_css(this, {"PLSPrismSticker", "PLSToastMsgFrame", "PLSThumbnailLabel", "ScrollAreaWithNoDataTip"});
+	pls_add_css(this, {"PLSPrismSticker", "PLSStickerToastFrame", "PLSThumbnailLabel", "ScrollAreaWithNoDataTip"});
 	timerLoading = pls_new<QTimer>(this);
 
 	pls_network_state_monitor([this_guard = QPointer<PLSPrismSticker>(this)](bool accessible) {
@@ -181,6 +192,14 @@ PLSPrismSticker::PLSPrismSticker(QWidget *parent) : PLSSideBarDialogView({298, 8
 		// initialize for the startup
 		HandleStickerData();
 	});
+#if defined(Q_OS_MACOS)
+	setMinimumSize(300, 455 - PLS_TITLE_BAR_HEIGHT);
+	setMaximumSize(1472, 1036 - PLS_TITLE_BAR_HEIGHT);
+#else
+	setMinimumSize(300, 455);
+	setMaximumSize(1472, 1036);
+#endif
+	pls_uistep_v2_set_title(this, "PRISM Sticker");
 }
 
 PLSPrismSticker::~PLSPrismSticker()
@@ -196,6 +215,62 @@ bool PLSPrismSticker::WriteDownloadCache() const
 	return PLSStickerDataHandler::WriteDownloadCacheToLocal(downloadCache);
 }
 
+void PLSPrismSticker::EnterUpdateStickerMode(obs_source_t *source, bool isChangedSticker, const QString &resourceId)
+{
+	assert(source != nullptr);
+	setWindowTitle(tr(MIAN_PRISM_UPDATE_STICKER_TITLE));
+	m_isChangedSticker = isChangedSticker;
+	m_updateStickerMode = true;
+	m_updateStickerId = resourceId;
+	update_sticker_source = source;
+	ShowUpdateStickerGuideView();
+
+	if (!m_lastOutlineLabelItemID.isEmpty()) {
+		setOutlineVisible(m_lastOutlineLabelItemID, false);
+	}
+	setOutlineVisible(resourceId, true);
+}
+
+void PLSPrismSticker::setOutlineVisible(const QString &itemId, bool visible)
+{
+	const auto &labels = m_itemLabels.value(itemId);
+	for (const auto &label : labels) {
+		if (label)
+			label->SetShowOutline(visible);
+	}
+}
+
+void PLSPrismSticker::LeaveUpdateStickerMode()
+{
+	setWindowTitle(tr(MIAN_PRISM_STICKER_TITLE));
+	if (m_updateStickerGuideView) {
+		m_updateStickerGuideView->hide();
+	}
+	update_sticker_source = nullptr;
+	m_updateStickerMode = false;
+	m_updateStickerId = "";
+	m_isChangedSticker = false;
+	if (!m_lastOutlineLabelItemID.isEmpty()) {
+		setOutlineVisible(m_lastOutlineLabelItemID, false);
+	}
+	m_lastOutlineLabelItemID = "";
+}
+
+bool PLSPrismSticker::isUpdateStickerMode()
+{
+	return m_updateStickerMode;
+}
+
+void PLSPrismSticker::setCloseEventCallback(const std::function<bool(obs_source_t *update_source)> &closeEventCallback)
+{
+	m_closeEventCallback = closeEventCallback;
+}
+
+void PLSPrismSticker::requestCloseStickerView()
+{
+	reject();
+}
+
 void PLSPrismSticker::InitScrollView()
 {
 	if (nullptr == stackedWidget) {
@@ -204,7 +279,6 @@ void PLSPrismSticker::InitScrollView()
 		sp.setVerticalPolicy(QSizePolicy::Expanding);
 		stackedWidget->setSizePolicy(sp);
 	}
-
 	ui->layout_main->insertWidget(1, stackedWidget);
 }
 
@@ -239,6 +313,7 @@ void PLSPrismSticker::InitCategory()
 		btnMore->setObjectName("prismStickerMore");
 		btnMore->setCheckable(true);
 		btnMore->setFixedSize(39, 35);
+		pls_uistep_v2_set_value(btnMore, "clicked", "More Category");
 		QHBoxLayout *layout = pls_new<QHBoxLayout>(btnMore);
 		layout->setContentsMargins(0, 0, 0, 0);
 		QLabel *labelIcon = pls_new<QLabel>(btnMore);
@@ -418,6 +493,9 @@ void PLSPrismSticker::AdjustCategoryTab()
 	if (!showMoreBtn) {
 		btnMore->hide();
 		ui->category->setFixedHeight(rectHeight + 1);
+		if (auto *lay = ui->layout_main) {
+			lay->activate();
+		}
 		showAllCategory();
 		return;
 	}
@@ -509,29 +587,39 @@ void PLSPrismSticker::UpdateNodataPageGeometry()
 
 void PLSPrismSticker::ApplySticker(const pls::rsm::Item &item, StickerPointer label)
 {
-	auto dateTime = QDateTime::currentMSecsSinceEpoch();
 	StickerHandleResult result = PLSStickerDataHandler::RemuxItemResource(item);
 	if (!result.success) {
 		PLS_WARN(MAIN_PRISM_STICKER, "Failed to remux file: %s", qUtf8Printable(item.itemId()));
 		return;
 	}
 
+	bool wasOutlineVisible = label && label->IsShowOutline();
+
 	if (label) {
 		label->SetShowLoad(false);
-		qint64 gap = QDateTime::currentMSecsSinceEpoch() - dateTime;
-		if (gap < LOADING_TIME_MS) {
-			QTimer::singleShot(LOADING_TIME_MS - gap, this, [label]() {
-				PLS_INFO(MAIN_PRISM_STICKER, "UserApplySticker: single shot timer triggered.");
-				label->SetShowOutline(false);
-			});
-		} else {
+		PLS_INFO(MAIN_PRISM_STICKER, "UserApplySticker: single shot timer triggered.");
+		if (!m_updateStickerMode) {
 			label->SetShowOutline(false);
 		}
 	}
 
 	if (!pls_get_app_exiting()) {
-		emit StickerApplied(result);
-		UpdateRecentList(item);
+		if (m_updateStickerMode) {
+			if (label && label->IsShowOutline()) {
+				emit StickerUpdatedResource(result, update_sticker_source);
+				UpdateRecentList(item);
+			}
+		} else if (wasOutlineVisible) {
+			emit StickerAddedApplied(result);
+			UpdateRecentList(item);
+		}
+
+		/*QString categoryId = CATEGORY_ID_RECENT;
+		auto iter = categoryViews.find(categoryId);
+		if (iter != categoryViews.end() && iter->second) {
+			CleanPage(categoryId);
+			LoadViewPage(categoryId, iter->second, GetFlowlayout(categoryId));
+		}	*/
 	}
 }
 
@@ -559,12 +647,14 @@ void PLSPrismSticker::UpdateDpi(double dpi) const
 void PLSPrismSticker::ShowToast(const QString &tips)
 {
 	if (nullptr == toastTip) {
-		toastTip = pls_new<PLSToastMsgFrame>(this);
+		toastTip = pls_new<PLSStickerToastFrame>(this);
 	}
+	PLS_UI_ACTION("Sticker View Toast Init");
 	UpdateToastPos();
 	toastTip->SetMessage(tips);
-	toastTip->SetShowWidth(width() - 2 * 10);
 	toastTip->ShowToast();
+	toastTip->show();
+	toastTip->raise();
 }
 
 void PLSPrismSticker::HideToast()
@@ -578,12 +668,47 @@ void PLSPrismSticker::UpdateToastPos()
 	if (toastTip) {
 		auto pos = ui->category->mapTo(this, QPoint(10, ui->category->height() + 10));
 		toastTip->move(pos);
+		toastTip->setFixedWidth(width() - 2 * 10);
+		toastTip->calcFixedHeight();
 	}
+}
+
+void PLSPrismSticker::ShowUpdateStickerGuideView()
+{
+	PLS_UI_ACTION("Update Sticker Source Guide View Init");
+	if (!m_updateStickerGuideView) {
+		m_updateStickerGuideView = pls_new<PLSUpdateStickerGuideView>(this);
+		connect(m_updateStickerGuideView, &PLSUpdateStickerGuideView::onFinishButtonClicked, this, [this] {
+			emit StickerUpdatedApplied(update_sticker_source);
+			ShowToast(tr("main.prism.update.sticker.apply.toast"));
+		});
+	}
+	UpdateGuideViewPosSize();
+	m_updateStickerGuideView->setDefaultIcon(true);
+	m_updateStickerGuideView->updateOkButtonEnabled(false);
+	m_updateStickerGuideView->show();
+	m_updateStickerGuideView->raise();
+}
+
+void PLSPrismSticker::UpdateGuideViewPosSize()
+{
+	if (!m_updateStickerGuideView) {
+		return;
+	}
+	auto pos = ui->category->mapTo(this, QPoint(10, ui->category->height() + 10));
+	int viewWidth = width() - 2 * 10;
+	m_updateStickerGuideView->setFixedWidth(viewWidth);
+	m_updateStickerGuideView->calcFixedHeight();
+	m_updateStickerGuideView->move(pos);
 }
 
 void PLSPrismSticker::DownloadResource(const StickerData &data, StickerPointer label)
 {
-	
+	if (requestDownloadLabels.find(data.id) == requestDownloadLabels.end()) {
+		requestDownloadLabels.insert(data.id, label);
+		PLS_INFO(MAIN_PRISM_STICKER, "Start to download resource: '%s'", qUtf8Printable(data.id));
+		CATEGORY_INSTANCE->downloadItem(data.id);
+	}
 }
 
 QLayout *PLSPrismSticker::GetFlowlayout(const QString &categoryId)
@@ -625,11 +750,28 @@ void PLSPrismSticker::hideEvent(QHideEvent *event)
 {
 	App()->getMainView()->updateSideBarButtonStyle(ConfigId::PrismStickerConfig, false);
 	HideToast();
+	LeaveUpdateStickerMode();
+	if (isDataReady) {
+		showMoreBtn = true;
+		InitCategory();
+		AdjustCategoryTab();
+		SwitchToCategory(GET_RECENT_USED_ITEMS.empty() ? CATEGORY_ID_ALL : CATEGORY_ID_RECENT);
+	}
 	PLSSideBarDialogView::hideEvent(event);
 }
 
 void PLSPrismSticker::closeEvent(QCloseEvent *event)
 {
+#if defined(Q_OS_MACOS)
+	if (pls_libutil_api_mac::pls_get_is_app_quitting_by_dock()) {
+		PLSSideBarDialogView::closeEvent(event);
+		return;
+	}
+#endif
+	if (m_closeEventCallback && !m_closeEventCallback(update_sticker_source)) {
+		event->ignore();
+		return;
+	}
 	hide();
 	event->ignore();
 }
@@ -650,10 +792,20 @@ bool PLSPrismSticker::eventFilter(QObject *watcher, QEvent *event)
 		UpdateNodataPageGeometry();
 		if (toastTip && toastTip->isVisible()) {
 			UpdateToastPos();
-			toastTip->SetShowWidth(width() - 2 * 10);
+		}
+		if (m_updateStickerGuideView && m_updateStickerGuideView->isVisible()) {
+			UpdateGuideViewPosSize();
 		}
 	}
 	return PLSSideBarDialogView::eventFilter(watcher, event);
+}
+
+void PLSPrismSticker::reject()
+{
+	if (m_closeEventCallback && !m_closeEventCallback(update_sticker_source)) {
+		return;
+	}
+	hide();
 }
 
 void PLSPrismSticker::OnBtnMoreClicked()
@@ -823,41 +975,83 @@ void PLSPrismSticker::HideLoading()
 void PLSPrismSticker::LoadStickerAsync(const StickerData &data, QWidget *parent, QLayout *layout)
 {
 	auto label = pls_new<PLSThumbnailLabel>(parent);
+	QPointer<PLSThumbnailLabel> guardedLabel(label);
+	m_itemLabels[data.id].append(guardedLabel);
+	connect(label, &PLSThumbnailLabel::selectedOutlineItem, this, [this, guardedLabel](const QPixmap &pix) {
+		if (guardedLabel) {
+			// Add to lastClickedLabels list if not already present
+			auto sticker_data = guardedLabel->property("stickerData").value<StickerData>();
+			m_lastOutlineLabelItemID = sticker_data.id;
+			if (m_updateStickerGuideView) {
+				m_updateStickerGuideView->updateGuideIcon(pix);
+				m_updateStickerGuideView->updateOkButtonEnabled(guardedLabel->IsShowLoading() ? false : m_isChangedSticker);
+			}
+		}
+	});
+
+	connect(
+		label, &PLSThumbnailLabel::itemDownloadedFinished, this,
+		[this, guardedLabel](const QPixmap &pix) {
+			if (m_updateStickerGuideView && guardedLabel && guardedLabel->IsShowOutline()) {
+				m_updateStickerGuideView->updateGuideIcon(pix);
+				m_updateStickerGuideView->updateOkButtonEnabled(m_isChangedSticker);
+			}
+		},
+		Qt::QueuedConnection);
+
+	connect(label, &QPushButton::clicked, this, [this, guardedLabel]() {
+		if (!guardedLabel)
+			return;
+
+		// Clear all previously selected labels
+		setOutlineVisible(m_lastOutlineLabelItemID, false);
+
+		if (guardedLabel->IsShowLoading()) {
+			guardedLabel->SetShowOutline(true);
+			return;
+		}
+		guardedLabel->SetShowLoad(true);
+		guardedLabel->SetShowOutline(true);
+		auto sticker_data = guardedLabel->property("stickerData").value<StickerData>();
+		QString log("User click sticker: \"%1/%2\"");
+		PLS_UI_STEP(MAIN_PRISM_STICKER, qUtf8Printable(log.arg(sticker_data.category).arg(sticker_data.id)), ACTION_CLICK);
+		DownloadResource(sticker_data, guardedLabel);
+	});
+
 	label->setObjectName("prismStickerLabel");
 	label->SetTimer(timerLoading);
 	label->setProperty("stickerData", QVariant::fromValue<StickerData>(data));
 	label->SetCachePath(pls_get_user_path(PRISM_STICKER_CACHE_PATH));
-	label->SetUrl(QUrl(data.thumbnailUrl), data.version);
-	connect(label, &QPushButton::clicked, this, [this, label]() {
-		if (nullptr == lastClicked)
-			lastClicked = label;
-		else {
-			lastClicked->SetShowOutline(false);
-			lastClicked = label;
-		}
-		if (label->IsShowLoading()) {
-			label->SetShowOutline(true);
-			return;
-		}
-		label->SetShowOutline(true);
-		label->SetShowLoad(true);
-		auto sticker_data = label->property("stickerData").value<StickerData>();
-		QString log("User click sticker: \"%1/%2\"");
-		PLS_UI_STEP(MAIN_PRISM_STICKER, qUtf8Printable(log.arg(sticker_data.category).arg(sticker_data.id)), ACTION_CLICK);
-		DownloadResource(sticker_data, label);
-	});
+	label->SetInfo(QUrl(data.thumbnailUrl), data.version);
+	pls_uistep_v2_set_value(label, "clicked", QString("%1/%2").arg(data.category).arg(data.id));
+
 	layout->addWidget(label);
 	layout->update();
+
+	//Update the currently selected sticker object, and send a message to update the icon and selection status.
+	if (m_updateStickerMode && data.id == m_updateStickerId) {
+		label->SetShowOutline(true);
+	}
 }
 
 void PLSPrismSticker::DownloadCategoryJson()
 {
-	
+	if (!NetworkAccessible()) {
+		pls_async_call(this, [this]() { ShowNoNetworkPage(tr("main.giphy.network.toast.error"), NoNetwork); });
+		return;
+	}
+
+	HideNoNetworkPage();
+	ShowLoading(content());
+	/**
+	 * start download
+	 */
+	DoDownloadJsonFile();
 }
 
 void PLSPrismSticker::DoDownloadJsonFile()
 {
-	
+	CATEGORY_INSTANCE->download();
 }
 
 bool PLSPrismSticker::NetworkAccessible() const

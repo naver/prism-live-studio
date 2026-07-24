@@ -14,10 +14,9 @@ public:
 	explicit PLSLogo(QWidget *parent = nullptr);
 	~PLSLogo() override;
 	void setVisableTips(bool isVisable);
+	void refreshMinimumWidthFromLayout();
 
 protected:
-	void leaveEvent(QEvent *event) override;
-	void enterEvent(QEnterEvent *event) override;
 	bool event(QEvent *event) override;
 
 	Ui::PLSLogo *ui = nullptr;

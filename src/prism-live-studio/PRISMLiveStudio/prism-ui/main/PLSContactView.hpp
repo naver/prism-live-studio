@@ -18,7 +18,7 @@ class PLSContactView : public PLSDialogView {
 	Q_OBJECT
 
 public:
-	PLSContactView(const QString &message, const QString &additionalMessage, QWidget *parent = nullptr);
+	PLSContactView(const QString &message, const QString &code, const QString &additionalMessage, QWidget *parent = nullptr);
 	~PLSContactView() override;
 
 private:
@@ -42,8 +42,9 @@ private:
 	void writeDefaultAudioMixerInfo(std::ofstream &file) const;
 	void writeAudioMonitorDeviceInfo(std::ofstream &file) const;
 	void writeHardwareInfo(std::ofstream &file) const;
-	void setupErrorMessageTextEdit(const QString &message);
+	void writeErrorAlertInfo(std::ofstream &file) const;
 	void updateSendButtonState();
+	bool checkMessageValid(const QString &message);
 
 protected:
 	void closeEvent(QCloseEvent *event) override;
@@ -68,8 +69,11 @@ private:
 	QString m_additionalMessage;
 	QString m_message;
 	QString m_originMessage;
+	QString m_errorMessage;
+	QString m_errorCode;
 	QScrollBar *m_verticalScrollBar{nullptr};
 	PLSRadioButtonGroup *m_pInquireType = nullptr;
+	QStringList m_userInfoExtraLines;
 };
 
 #endif // PLSCONTACTVIEW_H

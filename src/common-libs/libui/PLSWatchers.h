@@ -32,4 +32,18 @@ protected:
 	bool eventFilter(QObject *watched, QEvent *event) override;
 };
 
+class LIBUI_API PLSResizeWatcher : public QObject {
+	Q_OBJECT
+
+public:
+	explicit PLSResizeWatcher(QWidget *watched);
+	~PLSResizeWatcher() override = default;
+
+signals:
+	void signalSizeChanged(const QSize &size, QWidget *wathced);
+
+protected:
+	bool eventFilter(QObject *watched, QEvent *event) override;
+};
+
 #endif // PLSWATCHERS_H

@@ -22,7 +22,7 @@ public:
 			PLSDialogButtonBox::updateStandardButtonsStyle(buttonBox);
 		}
 		for (auto &child : findChildren<QComboBox *>()) {
-			child->setView(new PLSComboBoxListView());
+			child->setView(new PLSComboBoxListView(child));
 		}
 		for (auto &child : findChildren<QVBoxLayout *>()) {
 			child->setSpacing(10);
@@ -48,6 +48,7 @@ PLSFontDialogView::PLSFontDialogView(QWidget *parent) : PLSFontDialogView(parent
 
 PLSFontDialogView::PLSFontDialogView(const QFont &initial, QWidget *parent) : PLSDialogView(parent)
 {
+	pls_add_css(this, {"PLSFontDialogView"});
 	impl = pls_new<PLSFontDialogImpl>(this, initial, this->content());
 	initSize(QSize(630, 638));
 

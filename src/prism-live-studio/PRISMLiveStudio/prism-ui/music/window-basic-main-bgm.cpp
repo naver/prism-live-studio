@@ -7,66 +7,25 @@
 #include "liblog.h"
 #include "log/module_names.h"
 #include "PLSVirtualBgManager.h"
-#include "PLSAction.h"
 #include "pls/pls-source.h"
+#include "PLSBgmControlsView.h"
+
 using namespace common;
-using namespace action;
 Q_DECLARE_METATYPE(BgmSourceVecType);
 
 QByteArray buildPlatformViewerCount();
 
-void PLSBasic::OnBgmClicked()
+void PLSBasic::onBgmClicked()
 {
-	if (!backgroundMusicView) {
-		createBackgroundMusicView();
-		pls_async_call(this, [this]() { backgroundMusicView->show(); });
-		return;
-	}
-
-	SetBgmViewVisible(!backgroundMusicView->isVisible());
-}
-
-void PLSBasic::createBackgroundMusicView()
-{
-	if (!backgroundMusicView) {
-		DialogInfo info;
-		info.configId = ConfigId::BgmConfig;
-		info.defaultHeight = 817;
-		info.defaultWidth = 298;
-		backgroundMusicView = pls_new<PLSBackgroundMusicView>(info);
-		connect(
-			backgroundMusicView, &PLSBackgroundMusicView::RefreshSourceProperty, this,
-			[this](const QString &name, bool) {
-				if (!properties) {
-					return;
-				}
-
-				if (name == obs_source_get_name(properties->GetSource())) {
-					properties->ReloadProperties();
-				}
-			},
-			Qt::QueuedConnection);
-	}
+	InitBgmDockGeometry();
+	SetBgmViewVisible(!ui->bgmDock->isVisible());
 }
 
 void PLSBasic::SetBgmViewVisible(bool visible)
 {
-	if (backgroundMusicView) {
-		backgroundMusicView->setVisible(visible);
-		if (visible) {
-			backgroundMusicView->UpdateSourceSelectUI();
-			backgroundMusicView->raise();
-		}
-	}
-}
-
-void PLSBasic::OnSetBgmViewVisible(bool state)
-{
-	if (backgroundMusicView) {
-		SetBgmViewVisible(state);
-	} else if (state) {
-		OnBgmClicked();
-		SetBgmViewVisible(state);
+	ui->bgmDock->setVisible(visible);
+	if (visible) {
+		backgroundMusicView->UpdateSourceSelectUI();
 	}
 }
 
@@ -81,11 +40,7 @@ void PLSBasic::ReorderBgmSourceList()
 
 bool PLSBasic::GetBgmViewVisible() const
 {
-	if (!backgroundMusicView) {
-		return false;
-	}
-
-	return backgroundMusicView->isVisible();
+	return ui->bgmDock->isVisible();
 }
 
 static bool enumBgmItem(obs_scene_t *, obs_sceneitem_t *item, void *param)
@@ -256,7 +211,7 @@ bool PLSBasic::GetSelectBgmSourceName(QString &selectSourceName, quint64 &item) 
 
 		QString sourceId = obs_source_get_id(source);
 		if (0 == sourceId.compare(BGM_SOURCE_ID)) {
-			if (!obs_sceneitem_selected(sceneItem) || !obs_sceneitem_visible(sceneItem)) {
+			if (!obs_sceneitem_selected(sceneItem)) {
 				continue;
 			}
 			selectSourceName = obs_source_get_name(source);
@@ -279,26 +234,23 @@ void PLSBasic::SetBgmItemSelected(obs_scene_item *item, bool isSelected_)
 	}
 
 	// select top item when ctrl+A
-	BgmSourceVecType sourceList;
-	OBSScene scene = GetCurrentScene();
-	obs_scene_enum_items(scene, enumBgmItem, &sourceList);
-
+	QString name;
+	quint64 sceneitem;
 	obs_sceneitem_t *topSelectItem{};
-	for (auto const &source : sourceList) {
-		auto sceneitem = (obs_sceneitem_t *)source.second;
-		if (obs_sceneitem_selected(sceneitem)) {
-			topSelectItem = sceneitem;
-			break;
-		}
+	if (bool selectBgm = GetSelectBgmSourceName(name, sceneitem); selectBgm) {
+		topSelectItem = pls_get_sceneitem_by_pointer_address(GetCurrentScene(), (void *)sceneitem);
 	}
 
 	const obs_source_t *topSource = obs_sceneitem_get_source(topSelectItem);
 	if (!isSelected_ && !topSource) {
+		pls_async_call(this, [this]() { backgroundMusicView->UpdateSourceSelectUI(); });
 		return;
 	}
 	if (!topSource || topSource == itemSource) {
-		QMetaObject::invokeMethod(backgroundMusicView, "SetSourceSelect", Qt::QueuedConnection, Q_ARG(const QString &, obs_source_get_name(itemSource)), Q_ARG(quint64, (quint64)item),
-					  Q_ARG(bool, isSelected_));
+		auto select = topSource ? true : isSelected_;
+		auto realItem = topSource ? topSelectItem : item;
+		QMetaObject::invokeMethod(backgroundMusicView, "SetSourceSelect", Qt::QueuedConnection, Q_ARG(const QString &, obs_source_get_name(itemSource)), Q_ARG(quint64, (quint64)realItem),
+					  Q_ARG(bool, select));
 		return;
 	} else {
 		itemSource = topSource;
@@ -323,7 +275,7 @@ void PLSBasic::SetBgmItemVisible(obs_scene_item *item, bool isVisible)
 	if (!itemSource) {
 		return;
 	}
-
+	OnPLSEvent(pls_frontend_event::PLS_FRONT_EVENT_MUSIC_PLAYLIST_SELECT_CHANGED);
 	QMetaObject::invokeMethod(backgroundMusicView, "SetSourceVisible", Qt::QueuedConnection, Q_ARG(const QString &, obs_source_get_name(itemSource)), Q_ARG(quint64, (quint64)item),
 				  Q_ARG(bool, isVisible));
 }
@@ -358,6 +310,14 @@ void PLSBasic::ClearMusicResource()
 	}
 }
 
+PLSBgmItemData PLSBasic::getMusicPlaylistCurrentRow()
+{
+	if (backgroundMusicView) {
+		return backgroundMusicView->getCurrentRow();
+	}
+	return {};
+}
+
 void PLSBasic::PropertiesChanged(void *, calldata_t *calldata)
 {
 	auto basic = static_cast<PLSBasic *>(App()->GetMainWindow());
@@ -368,3 +328,36 @@ void PLSBasic::PropertiesChanged(void *, calldata_t *calldata)
 		QMetaObject::invokeMethod(basic->backgroundMusicView, "OnPropertiesChanged", Qt::QueuedConnection, Q_ARG(const QString &, name));
 	}
 }
+
+void OBSBasic::updateMusicToolbarUi()
+{
+	if (m_bgmControls) {
+		m_bgmControls->UpdateUI();
+	}
+}
+
+void OBSBasic::SetPendingRenderSceneNamePerf(obs_source_t *source, const char *actionStr)
+{
+#ifdef PLS_UI_ACTION_STATS
+	if (ui && ui->preview) {
+		std::lock_guard<std::mutex> lock(ui->preview->pendingRenderSceneNameMutex);
+		if (source && ui->preview->pendingRenderSceneName.empty()) {
+			const char *sceneName = obs_source_get_name(source);
+			ui->preview->pendingRenderSceneName = sceneName;
+			PLS_UI_ACTION(actionStr);
+		}
+	}
+#endif
+}
+
+void OBSBasic::SetPreviewRenderPerf(const char *actionStr)
+{
+#ifdef PLS_UI_ACTION_STATS
+	if (ui && ui->preview) {
+		if (ui->preview->lastActionTime == 0)
+			ui->preview->lastActionTime = os_gettime_ns(); 
+			PLS_UI_ACTION(actionStr); 
+	}
+#endif
+}
+ 

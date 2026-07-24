@@ -76,7 +76,11 @@ PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton {
 	background-color: transparent;
 }
 
-#PLSLiveInfoNaverShoppingLIVE #helpLabel {
+#PLSLiveInfoNaverShoppingLIVE #notifyLabel, #PLSLiveInfoNaverShoppingLIVE #searchTitleLabel {
+	max-width: 78px;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #helpLabel, #PLSLiveInfoNaverShoppingLIVE #searchIcon {
 	margin: 0px;
 }
 
@@ -190,32 +194,15 @@ PLSLiveInfoNaverShoppingLIVE #apButton {
     max-height:/*hdpi*/40px;
 }
 
-PLSLiveInfoNaverShoppingLIVE #searchIcon {
-	min-width: /*hdpi*/ 18px;
-	max-width: /*hdpi*/ 18px;
-	min-height: /*hdpi*/ 18px;
-	max-height: /*hdpi*/ 18px;
-	background-color: transparent;
-	margin: 1px;
-	background: none;
-	margin: 0;
-	padding: 0;
-	image: url(":resource/images/ic-help-off-normal.svg");
-}
-
-PLSLiveInfoNaverShoppingLIVE #searchIcon:hover {
-	image:url(":resource/images/ic-help-off-over.svg");
-}
-
-PLSLiveInfoNaverShoppingLIVE #searchRadioWidget {
+PLSLiveInfoNaverShoppingLIVE #searchRadioFrame {
 	min-width:/*hdpi*/ 554px;
 	max-width:/*hdpi*/ 554px;
 	min-height:/*hdpi*/ 40px;
 	max-height:/*hdpi*/ 40px;
-	background-color:transparent;
+	background-color: transparent;
 }
 
-PLSLiveInfoNaverShoppingLIVE #searchRadioWidget > .QRadioButton {
+PLSLiveInfoNaverShoppingLIVE #searchRadioWidget > .QRadioButton, PLSLiveInfoNaverShoppingLIVE #notifyRadioButtonWidget > .QRadioButton{
 	font-size:/*hdpi*/ 14px;
 	spacing: /*hdpi*/ 10px;
     font-weight: normal;
@@ -878,12 +865,11 @@ PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfo
 	image: url(:/resource/images/navershopping/badge_introducing.svg);
 }
 
-PLSLiveInfoNaverShoppingLIVE #notifyWidget #notifyRadioButtonWidget {
+PLSLiveInfoNaverShoppingLIVE #notifyWidget #notifyRadioFrame {
 	min-width: /*hdpi*/ 554px;
 	max-width: /*hdpi*/ 554px;
 	min-height: /*hdpi*/ 40px;
 	max-height: /*hdpi*/ 40px;
-	background-color: transparent;
 }
 
 PLSLiveInfoNaverShoppingLIVE #notifyRadioButtonWidget #sendRadioButton,

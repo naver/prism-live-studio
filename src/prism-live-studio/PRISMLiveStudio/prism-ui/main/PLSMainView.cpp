@@ -8,6 +8,7 @@
 #include "login-user-info.hpp"
 
 #include <QResizeEvent>
+#include <QSizePolicy>
 #include <QPainter>
 #include <QStyle>
 #include <QWidgetAction>
@@ -17,8 +18,16 @@
 #include <qdatetime.h>
 #include <QMetaEnum>
 #include <QButtonGroup>
+#include <QVBoxLayout>
+#include <QSpacerItem>
+#include <QSizePolicy>
+#include <QFrame>
+
+#include "vertical-scroll-area.hpp"
 
 #include "PLSBasic.h"
+#include "PLSNoticeUpdateCoordinator.hpp"
+#include "PLSNoticeUpdateRepository.hpp"
 
 #include <libutils-api.h>
 #include <libui.h>
@@ -31,9 +40,17 @@
 #include "ResolutionGuidePage.h"
 #include "PLSAboutView.hpp"
 #include "PLSChatDialog.h"
-#include "PLSAction.h"
 #include "PLSLaunchWizardView.h"
+#include <QTimer>
+#include "pls-performance.h"
+#include "PLSApp.h"
+#include "PLSCommonFunc.h"
+#include "PLSLoadingView.h"
+#include "PLSOnBoardingDlg.h"
+#include "PLSTrackers.h"
+#include <pls/pls-base.h>
 
+#include "PLSNewIconActionWidget.hpp"
 #if defined(Q_OS_WINDOWS)
 #include <Windows.h>
 #include "windows/PLSBlockDump.h"
@@ -43,6 +60,8 @@
 #if defined(Q_OS_MACOS)
 #include "mac/PLSBlockDump.h"
 #endif
+
+extern void printTotalStartTime();
 
 static auto PC_STATE_FILE = "pc_state_log.txt";
 
@@ -74,10 +93,13 @@ const QString sideBarStyle = "#%1 {"
 			     "#%1[showMode=\"true\"]:!enable{"
 			     "image:url(\"%9\");}";
 
-enum HelpWidgetItemTag { UserGuide = 0, PrismFAQ, PrismWebsite, ContactUs, CheckForUpdate };
+enum HelpWidgetItemTag { UserGuide = 0, PrismFAQ, PrismWebsite, Discord, ContactUs, NoticeAndUpdate, CheckForUpdate };
 
-PLSMainView::PLSMainView(QWidget *parent) : PLSToplevelView<QFrame>(parent)
+PLSMainView::PLSMainView(QWidget *parent) : PLSToplevelView<QFrame>(CreateWinId::DontCreate, parent)
 {
+	PLS_PERFORMANCE_FUNCTION();
+	PLS_DISABLE_UISTEP_V2(this);
+
 #ifdef _WIN32
 	// firstly read, then run detect
 	readDetectResult();
@@ -86,11 +108,10 @@ PLSMainView::PLSMainView(QWidget *parent) : PLSToplevelView<QFrame>(parent)
 
 	pls_set_main_view(this);
 	setWindowIcon(QIcon(":/resource/images/logo/PRISMLiveStudio.ico"));
-
 	ui = pls_new<Ui::PLSMainView>();
 	ui->setupUi(this);
+	setupRightSidebarWidgets();
 	pls_set_css(this, {"PLSMainView", "HelpMenu"});
-
 	ui->logo_update->setAttribute(Qt::WA_NativeWindow);
 #if defined(Q_OS_WIN)
 	setAttribute(Qt::WA_NativeWindow);
@@ -102,8 +123,12 @@ PLSMainView::PLSMainView(QWidget *parent) : PLSToplevelView<QFrame>(parent)
 	customMacWindow()->setMinButtonHidden(false);
 	customMacWindow()->setCloseButtonHidden(false);
 #else
-	QObject::connect(ui->min, &QToolButton::clicked, this, [this]() { showMinimized(); });
+	QObject::connect(ui->min, &QToolButton::clicked, this, [this]() {
+		resizeTracker()->disableTracking();
+		showMinimized();
+	});
 	QObject::connect(ui->maxres, &QToolButton::clicked, this, [this]() {
+		resizeTracker()->disableTracking();
 		if (!getMaxState() && !getFullScreenState()) {
 			showMaximized();
 		} else {
@@ -118,35 +143,31 @@ PLSMainView::PLSMainView(QWidget *parent) : PLSToplevelView<QFrame>(parent)
 #if defined(Q_OS_WIN)
 	initSize({1600, 1000});
 #elif defined(Q_OS_MACOS)
-	initSize({1600, 964});
+	initSize({1600, 1000 - PLS_TITLE_BAR_HEIGHT});
 #endif
 	closeEventCallback = [this](QCloseEvent *e) { callBaseCloseEvent(e); };
 
-	QObject::connect(ui->studioMode, &QToolButton::clicked, this, [this]() { emit studioModeChanged(); });
+	QObject::connect(m_studioModeBtn, &QPushButton::clicked, this, [this]() { emit studioModeChanged(); });
 
 	ui->channelsArea->setMouseTracking(true);
 	ui->channelsArea->installEventFilter(this);
 	ui->content->installEventFilter(this);
 	initSideBarButtons();
+	/* Bottom strip: [alert][20px][lens][20px][plus] — PRISM Info menu opens Discord */
+	if (m_bottomLayout && m_bottomLayout->count() >= 2) {
+		m_bottomLayout->insertSpacing(1, 20);
+	}
 	initHelpMenu();
 
-	// Side-bar menu scroll area.
-	ui->scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-	ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-	ui->scrollArea->setObjectName("sidebarMenuScrollarea");
-	ui->label_separator_bottom->hide();
+	// Side-bar menu scroll area: wheel/touch scroll OK, no visible scrollbar.
+	m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	m_scrollArea->setObjectName("sidebarMenuScrollarea");
+	m_separatorBottom->hide();
 	connect(ui->logo_update, &QPushButton::clicked, this, &PLSMainView::updateAppView);
 
 	m_toastMsg = pls_new<PLSToastMsgPopup>(this);
 	m_toastMsg->hide();
-
-	// set user photo tooltip
-	ui->user->setAttribute(Qt::WA_AlwaysShowToolTips, true);
-
-	m_userPlusImage = new QWidget(ui->user);
-	m_userPlusImage->setObjectName("userPlusImage");
-	m_userPlusImage->move(21, 13);
-	m_userPlusImage->setHidden(true);
 
 	// mobile source
 	DialogInfo mobileInfo;
@@ -154,26 +175,68 @@ PLSMainView::PLSMainView(QWidget *parent) : PLSToplevelView<QFrame>(parent)
 	mobileInfo.defaultHeight = 817;
 	mobileInfo.defaultWidth = 300;
 	mobileInfo.defaultOffset = 5;
-	if (pls_prism_is_dev()) {
+	if (pls_is_dev()) {
 		ui->devLabel->setText(" (Dev)");
 	} else {
 		ui->devLabel->setVisible(false);
 	}
 
 #if defined(Q_OS_MACOS)
-	QString devStr = pls_is_dev_server() ? " (Dev)" : "";
-	QString title = windowTitle() + devStr;
+	//PRISM/jackson/20260409/PRISM_PC-5676/native title: name · v{version} (Dev)
+	QString devStr = pls_is_dev_server() ? QStringLiteral(" (Dev)") : "";
+	const QString ver = PLSLoginFunc::getPrismVersion();
+	QString title = windowTitle();
+	if (!ver.isEmpty())
+		title += QStringLiteral(" \u2022 v") + ver;
+	title += devStr;
 	setWindowTitle(title);
 #endif
 
 	initToastMsgView();
 
-	connect(this, &PLSMainView::onGolivePending, ui->settings, &QWidget::setDisabled);
-	connect(this, &PLSMainView::onGolivePending, ui->user, &QWidget::setDisabled);
+	connect(this, &PLSMainView::onGolivePending, m_settingsBtn, &QWidget::setDisabled);
+	connect(this, &PLSMainView::onGolivePending, m_userBtn, &QWidget::setDisabled);
+
+	setUiStepLogParams();
+
+#if defined(Q_OS_MACOS)
+	// Initialize macOS sleep/wake monitor
+	mac_sleep_notify = pls_new<PLSMacSleepNotify>(this);
+	connect(mac_sleep_notify, &PLSMacSleepNotify::systemWillSleep, this, [this]() { pls_update_pc_sleep(true); });
+	connect(mac_sleep_notify, &PLSMacSleepNotify::systemDidWake, this, [this]() { pls_update_pc_sleep(false); });
+#endif
+
+	connect(PLSUiApp::instance(), &PLSUiApp::peerAppState, this, [this](pls_app_state_t state) {
+		qDebug() << "open app state: " << pls_app_state_to_string(state);
+		switch (state) {
+		case pls_app_state_t::ProcessStarted:
+			updateSideBarButtonStyle(ConfigId::CamStudioConfig, true);
+			updateLoadingState(ConfigId::CamStudioConfig, false); // TODO: support old version, lens qt need remove
+			break;
+		case pls_app_state_t::ProcessExited:
+			updateSideBarButtonStyle(ConfigId::CamStudioConfig, false);
+			updateLoadingState(ConfigId::CamStudioConfig, false);
+			break;
+		case pls_app_state_t::AppNotInstalled:
+		case pls_app_state_t::OpenProcessFailed:
+		case pls_app_state_t::AnyWindowActived:
+		case pls_app_state_t::MainWindowActived:
+			updateLoadingState(ConfigId::CamStudioConfig, false);
+			break;
+		default:
+			break;
+		}
+	});
 }
 
 PLSMainView::~PLSMainView()
 {
+	PLS_PERFORMANCE_FUNCTION();
+
+#ifdef _WIN32
+	freeHandle = nullptr;
+#endif
+
 	pls_set_main_window_destroyed(true);
 	pls_delete(ui, nullptr);
 	pls_delete(m_livingMsgView);
@@ -349,6 +412,9 @@ void PLSMainView::close()
 {
 	if (!pls_is_main_window_closing()) {
 		pls_set_main_window_closing(true);
+
+		if (m_isFirstShow)
+			winId();
 		PLSToplevelView::close();
 	}
 }
@@ -387,6 +453,7 @@ void PLSMainView::onSideBarButtonClicked(int buttonId)
 }
 void PLSMainView::showChatView(bool isOnlyShow, bool isOnlyInit) const
 {
+	PLS_PERFORMANCE_FUNCTION();
 	auto basic = PLSBasic::instance();
 	if (!basic) {
 		return;
@@ -402,8 +469,9 @@ void PLSMainView::showChatView(bool isOnlyShow, bool isOnlyInit) const
 	bool isNeedRestPosAndShow = !isOnlyInit && isResetClicked;
 
 	if (!initializedGeometry || isNeedRestPosAndShow) {
-		chatDock->setFloating(true);
-		basic->InitChatDockGeometry();
+		bool isB2B = !PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName().isEmpty();
+		chatDock->setFloating(!isB2B);
+		basic->InitChatDockGeometry(isB2B);
 		chatDock->setVisible(true);
 		config_set_bool(App()->GetUserConfig(), "ChatConfig", "initializedGeometry", true);
 		config_set_bool(App()->GetUserConfig(), "ChatConfig", "isResetDockClicked", false);
@@ -429,11 +497,13 @@ void PLSMainView::showChatView(bool isOnlyShow, bool isOnlyInit) const
 
 void PLSMainView::on_help_clicked()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Help Button", ACTION_CLICK);
-	bool isChecked = ui->help->isChecked();
+	bool isChecked = m_helpBtn->isChecked();
 	if (isChecked) {
 		QListWidgetItem *checkListWidgetItem = m_helpListWidget->item(CheckForUpdate);
 		PLSNewIconActionWidget *checkMenuItem = dynamic_cast<PLSNewIconActionWidget *>(m_helpListWidget->itemWidget(checkListWidgetItem));
+		checkMenuItem->setBadgeVisible(PLSBasic::instance()->getUpdateResult() == AppUpdateResult::AppHasUpdate);
 		bool disabled = pls_is_output_actived();
 		if (disabled) {
 			checkListWidgetItem->setFlags(checkListWidgetItem->flags() & ~Qt::ItemIsEnabled);
@@ -441,7 +511,17 @@ void PLSMainView::on_help_clicked()
 			checkListWidgetItem->setFlags(checkListWidgetItem->flags() | Qt::ItemIsEnabled);
 		}
 		checkMenuItem->setItemDisabled(disabled);
-		helpMenu->exec(QCursor::pos());
+		QListWidgetItem *noticeWidgetItem = m_helpListWidget->item(NoticeAndUpdate);
+		PLSNewIconActionWidget *noticeWidget = dynamic_cast<PLSNewIconActionWidget *>(m_helpListWidget->itemWidget(noticeWidgetItem));
+		const bool forB2B = !PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName().isEmpty();
+		const bool hasUnread = PLSNoticeUpdateRepository::instance()->hasUnreadNotice(forB2B);
+		PLSNoticeUpdateCoordinator::instance()->onHelpSidebarOpened(hasUnread);
+		applyNoticeBadgeState();
+		noticeWidget->setNoticeTipsVisible(PLSNoticeUpdateCoordinator::instance()->helpMenuBadgeVisible());
+		updateHelpMenuGeometry();
+		// Anchor PRISM Info menu top-left at (icon top-right + 4px, same y), not at cursor.
+		const QPoint iconTopRightGlobal = m_helpBtn->mapToGlobal(m_helpBtn->rect().topRight());
+		helpMenu->exec(QPoint(iconTopRightGlobal.x() + 4, iconTopRightGlobal.y()));
 	} else {
 		helpMenu->setHidden(true);
 	}
@@ -457,25 +537,32 @@ void PLSMainView::on_listWidget_itemClicked(const QListWidgetItem *item)
 	} else if (tagInt == PrismWebsite) {
 		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Help MenuItemList PrismWebsite Button", ACTION_CLICK);
 		QMetaObject::invokeMethod(PLSBasic::instance(), "on_actionWebsite_triggered");
+	} else if (tagInt == Discord) {
+		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Help MenuItemList Discord Button", ACTION_CLICK);
+		QMetaObject::invokeMethod(PLSBasic::instance(), "on_actionDiscord_triggered");
 	} else if (tagInt == ContactUs) {
 		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Help MenuItemList ContactUs Button", ACTION_CLICK);
 		QMetaObject::invokeMethod(PLSBasic::Get(), "on_actionContactUs_triggered");
 	} else if (tagInt == CheckForUpdate) {
-		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Help MenuItemList checkFourUpdate Button", ACTION_CLICK);
-		QMetaObject::invokeMethod(PLSBasic::instance(), "on_checkUpdate_triggered");
+		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Help MenuItemList ProgramInfo Button", ACTION_CLICK);
+		QMetaObject::invokeMethod(PLSBasic::instance(), "on_actionShowAbout_triggered");
 	} else if (tagInt == UserGuide) {
 		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Help MenuItemList UserGuide Button", ACTION_CLICK);
 		QMetaObject::invokeMethod(PLSBasic::instance(), "on_actionUserGuide_triggered");
+	} else if (tagInt == NoticeAndUpdate) {
+		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Help MenuItemList NoticeUpdate Button", ACTION_CLICK);
+		consumeNoticeMenuBadge();
+		QMetaObject::invokeMethod(PLSBasic::instance(), "onNoticeUpdateMsgTirggered");
 	}
 }
 
 void PLSMainView::helpMenuAboutToHide()
 {
-	ui->help->setChecked(false);
+	m_helpBtn->setChecked(false);
 }
 void PLSMainView::on_user_clicked()
 {
-	if (!ui->settings->isEnabled()) {
+	if (!m_settingsBtn->isEnabled()) {
 		return;
 	}
 	PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar User Button", ACTION_CLICK);
@@ -494,7 +581,7 @@ void PLSMainView::showResolutionTips(const QString &platform)
 	} else {
 		tips = tr("Resolution.ButtonTips").arg(translatePlatformName(platform));
 	}
-	last = createSidebarTipFrame(tips, ui->ResolutionBtn, true);
+	last = createSidebarTipFrame(tips, m_resolutionBtn, true);
 }
 
 void PLSMainView::showVirtualCameraTips(const QString &tips)
@@ -520,13 +607,14 @@ void PLSMainView::showStudioModeTips(const QString &tips)
 	}
 
 	if (!tips.isEmpty()) {
-		last = createSidebarTipFrame(tips, ui->studioMode, true, "StudioModeTipsLabel");
+		last = createSidebarTipFrame(tips, m_studioModeBtn, true, "StudioModeTipsLabel");
+		PLS_UI_ACTION("Show studio mode tips: %s", pls_uistep_v2_to_english(tips).toUtf8().constData());
 	}
 }
 
 void PLSMainView::setStudioModeChecked(bool bValue)
 {
-	ui->studioMode->setChecked(bValue);
+	m_studioModeBtn->setChecked(bValue);
 }
 
 void PLSMainView::closeMobileDialog() const
@@ -539,26 +627,52 @@ void PLSMainView::closeMobileDialog() const
 	}
 }
 
-void PLSMainView::on_discordBtn_clicked()
+void PLSMainView::setNoticeTips(bool hasNoticeOrUpdateMsg)
 {
-	PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar discord Button", ACTION_CLICK);
-
-	PLSBasic::instance()->on_actionDiscord_triggered();
+	PLSNoticeUpdateCoordinator::instance()->syncBadgeStateFromUnread(hasNoticeOrUpdateMsg);
+	applyNoticeBadgeState();
 }
 
-void PLSMainView::on_plusBtn_clicked()
+void PLSMainView::armNoticeTips(bool hasNoticeOrUpdateMsg)
 {
-	PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar plus Button", ACTION_CLICK);
-	PLSBasic::instance()->showsPrismPlusIntroWindow();
-	PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE, {{"action", "ViewPlus"}, {"feature", "Plus Button"}}, "feature subscription reminder popup");
-	pls_send_analog(AnalogType::ANALOG_PAID_STATE, {{"fsrPopup", QVariantMap({{"action", "ViewPlus"}, {"feature", "Plus Button"}})}});
+	PLSNoticeUpdateCoordinator::instance()->armBadgeFromUnread(hasNoticeOrUpdateMsg);
+	applyNoticeBadgeState();
 }
 
-void PLSMainView::on_paid_status_changed()
+void PLSMainView::consumeNoticeMenuBadge()
 {
-	if (m_userPlusImage) {
-		m_userPlusImage->setHidden(true);
+	PLSNoticeUpdateCoordinator::instance()->consumeAllBadges();
+	applyNoticeBadgeState();
+}
+
+void PLSMainView::setHelpMenuNoticeBadgeVisible(bool visible)
+{
+	if (!m_helpListWidget)
+		return;
+	QListWidgetItem *noticeWidgetItem = m_helpListWidget->item(NoticeAndUpdate);
+	if (!noticeWidgetItem)
+		return;
+	auto *noticeWidget = dynamic_cast<PLSNewIconActionWidget *>(m_helpListWidget->itemWidget(noticeWidgetItem));
+	if (noticeWidget)
+		noticeWidget->setNoticeTipsVisible(visible);
+}
+
+void PLSMainView::applyNoticeBadgeState()
+{
+	if (!m_helpBtn)
+		return;
+
+	if (!m_noticeTipsIcon) {
+		m_noticeTipsIcon = new QLabel(m_helpBtn);
+		m_noticeTipsIcon->setScaledContents(true);
+		m_noticeTipsIcon->setObjectName("noticeTipsIcon");
 	}
+	const bool sidebarBadgeVisible = PLSNoticeUpdateCoordinator::instance()->sidebarBadgeVisible();
+	m_noticeTipsIcon->setVisible(sidebarBadgeVisible);
+	if (sidebarBadgeVisible) {
+		m_noticeTipsIcon->move(m_helpBtn->width() - 5, 0);
+	}
+	setHelpMenuNoticeBadgeVisible(PLSNoticeUpdateCoordinator::instance()->helpMenuBadgeVisible());
 }
 
 #ifdef DEBUG
@@ -614,9 +728,15 @@ ResolutionTipFrame *PLSMainView::createSidebarTipFrame(const QString &txt, QWidg
 
 void PLSMainView::showEvent(QShowEvent *event)
 {
+	const bool firstShow = m_isFirstShow;
 	m_isFirstShow = false;
 	++m_showTimes;
 	ui->bottomArea->StartStatusMonitor();
+	if (GlobalVars::isLogined) {
+		PLSApp::plsApp()->destoryLoadingApp();
+		printTotalStartTime();
+	}
+
 	emit isshowSignal(true);
 	PLSToplevelView::showEvent(event);
 #if defined(Q_OS_WINDOWS)
@@ -628,11 +748,14 @@ void PLSMainView::showEvent(QShowEvent *event)
 	PLSBlockDump::instance()->startMonitor();
 #endif
 
-	if (PLSLoginUserInfo::getInstance()->getAuthType() == "email") {
-		ui->user->setToolTip(PLSLoginUserInfo::getInstance()->getEmail());
-	} else {
-		ui->user->setToolTip(PLSLoginUserInfo::getInstance()->getNickname());
+	pls_async_call_mt(this, [this]() {
+		const bool forB2B = !PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName().isEmpty();
+		armNoticeTips(PLSNoticeUpdateRepository::instance()->hasUnreadNotice(forB2B));
+	});
+	if (firstShow) {
+		pls_async_call_mt(this, [this]() { ui->logo_update->refreshMinimumWidthFromLayout(); });
 	}
+	PLS_PERFORMANCE_GLOBAL_END("PRISM Startup Time");
 }
 
 void PLSMainView::hideEvent(QHideEvent *event)
@@ -655,11 +778,14 @@ void PLSMainView::closeEvent(QCloseEvent *event)
 {
 #ifdef Q_OS_WIN
 	auto bCloseByKeyboard = (GetAsyncKeyState(VK_MENU) < 0) && (GetAsyncKeyState(VK_F4) < 0);
-	if (m_isFirstShow && bCloseByKeyboard) {
+	if (auto forceClose = property("forceClose").toBool(); m_isFirstShow && bCloseByKeyboard && !forceClose) {
 		event->ignore();
+		pls_set_main_window_closing(false);
 		return;
 	}
 	PLS_INFO(MAINSCENE_MODULE, (bCloseByKeyboard ? __FUNCTION__ " by ALT+F4" : __FUNCTION__));
+#else
+	PLS_INFO(MAINSCENE_MODULE, "%s%s", __FUNCTION__, (pls_libutil_api_mac::pls_get_is_app_quitting_by_dock() ? " by dock quit" : ""));
 #endif
 	pls_set_main_window_closing(true);
 	closeEventCallback(event);
@@ -681,11 +807,14 @@ void PLSMainView::windowStateChanged(QWindowStateChangeEvent *event)
 void PLSMainView::setUpdateTipsStatus(bool isShowTips)
 {
 	ui->logo_update->setVisableTips(isShowTips);
+	ui->logo_update->refreshMinimumWidthFromLayout();
 }
+
 void PLSMainView::updateTipsEnableChanged(bool isEnable)
 {
 	ui->logo_update->setEnabled(isEnable);
 	pls_flush_style(ui->logo_update);
+	ui->logo_update->refreshMinimumWidthFromLayout();
 }
 
 bool PLSMainView::event(QEvent *event)
@@ -740,9 +869,12 @@ bool PLSMainView::nativeEvent(const QByteArray &eventType, void *message, qintpt
 	case WM_POWERBROADCAST: {
 		if (msg.wParam == PBT_APMSUSPEND) {
 			PLS_WARN(MAINFRAME_MODULE, "[PC STATE] enter sleep");
+			pls_sleep_start(obs_get_lagged_frames());
+			pls_update_pc_sleep(true);
 		} else if (msg.wParam == PBT_APMRESUMESUSPEND || msg.wParam == PBT_APMRESUMEAUTOMATIC) {
 			PLS_INFO(MAINFRAME_MODULE, "[PC STATE] wake up from event: %d", msg.wParam);
-
+			pls_sleep_end(obs_get_lagged_frames());
+			pls_update_pc_sleep(false);
 			if (!winrt_notify) {
 				winrt_notify = pls_new<PLSWinRTNotify>(this);
 			}
@@ -772,6 +904,12 @@ bool PLSMainView::nativeEvent(const QByteArray &eventType, void *message, qintpt
 	return PLSToplevelView<QFrame>::nativeEvent(eventType, message, result);
 }
 
+void PLSMainView::winIdChanged(WId winId)
+{
+	if (winId > 0)
+		PLSBasic::InitInteractData(winId, font());
+}
+
 bool PLSMainView::eventFilter(QObject *watcher, QEvent *event)
 {
 	if (watcher == ui->channelsArea) {
@@ -791,28 +929,60 @@ bool PLSMainView::eventFilter(QObject *watcher, QEvent *event)
 				QPoint pt = ui->content->mapToGlobal(QPoint(width, 0));
 				pt = mapFromGlobal(pt);
 				m_toastMsg->move(pt.x() - m_toastMsg->width() - 10, pt.y() + 10);
-				m_toastMsg->adjustSize();
 			}
 		}
 	}
 	return PLSToplevelView::eventFilter(watcher, event);
 }
-
 void PLSMainView::updateAppView()
 {
+	PLS_PERFORMANCE_FUNCTION();
+	PLS_PERFORMANCE_GLOBAL_START("updateLogoUpdateView");
+	PLS_UI_STEP(MAINMENU_MODULE, "Left Corner Logo Check Update", ACTION_CLICK);
+	auto basic = PLSBasic::instance();
+	if (basic) {
+		if (m_requestUpdate) {
+			return;
+		}
+		m_requestUpdate = true;
+		PLS_PERFORMANCE_START(CheckAppUpdate);
+		basic->CheckAppUpdate();
+		PLS_PERFORMANCE_END(CheckAppUpdate);
+		PLS_INFO(MAINMENU_MODULE, "Left Corner Logo Finished Check Update");
+		pls_modal_check_app_exiting();
+		if (basic->getUpdateResult() == AppUpdateResult::AppHasUpdate || basic->isForceUpdateApp()) {
+			PLS_INFO(MAINMENU_MODULE, "Left Corner Logo ShowUpdateView");
+			PLS_PERFORMANCE_GLOBAL_START("ShowUpdateView");
+			if (basic->ShowUpdateView(basic->getMainView())) {
+				PLS_INFO(MAINMENU_MODULE, "Left Corner Logo StartDownloading");
+				pls_async_call_mt(basic, [basic]() { basic->startDownloading(basic->isForceUpdateApp()); });
+			}
+		} else if (basic->getUpdateResult() == AppUpdateResult::AppNoUpdate) {
+			PLS_INFO(MAINMENU_MODULE, "Left Corner Logo Show About View");
+			PLSAboutView aboutView;
+			if (aboutView.exec() == PLSAboutView::Accepted) {
+				basic->on_checkUpdate_triggered();
+			}
+			PLS_INFO(MAINMENU_MODULE, "Left Corner Logo Finished Show About View");
+		}
+		m_requestUpdate = false;
+	}
 }
 
 void PLSMainView::on_settings_clicked()
 {
 	emit popupSettingView(QStringLiteral("General"), QString());
 	if (!pls_get_app_exiting()) {
-		ui->settings->setChecked(false);
+		m_settingsBtn->setChecked(false);
 	}
 }
 void PLSMainView::on_alert_clicked()
 {
 	PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Alert Button", ACTION_CLICK);
 	m_livingMsgView->setShow(!m_livingMsgView->isVisible());
+	if (auto btn = qobject_cast<PLSToastButton *>(getSiderBarButton("alert")); btn) {
+		btn->setNum(0);
+	}
 }
 
 void PLSMainView::on_chat_clicked() const
@@ -833,15 +1003,24 @@ int PLSMainView::alert_message_count() const
 
 void PLSMainView::on_ResolutionBtn_clicked()
 {
+	PLS_PERFORMANCE_GLOBAL_START("ShowResolutionGuidAllTime");
 	ResolutionGuidePage::setVisibleOfGuide(this);
-	ui->ResolutionBtn->setChecked(false);
+	m_resolutionBtn->setChecked(false);
 }
 
 QWidget *PLSMainView::getSiderBarButton(const QString &objName)
 {
-	int count = ui->verticalLayout_fixed->count();
+	if (QWidget *w = findChild<QWidget *>(objName, Qt::FindChildrenRecursively))
+		return w;
+	int count = m_sideBarLayout->count();
 	while (count--) {
-		auto w = ui->verticalLayout_fixed->itemAt(count)->widget();
+		auto w = m_sideBarLayout->itemAt(count)->widget();
+		if (w && (0 == objName.compare(w->objectName(), Qt::CaseInsensitive)))
+			return w;
+	}
+	count = m_bottomLayout->count();
+	while (count--) {
+		auto w = m_bottomLayout->itemAt(count)->widget();
 		if (w && (0 == objName.compare(w->objectName(), Qt::CaseInsensitive)))
 			return w;
 	}
@@ -856,7 +1035,53 @@ QString PLSMainView::generalStyleSheet(const QString &objectName, IconData data)
 	QString btnStyle = sideBarButtonSizeStyle.arg(objectName).arg(data.minWidth).arg(data.maxWidth).arg(data.minHeight).arg(data.maxHeight);
 	return strStyle + btnStyle;
 }
-void PLSMainView::registerSideBarButton(ConfigId id, const IconData &data, bool inFixedArea)
+
+void PLSMainView::createSidebarUtilityButtons()
+{
+	if (m_resolutionBtn) {
+		return;
+	}
+	QWidget *wparent = ui->rightArea;
+	m_resolutionBtn = pls_new<QPushButton>(wparent);
+	m_resolutionBtn->setObjectName(QStringLiteral("ResolutionBtn"));
+	m_resolutionBtn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	m_resolutionBtn->setCheckable(true);
+	m_resolutionBtn->setText(QString());
+	m_resolutionBtn->setToolTip(QTStr("ResolutionGuide.MainTitle"));
+	m_resolutionBtn->setAutoDefault(false);
+	m_resolutionBtn->setDefault(false);
+	QObject::connect(m_resolutionBtn, &QPushButton::clicked, this, &PLSMainView::on_ResolutionBtn_clicked);
+
+	m_settingsBtn = pls_new<QPushButton>(wparent);
+	m_settingsBtn->setObjectName(QStringLiteral("settings"));
+	m_settingsBtn->setProperty("useFor", "QToolButton");
+	m_settingsBtn->setCursor(Qt::ArrowCursor);
+	m_settingsBtn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	m_settingsBtn->setCheckable(true);
+	m_settingsBtn->setText(QString());
+	m_settingsBtn->setToolTip(QTStr("RightArea.Settings.TooTip"));
+	m_settingsBtn->setAutoDefault(false);
+	m_settingsBtn->setDefault(false);
+	QObject::connect(m_settingsBtn, &QPushButton::clicked, this, &PLSMainView::on_settings_clicked);
+
+	m_helpBtn = pls_new<QPushButton>(wparent);
+	m_helpBtn->setObjectName(QStringLiteral("help"));
+	m_helpBtn->setProperty("useFor", "QToolButton");
+	m_helpBtn->setCursor(Qt::ArrowCursor);
+	m_helpBtn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+	m_helpBtn->setCheckable(true);
+	m_helpBtn->setText(QString());
+	m_helpBtn->setToolTip(QTStr("RightArea.Help.TooTip"));
+	m_helpBtn->setAutoDefault(false);
+	m_helpBtn->setDefault(false);
+	QObject::connect(m_helpBtn, &QPushButton::clicked, this, &PLSMainView::on_help_clicked);
+
+	pls_flush_style(m_resolutionBtn);
+	pls_flush_style(m_settingsBtn);
+	pls_flush_style(m_helpBtn);
+}
+
+void PLSMainView::registerSideBarButton(ConfigId id, const IconData &data, bool isAddLoading)
 {
 	if (!sideBarBtnGroup) {
 		sideBarBtnGroup = pls_new<QButtonGroup>(this);
@@ -864,46 +1089,69 @@ void PLSMainView::registerSideBarButton(ConfigId id, const IconData &data, bool 
 		connect(sideBarBtnGroup, &QButtonGroup::idClicked, this, &PLSMainView::onSideBarButtonClicked);
 	}
 	QPushButton *btn = nullptr;
-	auto layout = inFixedArea ? ui->verticalLayout_fixed : ui->verticalLayout_side_bar;
+	QVBoxLayout *layout = nullptr;
+	int insertIndex = -1;
+	if (ConfigId::LivingMsgView == id) {
+		/* Notice + Lens: fixed bottom, not in VScrollArea */
+		layout = m_bottomLayout;
+		insertIndex = 0;
+	} else if (ConfigId::CamStudioConfig == id) {
+		layout = m_bottomLayout;
+		insertIndex = 1;
+	} else {
+		layout = m_sideBarLayout;
+	}
+	auto addToBarLayout = [&](QWidget *w) {
+		if (insertIndex >= 0)
+			layout->insertWidget(insertIndex, w, 0, Qt::AlignHCenter | Qt::AlignTop);
+		else
+			layout->addWidget(w, 0, Qt::AlignHCenter | Qt::AlignTop);
+	};
 	if (ConfigId::LivingMsgView == id) {
 		auto button = pls_new<PLSToastButton>(this);
 		button->setObjectName("alert");
-		layout->addWidget(button, 0, Qt::AlignHCenter | Qt::AlignTop);
+		addToBarLayout(button);
 		btn = button->getButton();
 	} else if (ConfigId::GiphyStickersConfig == id) {
 		btn = pls_new<PLSIconButton>(this);
 		btn->setProperty("useFor", "giphy");
-		layout->addWidget(btn, 0, Qt::AlignHCenter | Qt::AlignTop);
+		addToBarLayout(btn);
 	} else if (ConfigId::PrismStickerConfig == id) {
 		btn = pls_new<PLSIconButton>(this);
 		btn->setProperty("useFor", "prismSticker");
-		layout->addWidget(btn, 0, Qt::AlignHCenter | Qt::AlignTop);
+		addToBarLayout(btn);
 	} else if (ConfigId::DrawPenConfig == id) {
 		btn = pls_new<PLSIconButton>(this);
 		btn->setProperty("useFor", "drawPen");
-		layout->addWidget(btn, 0, Qt::AlignHCenter | Qt::AlignTop);
+		addToBarLayout(btn);
 	} else if (ConfigId::Ncb2bBrowserSettings == id) {
 		btn = pls_new<PLSIconButton>(this);
 		btn->setProperty("useFor", "ncb2bBrowserSettings");
 		btn->setVisible(false);
-		layout->addWidget(btn, 0, Qt::AlignHCenter | Qt::AlignTop);
+		addToBarLayout(btn);
 	} else if (ConfigId::SceneTemplateConfig == id) {
 		btn = pls_new<PLSIconButton>(this);
 		btn->setProperty("useFor", "sceneTemplate");
-		layout->addWidget(btn, 0, Qt::AlignHCenter | Qt::AlignTop);
+		addToBarLayout(btn);
 	} else if (ConfigId::DualOutputConfig == id) {
 		btn = pls_new<PLSIconButton>(this);
 		btn->setProperty("useFor", "dualOutput");
-		layout->addWidget(btn, 0, Qt::AlignHCenter | Qt::AlignTop);
+		addToBarLayout(btn);
 	} else {
 		btn = pls_new<QPushButton>(this);
-		layout->addWidget(btn, 0, Qt::AlignHCenter | Qt::AlignTop);
+		addToBarLayout(btn);
+	}
+
+	if (isAddLoading) {
+		connect(btn, &QPushButton::clicked, this, [this, id]() { this->updateLoadingState(id, true); });
 	}
 
 	sideBarBtnGroup->addButton(btn, id);
 	const char *objName = QMetaEnum::fromType<ConfigId>().valueToKey(id);
 	btn->setObjectName(objName);
 	btn->setToolTip(data.tooltip);
+
+	pls_uistep_v2_set_custom_enter_leave_name(btn, pls_uistep_v2_to_english(data.tooltip).toUtf8());
 
 	auto styleStr = generalStyleSheet(objName, data);
 
@@ -921,8 +1169,80 @@ void PLSMainView::registerSideBarButton(ConfigId id, const IconData &data, bool 
 	}
 	windowInfo << info;
 }
+
+void PLSMainView::setupRightSidebarWidgets()
+{
+	QWidget *const ra = ui->rightArea;
+	QVBoxLayout *const vl = ui->verticalLayout;
+	if (!vl || !ra) {
+		return;
+	}
+
+	m_raSpacerTop = new QSpacerItem(20, 16, QSizePolicy::Fixed, QSizePolicy::Fixed);
+	vl->addItem(m_raSpacerTop);
+
+	m_scrollArea = pls_new<VScrollArea>(ra);
+	m_scrollArea->setObjectName(QStringLiteral("scrollArea"));
+	m_scrollArea->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+	m_scrollArea->setFrameShape(QFrame::NoFrame);
+	m_scrollArea->setWidgetResizable(true);
+
+	m_sideBarMenus = pls_new<QWidget>();
+	m_sideBarMenus->setObjectName(QStringLiteral("side_bar_menus"));
+	m_sideBarMenus->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::MinimumExpanding);
+	m_sideBarLayout = pls_new<QVBoxLayout>(m_sideBarMenus);
+	m_sideBarLayout->setObjectName(QStringLiteral("verticalLayout_side_bar"));
+	m_sideBarLayout->setSpacing(20);
+	m_sideBarLayout->setContentsMargins(0, 8, 0, 8);
+
+	m_userBtn = pls_new<QPushButton>(m_sideBarMenus);
+	m_userBtn->setObjectName(QStringLiteral("user"));
+	m_userBtn->setCursor(Qt::ArrowCursor);
+	m_userBtn->setText(QString());
+	m_userBtn->setIconSize(QSize(34, 34));
+	m_userBtn->setProperty("useFor", "QToolButton");
+	m_sideBarLayout->addWidget(m_userBtn, 0, Qt::AlignHCenter | Qt::AlignTop);
+
+	m_studioModeBtn = pls_new<QPushButton>(m_sideBarMenus);
+	m_studioModeBtn->setObjectName(QStringLiteral("studioMode"));
+	m_studioModeBtn->setCursor(Qt::ArrowCursor);
+	m_studioModeBtn->setToolTip(QTStr("main.rightbar.studiomode.tooltip"));
+	m_studioModeBtn->setText(QString());
+	m_studioModeBtn->setCheckable(true);
+	m_studioModeBtn->setProperty("useFor", "QToolButton");
+	m_sideBarLayout->addWidget(m_studioModeBtn, 0, Qt::AlignHCenter | Qt::AlignTop);
+
+	m_scrollArea->setWidget(m_sideBarMenus);
+	vl->addWidget(m_scrollArea, 1);
+
+	m_separatorBottom = pls_new<QLabel>(ra);
+	m_separatorBottom->setObjectName(QStringLiteral("label_separator_bottom"));
+	m_separatorBottom->setText(QString());
+	vl->addWidget(m_separatorBottom, 0, Qt::AlignHCenter);
+
+	/* Former #label_space: fixed gap between scroll and bottom strip (see PLSMainView.css) */
+	vl->addItem(new QSpacerItem(20, 20, QSizePolicy::Fixed, QSizePolicy::Fixed));
+
+	m_bottomStack = pls_new<QWidget>(ra);
+	m_bottomStack->setObjectName(QStringLiteral("sidebarBottomStack"));
+	m_bottomStack->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+	m_bottomLayout = pls_new<QVBoxLayout>(m_bottomStack);
+	/* No inter-item spacing: explicit addSpacing(20) gives fixed 20px bottom margin */
+	m_bottomLayout->setSpacing(0);
+	m_bottomLayout->setContentsMargins(0, 0, 0, 0);
+
+	m_bottomLayout->addSpacing(20);
+
+	vl->addWidget(m_bottomStack);
+
+	QObject::connect(m_userBtn, &QPushButton::clicked, this, &PLSMainView::on_user_clicked);
+}
+
 void PLSMainView::initSideBarButtons()
 {
+	PLS_PERFORMANCE_FUNCTION();
+	// Section 1: Dual Output, Chat (scroll). Profile + Studio Mode are already at top of m_sideBarMenus (setupRightSidebarWidgets).
+	// Bottom fixed strip: Notice → Lens; not in scroll. (Discord: PRISM Info menu)
 	registerSideBarButton(ConfigId::DualOutputConfig,
 			      IconData{PRISM_DUALOUTPUT_OFF_NORMAL, PRISM_DUALOUTPUT_OFF_OVER, PRISM_DUALOUTPUT_OFF_CLICKED, PRISM_DUALOUTPUT_OFF_DISABLE, PRISM_DUALOUTPUT_ON_NORMAL,
 				       PRISM_DUALOUTPUT_ON_OVER, PRISM_DUALOUTPUT_ON_CLICKED, PRISM_DUALOUTPUT_ON_DISABLE, QTStr("DualOutput.Title"), 22, 22, 22, 22});
@@ -930,70 +1250,67 @@ void PLSMainView::initSideBarButtons()
 	registerSideBarButton(ConfigId::ChatConfig, IconData{CHAT_OFF_NORMAL, CHAT_OFF_OVER, CHAT_OFF_CLICKED, CHAT_OFF_DISABLE, CHAT_ON_NORMAL, CHAT_ON_OVER, CHAT_ON_CLICKED, CHAT_ON_DISABLE,
 							     QTStr("main.rightbar.chat.tooltip"), 22, 22, 22, 22});
 
-	registerSideBarButton(ConfigId::LivingMsgView, IconData{TOAST_OFF_NORMAL, TOAST_OFF_OVER, TOAST_OFF_CLICKED, TOAST_OFF_DISABLE, TOAST_ON_NORMAL, TOAST_ON_OVER, TOAST_ON_CLICKED,
-								TOAST_ON_DISABLE, QTStr("Alert.Title"), 22, 22, 22, 22});
-
 	registerSideBarButton(ConfigId::Ncb2bBrowserSettings, IconData{NCB2B_BROWSER_SETTINGS_OFF_NORMAL, NCB2B_BROWSER_SETTINGS_OFF_OVER, NCB2B_BROWSER_SETTINGS_OFF_CLICKED,
 								       NCB2B_BROWSER_SETTINGS_OFF_DISABLE, NCB2B_BROWSER_SETTINGS_ON_NORMAL, NCB2B_BROWSER_SETTINGS_ON_OVER,
 								       NCB2B_BROWSER_SETTINGS_ON_CLICKED, NCB2B_BROWSER_SETTINGS_ON_DISABLE, QTStr("Ncpb2b.Browser.Settings.Tooltip"), 22, 22, 22, 22});
 
-	ui->verticalLayout_fixed->addItem(new QSpacerItem(10, 2, QSizePolicy::Fixed, QSizePolicy::Fixed));
 	addSideBarSeparator();
+
+	// Section 2: Feature Area - Scene Template, Stickers, Music, Drawing, Virtual Camera (order: Preparation -> Decoration -> Performance -> Extension)
+	registerSideBarButton(ConfigId::SceneTemplateConfig,
+			      IconData{PRISM_SCENETEMPLATE_OFF_NORMAL, PRISM_SCENETEMPLATE_OFF_OVER, PRISM_SCENETEMPLATE_OFF_CLICKED, PRISM_SCENETEMPLATE_OFF_DISABLE, PRISM_SCENETEMPLATE_ON_NORMAL,
+				       PRISM_SCENETEMPLATE_ON_OVER, PRISM_SCENETEMPLATE_ON_CLICKED, PRISM_SCENETEMPLATE_ON_DISABLE, QTStr("SceneTemplate.Title"), 22, 22, 22, 22});
+
+	registerSideBarButton(ConfigId::PrismStickerConfig, IconData{PRISM_STICKER_OFF_NORMAL, PRISM_STICKER_OFF_OVER, PRISM_STICKER_OFF_CLICKED, PRISM_STICKER_OFF_DISABLE, PRISM_STICKER_ON_NORMAL,
+								     PRISM_STICKER_ON_OVER, PRISM_STICKER_ON_CLICKED, PRISM_STICKER_ON_DISABLE, QTStr("main.prism.sticker.title"), 22, 22, 22, 22});
+
+	registerSideBarButton(ConfigId::GiphyStickersConfig, IconData{GIPHY_OFF_NORMAL, GIPHY_OFF_OVER, GIPHY_OFF_CLICKED, GIPHY_OFF_DISABLE, GIPHY_ON_NORMAL, GIPHY_ON_OVER, GIPHY_ON_CLICKED,
+								      GIPHY_ON_DISABLE, QTStr("main.giphy.title"), 22, 22, 22, 22});
+
+	registerSideBarButton(ConfigId::BgmConfig,
+			      IconData{BGM_OFF_NORMAL, BGM_OFF_OVER, BGM_OFF_CLICKED, BGM_OFF_DISABLE, BGM_ON_NORMAL, BGM_ON_OVER, BGM_ON_CLICKED, BGM_ON_DISABLE, QTStr("Bgm.Title"), 22, 22, 22, 22});
+
+	registerSideBarButton(ConfigId::DrawPenConfig, IconData{DEAW_PEN_OFF_NORMAL, DEAW_PEN_OFF_OVER, DEAW_PEN_OFF_CLICKED, DEAW_PEN_OFF_DISABLE, DEAW_PEN_ON_NORMAL, DEAW_PEN_ON_OVER,
+								DEAW_PEN_ON_CLICKED, DEAW_PEN_ON_DISABLE, QTStr("drawpen.view.main.button.toolTip"), 22, 22, 22, 22});
 
 	registerSideBarButton(ConfigId::VirtualCameraConfig,
 			      IconData{VIRTUAL_CAMERA_OFF_NORMAL, VIRTUAL_CAMERA_OFF_OVER, VIRTUAL_CAMERA_OFF_CLICKED, VIRTUAL_CAMERA_OFF_DISABLE, VIRTUAL_CAMERA_ON_NORMAL, VIRTUAL_CAMERA_ON_OVER,
-				       VIRTUAL_CAMERA_ON_CLICKED, VIRTUAL_CAMERA_ON_DISABLE, QTStr("sidebar.virtualcamera.inactive.tips"), 22, 22, 22, 22},
-			      false);
-#if 0
-	registerSideBarButton(ConfigId::BeautyConfig,
-			      IconData{BEAUTYEFFECT_OFF_NORMAL, BEAUTYEFFECT_OFF_OVER, BEAUTYEFFECT_OFF_CLICKED, BEAUTYEFFECT_OFF_DISABLE, BEAUTYEFFECT_ON_NORMAL, BEAUTYEFFECT_ON_OVER,
-				       BEAUTYEFFECT_ON_CLICKED, BEAUTYEFFECT_ON_DISABLE, QTStr("main.beauty.title"), 26, 25, 26, 25},
+				       VIRTUAL_CAMERA_ON_CLICKED, VIRTUAL_CAMERA_ON_DISABLE, QTStr("sidebar.virtualcamera.inactive.tips"), 22, 22, 22, 22});
+
+	/* Resolution / Settings / Help: inside sidebar scroll area */
+	createSidebarUtilityButtons();
+	{
+		auto *lay = m_sideBarLayout;
+		addSideBarSeparator();
+		lay->addSpacing(10);
+		lay->addWidget(m_resolutionBtn, 0, Qt::AlignHCenter | Qt::AlignTop);
+		lay->addWidget(m_settingsBtn, 0, Qt::AlignHCenter | Qt::AlignTop);
+		lay->addWidget(m_helpBtn, 0, Qt::AlignHCenter | Qt::AlignTop);
+	}
+
+	addSideBarStretch();
+
+	/* Bottom strip: Notice → Lens; not in scroll */
+	registerSideBarButton(ConfigId::LivingMsgView,
+			      IconData{TOAST_OFF_NORMAL, TOAST_OFF_OVER, TOAST_OFF_CLICKED, TOAST_OFF_DISABLE, TOAST_ON_NORMAL, TOAST_ON_OVER, TOAST_ON_CLICKED, TOAST_ON_DISABLE, QTStr("Alert.Title"),
+				       22, 22, 22, 22},
 			      false);
 
-	registerSideBarButton(ConfigId::VirtualbackgroundConfig,
-			      IconData{VIRTUAL_OFF_NORMAL, VIRTUAL_OFF_OVER, VIRTUAL_OFF_CLICKED, VIRTUAL_OFF_DISABLE, VIRTUAL_ON_NORMAL, VIRTUAL_ON_OVER, VIRTUAL_ON_CLICKED, VIRTUAL_ON_DISABLE,
-				       QTStr("virtual.view.main.button.toolTip"), 26, 25, 26, 25},
-			      false);
-#endif
 	registerSideBarButton(ConfigId::CamStudioConfig,
 			      IconData{PRISM_CAM_OFF_NORMAL, PRISM_CAM_OFF_OVER, PRISM_CAM_OFF_CLICKED, PRISM_CAM_OFF_DISABLE, PRISM_CAM_ON_NORMAL, PRISM_CAM_ON_OVER, PRISM_CAM_ON_CLICKED,
 				       PRISM_CAM_ON_DISABLE, QTStr("Siderbar.Cam.Studio.Title"), 22, 22, 22, 22},
-			      false);
-
-	registerSideBarButton(ConfigId::SceneTemplateConfig,
-			      IconData{PRISM_SCENETEMPLATE_OFF_NORMAL, PRISM_SCENETEMPLATE_OFF_OVER, PRISM_SCENETEMPLATE_OFF_CLICKED, PRISM_SCENETEMPLATE_OFF_DISABLE, PRISM_SCENETEMPLATE_ON_NORMAL,
-				       PRISM_SCENETEMPLATE_ON_OVER, PRISM_SCENETEMPLATE_ON_CLICKED, PRISM_SCENETEMPLATE_ON_DISABLE, QTStr("SceneTemplate.Title"), 22, 22, 22, 22},
-			      false);
-
-	registerSideBarButton(ConfigId::DrawPenConfig,
-			      IconData{DEAW_PEN_OFF_NORMAL, DEAW_PEN_OFF_OVER, DEAW_PEN_OFF_CLICKED, DEAW_PEN_OFF_DISABLE, DEAW_PEN_ON_NORMAL, DEAW_PEN_ON_OVER, DEAW_PEN_ON_CLICKED,
-				       DEAW_PEN_ON_DISABLE, QTStr("drawpen.view.main.button.toolTip"), 22, 22, 22, 22},
-			      false);
-
-	registerSideBarButton(ConfigId::PrismStickerConfig,
-			      IconData{PRISM_STICKER_OFF_NORMAL, PRISM_STICKER_OFF_OVER, PRISM_STICKER_OFF_CLICKED, PRISM_STICKER_OFF_DISABLE, PRISM_STICKER_ON_NORMAL, PRISM_STICKER_ON_OVER,
-				       PRISM_STICKER_ON_CLICKED, PRISM_STICKER_ON_DISABLE, QTStr("main.prism.sticker.title"), 22, 22, 22, 22},
-			      false);
-
-	registerSideBarButton(ConfigId::GiphyStickersConfig,
-			      IconData{GIPHY_OFF_NORMAL, GIPHY_OFF_OVER, GIPHY_OFF_CLICKED, GIPHY_OFF_DISABLE, GIPHY_ON_NORMAL, GIPHY_ON_OVER, GIPHY_ON_CLICKED, GIPHY_ON_DISABLE,
-				       QTStr("main.giphy.title"), 22, 22, 22, 22},
-			      false);
-
-	registerSideBarButton(ConfigId::BgmConfig,
-			      IconData{BGM_OFF_NORMAL, BGM_OFF_OVER, BGM_OFF_CLICKED, BGM_OFF_DISABLE, BGM_ON_NORMAL, BGM_ON_OVER, BGM_ON_CLICKED, BGM_ON_DISABLE, QTStr("Bgm.Title"), 22, 22, 22, 22},
-			      false);
-
-	addSideBarStretch();
+			      true);
 }
 
 void PLSMainView::initHelpMenu()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	helpMenu = pls_new<QMenu>(this);
 #if defined(Q_OS_MACOS)
 	helpMenu->setWindowFlag(Qt::NoDropShadowWindowHint);
 #endif
 	helpMenu->setObjectName("helpMenu");
+	pls_uistep_v2_set_custom_show_hide_name(helpMenu, "Right SiderBar Help Menu");
 	m_helpListWidget = pls_new<QListWidget>(this);
 	QObject::connect(m_helpListWidget, &QListWidget::itemClicked, this, &PLSMainView::on_listWidget_itemClicked);
 	m_helpListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -1002,13 +1319,28 @@ void PLSMainView::initHelpMenu()
 	m_helpListWidget->setSelectionMode(QAbstractItemView::NoSelection);
 	m_helpListWidget->setFocusPolicy(Qt::NoFocus);
 	QList<QString> titleList;
-	titleList << QTStr("WizardView.UserGuide") << QTStr("MainFrame.SideBar.Help.PrismFAQ") << QTStr("MainFrame.SideBar.Help.PrismWebsite") << QTStr("MainFrame.SideBar.Help.ContactUs")
-		  << QTStr("MainFrame.SideBar.Help.checkUpdate");
+	titleList << QTStr("MainFrame.SideBar.Help.UserGuide") << QTStr("MainFrame.SideBar.Help.PrismFAQ") << QTStr("MainFrame.SideBar.Help.PrismWebsite") << QTStr("MainFrame.SideBar.Help.Discord")
+		  << QTStr("MainFrame.SideBar.Help.ContactUs") << QTStr("NoticeAndUpdateMsg") << QTStr("MainFrame.SideBar.Help.ProgramInfo");
+	/* Icons: prefer repo assets under resource/images/help-menu; Discord uses existing ic_Discord_off_normal.svg. */
+	static const char *const kHelpMenuItemIconQrc[] = {
+		":/resource/images/help-menu/ic-helpmenu-userguide.svg",
+		":/resource/images/help-menu/ic-helpmenu-faq.svg",
+		":/resource/images/help-menu/ic-helpmenu-website.svg",
+		":/resource/images/ic_Discord_off_normal.svg",
+		":/resource/images/help-menu/ic-helpmenu-contact.svg",
+		":/resource/images/help-menu/ic-helpmenu-notiandupdate.svg",
+		":/resource/images/help-menu/ic-helpmenu-update.svg",
+	};
+	static constexpr int kHelpMenuItemIconCount = int(sizeof(kHelpMenuItemIconQrc) / sizeof(kHelpMenuItemIconQrc[0]));
 	int index = 0;
+
+	const QString joined = titleList.join(", ");
+	PLS_DEBUG(MAINMENU_MODULE, "initHelpMenu helpList size=%d, items=%s", titleList.size(), joined.toUtf8().constData());
 	for (const QString &title : titleList) {
 		QListWidgetItem *item = pls_new<QListWidgetItem>();
 		item->setData(Qt::UserRole, UserGuide + index);
-		PLSNewIconActionWidget *widget = pls_new<PLSNewIconActionWidget>(title);
+		const QString iconPath = (index < kHelpMenuItemIconCount) ? QString::fromUtf8(kHelpMenuItemIconQrc[index]) : QString();
+		PLSNewIconActionWidget *widget = pls_new<PLSNewIconActionWidget>(title, nullptr, iconPath);
 		m_helpListWidget->addItem(item);
 		m_helpListWidget->setItemWidget(item, widget);
 		index++;
@@ -1017,28 +1349,68 @@ void PLSMainView::initHelpMenu()
 	action->setDefaultWidget(m_helpListWidget);
 	helpMenu->addAction(action);
 	QObject::connect(helpMenu, &QMenu::aboutToHide, this, &PLSMainView::helpMenuAboutToHide);
+	updateHelpMenuGeometry();
 }
 
-void PLSMainView::addSideBarSeparator(bool inFixedArea)
+void PLSMainView::updateHelpMenuGeometry()
+{
+	if (!m_helpListWidget || !helpMenu) {
+		return;
+	}
+
+	constexpr int kHelpMenuMinWidthFallbackPx = 212;
+	int minFromStyle = m_helpListWidget->minimumSizeHint().width();
+	if (minFromStyle <= 0) {
+		minFromStyle = helpMenu->minimumSizeHint().width();
+	}
+	const int minW = qMax(minFromStyle, kHelpMenuMinWidthFallbackPx);
+
+	/* Row height must respect stylesheet (e.g. PLSNewIconActionWidget / helpListWidget::item min-height 40px).
+	 * sizeHint() alone can be smaller than min-height, and setSizeHint would then squash rows. */
+	constexpr int kHelpMenuRowMinHeightPx = 40;
+
+	int maxRowW = minW;
+	int rowH = 0;
+	for (int i = 0; i < m_helpListWidget->count(); ++i) {
+		auto *row = qobject_cast<PLSNewIconActionWidget *>(m_helpListWidget->itemWidget(m_helpListWidget->item(i)));
+		if (!row) {
+			continue;
+		}
+		const QSize sh = row->sizeHint();
+		const QSize minSh = row->minimumSizeHint();
+		const int rowW = qMax(qMax(sh.width(), minSh.width()), row->helpMenuRowMinimumWidth());
+		maxRowW = qMax(maxRowW, rowW);
+		rowH = qMax(rowH, qMax(sh.height(), minSh.height()));
+	}
+	rowH = qMax(rowH, kHelpMenuRowMinHeightPx);
+
+	const int targetW = maxRowW;
+	for (int i = 0; i < m_helpListWidget->count(); ++i) {
+		if (QListWidgetItem *it = m_helpListWidget->item(i)) {
+			it->setSizeHint(QSize(targetW, rowH));
+		}
+	}
+
+	m_helpListWidget->setFixedWidth(targetW);
+	helpMenu->setFixedWidth(targetW);
+}
+
+void PLSMainView::addSideBarSeparator()
 {
 	QLabel *label_separate = pls_new<QLabel>(this);
 	label_separate->setObjectName("label_separate");
-	auto layout = inFixedArea ? ui->verticalLayout_fixed : ui->verticalLayout_side_bar;
-	layout->addWidget(label_separate, 0, Qt::AlignHCenter | Qt::AlignTop);
+	m_sideBarLayout->addWidget(label_separate, 0, Qt::AlignHCenter | Qt::AlignTop);
 }
 void PLSMainView::addSideBarStretch()
 {
-	ui->verticalLayout_side_bar->addStretch();
+	m_sideBarLayout->addStretch();
 }
 
 void PLSMainView::AdjustSideBarMenu()
 {
 	pls_check_app_exiting();
-	if (ui->scrollArea->verticalScrollBar()->maximum() > 0) {
-		ui->label_separator_bottom->show();
-	} else {
-		ui->label_separator_bottom->hide();
-	}
+	// Always hide: no divider line between sidebar scroll area and bottom buttons.
+	m_separatorBottom->hide();
 }
 void PLSMainView::hiddenWidget(QWidget *widget)
 {
@@ -1048,11 +1420,42 @@ void PLSMainView::hiddenWidget(QWidget *widget)
 	widget->hide();
 }
 
+void PLSMainView::setUiStepLogParams()
+{
+	pls_uistep_v2_set_title(this, QStringLiteral("Main Window"));
+	pls_uistep_v2_set_info(ui->min, QStringLiteral("TitleBar Button"), QStringLiteral("Minimize"));
+	pls_uistep_v2_set_info(ui->maxres, QStringLiteral("TitleBar Button"), [this]() { return isMaximized() ? QStringLiteral("Restore") : QStringLiteral("Maximize"); });
+	pls_uistep_v2_set_info(ui->close, QStringLiteral("TitleBar Button"), QStringLiteral("Close"));
+
+	pls_uistep_v2_set_value(m_userBtn, QStringLiteral("clicked"), QStringLiteral("User"));
+	pls_uistep_v2_set_custom_enter_leave_name(m_userBtn, "Profile Icon");
+
+	pls_uistep_v2_custom(m_studioModeBtn, QStringLiteral("clicked"), QStringLiteral("Choose"), QStringLiteral("Studio Mode"),
+			     [this]() { return m_studioModeBtn->isChecked() ? QStringLiteral("Checked") : QStringLiteral("Unchecked"); });
+	pls_uistep_v2_set_custom_enter_leave_name(m_studioModeBtn, "Studio Mode");
+
+	pls_uistep_v2_set_value(m_resolutionBtn, QStringLiteral("clicked"), QStringLiteral("Resolution"));
+	pls_uistep_v2_set_value(m_helpBtn, QStringLiteral("clicked"), QStringLiteral("Help"));
+	pls_uistep_v2_set_value(m_settingsBtn, QStringLiteral("clicked"), QStringLiteral("Settings"));
+	pls_uistep_v2_set_custom_enter_leave_name(m_resolutionBtn, "Resolution Guide");
+	pls_uistep_v2_set_custom_enter_leave_name(m_settingsBtn, "Sider Bar Settings");
+	pls_uistep_v2_set_custom_enter_leave_name(m_helpBtn, "PRISM Info");
+
+	for (auto button : sideBarBtnGroup->buttons()) {
+		if (!button->property("showMode").isNull()) {
+			pls_uistep_v2_custom(button, QStringLiteral("clicked"), QStringLiteral("Choose"), button->toolTip(),
+					     [button]() { return button->property("showMode").toBool() ? QStringLiteral("Unchecked") : QStringLiteral("Checked"); });
+		} else {
+			pls_uistep_v2_set_value(button, QStringLiteral("clicked"), button->toolTip());
+		}
+	}
+}
+
 bool PLSMainView::isSidebarButtonInScroll(ConfigId id) const
 {
 	if (sideBarBtnGroup) {
 		auto btn = sideBarBtnGroup->button(id);
-		return ui->scrollArea->rect().contains(btn->mapTo(ui->scrollArea, QPoint(0, 0)));
+		return m_scrollArea->rect().contains(btn->mapTo(m_scrollArea, QPoint(0, 0)));
 	}
 
 	return false;
@@ -1087,6 +1490,27 @@ void PLSMainView::updateSidebarButtonTips(ConfigId id, const QString &tips) cons
 		return;
 	}
 	btn->setToolTip(tips);
+}
+
+void PLSMainView::updateLoadingState(ConfigId id, bool visible)
+{
+	if (auto it = m_LoadingFrameMap.find(id); it == m_LoadingFrameMap.end()) {
+		if (!visible) {
+			return;
+		}
+
+		auto btn = sideBarBtnGroup->button(id);
+		PLSLoadingView *frame = PLSLoadingView::newLoadingView(btn, -1, nullptr, QString(), QColor(39, 39, 39, 255));
+		m_LoadingFrameMap.insert(id, frame);
+	} else {
+		PLSLoadingView *loadingFram = it.value();
+		if (visible) {
+			loadingFram->setVisible(visible);
+		} else {
+			pls_delete(loadingFram, nullptr);
+			m_LoadingFrameMap.erase(it);
+		}
+	}
 }
 
 void PLSMainView::blockSidebarButton(ConfigId id, bool toBlock) const
@@ -1151,13 +1575,13 @@ bool PLSMainView::setSidebarButtonEnabled(int windowId, bool enabled)
 
 void PLSMainView::setStudioModeEnabled(bool enabled)
 {
-	ui->studioMode->setEnabled(enabled);
+	m_studioModeBtn->setEnabled(enabled);
 }
 
 void PLSMainView::setStudioModeDimmed(bool bValue)
 {
-	ui->studioMode->setProperty("dimmed", bValue);
-	pls_flush_style(ui->studioMode);
+	m_studioModeBtn->setProperty("dimmed", bValue);
+	pls_flush_style(m_studioModeBtn);
 }
 
 void PLSMainView::toastMessage(pls_toast_info_type type, const QString &message, int)
@@ -1213,18 +1637,13 @@ void PLSMainView::toastClear()
 	}
 	QApplication::sendPostedEvents();
 }
-void PLSMainView::showPaidToast(pls_toast_info_type type, const QString &title, const QString &message, const QString &bottomButton, const std::function<void()> &btnCallback, bool containCloseBtn,
-				int auto_close)
-{
-	
-}
-void PLSMainView::clearPaidToast() {}
 void PLSMainView::setUserButtonIcon(const QIcon &icon)
 {
-	ui->user->setIcon(icon);
+	m_userBtn->setIcon(icon);
 }
 void PLSMainView::initToastMsgView(bool isInitShow)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (!m_livingMsgView) {
 		DialogInfo info;
 		info.configId = ConfigId::LivingMsgView;
@@ -1238,10 +1657,9 @@ void PLSMainView::setToastMsgViewVisible(bool isShow)
 {
 	m_livingMsgView->setShow(isShow);
 }
-
 void PLSMainView::setStudioMode(bool studioMode)
 {
-	ui->studioMode->setChecked(studioMode);
+	m_studioModeBtn->setChecked(studioMode);
 }
 
 bool PLSMainView::isFirstShow() const
@@ -1251,27 +1669,30 @@ bool PLSMainView::isFirstShow() const
 
 void PLSMainView::setSettingIconCheck(bool bCheck)
 {
-	QSignalBlocker block(ui->settings);
-	ui->settings->setChecked(bCheck);
+	QSignalBlocker block(m_settingsBtn);
+	m_settingsBtn->setChecked(bCheck);
 }
 
 void PLSMainView::setResolutionBtnCheck(bool bCheck)
 {
-	QSignalBlocker block(ui->ResolutionBtn);
-	ui->ResolutionBtn->setChecked(bCheck);
+	QSignalBlocker block(m_resolutionBtn);
+	m_resolutionBtn->setChecked(bCheck);
 }
 
 bool PLSMainView::isSettingEnabled() const
 {
-	return ui->settings->isEnabled();
+	return m_settingsBtn->isEnabled();
 }
 
 #ifdef _WIN32
 void PLSMainView::readDetectResult()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	// read previous file, then remove this file
-	auto pc_state_file = pls_get_app_data_dir("PRISMLiveStudio") + "/Cache/" + PC_STATE_FILE;
+	auto pc_state_file = pls_get_app_user_data_file_path_pn(QStringLiteral("/Cache/") + PC_STATE_FILE, false);
 	QFile file(pc_state_file);
+	if (!file.exists())
+		return;
 
 	if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
 		QTextStream in(&file);
@@ -1293,8 +1714,9 @@ void PLSMainView::readDetectResult()
 
 void PLSMainView::runNewDetect()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	// run process to detect pc and write new file if need
-	auto pc_state_file = pls_get_app_data_dir("PRISMLiveStudio") + "/Cache/" + PC_STATE_FILE;
+	auto pc_state_file = pls_get_app_user_data_file_path_pn(QStringLiteral("/Cache/") + PC_STATE_FILE);
 
 	HANDLE job_handle = ::CreateJobObject(nullptr, nullptr);
 	if (!job_handle) {
@@ -1337,7 +1759,7 @@ void PLSMainView::runNewDetect()
 	limit_info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 	::SetInformationJobObject(job_handle, JobObjectExtendedLimitInformation, &limit_info, sizeof(limit_info));
 
-	static std::shared_ptr<int> auto_free(nullptr, [job_handle, state_event](int *) {
+	std::shared_ptr<int> auto_free(nullptr, [job_handle, state_event](int *) {
 		if (job_handle) {
 			CloseHandle(job_handle);
 		}
@@ -1346,5 +1768,50 @@ void PLSMainView::runNewDetect()
 			CloseHandle(state_event);
 		}
 	});
+	freeHandle = auto_free;
 }
 #endif
+
+bool PLSMainView::isMatchOBSSupportPluginVersion(const QString &winObsPath)
+{
+
+	auto isVersionOK = [](int major, int minor) -> bool { return (LIBOBS_API_MAJOR_VER == major && LIBOBS_API_MINOR_VER == minor); };
+
+	bool isRunningOk = false;
+	QString obsVer;
+	auto verSuccessed = false;
+
+#ifdef __APPLE__
+	obsVer = pls_get_installed_obs_version();
+	auto versionList = obsVer.split(".");
+	verSuccessed = versionList.size() >= 2;
+	if (verSuccessed) {
+		isRunningOk = isVersionOK(versionList[0].toInt(), versionList[1].toInt());
+	}
+#else
+	pls_win_ver_t vers;
+	memset(&vers, 0, sizeof(vers));
+	verSuccessed = pls_get_win_dll_ver(vers, winObsPath + "/bin/64bit/obs64.exe");
+
+	if (verSuccessed) {
+		obsVer = QString("%1.%2.%3").arg(vers.major).arg(vers.minor).arg(vers.build);
+	} else {
+		obsVer = QString::fromUtf8(u8"notInstalled");
+	}
+	isRunningOk = isVersionOK(vers.major, vers.minor);
+#endif
+
+	PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE,
+		  {
+			  {"obsPluginUsed", isRunningOk ? "yes" : "no"},
+			  {"obsInstalled", verSuccessed ? "yes" : "no"},
+			  {"obsVersion", obsVer.toUtf8().constData()},
+		  },
+		  "current OBS version = %d.%d.%d (PRISM), "
+		  "OBS installed = %s, "
+		  "OBS version = %s, "
+		  "use 3rd-plugin from OBS: %s",
+		  LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER, verSuccessed ? "yes" : "no", obsVer.toUtf8().constData(), isRunningOk ? "yes" : "no");
+
+	return isRunningOk;
+}

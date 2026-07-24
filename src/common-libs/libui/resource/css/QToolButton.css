@@ -1,10 +1,10 @@
 QToolButton[For="SelectPath"] {
 	border-image:url(":/libui/resource/images/browser-normal.svg");
-	min-width:/*hdpi*/ 40px;
-	max-width:/*hdpi*/ 40px;
-	min-height:/*hdpi*/ 40px;
-	max-height:/*hdpi*/ 40px;
-	border-radius:/*hdpi*/ 3px;
+	min-width: 40px;
+	max-width: 40px;
+	min-height: 40px;
+	max-height: 40px;
+	border-radius: 3px;
 }
 QToolButton[For="SelectPath"]:hover {
 	border-image:url(":/libui/resource/images/browser-over.svg");
@@ -18,11 +18,11 @@ QToolButton[For="SelectPath"]:disabled {
 
 QToolButton[For="SelectPathClear"] {
     background-color: #444444;
-	min-width:/*hdpi*/ 40px;
-	max-width:/*hdpi*/ 40px;
-	min-height:/*hdpi*/ 40px;
-	max-height:/*hdpi*/ 40px;
-	border:/*hdpi*/ none;
+	min-width: 40px;
+	max-width: 40px;
+	min-height: 40px;
+	max-height: 40px;
+	border: none;
 }
 
 QToolButton[For="SelectPathClear"]:hover {
@@ -34,7 +34,7 @@ QToolButton[For="SelectPathClear"]:pressed {
 
 QToolButton[For="SelectMissingFile"], QToolButton[For="ClearMissingFile"] {
 	background-color: #444444;
-	border: /*hdpi*/ none;
+	border:  none;
 }
 
 QToolButton[For="SelectMissingFile"]:hover, QToolButton[For="ClearMissingFile"]:hover {

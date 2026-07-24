@@ -1,6 +1,5 @@
 project(libui)
-
-find_package(Qt6 REQUIRED COMPONENTS Widgets Svg)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Svg Multimedia)
 
 add_definitions(-DLIBUI_LIB -D_CRT_SECURE_NO_WARNINGS)
 include_directories(${Qt6Widgets_PRIVATE_INCLUDE_DIRS})
@@ -24,6 +23,14 @@ file(GLOB_RECURSE libui-HDR_FILES *.h *.hpp *.hxx *.hh)
 file(GLOB_RECURSE libui-UI_FILES *.ui)
 file(GLOB_RECURSE libui-QRC_FILES *.qrc)
 
+if(OS_WINDOWS)
+    list(FILTER libui-HDR_FILES EXCLUDE REGEX ".*[\\\\/]mac[\\\\/].*")
+    list(FILTER libui-SRC_FILES EXCLUDE REGEX ".*[\\\\/]mac[\\\\/].*")
+    list(FILTER libui-HDR_FILES EXCLUDE REGEX ".*[\\\\/]mac[\\\\/].*")
+    list(FILTER libui-UI_FILES EXCLUDE REGEX ".*[\\\\/]mac[\\\\/].*")
+    list(FILTER libui-QRC_FILES EXCLUDE REGEX ".*[\\\\/]mac[\\\\/].*")
+endif()
+
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Css Files" FILES ${css_files})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "UI Files" FILES ${libui-UI_FILES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "RC Files" FILES ${libui-QRC_FILES})
@@ -35,7 +42,7 @@ if(OS_MACOS)
 target_compile_options(libui PRIVATE -fobjc-arc)
 endif()
 
-target_link_libraries(libui Qt6::Widgets Qt6::Svg Qt6::GuiPrivate common-libs::utils-api common-libs::log common-libs::third-party::QQREncoder)
+target_link_libraries(libui Qt6::Widgets Qt6::Svg Qt6::Multimedia Qt6::GuiPrivate common-libs::utils-api common-libs::log common-libs::http-client common-libs::third-party::QQREncoder)
 
 set_target_properties(libui PROPERTIES FOLDER common-libs)
 set_target_properties(libui PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")

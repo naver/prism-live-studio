@@ -1,0 +1,87 @@
+{
+    "data": [
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "515"
+            },
+            "err": {
+                "prismCode": 10002,
+                "alertType": "Normal_Code",
+                "prismName": "CHANNEL_AFREECATV_API_EXPIRED",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Expired",
+                "arg": "SOOP",
+                "msgText": "Your %1 channel verification information has expired."
+            }
+        },
+        {
+            "phase": "login",
+            "api": {
+                "$statusCode": "515"
+            },
+            "err": {
+                "prismCode": 10003,
+                "alertType": "Normal_Code",
+                "prismName": "CHANNEL_AFREECATV_LOGIN_EXPIRED",
+                "msgKey": "Channels.expiredQuestion",
+                "arg": "SOOP",
+                "msgText": "Your %1 account verification information has expired. You will be transferred to the login page."
+            }
+        },
+        {
+            "phase": "login",
+            "api": {
+                "$statusCode": "403"
+            },
+            "err": {
+                "prismCode": 10004,
+                "prismName": "COMMON_CHANNEL_LOGIN_FAIL",
+                "msgKey": "server.unknown.error",
+                "msgText": "An unknown error has occurred."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "result": "-10"
+            },
+            "err": {
+                "prismCode": 10002,
+                "alertType": "Normal_Code",
+                "prismName": "CHANNEL_AFREECATV_API_EXPIRED",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Expired",
+                "arg": "SOOP",
+                "msgText": "Your %1 channel verification information has expired."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "result": "401"
+            },
+            "err": {
+                "prismCode": 10002,
+                "alertType": "Normal_Code",
+                "prismName": "CHANNEL_AFREECATV_API_EXPIRED",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Expired",
+                "arg": "SOOP",
+                "msgText": "Your %1 channel verification information has expired."
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "result": [
+                "result"
+            ],
+            "message": [
+                "data.message",
+                "msg"
+            ]
+        },
+        "logAppend": [
+            "result: {{result}}",
+            "message: {{message}}"
+        ]
+    }
+}

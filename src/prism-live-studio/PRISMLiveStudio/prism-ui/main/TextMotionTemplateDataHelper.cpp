@@ -1,5 +1,4 @@
 #include "TextMotionTemplateDataHelper.h"
-#include "TextMotionTemplateDataHelper.h"
 #include "pls-common-define.hpp"
 #include "frontend-api.h"
 #include "TextMotionTemplateButton.h"
@@ -13,6 +12,8 @@
 #include "network-state.h"
 #include "PLSBasic.h"
 #include "qversionnumber.h"
+#include "pls/pls-source.h"
+#include "PLSBasic.h"
 
 using namespace common;
 #define PRISM_TM_TEMPLATE_PATH QStringLiteral("PRISMLiveStudio/textmotion/textmotion.json")
@@ -33,7 +34,11 @@ struct CategoryTextTemplate : public pls::rsm::ICategory {
 	PLS_RSM_CATEGORY(CategoryTextTemplate)
 	QString categoryId(pls::rsm::IResourceManager *mgr) const override { return PLS_RSM_CID_TEXT_TEMPLATE; }
 	void jsonDownloaded(pls::rsm::IResourceManager *mgr, const pls::rsm::DownloadResult &result) override { copyTextTemplateResFromPackage(); }
-	void jsonLoaded(pls::rsm::IResourceManager *mgr, pls::rsm::Category category) override { TextMotionRemoteDataHandler::instance()->parseTMData(); }
+	void jsonLoaded(pls::rsm::IResourceManager *mgr, pls::rsm::Category category) override
+	{
+		PLSBasic::updateWebSources(PRISM_TEXT_TEMPLATE_ID, OBS_SOURCE_TEXT_TEMPLATE_UPDATE_PARAMS_SUB_CODE_JSONLOADED);
+		TextMotionRemoteDataHandler::instance()->parseTMData();
+	}
 	bool checkItem(pls::rsm::IResourceManager *mgr, pls::rsm::Item item) const override
 	{
 		if (auto group = item.groups().front(); group.groupId() == QStringLiteral("SCREEN SAVER")) {
@@ -45,7 +50,7 @@ struct CategoryTextTemplate : public pls::rsm::ICategory {
 	{
 		PLS_INFO(moduleName(), "getItemDownloadUrlAndHowSaves textTemplatePC %s", item.itemId().toUtf8().constData());
 
-		auto lang = pls_prism_get_locale() != "ko-KR" ? "en" : "ko";
+		auto lang = pls_get_locale() != "ko-KR" ? "en" : "ko";
 		urlAndHowSaves.push_back(pls::rsm::UrlAndHowSave() //
 						 .names({QStringLiteral("properties"), QStringLiteral("mediaProperties"), QStringLiteral("thumbnail"), lang, QStringLiteral("url")})
 						 .fileName(pls::rsm::FileName::FromUrl));
@@ -67,7 +72,8 @@ struct CategoryTextTemplate : public pls::rsm::ICategory {
 		PLS_INFO(moduleName(), "allDownload textTemplatePC");
 		pls_async_call_mt([this, ok]() {
 			pls_check_app_exiting();
-			if (PLSBasic::instance() && PLSBasic::instance()->Get()->GetPropertiesWindow()) {
+			auto propertiesView = OBSBasic::Get()->GetPropertiesWindow();
+			if (propertiesView && propertiesView->property("sourceId").toString() == PRISM_TEXT_TEMPLATE_ID) {
 				if (ok) {
 					PLS_INFO(moduleName(), "textmoiton update success");
 					TextMotionRemoteDataHandler::instance()->loadedTextmotionRes(ok, true);
@@ -141,11 +147,13 @@ void TextMotionTemplateDataHelper::initTemplateButtons()
 			if (!info.exists())
 				continue;
 			TextMotionTemplateButton *button = pls_new<TextMotionTemplateButton>();
+			pls_uistep_v2_custom(button, PLS_UI_STEPS_V2_SIGNAL_CLICKED, PLS_UI_STEPS_V2_ACTION_CHOOSE, QStringLiteral("template"), item.attr("title").toString());
+
 			auto id = item.itemId();
 			button->setTemplateText(id);
 			int idInt = id.split('_').last().toInt();
 			button->setProperty("ID", idInt);
-			button->setPaid(item.attr("paidFlag").toBool());
+			button->setPaid(false);
 			connect(button, &TextMotionTemplateButton::clicked, this, &TextMotionTemplateDataHelper::updateButtonsStyle);
 			button->setGroupName(group.groupId().toLower());
 			button->attachGifResource(item.file(0));
@@ -214,7 +222,7 @@ bool TextMotionRemoteDataHandler::initTMData(const std::function<void(bool)> &ca
 		QDir dir(dstWebPath);
 		if (!dir.exists()) {
 			copyTextTemplateResFromPackage();
-			auto textmotionPath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/textmotion/web"));
+			auto textmotionPath = PLS_RSM_getLibraryPolicy_Path(QStringLiteral("Library_Policy_PC/textmotion/web"));
 			auto isSuccess = pls_copy_dir(textmotionPath, dstWebPath);
 			PLS_INFO(PRISM_TEXT_TEMPLATE, "copytextmotion res from library to textmotion dir  %s", isSuccess ? "success" : "failed");
 		}

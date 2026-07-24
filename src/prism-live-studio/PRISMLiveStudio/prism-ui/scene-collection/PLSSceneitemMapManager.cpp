@@ -5,6 +5,7 @@
 #include "pls/pls-dual-output.h"
 #include "liblog.h"
 #include "pls/pls-source.h"
+#include "pls-performance.h"
 
 PLSSceneitemMapManager *PLSSceneitemMapManager::Instance()
 {
@@ -28,6 +29,65 @@ static bool enumItem(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
 	return true;
 }
 
+// After adding vertical item to group: ensure its id does not equal horizontalId and is unique in the group.
+// groupScene: the group's scene (obs_sceneitem_group_get_scene(group)). Returns the id to use for addConfig (possibly updated).
+struct EnsureUniqueIdData {
+	obs_sceneitem_t *target;
+	int64_t maxId;
+	bool duplicate;
+};
+
+static bool ensureUniqueIdEnumCb(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
+{
+	auto *d = static_cast<EnsureUniqueIdData *>(ptr);
+	int64_t id = obs_sceneitem_get_id(item);
+	if (id > d->maxId)
+		d->maxId = id;
+	if (item != d->target && id == obs_sceneitem_get_id(d->target))
+		d->duplicate = true;
+	return true;
+}
+
+struct CheckIdExistsData {
+	int64_t candidateId;
+	bool found;
+};
+
+static bool checkIdExistsInGroupCb(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
+{
+	auto *d = static_cast<CheckIdExistsData *>(ptr);
+	if (item && obs_sceneitem_get_id(item) == d->candidateId)
+		d->found = true;
+	return true;
+}
+
+static int64_t ensureUniqueVerticalIdInGroup(obs_scene_t *groupScene, obs_sceneitem_t *verItem, int64_t horizontalId)
+{
+	if (!groupScene || !verItem) {
+		PLS_WARN("PLSSceneitemMapManager", "Invalid groupScene or verItem in ensureUniqueVerticalIdInGroup");
+		return -1;
+	}
+
+	int64_t curId = obs_sceneitem_get_id(verItem);
+	EnsureUniqueIdData data = {verItem, 0, false};
+	pls_scene_enum_items_all(groupScene, ensureUniqueIdEnumCb, &data);
+
+	if (curId == horizontalId || data.duplicate) {
+		int64_t newId = data.maxId + 1;
+		const int64_t maxAttempts = 10000;
+		for (int64_t attempts = 0; attempts < maxAttempts; attempts++) {
+			CheckIdExistsData checkData = {newId, false};
+			pls_scene_enum_items_all(groupScene, checkIdExistsInGroupCb, &checkData);
+			if (!checkData.found)
+				break;
+			newId++;
+		}
+		obs_sceneitem_set_id(verItem, newId);
+		return newId;
+	}
+	return curId;
+}
+
 static inline OBSScene GetCurrentScene()
 {
 	OBSBasic *main = reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
@@ -49,7 +109,9 @@ static void handlePrismEvent(pls_frontend_event event, const QVariantList &param
 		OBSBasic::Get()->resetAllGroupTransforms();
 	} break;
 	case pls_frontend_event::PLS_FRONTEND_EVENT_DUAL_OUTPUT_OFF:
-		PLSSceneitemMapMgrInstance->clearConfig();
+		PLSBasic::instance()->SaveProject();
+		OBSBasic::Get()->resetAllGroupSelectStatus();
+		OBSBasic::Get()->undo_s.clear();
 		break;
 	default:
 		break;
@@ -105,36 +167,6 @@ static bool EnumItemForScene(obs_scene_t *scene, obs_sceneitem_t *item, void *pt
 	return true;
 }
 
-OBSDataArray PLSSceneitemMapManager::saveVerticalSceneitemInfo()
-{
-	QMap<QString, OBSData> tempVerticalSceneitemInfos;
-	auto findSceneitemCb = [](void *ptr, obs_source_t *src) {
-		obs_scene_t *scene = obs_scene_from_source(src);
-		if (!scene) {
-			return true;
-		}
-		pls_scene_enum_items_all(scene, EnumItemForScene, ptr);
-		return true;
-	};
-	pls_enum_all_scenes(findSceneitemCb, &tempVerticalSceneitemInfos);
-
-	OBSDataArray arrays = obs_data_array_create();
-	auto saveFunc = [&arrays](QMap<QString, OBSData> &infos) {
-		for (auto key : infos.keys()) {
-			OBSDataAutoRelease obj = obs_data_create();
-			obs_data_set_string(obj, "uuid", key.toStdString().c_str());
-			obs_data_set_obj(obj, "info", infos.value(key.toStdString().c_str()));
-			obs_data_array_push_back(arrays, obj);
-		}
-	};
-
-	if (!tempVerticalSceneitemInfos.isEmpty()) {
-		verticalSceneitemInfos = tempVerticalSceneitemInfos;
-	}
-	saveFunc(verticalSceneitemInfos);
-	return arrays;
-}
-
 void PLSSceneitemMapManager::loadVerticalSceneitemInfo(obs_data_array_t *arrays)
 {
 	auto count = obs_data_array_count(arrays);
@@ -148,6 +180,7 @@ void PLSSceneitemMapManager::loadVerticalSceneitemInfo(obs_data_array_t *arrays)
 
 void PLSSceneitemMapManager::switchToDualOutputMode()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (!pls_is_dual_output_on()) {
 		return;
 	}
@@ -184,19 +217,15 @@ void PLSSceneitemMapManager::switchToDualOutputModeForAllScenes()
 
 OBSDataArray PLSSceneitemMapManager::saveConfig()
 {
-	if (!pls_is_dual_output_on()) {
-		return {};
-	}
-
 	OBSDataArray array = obs_data_array_create();
-	for (auto key : sceneitemMap.keys()) {
+	for (auto sceneIt = sceneitemMap.constBegin(); sceneIt != sceneitemMap.constEnd(); ++sceneIt) {
 		OBSDataAutoRelease data = obs_data_create();
-		obs_data_set_string(data, SCENE_ITEM_MAP_SAVE_SCENE_NAME_KEY, key.toStdString().c_str());
-		SceneitemIdMap idMap = sceneitemMap.value(key);
+		obs_data_set_string(data, SCENE_ITEM_MAP_SAVE_SCENE_NAME_KEY, sceneIt.key().toUtf8().constData());
+		const SceneitemIdMap &idMap = sceneIt.value();
 		OBSDataArrayAutoRelease dataArray = obs_data_array_create();
-		for (auto key : idMap.keys()) {
+		for (auto idIt = idMap.constBegin(); idIt != idMap.constEnd(); ++idIt) {
 			OBSDataAutoRelease tmpData = obs_data_create();
-			obs_data_set_string(tmpData, key.toStdString().c_str(), QString::number(idMap.value(key)).toStdString().c_str());
+			obs_data_set_string(tmpData, idIt.key().toUtf8().constData(), QString::number(idIt.value()).toUtf8().constData());
 			obs_data_array_push_back(dataArray, tmpData);
 		}
 		obs_data_set_array(data, SCENE_ITEM_MAPS_KEY, dataArray);
@@ -234,7 +263,17 @@ void PLSSceneitemMapManager::loadConfig(OBSData data)
 					continue;
 				}
 				auto data = getIdAndUuid(name);
-				addConfig(sceneName, data.second.toStdString().c_str(), data.first, atoi(value));
+				bool ok = false;
+				int64_t verId = QString(value).toLongLong(&ok);
+				if (!ok) {
+					PLS_WARN("PLSSceneitemMapManager", "Invalid vertical ID value: %s", value);
+					continue;
+				}
+				if (data.first == verId) {
+					PLS_WARN("PLSSceneitemMapManager", "Skip invalid rule: horId == verId for item %s", data.second.toUtf8().constData());
+					continue;
+				}
+				addConfig(sceneName, data.second.toUtf8().constData(), data.first, verId);
 			}
 		}
 	}
@@ -294,7 +333,7 @@ PLSSceneitemMapManager::PLSSceneitemMapManager()
 	pls_frontend_add_event_callback(handlePrismEvent, this);
 }
 
-void PLSSceneitemMapManager::switchToDualOutputMode(OBSScene scene, QMap<QString, DisplayId> &ungroupItems)
+void PLSSceneitemMapManager::switchToDualOutputMode(OBSScene scene, QMap<QString, DisplayId> &ungroupItems, OBSScene topScene)
 {
 	QVector<OBSSceneItem> items;
 	pls_scene_enum_items_all(scene, enumItem, &items);
@@ -327,28 +366,30 @@ void PLSSceneitemMapManager::switchToDualOutputMode(OBSScene scene, QMap<QString
 		if (SCENE_ITEM_NOT_FOUND == findResult.first || SCENE_ITEM_NOT_EXISTED == findResult.first) {
 			if (pls_is_empty(uuid) || SCENE_ITEM_NOT_EXISTED == findResult.first) {
 				bool isGroup = obs_scene_is_group(scene);
-				auto verItem = duplicateSceneItem(scene, item);
+				std::pair<int64_t, OBSSceneItem> verItem;
 				if (isGroup) {
-					auto group = obs_sceneitem_get_group(scene, item);
-					bool vis = obs_sceneitem_visible(group);
-					if (!vis) {
-						obs_sceneitem_set_visible(item, true);
-					}
-					obs_sceneitem_group_add_item(group, verItem.second);
+					verItem = duplicateSceneItem(topScene, item);
+					auto group = obs_sceneitem_get_group(topScene, item);
+					pls_obs_sceneitem_group_add_item(group, verItem.second, item);
 					pls_obs_sceneitem_move_hotkeys(scene, verItem.second);
-					if (!vis) {
-						obs_sceneitem_set_visible(item, false);
-					}
+					obs_scene_t *groupScene = obs_sceneitem_group_get_scene(group);
+					verItem.first = ensureUniqueVerticalIdInGroup(groupScene, verItem.second, id);
+				} else {
+					verItem = duplicateSceneItem(scene, item);
 				}
 
-				addConfig(sceneName, getItemDisplayUuid(item), id, verItem.first);
+				if (verItem.first >= 0) {
+					addConfig(sceneName, getItemDisplayUuid(item), id, verItem.first);
+				} else {
+					PLS_WARN("PLSSceneitemMapManager", "Failed to ensure unique vertical ID in group");
+				}
 				emit duplicateItemSuccess(item, verItem.second);
 			} else {
 				addUuid(ungroupItems, sceneName, scene, uuid, display, id, item, nullptr);
 			}
 		} else {
 			if (obs_sceneitem_is_group(item)) {
-				switchToDualOutputMode(obs_group_from_source(obs_sceneitem_get_source(item)), ungroupItems);
+				switchToDualOutputMode(obs_group_from_source(obs_sceneitem_get_source(item)), ungroupItems, scene);
 			}
 		}
 	}
@@ -387,7 +428,7 @@ std::pair<int64_t, QString> PLSSceneitemMapManager::getIdAndUuid(const QString &
 		return {};
 	}
 	auto index = key.indexOf('-');
-	auto id = atoi(key.mid(0, index).toStdString().c_str());
+	auto id = atoi(key.mid(0, index).toUtf8().constData());
 	auto uuid = key.mid(index + 1);
 	return {id, uuid};
 }
@@ -453,7 +494,7 @@ void PLSSceneitemMapManager::addConfig(const SceneitemMap &idMap)
 		auto data = iter.value();
 		for (auto iter1 = data.begin(); iter1 != data.end(); ++iter1) {
 			auto key = getIdAndUuid(iter1.key());
-			addConfig(iter.key().toStdString().c_str(), key.second.toStdString().c_str(), key.first, iter1.value());
+			addConfig(iter.key().toUtf8().constData(), key.second.toUtf8().constData(), key.first, iter1.value());
 		}
 	}
 }
@@ -521,7 +562,11 @@ int64_t PLSSceneitemMapManager::findVerticalItem(const char *sceneName, int64_t 
 
 	for (auto iter = sceneitemIdMap.begin(); iter != sceneitemIdMap.end(); ++iter) {
 		if (id == iter.value()) {
-			return getIdAndUuid(iter.key()).first;
+			auto key = getIdAndUuid(iter.key());
+			auto uuid_ = key.second;
+			if (pls_is_equal(uuid_, uuid)) {
+				return key.first;
+			}
 		}
 	}
 	return SCENE_ITEM_NOT_FOUND;
@@ -533,18 +578,12 @@ void PLSSceneitemMapManager::createRefrenceScene(OBSSceneItem item, QString &gro
 	groupName = obs_source_get_name(source);
 	referenceSceneName = QString(groupName).append("-").append(pls_gen_uuid());
 
-	verSceneObj = pls_create_vertical_scene(referenceSceneName.toStdString().c_str());
+	verSceneObj = pls_create_vertical_scene(referenceSceneName.toUtf8().constData(), true);
 	referenceSceneSourcesSet.insert(referenceSceneName, verSceneObj);
 }
 
 void PLSSceneitemMapManager::createRefrenceSceneGroup(OBSSceneItem item, OBSScene scene)
 {
-	// must set group visible to avoid hide group ref count error
-	bool vis = obs_sceneitem_visible(item);
-	if (!vis) {
-		obs_sceneitem_set_visible(item, true);
-	}
-
 	// group item
 	QVector<OBSSceneItem> items;
 	obs_scene_t *groupScene = obs_sceneitem_group_get_scene(item);
@@ -586,13 +625,14 @@ void PLSSceneitemMapManager::createRefrenceSceneGroup(OBSSceneItem item, OBSScen
 		}
 		pls_obs_sceneitem_group_add_item(item, newItem.second, item_);
 		pls_obs_sceneitem_move_hotkeys(obs_group_from_source(obs_sceneitem_get_source(item)), newItem.second);
-		addConfig(groupName, getItemDisplayUuid(newItem.second), originalId, newItem.first);
+		newItem.first = ensureUniqueVerticalIdInGroup(groupScene, newItem.second, originalId);
+		if (newItem.first >= 0) {
+			addConfig(groupName, getItemDisplayUuid(newItem.second), originalId, newItem.first);
+		} else {
+			PLS_WARN("PLSSceneitemMapManager", "Failed to ensure unique vertical ID in group");
+		}
 	}
 	addUuidConfig(groupItems);
-
-	if (!vis) {
-		obs_sceneitem_set_visible(item, false);
-	}
 }
 
 OBSSceneItem PLSSceneitemMapManager::createRefrenceGroupItem(const QString &groupName, const QString &referenceSceneName, const QString &oriSceneName, OBSScene oriScene, OBSScene verSceneObj,
@@ -605,17 +645,18 @@ OBSSceneItem PLSSceneitemMapManager::createRefrenceGroupItem(const QString &grou
 	}
 
 	OBSDataAutoRelease horSettings = obs_sceneitem_get_private_settings(horSceneitem);
-	obs_data_set_string(horSettings, SCENE_ITEM_MAP_UUID, uuid.toStdString().c_str());
+	obs_data_set_string(horSettings, SCENE_ITEM_MAP_UUID, uuid.toUtf8().constData());
 
 	OBSDataAutoRelease settings1 = obs_data_create();
-	obs_data_set_string(settings1, SCENE_ITEM_MAP_SAVE_SCENE_NAME_KEY, oriSceneName.toStdString().c_str());
-	obs_data_set_string(settings1, SCENE_ITEM_MAP_UUID, uuid.toStdString().c_str());
-	obs_data_set_string(settings1, SCENE_ITEM_REFERENCE_SCENE_NAME, referenceSceneName.toStdString().c_str());
+	obs_data_set_string(settings1, SCENE_ITEM_MAP_SAVE_SCENE_NAME_KEY, oriSceneName.toUtf8().constData());
+	obs_data_set_string(settings1, SCENE_ITEM_MAP_UUID, uuid.toUtf8().constData());
+	obs_data_set_string(settings1, SCENE_ITEM_REFERENCE_SCENE_NAME, referenceSceneName.toUtf8().constData());
 	auto itemGroup = pls_vertical_scene_add(verSceneObj, obs_sceneitem_get_source(horSceneitem), nullptr, settings1);
 	if (!itemGroup) {
 		PLS_WARN("PLSSceneitemMapManager", "Duplicate mapped group sceneitem failed H: %p", horSceneitem.Get());
 		return nullptr;
 	}
+	obs_sceneitem_set_locked(itemGroup, obs_sceneitem_locked(horSceneitem));
 
 	if (oriScene) {
 		pls_bind_vertical_scene(oriScene, verSceneObj);
@@ -635,9 +676,9 @@ OBSSceneItem PLSSceneitemMapManager::createRefrenceGroupItem(const QString &grou
 	obs_scene_release(verSceneObj);
 
 	OBSDataAutoRelease settings = obs_data_create();
-	obs_data_set_string(settings, SCENE_ITEM_REFERENCE_SCENE_NAME, referenceSceneName.toStdString().c_str());
-	obs_data_set_string(settings, SCENE_ITEM_REFERENCE_GROUP_NAME, groupName.toStdString().c_str());
-	obs_data_set_string(settings, SCENE_ITEM_MAP_UUID, uuid.toStdString().c_str());
+	obs_data_set_string(settings, SCENE_ITEM_REFERENCE_SCENE_NAME, referenceSceneName.toUtf8().constData());
+	obs_data_set_string(settings, SCENE_ITEM_REFERENCE_GROUP_NAME, groupName.toUtf8().constData());
+	obs_data_set_string(settings, SCENE_ITEM_MAP_UUID, uuid.toUtf8().constData());
 	if (!verSceneitem) {
 		return pls_vertical_scene_add(oriScene, verSceneSource, horSceneitem, settings);
 	} else {
@@ -645,9 +686,9 @@ OBSSceneItem PLSSceneitemMapManager::createRefrenceGroupItem(const QString &grou
 		auto priSettings = obs_sceneitem_get_private_settings(verSceneitem);
 		obs_data_apply(settings1, priSettings);
 
-		obs_data_set_string(settings1, SCENE_ITEM_REFERENCE_SCENE_NAME, referenceSceneName.toStdString().c_str());
-		obs_data_set_string(settings1, SCENE_ITEM_REFERENCE_GROUP_NAME, groupName.toStdString().c_str());
-		obs_data_set_string(settings1, SCENE_ITEM_MAP_UUID, uuid.toStdString().c_str());
+		obs_data_set_string(settings1, SCENE_ITEM_REFERENCE_SCENE_NAME, referenceSceneName.toUtf8().constData());
+		obs_data_set_string(settings1, SCENE_ITEM_REFERENCE_GROUP_NAME, groupName.toUtf8().constData());
+		obs_data_set_string(settings1, SCENE_ITEM_MAP_UUID, uuid.toUtf8().constData());
 		obs_sceneitem_remove(verSceneitem);
 		return pls_vertical_scene_add(oriScene, verSceneSource, horSceneitem, settings1);
 	}
@@ -733,9 +774,9 @@ void PLSSceneitemMapManager::removeItem(OBSSceneItem horItem, bool unGroup)
 
 	removeConfig(curSceneName, obs_sceneitem_get_id(horItem), getItemDisplayUuid(horItem));
 
-	for (auto key : removeIds.keys()) {
-		auto data = getIdAndUuid(key);
-		removeConfig(key, data.first, data.second.toStdString().c_str());
+	for (auto it = removeIds.constBegin(); it != removeIds.constEnd(); ++it) {
+		auto data = getIdAndUuid(it.value());
+		removeConfig(it.key(), data.first, data.second.toUtf8().constData());
 	}
 }
 
@@ -780,8 +821,6 @@ QVector<struct obs_sceneitem_order_info> PLSSceneitemMapManager::reorderItems(OB
 		return findItemByHorizontalId(name.first, name.second, id, uuid);
 	};
 
-	auto sceneName = obs_source_get_name(obs_scene_get_source(scene));
-
 	QStringList oldSceneNames;
 	SceneitemMap itemMap;
 	for (auto order : orderList) {
@@ -816,7 +855,7 @@ QVector<struct obs_sceneitem_order_info> PLSSceneitemMapManager::reorderItems(OB
 	}
 
 	for (auto name : oldSceneNames) {
-		removeConfig(name.toStdString().c_str());
+		removeConfig(name.toUtf8().constData());
 	}
 	addConfig(itemMap);
 	return newOrderList;
@@ -833,18 +872,7 @@ OBSSceneItem PLSSceneitemMapManager::getVerticalSceneitem(OBSSceneItem horItem)
 	if (pls_is_empty(mappedScene)) {
 		return item;
 	}
-
-	auto iter = referenceSceneSourcesSet.find(mappedScene);
-	if (iter != referenceSceneSourcesSet.end()) {
-		auto scene = referenceSceneSourcesSet.value(iter.key());
-		QVector<OBSSceneItem> items;
-		pls_scene_enum_items_all(scene, enumItem, &items);
-		if (items.count() == 1) {
-			return items[0];
-		}
-	}
-
-	return nullptr;
+	return getMappedVerticalSceneItem(mappedScene);
 }
 
 OBSSceneItem PLSSceneitemMapManager::getVerticalSelectedSceneitem(OBSSceneItem horItem)
@@ -887,6 +915,32 @@ bool PLSSceneitemMapManager::isMappedVerticalSceneItem(OBSSceneItem verItem)
 {
 	auto sceneName = getMappedVerticalSceneName(verItem);
 	return !pls_is_empty(sceneName);
+}
+
+bool PLSSceneitemMapManager::getMappedVerticalSceneItemLocked(const char *mappedScene)
+{
+	auto mappedItem = PLSSceneitemMapMgrInstance->getMappedVerticalSceneItem(mappedScene);
+	if (!mappedItem || obs_sceneitem_locked(mappedItem)) {
+		return true;
+	}
+	return false;
+}
+
+OBSSceneItem PLSSceneitemMapManager::getMappedVerticalSceneItem(const char *mappedScene)
+{
+	if (pls_is_empty(mappedScene)) {
+		return nullptr;
+	}
+	auto iter = referenceSceneSourcesSet.find(mappedScene);
+	if (iter != referenceSceneSourcesSet.end()) {
+		auto scene = referenceSceneSourcesSet.value(iter.key());
+		QVector<OBSSceneItem> items;
+		pls_scene_enum_items_all(scene, enumItem, &items);
+		if (items.count() == 1) {
+			return items[0];
+		}
+	}
+	return nullptr;
 }
 
 const char *PLSSceneitemMapManager::getMappedVerticalSceneName(OBSSceneItem verItem)
@@ -958,12 +1012,13 @@ std::pair<int64_t, OBSSceneItem> PLSSceneitemMapManager::duplicateSceneItem(OBSS
 		} else {
 			auto uuid = pls_gen_uuid();
 			OBSDataAutoRelease privateSettings = obs_data_create();
-			obs_data_set_string(privateSettings, SCENE_ITEM_MAP_UUID, uuid.toStdString().c_str());
+			obs_data_set_string(privateSettings, SCENE_ITEM_MAP_UUID, uuid.toUtf8().constData());
 			newVerticalItem = pls_vertical_scene_add(scene, source, item, privateSettings);
 			obs_sceneitem_set_visible(newVerticalItem, obs_sceneitem_visible(item));
+			obs_sceneitem_set_locked(newVerticalItem, obs_sceneitem_locked(item));
 
 			OBSDataAutoRelease horItemSettings = obs_sceneitem_get_private_settings(item);
-			obs_data_set_string(horItemSettings, SCENE_ITEM_MAP_UUID, uuid.toStdString().c_str());
+			obs_data_set_string(horItemSettings, SCENE_ITEM_MAP_UUID, uuid.toUtf8().constData());
 		}
 	}
 
@@ -996,6 +1051,8 @@ void PLSSceneitemMapManager::removeReferenceSceneSource(const char *sceneName)
 void PLSSceneitemMapManager::addReferenceScene(const char *sceneName, OBSScene scene)
 {
 	referenceSceneSourcesSet.insert(sceneName, scene);
+	if (scene)
+		pls_vertical_scene_set_group_ref(scene, true);
 }
 
 void PLSSceneitemMapManager::clearSceneitemReferenceSceneName(OBSScene scene)
@@ -1023,8 +1080,9 @@ void PLSSceneitemMapManager::clearSceneitemReferenceSceneName(OBSScene scene)
 
 void PLSSceneitemMapManager::bindMappedVerticalItemHotkeys()
 {
-	for (auto sceneName : referenceSceneSourcesSet.keys()) {
-		auto scene = referenceSceneSourcesSet.value(sceneName);
+	PLS_PERFORMANCE_FUNCTION();
+	for (auto it = referenceSceneSourcesSet.constBegin(); it != referenceSceneSourcesSet.constEnd(); ++it) {
+		auto scene = it.value();
 		if (!scene) {
 			continue;
 		}
@@ -1074,6 +1132,18 @@ void PLSSceneitemMapManager::removeGroupSelectedStatus()
 	pls_enum_all_scenes(other_scenes_cb, nullptr);
 }
 
+void PLSSceneitemMapManager::resetUuid(OBSSceneItem horizontalItem, OBSSceneItem verticalItem)
+{
+	if (!horizontalItem || !verticalItem) {
+		return;
+	}
+	auto uuid = pls_gen_uuid();
+	OBSDataAutoRelease settings = obs_sceneitem_get_private_settings(verticalItem);
+	obs_data_set_string(settings, SCENE_ITEM_MAP_UUID, uuid.toUtf8().constData());
+	OBSDataAutoRelease settings1 = obs_sceneitem_get_private_settings(horizontalItem);
+	obs_data_set_string(settings1, SCENE_ITEM_MAP_UUID, uuid.toUtf8().constData());
+}
+
 void PLSSceneitemMapManager::clearSource()
 {
 	removeGroupSelectedStatus();
@@ -1081,7 +1151,7 @@ void PLSSceneitemMapManager::clearSource()
 	auto iter = referenceSceneSourcesSet.begin();
 	while (iter != referenceSceneSourcesSet.end()) {
 		auto value = iter.key();
-		removeReferenceSceneSource(value.toStdString().c_str());
+		removeReferenceSceneSource(value.toUtf8().constData());
 		iter = referenceSceneSourcesSet.begin();
 	}
 	referenceSceneSourcesSet.clear();
@@ -1133,19 +1203,16 @@ void PLSSceneitemMapManager::addUuidConfig(const QMap<QString, DisplayId> &ungro
 			auto verItem = duplicateSceneItem(displayId.scene, displayId.horizontalItem);
 			if (isGroup) {
 				auto group = obs_sceneitem_get_group(displayId.scene, displayId.horizontalItem);
-				bool vis = obs_sceneitem_visible(group);
-				if (!vis) {
-					obs_sceneitem_set_visible(group, true);
-				}
-
 				pls_obs_sceneitem_group_add_item(group, verItem.second, displayId.horizontalItem);
 				pls_obs_sceneitem_move_hotkeys(scene, verItem.second);
-
-				if (!vis) {
-					obs_sceneitem_set_visible(group, false);
-				}
+				obs_scene_t *groupScene = obs_sceneitem_group_get_scene(group);
+				verItem.first = ensureUniqueVerticalIdInGroup(groupScene, verItem.second, displayId.horizontalId);
 			}
-			addConfig(displayId.sceneName, getItemDisplayUuid(displayId.horizontalItem), displayId.horizontalId, verItem.first);
+			if (verItem.first >= 0) {
+				addConfig(displayId.sceneName, getItemDisplayUuid(displayId.horizontalItem), displayId.horizontalId, verItem.first);
+			} else {
+				PLS_WARN("PLSSceneitemMapManager", "Failed to ensure unique vertical ID in group");
+			}
 			continue;
 		} else { // matched same uuid
 			obs_source_t *source = obs_sceneitem_get_source(displayId.verticalItem);
@@ -1169,7 +1236,7 @@ void PLSSceneitemMapManager::addUuidConfig(const QMap<QString, DisplayId> &ungro
 				}
 			}
 		}
-
+		resetUuid(displayId.horizontalItem, displayId.verticalItem);
 		addConfig(displayId.sceneName, getItemDisplayUuid(displayId.horizontalItem), displayId.horizontalId, displayId.verticalId);
 	}
 }

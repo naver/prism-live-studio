@@ -43,11 +43,12 @@ private:
 
 	void setEnteredGolive(bool isEntered) { isEnteredGolive = isEntered; }
 	void setEnteredRecord(bool isEntered) { isEnteredRecord = isEntered; }
-
+	void holdOnRec(bool holdOn);
 	//private:
 	Ui::GoLivePannel *ui;
 
 	PLSAddingFrame *mBusyFrame;
+	PLSAddingFrame *m_busyFrameForRec;
 
 	const QString goliveText{CHANNELS_TR(GoLive)};
 	const QString finishLiveText{CHANNELS_TR(FinishLive)};

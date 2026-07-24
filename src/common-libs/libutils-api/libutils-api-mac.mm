@@ -1,4 +1,5 @@
 #include "libutils-api-mac.h"
+#include "libutils-export.h"
 
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -68,6 +69,15 @@ static int process_exit_kq;
 @end
 
 namespace pls_libutil_api_mac {
+
+bool pls_is_app_main_exe(NSRunningApplication *runningApp)
+{
+	///Applications/PRISMLiveStudio.app/Contents/MacOS/PRISMLogger will return false
+	NSBundle *bundle = [NSBundle bundleWithURL:runningApp.bundleURL];
+	NSString *mainName = [bundle objectForInfoDictionaryKey:@"CFBundleExecutable"];
+	NSString *execName = runningApp.executableURL.lastPathComponent;
+	return [execName isEqualToString:mainName];
+}
 
 QString pls_get_app_executable_dir()
 {
@@ -141,26 +151,41 @@ bool pls_is_install_app(const QString &identifier, QString &appPath)
 	return false;
 }
 
-void pls_get_install_app_list(const QString &identifier, QStringList &appList)
+QString pls_get_install_app(const QString &identifier)
 {
+	auto ValidFunc = [](QString &appPath) -> bool {
+		if (appPath.contains(".app/")) {
+			return false;
+		}
+		if (appPath.startsWith("/Applications")) {
+			return true;
+		}
+		return false;
+	};
+
 	NSWorkspace *workSpace = [NSWorkspace sharedWorkspace];
 	NSString *bundleIdentifier = getNSStringFromQString(identifier);
 	if (@available(macOS 12.0, *)) {
 		NSArray<NSURL *> *appURLs = [workSpace URLsForApplicationsWithBundleIdentifier:bundleIdentifier];
 		for (int i = 0; i < appURLs.count; i++) {
 			NSURL *appURL = appURLs[i];
-			QString appPath = QString([appURL.path UTF8String]);
-			appList.append(appPath);
+			QString appPath = QString::fromNSString(appURL.path);
+			if (ValidFunc(appPath)) {
+				return appPath;
+			}
 		}
 	} else {
 		CFArrayRef appURLs = LSCopyApplicationURLsForBundleIdentifier((__bridge CFStringRef)bundleIdentifier, NULL);
 		NSArray *appURLs_oc = (__bridge_transfer NSArray *)appURLs;
 		for (int i = 0; i < appURLs_oc.count; i++) {
 			NSURL *appURL = appURLs_oc[i];
-			QString appPath = QString([appURL.path UTF8String]);
-			appList.append(appPath);
+			QString appPath = QString::fromNSString(appURL.path);
+			if (ValidFunc(appPath)) {
+				return appPath;
+			}
 		}
 	}
+	return QString();
 }
 
 QString pls_get_dll_dir(const QString &pluginName)
@@ -401,8 +426,8 @@ pls_mac_ver_t pls_get_mac_systerm_ver()
 
 bool pls_copy_file(const QString &fileName, const QString &newName, bool overwrite, int &errorCode)
 {
-	NSString *sourceFilePath = [NSString stringWithCString:fileName.toStdString().c_str() encoding:NSUTF8StringEncoding];
-	NSString *destFilePath = [NSString stringWithCString:newName.toStdString().c_str() encoding:NSUTF8StringEncoding];
+	NSString *sourceFilePath = [NSString stringWithCString:fileName.toUtf8().constData() encoding:NSUTF8StringEncoding];
+	NSString *destFilePath = [NSString stringWithCString:newName.toUtf8().constData() encoding:NSUTF8StringEncoding];
 	NSError *error = NULL;
 	bool result = true;
 	if (overwrite) {
@@ -648,6 +673,43 @@ void pls_mac_create_process_with_not_inherit(const QString &program, const QStri
 		      }];
 }
 
+void pls_create_and_observe_process(const QString &program, const QStringList &arguments, void *user_data, void (*callback)(void *user_data, bool created, bool launched))
+{
+	NSString *appPath = getNSStringFromQString(program);
+	NSMutableArray *tempArguments = [[NSMutableArray alloc] init];
+	for (const QString &argument : arguments) {
+		[tempArguments addObject:getNSStringFromQString(argument)];
+	}
+
+	NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+	NSWorkspaceOpenConfiguration *config = [NSWorkspaceOpenConfiguration configuration];
+	config.arguments = tempArguments.copy;
+	config.createsNewApplicationInstance = YES;
+
+	[workspace openApplicationAtURL:[NSURL fileURLWithPath:appPath]
+			  configuration:config
+		      completionHandler:^(NSRunningApplication *_Nullable app, NSError *_Nullable error) {
+			      if (callback) {
+				      if (app && error == nil) {
+					      if (app.finishedLaunching) {
+						      dispatch_async(dispatch_get_main_queue(), ^{
+							      callback(user_data, true, true);
+						      });
+					      } else {
+						      PLSMacProcessObserver *observer = [[PLSMacProcessObserver alloc] initWithApp:app
+															completion:^(BOOL launched) {
+																callback(user_data, true, launched);
+															}];
+					      }
+				      } else {
+					      dispatch_async(dispatch_get_main_queue(), ^{
+						      callback(user_data, false, false);
+					      });
+				      }
+			      }
+		      }];
+}
+
 MacHandle pls_process_create(uint32_t process_id)
 {
 	MacHandle process = new MacProcessInfo;
@@ -672,6 +734,10 @@ bool pls_process_destroy(MacHandle handle)
 	if (handle->task) {
 		NSTask *task = (__bridge NSTask *)handle->task;
 		[task terminate];
+		if (task.isRunning) {
+			PLS_WARN("Process", "mac process status: destory process running task Faild, pid is %d, the task is still running.", handle->pid);
+			return false;
+		}
 		PLS_INFO("Process", "mac process status: destory process running task sucess, pid is %d", handle->pid);
 		return [task terminationStatus] == 0;
 	}
@@ -834,6 +900,7 @@ bool pls_process_exit_code(MacHandle handle, uint32_t *exit_code)
 
 QUrl build_mac_hmac_url(const QUrl &url, const QByteArray &hmacKey)
 {
+	Q_UNUSED(hmacKey);
 	return url;
 }
 static NSDate *getLaunchDateByCommandline(pid_t pid)
@@ -865,7 +932,8 @@ bool pls_check_mac_app_is_existed(const wchar_t *executableName)
 	NSTimeInterval earlyTime = 0;
 	bool isContainNullData = false;
 	NSString *sourceExecutableName = getNSStringFromWChar_t(executableName);
-	NSArray<NSRunningApplication *> *apps = [[NSRunningApplication runningApplicationsWithBundleIdentifier:[NSBundle mainBundle].bundleIdentifier] copy];
+	NSString *bundleId = [sourceExecutableName isEqualToString:@"PRISMLens"] ? [NSString stringWithUTF8String:pls::KIdentifier_LENS] : [NSString stringWithUTF8String:pls::KIdentifier_PRISM];
+	NSArray<NSRunningApplication *> *apps = [[NSRunningApplication runningApplicationsWithBundleIdentifier:bundleId] copy];
 
 	for (NSRunningApplication *runningApp in apps) {
 		NSString *fileName = [runningApp.executableURL lastPathComponent];
@@ -898,7 +966,7 @@ bool pls_check_mac_app_is_existed(const wchar_t *executableName)
 		return false;
 	}
 
-	return true;
+	return (processList.count > 0);
 }
 
 bool pls_activiate_app()
@@ -928,14 +996,19 @@ bool pls_activiate_app_bundle_id(const char *identifier)
 	NSArray<NSRunningApplication *> *runningApps = [NSRunningApplication runningApplicationsWithBundleIdentifier:[NSString stringWithUTF8String:identifier]];
 	for (int i = 0; i < runningApps.count; i++) {
 		NSRunningApplication *runningApp = runningApps[i];
-		return [runningApp activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+		if (pls_libutil_api_mac::pls_is_app_main_exe(runningApp))
+			return [runningApp activateWithOptions:NSApplicationActivateIgnoringOtherApps];
 	}
 	return false;
 }
 
 void pls_activate_prism_as_active_app()
 {
-	[[NSApplication sharedApplication] activate];
+	if (@available(macOS 14.0, *)) {
+		[[NSApplication sharedApplication] activate];
+	} else {
+		[[NSRunningApplication currentApplication] activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+	}
 }
 
 bool pls_activiate_app_pid(int pid)
@@ -960,7 +1033,11 @@ bool pls_is_app_running(const char *bundle_id)
 
 	NSString *bundleID = [NSString stringWithUTF8String:bundle_id];
 	NSArray *runningApps = [NSRunningApplication runningApplicationsWithBundleIdentifier:bundleID];
-	return [runningApps count] > 0;
+	for (NSRunningApplication *runningApp in runningApps) {
+		if (pls_libutil_api_mac::pls_is_app_main_exe(runningApp))
+			return true;
+	}
+	return false;
 }
 
 bool pls_launch_app(const char *bundle_id, const char *app_name)
@@ -1062,7 +1139,8 @@ bool pls_is_lens_has_run()
 	if (!path) {
 		return false;
 	}
-	path = [NSString stringWithFormat:@"%@/%@/%@.plist", path, @"Preferences", @kPrismLensBundleID];
+
+	path = [NSString stringWithFormat:@"%@/%@/%@.plist", path, @"Preferences", [NSString stringWithCString:pls::KIdentifier_LENS encoding:NSUTF8StringEncoding]];
 	NSDictionary *infoDict = [NSDictionary dictionaryWithContentsOfFile:path];
 
 	if (!infoDict) {
@@ -1074,22 +1152,22 @@ bool pls_is_lens_has_run()
 
 QString pls_get_app_version_by_identifier(const char *bundleID)
 {
-	NSString *installApp;
-	QStringList appList;
-	pls_libutil_api_mac::pls_get_install_app_list(bundleID, appList);
-	for (const auto &appPath : appList) {
-		if (appPath.startsWith("/Applications")) {
-			installApp = pls_libutil_api_mac::getNSStringFromQString(appPath);
-			break;
-		}
-	}
-	if (installApp.length == 0) {
+	QString appPath = pls_libutil_api_mac::pls_get_install_app(bundleID);
+	return pls_get_app_version_by_app_path(appPath);
+}
+
+QString pls_get_app_version_by_app_path(const QString &appPath)
+{
+	if (appPath.isEmpty()) {
 		return "";
 	}
+	NSString *installApp = appPath.toNSString();
 
 	NSDictionary *infoDict = [[NSBundle bundleWithPath:installApp] infoDictionary];
 	NSString *version = [infoDict objectForKey:@"CFBundleShortVersionString"];
-	return QString(version.UTF8String);
+	if (version)
+		return QString(version.UTF8String);
+	return "";
 }
 
 void pls_set_current_lens(int index)
@@ -1154,5 +1232,69 @@ bool pls_lens_needs_reboot()
 	BOOL isRebootExist = [searchRebootLensCmd runCommandAndReturnErrorWithAdminPrivilege:NO] == NULL;
 	return isActiveExist && isRebootExist;
 }
+QString pls_get_system_language()
+{
+	/**
+	 ko-CN,
+	 zh-Hans-CN,
+	 en-CN,
+	 id-CN
+	 */
+	NSArray *languages = [NSLocale preferredLanguages];
+	NSString *firstLanguage = [languages firstObject];
+	return QString::fromNSString(firstLanguage);
+}
 
+MacApplicationInfo pls_get_application_info(uint32_t pid)
+{
+	MacApplicationInfo info;
+	info.pid = pid;
+
+	NSRunningApplication *runningApp = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
+	if (!runningApp) {
+		return info;
+	}
+
+	NSString *name = [runningApp localizedName];
+	if (name) {
+		info.processName = name.UTF8String;
+	}
+
+	NSURL *bundleURL = [runningApp bundleURL];
+	if (bundleURL) {
+		NSString *path = [bundleURL path];
+		if (path) {
+			info.processPath = path.UTF8String;
+		}
+	}
+
+	return info;
+}
+
+}
+
+LIBUTILSAPI_API LENS_WINDOWS_STATUS pls_is_cam_window_visible()
+{
+	PLSMacWindowDetectionResult *result = [PLSMacFunction detectWindowStateForBundleID:@kPrismLensBundleID];
+
+	// Map the detailed detection result to LENS_WINDOWS_STATUS
+	switch (result.state) {
+	case PLSMacAppWindowStateNotRunning:
+		return PROCESS_NOT_FOUND;
+
+	case PLSMacAppWindowStateRunningNoWindows:
+	case PLSMacAppWindowStateRunningWindowsHidden:
+		return NO_SHOW;
+
+	case PLSMacAppWindowStateRunningWindowsVisible:
+		return SHOWN;
+
+	default:
+		return PROCESS_NOT_FOUND;
+	}
+}
+
+LIBUTILSAPI_API bool pls_active_cam_window()
+{
+	return pls_libutil_api_mac::pls_activiate_app_bundle_id(kPrismLensBundleID);
 }

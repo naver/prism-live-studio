@@ -21,6 +21,8 @@ struct PLSImageStatic {
 	QMap<QString, QString> profileUrlMap;
 };
 
+namespace pls::schedule {
+Q_NAMESPACE
 enum class PLSScheComboxItemType {
 	Ty_NormalLive,
 	Ty_Loading,
@@ -28,6 +30,10 @@ enum class PLSScheComboxItemType {
 	Ty_Placeholder,
 	Ty_Schedule,
 };
+Q_ENUM_NS(PLSScheComboxItemType)
+}
+
+using PLSScheComboxItemType = pls::schedule::PLSScheComboxItemType;
 
 struct PLSScheComboxItemData {
 	QString _id;
@@ -62,14 +68,17 @@ public:
 	static QString getDetailTime(const PLSScheComboxItemData &data, bool &willDelete);
 	const QListWidget *getListWidget() const;
 	void setHeightAfterShow(int btnWidth);
+	QString getSelectedType() const;
 
 protected:
 	bool eventFilter(QObject *i_Object, QEvent *i_Event) override;
+	void showEvent(QShowEvent *event) override;
 	void hideEvent(QHideEvent *event) override;
 
 private:
 	QListWidget *m_listWidget;
 	QTimer *m_pLeftTimer;
+	PLSScheComboxItemType m_type{PLSScheComboxItemType::Ty_NormalLive};
 
 	std::vector<PLSScheduleComboxItem *> m_vecItems;
 	void addAItem(const QString &showStr, const PLSScheComboxItemData &itemData, int itemSize);

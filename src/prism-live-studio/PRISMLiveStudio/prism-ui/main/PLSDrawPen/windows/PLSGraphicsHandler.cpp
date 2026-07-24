@@ -1,6 +1,9 @@
 #include "PLSGraphicsHandler.h"
 #include <util/windows/win-version.h>
 #include <util/platform.h>
+#include <util/util.hpp>
+#include <liblog.h>
+#include <log/module_names.h>
 #include <obs.h>
 #include <string>
 
@@ -65,8 +68,12 @@ bool PLSGraphicsHandler::CreateDevice()
 		return false;
 	}
 
-	DXGI_ADAPTER_DESC desc;
+	DXGI_ADAPTER_DESC desc = {};
 	adapter_ptr->GetDesc(&desc);
+
+	BPtr<char> adapterNameUTF8;
+	os_wcs_to_utf8_ptr(desc.Description ? desc.Description : L"<unknown>", 0, &adapterNameUTF8);
+	PLS_LOG(PLS_LOG_INFO, DRAWPEN_MODULE, "create device for draw pen on '%s'", adapterNameUTF8.Get());
 
 	hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d1Factory.Assign());
 	if (FAILED(hr)) {
@@ -75,6 +82,15 @@ bool PLSGraphicsHandler::CreateDevice()
 
 	inited = true;
 	return true;
+}
+
+bool PLSGraphicsHandler::NeedRebuild()
+{
+	if (!d3d11Device)
+		return true;
+
+	auto hr = d3d11Device->GetDeviceRemovedReason();
+	return (DXGI_ERROR_DEVICE_REMOVED == hr || DXGI_ERROR_DEVICE_RESET == hr);
 }
 
 bool PLSGraphicsHandler::RebuildDevice()

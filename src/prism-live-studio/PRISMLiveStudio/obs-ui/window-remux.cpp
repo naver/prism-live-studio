@@ -624,6 +624,7 @@ OBSRemux::OBSRemux(const char *path, QWidget *parent, bool autoRemux_)
 
 	setupUi(ui);
 	pls_add_css(this, {"OBSRemux"});
+	setResizeEnabled(false);
 	ui->label->setVisible(false);
 	ui->progressBar->setVisible(false);
 	ui->progressSlider->setVisible(false);
@@ -741,9 +742,11 @@ bool OBSRemux::stopRemux()
 
 	bool exit = false;
 
-	if (PLSAlertView::critical(nullptr, QTStr("Alert.Title"), QTStr("Remux.ExitUnfinished"),
-				   PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel,
-				   PLSAlertView::Button::Cancel) == PLSAlertView::Button::Ok) {
+	auto button = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_REMUX_EXIT_UNFINISHED,
+							    PLSErrKeyAllAlert, {},
+							    PLSErrorHandler::ExtraData("OBSRemux"));
+
+	if (button.clickedBtn == PLSAlertView::Button::Ok) {
 		exit = true;
 	}
 
@@ -809,8 +812,8 @@ void OBSRemux::dropEvent(QDropEvent *ev)
 	}
 
 	if (urlList.empty()) {
-		PLSAlertView::warning(nullptr, QTStr("Alert.Title"), QTStr("Remux.NoFilesAdded"),
-				      PLSAlertView::Button::Ok);
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_REMUX_NOFILES_ADDED, PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData("OBSRemux"));
 	} else if (!autoRemux) {
 		QModelIndex insertIndex = queueModel->index(queueModel->rowCount() - 1, RemuxEntryColumn::InputPath);
 		queueModel->setData(insertIndex, urlList, RemuxEntryRole::NewPathsToProcessRole);
@@ -834,24 +837,24 @@ void OBSRemux::beginRemux()
 	QFileInfoList overwriteFiles = queueModel->checkForOverwrites();
 
 	if (!overwriteFiles.empty()) {
-		QString message = QTStr("Remux.FileExists");
-		message += "\n\n";
-
+		PLSErrorHandler::ExtraData extraData("OBSRemux");
+		QString message;
 		QStringList files;
 		for (QFileInfo fileInfo : overwriteFiles)
 			files << fileInfo.canonicalFilePath();
 
 		message += files.join("\n");
-		if (PLSAlertView::warning(nullptr, QTStr("Alert.Title"), message,
-					  PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel) !=
-		    PLSAlertView::Button::Ok)
+		extraData.pathValueMap = {{"filePath", message}};
+
+		if (PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_REMUX_FILEEXISTS, PLSErrKeyAllAlert,
+							  {}, extraData)
+			    .clickedBtn != PLSAlertView::Button::Ok)
 			proceedWithRemux = false;
 	}
 
 	if (!proceedWithRemux)
 		return;
 
-	// Set all jobs to "pending" first.
 	queueModel->beginProcessing();
 
 	ui->progressSlider->setVisible(!autoRemux);
@@ -886,11 +889,11 @@ void OBSRemux::remuxNextEntry()
 		queueModel->endProcessing();
 
 		if (!autoRemux) {
+			auto prismCode = queueModel->checkForErrors() ? PLSErrorHandler::ALERT_FINISHED_ERROR
+								      : PLSErrorHandler::ALERT_FINISHED;
 
-			PLSAlertView::information(nullptr, QTStr("Alert.Title"),
-						  queueModel->checkForErrors() ? QTStr("Remux.FinishedError")
-									       : QTStr("Remux.Finished"),
-						  PLSAlertView::Button::Ok);
+			PLSErrorHandler::showAlertByPrismCode(prismCode, PLSErrKeyAllAlert, {},
+							      PLSErrorHandler::ExtraData("OBSRemux"));
 		}
 
 		ui->progressSlider->setVisible(false);
@@ -945,11 +948,13 @@ void OBSRemux::remuxFinished(bool success)
 void OBSRemux::clearFinished()
 {
 	queueModel->clearFinished();
+	PLS_UI_ACTION("OBSRemux::clearFinished");
 }
 
 void OBSRemux::clearAll()
 {
 	queueModel->clearAll();
+	PLS_UI_ACTION("OBSRemux::clearAll");
 }
 
 /**********************************************************

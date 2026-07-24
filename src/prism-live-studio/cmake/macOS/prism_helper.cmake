@@ -350,6 +350,23 @@ function(install_and_codesign)
   install(SCRIPT "$ENV{PRISM_SRC_DIR}/cmake/macOS/bundleutils.cmake" COMPONENT prism_bundles)
 endfunction()
 
+# Debug configuration only: whole-bundle deep sign (Finder launch / plugin dlopen).
+function(prism_add_debug_deep_codesign_post_build target)
+  set(_deep_sign_ident "${PRISM_BUNDLE_CODESIGN_IDENTITY}")
+  if(_deep_sign_ident STREQUAL "")
+    set(_deep_sign_ident "-")
+  endif()
+  add_custom_command(
+    TARGET ${target}
+    POST_BUILD
+    COMMAND
+      /bin/sh
+      -c
+      "if [ \"$<CONFIG>\" != \"Debug\" ]; then exit 0; fi; exec /usr/bin/codesign --force --deep --sign \"${_deep_sign_ident}\" \"$<TARGET_BUNDLE_DIR:${target}>\""
+    COMMENT "PRISM: deep codesign .app (Debug only)"
+    VERBATIM)
+endfunction()
+
 # Helper function to set up OBS app target
 function(setup_prism_app target)
   set_target_properties(
@@ -375,5 +392,6 @@ function(setup_prism_app target)
 
   install_and_codesign()
 
+  prism_add_debug_deep_codesign_post_build(${target})
 
 endfunction()

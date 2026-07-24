@@ -75,23 +75,23 @@ PLSBgmControlsView #playBtn[state=pause]:!enable{
 }
 
 PLSBgmControlsView #modeBtn[playMode=inOrder]{
-	image:url(":/resource/images/toolbar/ic-toolbar-allrepeat-select-normal.svg");
+	image:url(":/resource/images/toolbar/ic-toolbar-shuffle-normal.svg");
 }
 
 PLSBgmControlsView #modeBtn[playMode=inOrder]:hover{
-	image:url(":/resource/images/toolbar/ic-toolbar-allrepeat-select-over.svg");
+	image:url(":/resource/images/toolbar/ic-toolbar-shuffle-over.svg");
 }
 
 PLSBgmControlsView #modeBtn[playMode=inOrder]:pressed{
-	image:url(":/resource/images/toolbar/ic-toolbar-allrepeat-select-over.svg");
+	image:url(":/resource/images/toolbar/ic-toolbar-shuffle-over.svg");
 }
 
 PLSBgmControlsView #modeBtn[playMode=inOrder]:!enable{
-	image:url(":/resource/images/toolbar/ic-toolbar-allrepeat-select-disable.svg");
+	image:url(":/resource/images/toolbar/ic-toolbar-shuffle-disable.svg");
 }
 
 PLSBgmControlsView #modeBtn[playMode=inOrder][status=disable]{
-	image:url(":/resource/images/toolbar/ic-toolbar-allrepeat-select-disable.svg");
+	image:url(":/resource/images/toolbar/ic-toolbar-shuffle-disable.svg");
 }
 
 PLSBgmControlsView #modeBtn[playMode=random]{
@@ -150,45 +150,65 @@ PLSBgmControlsView #loopBtn:indicator{
 	height: 0px;
 }
 
-PLSBgmControlsView #loopBtn, PLSBgmControlsView #loopBtn[pressed=false]{
+PLSBgmControlsView #loopBtn, PLSBgmControlsView #loopBtn[loopMode=NoLoop]{
 	image:url(":/resource/images/toolbar/ic-toolbar-repeat-normal.svg");	
 }
 
-PLSBgmControlsView #loopBtn:hover, PLSBgmControlsView #loopBtn[pressed=false]:hover{
-	image:url(":/resource/images/toolbar/ic-toolbar-repeat-over.svg");	
+PLSBgmControlsView #loopBtn:hover, PLSBgmControlsView #loopBtn[loopMode=NoLoop]:hover{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-over.svg");
 }
 
-PLSBgmControlsView #loopBtn:pressed, PLSBgmControlsView #loopBtn[pressed=false]:pressed{
-	image:url(":/resource/images/toolbar/ic-toolbar-repeat-over.svg");	
+PLSBgmControlsView #loopBtn:pressed, PLSBgmControlsView #loopBtn[loopMode=NoLoop]:pressed{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-over.svg");
 }
 
-PLSBgmControlsView #loopBtn:!enable, PLSBgmControlsView #loopBtn[pressed=false]:!enable{
-	image:url(":/resource/images/toolbar/ic-toolbar-repeat-disable.svg");	
+PLSBgmControlsView #loopBtn:!enable, PLSBgmControlsView #loopBtn[loopMode=NoLoop]:!enable{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-disable.svg");
 }
 
-PLSBgmControlsView #loopBtn[status=disable][pressed=true]{
-	image:url(":/resource/images/toolbar/ic-toolbar-repeat-disable.svg");	
+PLSBgmControlsView #loopBtn[status=disable][loopMode=LoopAll]{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-disable.svg");
 }
 
-PLSBgmControlsView #loopBtn[status=disable][pressed=false],
+PLSBgmControlsView #loopBtn[status=disable][loopMode=LoopOne]{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeatone-select-disable.svg");
+}
+
+PLSBgmControlsView #loopBtn[status=disable][loopMode=NoLoop],
 PLSBgmControlsView #loopBtn[status=disable]{
-	image:url(":/resource/images/toolbar/ic-toolbar-repeat-disable.svg");	
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-disable.svg");
 }
 
-PLSBgmControlsView #loopBtn[pressed=true]{
-	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-normal.svg");	
+PLSBgmControlsView #loopBtn[loopMode=LoopAll]{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-normal.svg");
 }
 
-PLSBgmControlsView #loopBtn[pressed=true]:hover{
-	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-over.svg");	
+PLSBgmControlsView #loopBtn[loopMode=LoopAll]:hover{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-over.svg");
 }
 
-PLSBgmControlsView #loopBtn[pressed=true]:pressed{
-	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-over.svg");	
+PLSBgmControlsView #loopBtn[loopMode=LoopAll]:pressed{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-over.svg");
 }
 
-PLSBgmControlsView #loopBtn[pressed=true]:!enable{
-	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-disable.svg");	
+PLSBgmControlsView #loopBtn[loopMode=LoopAll]:!enable{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-disable.svg");
+}
+
+PLSBgmControlsView #loopBtn[loopMode=LoopOne]{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeatone-select-normal.svg");
+}
+
+PLSBgmControlsView #loopBtn[loopMode=LoopOne]:hover{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeatone-select-over.svg");
+}
+
+PLSBgmControlsView #loopBtn[loopMode=LoopOne]:pressed{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeatone-select-over.svg");
+}
+
+PLSBgmControlsView #loopBtn[loopMode=LoopOne]:!enable{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeatone-select-disable.svg");
 }
 
 PLSBgmControlsView #playingSlider[enter="false"]:handle:horizontal {

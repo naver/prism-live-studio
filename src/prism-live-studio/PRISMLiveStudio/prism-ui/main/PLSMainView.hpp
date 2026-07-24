@@ -7,9 +7,10 @@
 #include <QListWidgetItem>
 #include <PLSToplevelView.h>
 #include <frontend-api.h>
-#include "PLSNewIconActionWidget.hpp"
 #if defined(_WIN32)
 #include "windows/PLSWinrtNotify.h"
+#elif defined(Q_OS_MACOS)
+#include "mac/PLSMacSleepNotify.h"
 #endif
 
 namespace Ui {
@@ -21,17 +22,20 @@ class QPushButton;
 class PLSBasicStatusBar;
 class CustomHelpMenuItem;
 class QLabel;
+class QVBoxLayout;
+class QSpacerItem;
 class PLSToastMsgPopup;
 class PLSToastButton;
 class PLSBasic;
 class QButtonGroup;
 class ResolutionGuidePage;
 class ResolutionTipFrame;
-class PLSRemoteControlConfigView;
 class PLSLivingMsgView;
 class PLSChatDialog;
 class PLSAlertView;
-class PLSPaidToastPopup;
+class PLSLoadingView;
+class QTimer;
+class VScrollArea;
 
 class PLSMainView : public PLSToplevelView<QFrame> {
 	Q_OBJECT
@@ -129,9 +133,10 @@ public:
 	int titleBarHeight() const override;
 	void setUpdateTipsStatus(bool isShowTips);
 
-	void registerSideBarButton(ConfigId id, const IconData &data, bool inFixedArea = true);
+	void registerSideBarButton(ConfigId id, const IconData &data, bool isAddLoading = false);
 	void updateSideBarButtonStyle(ConfigId id, bool on);
 	void updateSidebarButtonTips(ConfigId id, const QString &tips = QString()) const;
+	void updateLoadingState(ConfigId id, bool visible);
 	void blockSidebarButton(ConfigId id, bool toBlock = true) const;
 	bool isSidebarButtonInScroll(ConfigId id) const;
 	QList<SideWindowInfo> getSideWindowInfo() const;
@@ -146,15 +151,10 @@ public:
 	int getToastMessageCount() const;
 	Q_INVOKABLE void toastClear();
 
-	void showPaidToast(pls_toast_info_type type, const QString &title, const QString &message, const QString &bottomButton, const std::function<void()> &btnCallback, bool containCloseBtn,
-			   int auto_close);
-	void clearPaidToast();
-
 	void setUserButtonIcon(const QIcon &icon);
 	void initToastMsgView(bool isInitShow = true);
 	void setToastMsgViewVisible(bool isShow);
 	void initMobileHelperView(bool isInitShow);
-
 
 	void setStudioMode(bool studioMode);
 	bool isFirstShow() const;
@@ -162,6 +162,8 @@ public:
 	void setResolutionBtnCheck(bool bCheck);
 
 	bool isSettingEnabled() const;
+	static bool isMatchOBSSupportPluginVersion(const QString &winObsPath = "");
+
 public slots:
 	void onSideBarButtonClicked(int buttonId);
 	void updateTipsEnableChanged(bool isEnable);
@@ -184,9 +186,9 @@ public slots:
 	void showStudioModeTips(const QString &tips = QString());
 	void setStudioModeChecked(bool);
 	void closeMobileDialog() const;
-	void on_discordBtn_clicked();
-	void on_plusBtn_clicked();
-	void on_paid_status_changed();
+	void setNoticeTips(bool hasNoticeOrUpdateMsg);
+	void consumeNoticeMenuBadge();
+	void armNoticeTips(bool hasNoticeOrUpdateMsg);
 
 protected:
 	ResolutionTipFrame *createSidebarTipFrame(const QString &txt, QWidget *aliginWidget, bool isAutoColose, const QString &objectName = "ResolutionTipsLabel");
@@ -197,6 +199,7 @@ protected:
 	bool eventFilter(QObject *watcher, QEvent *event) override;
 	bool event(QEvent *event) override;
 	bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+	void winIdChanged(WId winId) override;
 
 signals:
 	void popupSettingView(const QString &tab, const QString &group);
@@ -208,15 +211,24 @@ signals:
 
 private:
 	void initSideBarButtons();
+	/** Build right sidebar: scroll (#side_bar_menus: profile, studio, feature buttons, …), bottom strip. */
+	void setupRightSidebarWidgets();
+	void createSidebarUtilityButtons();
 	void initHelpMenu();
+	/** Min width from stylesheet (212); widen to fit longest help row (locale, NEW badge). */
+	void updateHelpMenuGeometry();
 	QString generalStyleSheet(const QString &objectName, IconData data) const;
 	QWidget *getSiderBarButton(const QString &objName);
-	void addSideBarSeparator(bool inFixedArea = true);
+	void addSideBarSeparator();
 	void addSideBarStretch();
 	void AdjustSideBarMenu();
 	void hiddenWidget(QWidget *widget);
+	void setUiStepLogParams();
+	void setHelpMenuNoticeBadgeVisible(bool visible);
+	void applyNoticeBadgeState();
 
 #ifdef _WIN32
+	std::shared_ptr<int> freeHandle = nullptr;
 	void readDetectResult();
 	void runNewDetect();
 #endif
@@ -235,6 +247,7 @@ private:
 	int channelsAreaHeight = 70;
 	std::function<void(QCloseEvent *)> closeEventCallback;
 	QButtonGroup *sideBarBtnGroup = nullptr;
+	QMap<ConfigId, PLSLoadingView *> m_LoadingFrameMap;
 	QList<SideWindowInfo> windowInfo;
 
 	QPointer<PLSLivingMsgView> m_livingMsgView;
@@ -254,12 +267,31 @@ private:
 	bool m_isFirstShow = true;
 	friend class PLSBasic;
 	friend class ResolutionGuidePage;
-	QPointer<QWidget> m_userPlusImage;
 
-	QPointer<PLSPaidToastPopup> m_paidToastView;
+	/* Right sidebar chrome (code-built; object names match PLSMainView.css / autoConnect) */
+	QPushButton *m_userBtn{nullptr};
+	QPushButton *m_studioModeBtn{nullptr};
+	VScrollArea *m_scrollArea{nullptr};
+	QWidget *m_sideBarMenus{nullptr};
+	QVBoxLayout *m_sideBarLayout{nullptr};
+	QLabel *m_separatorBottom{nullptr};
+	QWidget *m_bottomStack{nullptr};
+	QVBoxLayout *m_bottomLayout{nullptr};
+
+	/** Top spacer above sidebar scroll (#rightArea) */
+	QSpacerItem *m_raSpacerTop{nullptr};
+
+	/* Sidebar: created in code (not in .ui); object names match PLSMainView.css */
+	/** Dynamic replacements for former ui->ResolutionBtn / settings / help; objectName unchanged for CSS. */
+	QPushButton *m_resolutionBtn = nullptr;
+	QPushButton *m_settingsBtn = nullptr;
+	QPushButton *m_helpBtn = nullptr;
 #if defined(_WIN32)
 	QPointer<PLSWinRTNotify> winrt_notify;
+#elif defined(Q_OS_MACOS)
+	QPointer<PLSMacSleepNotify> mac_sleep_notify;
 #endif
+	QPointer<QLabel> m_noticeTipsIcon;
 };
 
 #endif // PLSMAINVIEW_H

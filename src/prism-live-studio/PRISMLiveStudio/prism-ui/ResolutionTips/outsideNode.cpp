@@ -16,12 +16,12 @@
 #include "pls/pls-dual-output.h"
 
 #include <QStandardItemModel>
+#include <QMetaEnum>
 
 using namespace std;
 
-const int SCENE_DISPLAY_TIPS_NUM = 3;
 const int LABLE_MAX_LEN = 180;
-constexpr const std::array<const char *, SCENE_DISPLAY_TIPS_NUM> sceneDisplayTips = {"Setting.Scene.Display.Realtime.Tips", "Setting.Scene.Display.Thumbnail.Tips", "Setting.Scene.Display.Text.Tips"};
+constexpr const std::array<const char *, 2> sceneDisplayTips = {"Setting.Scene.Display.Text.Tips", "Setting.Scene.Display.Thumbnail.Tips"};
 
 class OutsideNode : public QObject {
 public:
@@ -51,90 +51,6 @@ void intializeOutNode()
 	OutsideNode::instance();
 }
 
-void OBSBasicSettings::adjustUi()
-{
-	auto scrollareas = ui->outputPage->findChildren<QScrollArea *>();
-	for (const auto area : scrollareas) {
-		area->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Ignored);
-	}
-	ui->advOutTabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Ignored);
-	auto forms = this->findChildren<QFormLayout *>();
-	for (const auto form : forms) {
-		form->setLabelAlignment(Qt::AlignLeft);
-		form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-		form->setVerticalSpacing(10);
-		form->setHorizontalSpacing(20);
-		form->setContentsMargins(0, 0, 0, 0);
-	}
-
-	auto grids = this->findChildren<QGridLayout *>();
-	for (const auto &grid : grids) {
-		grid->setVerticalSpacing(10);
-		grid->setContentsMargins(0, 0, 0, 0);
-	}
-
-	ui->listWidget->setIconSize(QSize(0, 0));
-	ui->listWidget->setRowHidden(STREAM, true);
-	ui->listWidget->setProperty("notShowHandCursor", true);
-
-	ui->openStatsOnStartup->hide();
-	ui->formLayout_32->takeRow(ui->verticalLayout_32);
-
-	if (ui->updateSettingsGroupBox) {
-		ui->updateSettingsGroupBox->hide();
-	}
-
-	QString userServiceName = PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName();
-	if (userServiceName.isEmpty()) {
-		ui->waterMarkGroupBox->hide();
-	} else {
-		ui->waterMarkGroupBox->show();
-	}
-
-	ui->warnBeforeStreamStart->hide();
-	ui->warnBeforeStreamStop->hide();
-	ui->warnBeforeRecordStop->hide();
-	ui->formLayout_2->takeRow(ui->warnBeforeStreamStart);
-	ui->formLayout_2->takeRow(ui->warnBeforeStreamStop);
-	ui->formLayout_2->takeRow(ui->warnBeforeRecordStop);
-	ui->groupBox_19->hide();
-
-	ui->verticalLayout->setContentsMargins(0, 0, 25, 0); //video
-	ui->hotkeyFormLayout->setContentsMargins(0, 0, 0, 50);
-
-	auto scrolls = this->findChildren<QScrollArea *>();
-	for (const auto &scroll : scrolls) {
-		auto ctw = scroll->widget();
-		if (ctw == nullptr) {
-			continue;
-		}
-		ctw->setContentsMargins(0, 0, 25, 0);
-	}
-	ui->hotkeyScrollContents->setContentsMargins(0, 0, 0, 0);
-	ui->hotkeySearchLayout->setContentsMargins(0, 0, 35, 40);
-	ui->formLayout_5->setContentsMargins(0, 0, 35, 10);
-	ui->formLayout_9->setContentsMargins(0, 0, 35, 0);
-	alignOutputPageLabels();
-	alignLabels(ui->audioPage);
-	alignLabels(ui->advancedPage);
-	alignLabels(ui->widget_2);
-	alignVideoPage();
-
-	auto advCheckboxs = ui->recTracks->findChildren<PLSCheckBox *>();
-	for (auto checkbox : advCheckboxs) {
-		checkbox->setSpac(5);
-	}
-
-	auto simpleCheckboxs = ui->simpleRecTracks->findChildren<PLSCheckBox *>();
-	for (auto checkbox : simpleCheckboxs) {
-		checkbox->setSpac(5);
-	}
-	auto advOutFFTracks = ui->widget_10->findChildren<PLSCheckBox *>();
-	for (auto checkbox : advOutFFTracks) {
-		checkbox->setSpac(5);
-	}
-}
-
 QList<QLabel *> OBSBasicSettings::getLabelsFromForm(const QFormLayout *form) const
 {
 	QList<QLabel *> labels;
@@ -157,12 +73,14 @@ void OBSBasicSettings::alignLabels(QWidget *rootWidget)
 	auto forms = rootWidget->findChildren<QFormLayout *>();
 	QList<QLabel *> labels;
 	for (const auto &form : forms) {
+		form->setLabelAlignment(Qt::AlignLeft);
+
 		int rows = form->rowCount();
 		labels << getLabelsFromForm(form);
 	}
 
-	if (rootWidget->objectName() == "advancedPage") {
-		QList<QLabel *> otherLabels = {ui->label_7, ui->label_57, ui->label_21, ui->label_17, ui->label_56, ui->bindToIPLabel};
+	if (rootWidget == ui->advancedPage) {
+		QList<QLabel *> otherLabels = {advancedPage->label_7, advancedPage->label_57, advancedPage->label_21, advancedPage->label_17, advancedPage->label_56, advancedPage->bindToIPLabel};
 		labels.append(otherLabels);
 	}
 	int maxLenth = 0;
@@ -172,9 +90,9 @@ void OBSBasicSettings::alignLabels(QWidget *rootWidget)
 		maxLenth = maxLenth < len ? len : maxLenth;
 	}
 
-	if (rootWidget->objectName() == "widget_2") {
-		maxLenth = 133; //according to PLSSettingGeneralView spacing
-		QList<QLabel *> otherLabels = {ui->label_9, ui->label_10, ui->label_64};
+	if (generalPage && rootWidget == ui->generalPage) {
+		maxLenth = 133;
+		QList<QLabel *> otherLabels = {generalPage->label_9, generalPage->label_10, generalPage->label_64};
 		labels.append(otherLabels);
 	}
 	if (maxLenth > LABLE_MAX_LEN) {
@@ -182,11 +100,8 @@ void OBSBasicSettings::alignLabels(QWidget *rootWidget)
 	}
 
 	for (const auto lb : labels) {
-		if (lb != ui->advStreamTrackWidgetLabel) {
-			lb->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-		}
 		lb->setWordWrap(true);
-		lb->setStyleSheet(QString("min-width:%1px;").arg(maxLenth));
+		lb->setStyleSheet(QString("min-width: %1").arg(maxLenth));
 	}
 }
 
@@ -195,7 +110,6 @@ void OBSBasicSettings::alignVideoPage()
 	auto forms = ui->videoPage->findChildren<QFormLayout *>();
 	QList<QLabel *> labels;
 	for (const auto &form : forms) {
-		int rows = form->rowCount();
 		labels << getLabelsFromForm(form);
 	}
 
@@ -205,16 +119,15 @@ void OBSBasicSettings::alignVideoPage()
 		auto len = fontm.horizontalAdvance(lb->text());
 		maxLenth = maxLenth < len ? len : maxLenth;
 	}
-	auto fontm = ui->fpsType->fontMetrics();
-	auto len = fontm.horizontalAdvance(ui->fpsType->itemText(ui->fpsType->currentIndex()));
+	auto fontm = videoPage->fpsType->fontMetrics();
+	auto len = videoPage->fpsType->sizeHint().width();
 
 	maxLenth = maxLenth < len ? len : maxLenth;
 	for (const auto lb : labels) {
-		lb->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 		lb->setWordWrap(true);
-		lb->setStyleSheet(QString("min-width:%1px;").arg(maxLenth));
+		lb->setFixedWidth(qMin(maxLenth, LABLE_MAX_LEN));
 	}
-	ui->fpsType->setMinimumWidth(maxLenth);
+	videoPage->fpsType->setFixedWidth(qMin(maxLenth, LABLE_MAX_LEN));
 }
 
 void OBSBasicSettings::alignOutputPageLabels()
@@ -226,11 +139,11 @@ void OBSBasicSettings::alignOutputPageLabels()
 
 void OBSBasicSettings::OnSceneDisplayMethodIndexChanged(int index) const
 {
-	if (index < 0 || index >= SCENE_DISPLAY_TIPS_NUM) {
+	if (index < 0 || index >= sceneDisplayTips.size()) {
 		return;
 	}
 
-	ui->sceneDisplayTipsLabel->setText(tr(sceneDisplayTips[index]));
+	generalPage->sceneDisplayTipsLabel->setText(tr(sceneDisplayTips[index]));
 }
 
 void OBSBasicSettings::LoadSceneDisplayMethodSettings()
@@ -238,61 +151,44 @@ void OBSBasicSettings::LoadSceneDisplayMethodSettings()
 	loading = true;
 
 	QStringList list;
-	list << tr("Setting.Scene.Display.Realtime.View") << tr("Setting.Scene.Display.Thumbnail.View") << tr("Setting.Scene.Display.Text.View");
-	ui->sceneDisplayComboBox->blockSignals(true);
-	ui->sceneDisplayComboBox->addItems(list);
-	ui->sceneDisplayComboBox->blockSignals(false);
+	list << tr("Setting.Scene.Display.Text.View") << tr("Setting.Scene.Display.Thumbnail.View");
+	generalPage->sceneDisplayComboBox->blockSignals(true);
+	generalPage->sceneDisplayComboBox->clear();
+	generalPage->sceneDisplayComboBox->addItems(list);
+	generalPage->sceneDisplayComboBox->blockSignals(false);
 
-	if (PLSSceneDataMgr::Instance()->GetSceneSize() > common::SCENE_RENDER_NUMBER) {
-		ui->sceneDisplayComboBox->setItemData(static_cast<int>(DisplayMethod::DynamicRealtimeView), QVariant::fromValue(false), Qt::UserRole - 1);
-	}
-
-	auto currentIndex = (int)config_get_int(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod");
+	auto currentString = config_get_string(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod");
+	auto method = static_cast<DisplayMethod>(QMetaEnum::fromType<DisplayMethod>().keyToValue(currentString));
+	auto currentIndex = static_cast<int>(method);
 	if (currentIndex >= list.size() || currentIndex < 0) {
-		if (PLSSceneDataMgr::Instance()->GetSceneSize() > common::SCENE_RENDER_NUMBER) {
-			ui->sceneDisplayComboBox->setCurrentIndex(1);
-			OnSceneDisplayMethodIndexChanged(1);
-		} else {
-			ui->sceneDisplayComboBox->setCurrentIndex(0);
-			OnSceneDisplayMethodIndexChanged(0);
-		}
+		generalPage->sceneDisplayComboBox->setCurrentIndex(0);
+		OnSceneDisplayMethodIndexChanged(0);
 		loading = false;
 		return;
 	}
 
-	ui->sceneDisplayComboBox->setCurrentIndex(currentIndex);
+	generalPage->sceneDisplayComboBox->setCurrentIndex(currentIndex);
 	OnSceneDisplayMethodIndexChanged(currentIndex);
 	loading = false;
 }
 
 void OBSBasicSettings::ResetSceneDisplayMethodSettings()
 {
-	ui->sceneDisplayComboBox->clear();
 	config_remove_value(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod");
 
-	if (PLSSceneDataMgr::Instance()->GetSceneSize() > common::SCENE_RENDER_NUMBER) {
-		PLSBasic::instance()->SetSceneDisplayMethod(1); // 5s
-	} else {
-		PLSBasic::instance()->SetSceneDisplayMethod(0);
-	}
+	PLSBasic::instance()->SetSceneDisplayMethod(DisplayMethod::TextView);
 }
 
 void OBSBasicSettings::SaveSceneDisplayMethodSettings() const
 {
-	config_set_int(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod", ui->sceneDisplayComboBox->currentIndex());
-	PLSBasic::instance()->SetSceneDisplayMethod(ui->sceneDisplayComboBox->currentIndex());
+	if (generalPage) {
+		auto method = static_cast<DisplayMethod>(generalPage->sceneDisplayComboBox->currentIndex());
+		auto methodStr = QMetaEnum::fromType<DisplayMethod>().valueToKey(static_cast<int>(method));
+		config_set_string(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod", methodStr);
+		PLSBasic::instance()->SetSceneDisplayMethod(method);
+	}
 }
 
-void OBSBasicSettings::ConnectUiSignals()
-{
-	connect(ui->sceneDisplayComboBox, QOverload<int>::of(&PLSComboBox::currentIndexChanged), this, [this](int index) {
-		OnSceneDisplayMethodIndexChanged(index);
-
-		if (!loading) {
-			EnableApplyButton(true);
-		}
-	});
-}
 bool OBSBasicSettings::IgnoreInvisibleHotkeys(obs_source_t *source, const char *name)
 {
 	OBSData privateSettings = obs_source_get_private_settings(source);
@@ -317,26 +213,14 @@ void OBSBasicSettings::initOutPutChangedTipUi()
 	connect(ui->listWidget, &QListWidget::currentRowChanged, this, &OBSBasicSettings::checkOutputTipsVisible, Qt::QueuedConnection);
 	connect(PLSBasic::instance(), &PLSBasic::outputStateChanged, this, &OBSBasicSettings::checkOutputTipsVisible, Qt::QueuedConnection);
 	connect(PLSBasic::instance(), &PLSBasic::outputStateChanged, this, &OBSBasicSettings::updateButtonsState, Qt::QueuedConnection);
-
-	connect(this, &OBSBasicSettings::sigSaveVideoFailed, this, &OBSBasicSettings::reloadOutputRelatedSettings, Qt::QueuedConnection);
-	updateOutPutRelatedUI();
-}
-void OBSBasicSettings::reloadOutputRelatedSettings()
-{
-	this->LoadVideoSettings();
-	this->LoadOutputSettings();
-	this->LoadAudioSettings();
-	this->LoadAdvancedSettings();
-	this->LoadStream1Settings();
-	updateButtonsState();
 }
 
 void OBSBasicSettings::updateOutPutRelatedUI()
 {
-	//output related
 	bool isOutputActived = pls_is_output_actived();
-	ui->language->setEnabled(!isOutputActived);
-	ui->waterMarkGroupBox->setEnabled(!isOutputActived);
+	generalPage->accountView->setEnabled(!isOutputActived);
+	generalPage->language->setEnabled(!isOutputActived);
+	generalPage->waterMarkGroupBox->setEnabled(!isOutputActived);
 
 	updateButtonsState();
 	pls_async_call_mt([this]() { checkOutputTipsVisible(); });

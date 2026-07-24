@@ -44,7 +44,8 @@ void PLSLiveEndItem::setupData()
 	combineTwoImage();
 	setupStatusWidget();
 	connect(ui->pushButton_tip, &QPushButton::clicked, [this]() { emit tipButtonClick(); });
-
+	pls_uistep_v2_set_value(ui->pushButton_tip, "clicked", QString("Naver Shooping Live Tip"));
+	pls_uistep_v2_set_value(ui->pushButton_share, "clicked", QString("%1 Shared Url").arg(mSourceData.value(ChannelData::g_fixPlatformName, "--").toString()));
 	connect(ui->pushButton_share, &QPushButton::clicked, this, &PLSLiveEndItem::shareButtonClicked);
 }
 
@@ -211,13 +212,15 @@ void PLSLiveEndItem::setNameElideString()
 
 void PLSLiveEndItem::shareButtonClicked() const
 {
-	PLS_UI_STEP(END_MODULE, "PLSEnd Dialog share Button Click", ACTION_CLICK);
 	if (m_shareUrl.isEmpty()) {
 
 		PLS_INFO(END_MODULE, "PLSEnd Dialog shared url is empty");
+		PLS_UI_ACTION("Widget PLSLiveEndItem Url Opend");
 		return;
 	}
 	if (!QDesktopServices::openUrl(QUrl(m_shareUrl).toString())) {
 		PLS_WARN(END_MODULE, "shareButtonClicked failed");
 	}
+
+	PLS_UI_ACTION("Widget PLSLiveEndItem Url Opend");
 }

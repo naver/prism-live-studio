@@ -1,59 +1,73 @@
 PLSFontDialogView QFontDialog QDialogButtonBox {
-	min-height: /*hdpi*/ 78px;
-	max-height: /*hdpi*/ 78px;
+	min-height: 78px;
+	max-height: 78px;
 }
 
 PLSColorDialogView QFontDialog QDialogButtonBox QPushButton[useFor="Ok"],
 PLSColorDialogView QFontDialog QDialogButtonBox QPushButton[useFor="Cancel"] {
 	font-weight: bold;
-	font-size: /*hdpi*/ 14px;
+	font-size: 14px;
 	color: #FFFFFF;
-	min-width: /*hdpi*/ 128px;
-	max-width: /*hdpi*/ 128px;
-	min-height: /*hdpi*/ 40px;
-	max-height: /*hdpi*/ 40px;
+	min-width: 128px;
+	max-width: 128px;
+	min-height: 40px;
+	max-height: 40px;
 }
 
 PLSColorDialogView {
-	min-height:/*hdpi*/ 425px;
-	max-height:/*hdpi*/ 875px;
-	min-width:/*hdpi*/ 478px;
-	max-width:/*hdpi*/ 720px;
+	min-height:425px;
+	max-height:875px;
+	min-width:478px;
+	max-width:720px;
 	background-color: #111111;
 }
 
-PLSColorDialogView QLabel {
+PLSColorDialogView > #titleBar > #titleLabel {
+	font-size: 12px;
+	color: #ffffff;
+	font-weight: normal;
+}
+
+/* Qt QColorShower HTML hex field: width + padding-left align with H/S/V QSpinBox row (same left inset as spin text). */
+PLSColorDialogView QLineEdit {
+	min-height: 40px;
+	max-height: 40px;
+	padding-left: 10px;
+}
+
+/* Color dialog body only — do not style the caption QLabel like form labels. */
+PLSColorDialogView #content QLabel {
 	alignment: left;
-	height:/*hdpi*/ 40px;
+	height:40px;
 	background-color: transparent;
-	font-size:/*hdpi*/ 14px;
+	font-size:14px;
 	font-weight: bold;
 	color: #bababa;
 }
 
 PLSColorDialogView QCheckBox {
 	background-color: transparent;
-	font-size:/*hdpi*/ 14px;
+	font-size:14px;
 	font-weight: normal;
 	color: #e1e1e1;
 }
 
 PLSColorDialogView QListWidget,
 PLSColorDialogView QListView {
-	border:/*hdpi*/ none;
+	border:none;
 	outline: none;
-	border-radius:/*hdpi*/ 0;
+	border-radius:0;
 	background-color: #1e1e1f;
 }
 
 PLSColorDialogView QListWidget::item,
 PLSColorDialogView QListView::item {
-	border:/*hdpi*/ none;
+	border:none;
 	outline: none;
-	height:/*hdpi*/ 40px;
-	padding-right:/*hdpi*/ 12px;
-	padding-left:/*hdpi*/ 12px;
-	font-size:/*hdpi*/ 14px;
+	height:40px;
+	padding-right:12px;
+	padding-left:12px;
+	font-size:14px;
 	font-weight: normal;
 	background-color: #1e1e1f;
 	color: #ffffff;
@@ -69,15 +83,16 @@ PLSColorDialogView QListView::item:hover {
 	background-color: #373737;
 }
 
-PLSColorDialogView QLineEdit, 
-PLSColorDialogView QSpinBox, 
+PLSColorDialogView QLineEdit,
+PLSColorDialogView QSpinBox,
 PLSColorDialogView QDoubleSpinBox{
-	font-size:/*hdpi*/ 14px;
+	font-size:14px;
 	font-weight: normal;
 	background-color: #1e1e1e;
 	color: #ffffff;
-	border-radius:/*hdpi*/ 2px;
+	border-radius:2px;
 }
+
 
 PLSColorDialogView QGroupBox::title {
 	background-color: transparent;

@@ -1,5 +1,6 @@
 #include "PLSDialogView.h"
 #include "ui_PLSDialogView.h"
+#include "PLSTrackers.h"
 
 #include <qapplication.h>
 #include <qscreen.h>
@@ -29,13 +30,15 @@ constexpr const char *TOPLEVELVIEW_MODULE = "ToplevelView";
 
 const QString CONTENT = QStringLiteral("content");
 
-PLSDialogView::PLSDialogView(QWidget *parent, Qt::WindowFlags f) : PLSToplevelView<QDialog>(parent, f)
+PLSDialogView::PLSDialogView(QWidget *parent, Qt::WindowFlags f, CreateWinId createWinId) : PLSToplevelView<QDialog>(createWinId, parent, f)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	ui = pls_new<Ui::PLSDialogView>();
 
 	ui->setupUi(this);
 #if defined(Q_OS_WIN)
-	ui->min->setAttribute(Qt::WA_NativeWindow);
+	ui->titleBar->installEventFilter(this);
+	ui->content->setAttribute(Qt::WA_NativeWindow);
 #endif
 	closeEventCallback = [this](QCloseEvent *e) {
 		callBaseCloseEvent(e);
@@ -43,13 +46,14 @@ PLSDialogView::PLSDialogView(QWidget *parent, Qt::WindowFlags f) : PLSToplevelVi
 	};
 
 #if defined(Q_OS_MACOS)
-
 	ui->titleBar->hide();
-
 	setHasMinButton(hasMinButton);
 	setHasMaxResButton(hasMaxResButton);
-
 #else
+	if (!isAfterWin10()) {
+		ui->mainLayout->setContentsMargins(1, 1, 1, 1);
+	}
+
 	this->ui->min->setVisible(hasMinButton);
 	this->ui->maxres->setVisible(hasMaxResButton);
 
@@ -59,6 +63,7 @@ PLSDialogView::PLSDialogView(QWidget *parent, Qt::WindowFlags f) : PLSToplevelVi
 		}
 	});
 	QObject::connect(ui->maxres, &QToolButton::clicked, [this]() {
+		resizeTracker()->disableTracking();
 		if (!getMaxState() && !getFullScreenState()) {
 			showMaximized();
 		} else {
@@ -66,15 +71,19 @@ PLSDialogView::PLSDialogView(QWidget *parent, Qt::WindowFlags f) : PLSToplevelVi
 		}
 		pls_flush_style(ui->maxres);
 	});
-	connect(ui->min, &QToolButton::clicked, [this]() { showMinimized(); });
+	connect(ui->min, &QToolButton::clicked, [this]() {
+		resizeTracker()->disableTracking();
+		showMinimized();
+	});
 
 #endif
 
 	this->ui->helpBtn->setVisible(hasHelpButton);
 	ui->helpBtn->installEventFilter(this);
-	setCustomChecker(ui->content);
+	ui->helpBtn->setProperty("ignoreHideToolTip", true);
+	setMoveExcludeChecker(ui->titleBar);
 
-	connect(this, &PLSDialogView::windowTitleChanged, this, &PLSDialogView::SetNameLabelText, Qt::QueuedConnection);
+	connect(this, &PLSDialogView::windowTitleChanged, this, [this]() { updateTitleBarLayout(ui->titleBar->size()); });
 	connect(ui->content, &QWidget::windowTitleChanged, this, &PLSDialogView::setWindowTitle);
 
 	ui->content->setObjectName(QString());
@@ -84,15 +93,32 @@ PLSDialogView::PLSDialogView(QWidget *parent, Qt::WindowFlags f) : PLSToplevelVi
 			ui->content->setObjectName(CONTENT);
 		}
 	});
+
+	pls_uistep_v2_set_title(this, [this]() { return this->windowTitle(); });
+	pls_uistep_v2_set_name(ui->helpBtn, QStringLiteral("TitleBar Button"));
+	pls_uistep_v2_set_custom_enter_leave_name(ui->helpBtn, QByteArrayLiteral("TitleBar Button Help"));
+	pls_uistep_v2_set_info(ui->min, QStringLiteral("TitleBar Button"), QStringLiteral("Minimize"));
+	pls_uistep_v2_set_info(ui->maxres, QStringLiteral("TitleBar Button"), [this]() { return isMaximized() ? QStringLiteral("Restore") : QStringLiteral("Maximize"); });
+	pls_uistep_v2_set_info(ui->close, QStringLiteral("TitleBar Button"), QStringLiteral("Close"));
 }
 
-PLSDialogView::PLSDialogView(DialogInfo info, QWidget *parent) : PLSDialogView(parent)
+PLSDialogView::PLSDialogView(DialogInfo info, QWidget *parent, CreateWinId createWinId) : PLSDialogView(parent, Qt::WindowFlags(), createWinId)
 {
 	defaultInfo = info;
 }
 PLSDialogView::~PLSDialogView()
 {
 	pls_delete(ui, nullptr);
+}
+
+QWidget *PLSDialogView::titleBar() const
+{
+	return ui->titleBar;
+}
+
+QToolButton *PLSDialogView::closeButton() const
+{
+	return ui->close;
 }
 
 int PLSDialogView::exec()
@@ -159,28 +185,82 @@ void PLSDialogView::setWidget(QWidget *widget)
 	layout->addWidget(widget);
 }
 
+QWidget *PLSDialogView::titleWidget() const
+{
+	return otitleWidget;
+}
+void PLSDialogView::setTitleWidget(QWidget *widget, std::function<void(QWidget *titleWidget, const QSize &size)> &&resizeCb)
+{
+	if (otitleWidget != nullptr) {
+		ui->titleBar->layout()->removeWidget(otitleWidget);
+		otitleWidget->setParent(nullptr);
+		pls_delete(otitleWidget, nullptr);
+	}
+	otitleWidget = widget;
+	titleWidgetResizeCb = std::move(resizeCb);
+	widget->setParent(ui->titleBar);
+	if (titleWidgetResizeCb) {
+		titleWidgetResizeCb(widget, ui->titleBar->size());
+	} else {
+		auto layout = ui->titleBar->layout();
+		if (!layout) {
+			layout = pls_new<QHBoxLayout>(ui->titleBar);
+			layout->setContentsMargins(0, 0, 0, 0);
+			layout->setSpacing(0);
+		}
+		layout->addWidget(widget);
+	}
+
+	widget->lower();
+	widget->setAttribute(Qt::WA_NativeWindow, false);
+}
+
+int PLSDialogView::getCaptionBarHeight() const
+{
+	return captionBarHeight;
+}
+void PLSDialogView::setCaptionBarHeight(int captionBarHeight)
+{
+	this->captionBarHeight = captionBarHeight;
+	if (captionBarHeight > 0) {
+		ui->titleLabel->setVisible(true);
+		ui->helpBtn->setVisible(hasHelpButton);
+		ui->min->setVisible(hasMinButton);
+		ui->maxres->setVisible(hasMaxResButton);
+		ui->close->setVisible(hasCloseButton);
+		updateTitleBarLayout(ui->titleBar->size());
+	} else {
+		ui->titleLabel->setVisible(false);
+		ui->helpBtn->setVisible(false);
+		ui->min->setVisible(false);
+		ui->maxres->setVisible(false);
+		ui->close->setVisible(false);
+	}
+}
+
 int PLSDialogView::getCaptionHeight() const
 {
 	return captionHeight;
 }
-
-void PLSDialogView::setCaptionHeight(int captionHeight_)
+void PLSDialogView::setCaptionHeight(int captionHeight)
 {
-	this->captionHeight = captionHeight_;
-	ui->titleBar->setFixedHeight(this->captionHeight);
+	this->captionHeight = captionHeight;
+	if (captionHeight > 0) {
+		ui->titleBar->setFixedHeight(captionHeight);
+	} else {
+		ui->titleBar->setMinimumHeight(0);
+		ui->titleBar->setMaximumHeight(QWIDGETSIZE_MAX);
+	}
 }
 
 int PLSDialogView::getCaptionButtonSize() const
 {
 	return captionButtonSize;
 }
-
-void PLSDialogView::setCaptionButtonSize(int captionButtonSize_)
+void PLSDialogView::setCaptionButtonSize(int captionButtonSize)
 {
-	this->captionButtonSize = captionButtonSize_;
-	ui->min->setFixedSize(captionButtonSize, captionButtonSize);
-	ui->maxres->setFixedSize(captionButtonSize, captionButtonSize);
-	ui->close->setFixedSize(captionButtonSize, captionButtonSize);
+	this->captionButtonSize = captionButtonSize;
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 int PLSDialogView::getCaptionButtonMargin() const
@@ -188,10 +268,9 @@ int PLSDialogView::getCaptionButtonMargin() const
 	return captionButtonMargin;
 }
 
-void PLSDialogView::setCaptionButtonMargin(int captionButtonMargin_)
+void PLSDialogView::setCaptionButtonMargin(int captionButtonMargin)
 {
-	this->captionButtonMargin = captionButtonMargin_;
-	ui->titleButtonLayout->setSpacing(captionButtonMargin);
+	this->captionButtonMargin = captionButtonMargin;
 }
 
 int PLSDialogView::getTextMarginLeft() const
@@ -199,12 +278,20 @@ int PLSDialogView::getTextMarginLeft() const
 	return textMarginLeft;
 }
 
-void PLSDialogView::setTextMarginLeft(int textMarginLeft_)
+void PLSDialogView::setTextMarginLeft(int textMarginLeft)
 {
-	this->textMarginLeft = textMarginLeft_;
-	QMargins margins = ui->titleBarLayout->contentsMargins();
-	margins.setLeft(textMarginLeft);
-	ui->titleBarLayout->setContentsMargins(margins);
+	this->textMarginLeft = textMarginLeft;
+	updateTitleBarLayout(ui->titleBar->size());
+}
+
+int PLSDialogView::getTextMarginRight() const
+{
+	return textMarginRight;
+}
+void PLSDialogView::setTextMarginRight(int textMarginRight)
+{
+	this->textMarginRight = textMarginRight;
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 int PLSDialogView::getCloseButtonMarginRight() const
@@ -212,12 +299,10 @@ int PLSDialogView::getCloseButtonMarginRight() const
 	return closeButtonMarginRight;
 }
 
-void PLSDialogView::setCloseButtonMarginRight(int closeButtonMarginRight_)
+void PLSDialogView::setCloseButtonMarginRight(int closeButtonMarginRight)
 {
-	this->closeButtonMarginRight = closeButtonMarginRight_;
-	QMargins margins = ui->titleBarLayout->contentsMargins();
-	margins.setRight(closeButtonMarginRight);
-	ui->titleBarLayout->setContentsMargins(margins);
+	this->closeButtonMarginRight = closeButtonMarginRight;
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 bool PLSDialogView::getHasCaption() const
@@ -225,15 +310,14 @@ bool PLSDialogView::getHasCaption() const
 	return hasCaption;
 }
 
-void PLSDialogView::setHasCaption(bool hasCaption_)
+void PLSDialogView::setHasCaption(bool hasCaption)
 {
-	this->hasCaption = hasCaption_;
+	this->hasCaption = hasCaption;
+
 #if defined(Q_OS_WIN)
-	ui->close->setVisible(hasCaption);
-	ui->min->setVisible(hasCaption && hasMinButton);
 	ui->titleBar->setVisible(hasCaption);
 #elif defined(Q_OS_MACOS)
-	if (!hasCaption_) {
+	if (!hasCaption) {
 		setWindowFlags(windowFlags() | Qt::FramelessWindowHint);
 	} else {
 		setWindowFlags(windowFlags() & ~Qt::FramelessWindowHint);
@@ -246,9 +330,9 @@ bool PLSDialogView::getHasHLine() const
 	return hasHLine;
 }
 
-void PLSDialogView::setHasHLine(bool hasHLine_)
+void PLSDialogView::setHasHLine(bool hasHLine)
 {
-	this->hasHLine = hasHLine_;
+	this->hasHLine = hasHLine;
 	ui->hline->setVisible(hasHLine);
 }
 
@@ -256,56 +340,56 @@ bool PLSDialogView::getHasMinButton() const
 {
 	return hasMinButton;
 }
+void PLSDialogView::setHasMinButton(bool hasMinButton)
+{
+	this->hasMinButton = hasMinButton;
+#if defined(Q_OS_WIN)
+	ui->min->setVisible(hasMinButton);
+#elif defined(Q_OS_MACOS)
+	customMacWindow()->setMinButtonHidden(!hasMinButton);
+#endif
+	updateTitleBarLayout(ui->titleBar->size());
+}
 
 bool PLSDialogView::getHasMaxResButton() const
 {
 	return hasMaxResButton;
 }
-
-void PLSDialogView::setHasMaxResButton(bool hasMaxResButton_)
+void PLSDialogView::setHasMaxResButton(bool hasMaxResButton)
 {
-	this->hasMaxResButton = hasMaxResButton_;
+	this->hasMaxResButton = hasMaxResButton;
 #if defined(Q_OS_WIN)
 	ui->maxres->setVisible(hasMaxResButton);
 #elif defined(Q_OS_MACOS)
-	customMacWindow()->setMaxButtonHidden(!hasMaxResButton_);
+	customMacWindow()->setMaxButtonHidden(!hasMaxResButton);
 #endif
-}
-
-void PLSDialogView::setHasMinButton(bool hasMinButton_)
-{
-	this->hasMinButton = hasMinButton_;
-#if defined(Q_OS_WIN)
-	ui->min->setVisible(hasMinButton);
-#elif defined(Q_OS_MACOS)
-	customMacWindow()->setMinButtonHidden(!hasMinButton_);
-#endif
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 bool PLSDialogView::getHasCloseButton() const
 {
 	return hasCloseButton;
 }
-
-void PLSDialogView::setHasCloseButton(bool hasCloseButton_)
+void PLSDialogView::setHasCloseButton(bool hasCloseButton)
 {
-	this->hasCloseButton = hasCloseButton_;
+	this->hasCloseButton = hasCloseButton;
 #if defined(Q_OS_WIN)
 	ui->close->setVisible(hasCloseButton);
 #elif defined(Q_OS_MACOS)
-	customMacWindow()->setCloseButtonHidden(!hasCloseButton_);
+	customMacWindow()->setCloseButtonHidden(!hasCloseButton);
 #endif
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 bool PLSDialogView::getHasHelpButton() const
 {
 	return hasHelpButton;
 }
-
-void PLSDialogView::setHasHelpButton(bool hasHelpButton_)
+void PLSDialogView::setHasHelpButton(bool hasHelpButton)
 {
-	hasHelpButton = hasHelpButton_;
+	this->hasHelpButton = hasHelpButton;
 	ui->helpBtn->setVisible(hasHelpButton);
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 QColor PLSDialogView::getTitleBarBkgColor() const
@@ -336,24 +420,17 @@ void PLSDialogView::setEscapeCloseEnabled(bool enabled)
 
 int PLSDialogView::getCaptionButtonTopMargin() const
 {
-	return ui->titleButtonLayout->contentsMargins().top();
+	return captionButtonTopMargin;
 }
-
 void PLSDialogView::setCaptionButtonTopMargin(int captionButtonTopMargin)
 {
-	QMargins margins = ui->titleButtonLayout->contentsMargins();
-	margins.setTop(captionButtonTopMargin);
-	ui->titleButtonLayout->setContentsMargins(margins);
+	this->captionButtonTopMargin = captionButtonTopMargin;
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 QWidget *PLSDialogView::titleLabel() const
 {
 	return ui->titleLabel;
-}
-
-int PLSDialogView::setTitleCustomWidth(int width)
-{
-	return titleCustomWidth = width;
 }
 
 void PLSDialogView::setCloseEventCallback(const std::function<bool(QCloseEvent *)> &closeEventCallback_)
@@ -377,9 +454,7 @@ void PLSDialogView::sizeToContent(const QSize &size)
 	}
 
 	if (hasCaption) {
-		if (hasCaption) {
-			newSize.setHeight(newSize.height() + captionHeight);
-		}
+		newSize.setHeight(newSize.height() + captionHeight);
 	}
 
 	resize(newSize);
@@ -445,12 +520,72 @@ void PLSDialogView::setNotRetainSizeWhenHidden(QWidget *widget)
 	widget->setSizePolicy(policy);
 }
 
-void PLSDialogView::addMacTopMargin()
+void PLSDialogView::addMacTopMargin(int defaultHeight)
 {
 #if defined(Q_OS_MACOS)
 	QMargins margin = ui->mainLayout->contentsMargins();
-	margin.setTop(margin.top() + 20);
+	margin.setTop(margin.top() + defaultHeight);
 	ui->mainLayout->setContentsMargins(margin);
+#endif
+}
+
+void PLSDialogView::updateTitleBarLayout(const QSize &titleBarSize)
+{
+#if defined(Q_OS_WIN)
+	if (!hasCaption)
+		return;
+
+	if (captionBarHeight > 0) {
+		int buttonLeft = titleBarSize.width() - closeButtonMarginRight;
+		int buttonTop = captionButtonTopMargin;
+		if (hasCloseButton) {
+			buttonLeft -= captionButtonSize;
+			ui->close->setGeometry(buttonLeft, buttonTop, captionButtonSize, captionButtonSize);
+		}
+
+		if (hasMaxResButton) {
+			if (hasCloseButton)
+				buttonLeft -= captionButtonMargin;
+			buttonLeft -= captionButtonSize;
+			ui->maxres->setGeometry(buttonLeft, buttonTop, captionButtonSize, captionButtonSize);
+		}
+
+		if (hasMinButton) {
+			if (hasMaxResButton || hasCloseButton)
+				buttonLeft -= captionButtonMargin;
+			buttonLeft -= captionButtonSize;
+			ui->min->setGeometry(buttonLeft, buttonTop, captionButtonSize, captionButtonSize);
+		}
+
+		int titleWidth = 0;
+
+		auto title = windowTitle();
+		int availWidth = titleBarSize.width() - textMarginLeft - textMarginRight - getVisibleButtonWidth(ui->helpBtn) - (titleBarSize.width() - buttonLeft);
+		QFontMetrics fm = ui->titleLabel->fontMetrics();
+		if (int realWidth = fm.horizontalAdvance(title); realWidth > availWidth) {
+			ui->titleLabel->setText(fm.elidedText(title, Qt::ElideRight, availWidth));
+			titleWidth = availWidth;
+		} else {
+			ui->titleLabel->setText(title);
+			titleWidth = realWidth;
+		}
+
+		auto captionBarHeight = getCaptionBarHeight();
+		titleWidth = getTitleWidth(titleWidth);
+		ui->titleLabel->setFixedWidth(titleWidth);
+		ui->titleLabel->setGeometry(textMarginLeft, 0, titleWidth, captionBarHeight);
+
+		if (hasHelpButton) {
+			auto helpSize = ui->helpBtn->size();
+			auto helpButtonLeft = textMarginLeft + titleWidth + textMarginRight;
+			auto helpButtonTop = (captionBarHeight - helpSize.height()) / 2;
+			ui->helpBtn->move(helpButtonLeft, helpButtonTop);
+		}
+	}
+
+	if (otitleWidget && titleWidgetResizeCb) {
+		titleWidgetResizeCb(otitleWidget, titleBarSize);
+	}
 #endif
 }
 
@@ -476,7 +611,15 @@ void PLSDialogView::closeEvent(QCloseEvent *event)
 void PLSDialogView::showEvent(QShowEvent *event)
 {
 	PLSToplevelView<QDialog>::showEvent(event);
+#if defined(PLS_UI_ACTION_STATS)
+	auto className = this->metaObject()->className();
+	if (pls_is_equal(className, "PLSDialogView")) {
+		PLS_UI_ACTION("PLSDialogView %s Show", this->objectName().toUtf8().constData());
+	}
+	PLS_UI_ACTION("PLSDialogView %s Show", className);
+#endif
 	disableWinSystemBorder();
+	updateTitleBarLayout(ui->titleBar->size());
 	emit shown();
 }
 
@@ -484,7 +627,13 @@ void PLSDialogView::hideEvent(QHideEvent *event)
 {
 	PLSToplevelView<QDialog>::hideEvent(event);
 	pls_check_app_exiting();
-
+#if defined(PLS_UI_ACTION_STATS)
+	auto className = this->metaObject()->className();
+	if (pls_is_equal(className, "PLSDialogView")) {
+		PLS_UI_ACTION("PLSDialogView %s Hide", this->objectName().toUtf8().constData());
+	}
+	PLS_UI_ACTION("PLSDialogView %s Hide", this->metaObject()->className());
+#endif
 	if (QWidget *parent = pls_get_toplevel_view(this->parentWidget(), nullptr); parent) {
 		parent->activateWindow();
 	}
@@ -547,26 +696,17 @@ bool PLSDialogView::eventFilter(QObject *watcher, QEvent *event)
 			int helpBtnLeftMargin = 1;
 			QToolTip::showText(QPoint(x.x() - helpBtnLeftMargin, global.y() + helpTooltipY), helpTooltip, this);
 		}
+	} else if (watcher == ui->titleBar) {
+		switch (event->type()) {
+		case QEvent::Resize:
+			updateTitleBarLayout(static_cast<QResizeEvent *>(event)->size());
+			break;
+		default:
+			break;
+		}
 	}
 
 	return PLSToplevelView<QDialog>::eventFilter(watcher, event);
-}
-
-bool PLSDialogView::event(QEvent *event)
-{
-	switch (event->type()) {
-	case QEvent::Resize:
-		SetNameLabelText(windowTitle());
-		resizing(static_cast<QResizeEvent *>(event)->size());
-		break;
-	case QEvent::Move: {
-		int aa = 1;
-		break;
-	}
-	default:
-		break;
-	}
-	return PLSToplevelView<QDialog>::event(event);
 }
 
 void PLSDialogView::windowStateChanged(QWindowStateChangeEvent *event)
@@ -575,25 +715,26 @@ void PLSDialogView::windowStateChanged(QWindowStateChangeEvent *event)
 	pls_flush_style(ui->maxres);
 }
 
-void PLSDialogView::SetNameLabelText(const QString &title)
+void PLSDialogView::resizeEvent(QResizeEvent *event)
 {
-	if (title.isEmpty()) {
-		ui->titleLabel->setFixedWidth(titleCustomWidth);
-		ui->titleLabel->setText(title);
+	PLSToplevelView<QDialog>::resizeEvent(event);
+	updateTitleBarLayout(ui->titleBar->size());
+	if (event && stabilizeFixedSizeOnResize()) {
 		return;
 	}
-	int availWidth = this->width() - ui->titleBarLayout->spacing() - ui->titleButtonLayout->spacing() - getVisibleButtonWidth(ui->helpBtn) - getVisibleButtonWidth(ui->close) -
-			 getVisibleButtonWidth(ui->min) - getVisibleButtonWidth(ui->maxres) - textMarginLeft;
+	resizing(event->size());
+}
 
-	QFontMetrics font(ui->titleLabel->font());
-	int realWidth = font.horizontalAdvance(title);
+void PLSDialogView::paintEvent(QPaintEvent *event)
+{
+	PLSToplevelView<QDialog>::paintEvent(event);
 
-	if (realWidth > availWidth) {
-		ui->titleLabel->setFixedWidth(availWidth);
-		ui->titleLabel->setText(font.elidedText(title, Qt::ElideRight, availWidth));
-
-	} else {
-		ui->titleLabel->setFixedWidth(realWidth);
-		ui->titleLabel->setText(title);
+#if defined(Q_OS_WIN)
+	if (!isAfterWin10()) {
+		QPainter painter(this);
+		painter.setPen(QPen(QColor(17, 17, 17), 1, Qt::SolidLine));
+		painter.setBrush(Qt::transparent);
+		painter.drawRect(rect());
 	}
+#endif
 }

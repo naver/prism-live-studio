@@ -39,6 +39,8 @@ private:
 	QPixmap livePixmap;
 	QPixmap liveHoveredPixmap;
 	QPixmap liveDiscountPixmap;
+	QPixmap m_scaledDiscountBadge;
+	qreal m_cachedDpr = 0.0;
 	QLabel *borderLabel{nullptr};
 };
 

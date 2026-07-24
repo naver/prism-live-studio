@@ -29,7 +29,7 @@ bool PLSBaseNode::checkSourceRegistered()
 	if (sourceId.isEmpty()) {
 		return true; // do not need check
 	}
-	return (nullptr != obs_source_get_display_name(sourceId.toStdString().c_str()));
+	return (nullptr != obs_source_get_display_name(sourceId.toUtf8().constData()));
 }
 
 bool PLSBaseNode::checkHasUpdate()
@@ -776,6 +776,8 @@ bool PLSSceneItemNode::doExport(obs_data_t *settings, obs_data_t *priSettings, Q
 	OBSBasic *main = reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
 	uint32_t cx = config_get_uint(main->Config(), "Video", "BaseCX");
 	uint32_t cy = config_get_uint(main->Config(), "Video", "BaseCY");
+	itemObject["base_cx"] = (int)cx;
+	itemObject["base_cy"] = (int)cy;
 
 	vec2 pos, scale;
 	obs_sceneitem_get_pos(item, &pos);
@@ -913,7 +915,7 @@ NodeErrorType PLSGroupNode::load(const QJsonObject &slotsObject)
 	for (int i = 0; i < childrenArray.count(); i++) {
 		QString sceneItemId = childrenArray[i].toString();
 		PLSNodeManagerPtr->setSceneItemInGroup(sceneItemId, true);
-		PLS_DEBUG("PLSGroupNode", "PLSGroupNode childrenIds : %s", sceneItemId.toStdString().c_str());
+		PLS_DEBUG("PLSGroupNode", "PLSGroupNode childrenIds : %s", sceneItemId.toUtf8().constData());
 	}
 
 	return NodeErrorType::Ok;
@@ -956,6 +958,19 @@ void PLSGroupNode::save(QJsonObject &output)
 		auto y = outputObjects["y"].toDouble() * cy;
 		auto scaleX = outputObjects["scaleX"].toDouble() * cx;
 		auto scaleY = outputObjects["scaleY"].toDouble() * cy;
+		if (outputObjects["custom_size"].toBool()) {
+			// Restore custom-size group scale by export-time canvas when available.
+			// Fallback keeps old templates (without base info) from being enlarged on 8K.
+			const bool hasBaseCanvas = outputObjects.contains("base_cx") && outputObjects.contains("base_cy") &&
+						   outputObjects["base_cx"].toDouble() > 0.0 && outputObjects["base_cy"].toDouble() > 0.0;
+			if (hasBaseCanvas) {
+				scaleX = outputObjects["scaleX"].toDouble() * outputObjects["base_cx"].toDouble();
+				scaleY = outputObjects["scaleY"].toDouble() * outputObjects["base_cy"].toDouble();
+			} else {
+				scaleX = 1.0;
+				scaleY = 1.0;
+			}
+		}
 
 		QJsonObject posObject = {{"x", x}, {"y", y}};
 		outputObj["pos"] = posObject;

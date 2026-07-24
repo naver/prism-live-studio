@@ -20,14 +20,14 @@ enum class pls_window_type {
 
 namespace pls_launcher_const {
 constexpr auto HTTP_REQUEST_TIME_OUT = 15000;
-constexpr auto HEADER_USER_AGENT_KEY = "User-Agent";
-constexpr auto HEADER_PRISM_LANGUAGE = "Accept-Language";
-constexpr auto HEADER_PRISM_GCC = "X-prism-cc";
-constexpr auto HEADER_PRISM_USERCODE = "X-prism-usercode";
-constexpr auto HEADER_PRISM_OS = "X-prism-os";
-constexpr auto HEADER_PRISM_IP = "X-prism-ip";
-constexpr auto HEADER_PRISM_DEVICE = "X-prism-device";
-constexpr auto HEADER_PRISM_APPVERSION = "X-prism-appversion";
+constexpr auto HEADER_USER_AGENT_KEY = "";
+constexpr auto HEADER_PRISM_LANGUAGE = "";
+constexpr auto HEADER_PRISM_GCC = "";
+constexpr auto HEADER_PRISM_USERCODE = "";
+constexpr auto HEADER_PRISM_OS = "";
+constexpr auto HEADER_PRISM_IP = "";
+constexpr auto HEADER_PRISM_DEVICE = "";
+constexpr auto HEADER_PRISM_APPVERSION = "";
 constexpr auto FACEBOOK_LOGIN_URL = "";
 constexpr auto GOOGLE_LOGIN_URL_TOKEN = "";
 constexpr auto LINE_LOGIN_URL = "";
@@ -42,13 +42,13 @@ constexpr auto EMAIL_FOGETTON_URL = "";
 constexpr auto CHANGE_PASSWORD_URL = "";
 constexpr auto PRISM_TOKEN_URL = "";
 constexpr auto YOUTUBE_API_TOKEN = "";
-constexpr auto HTTP_CONTENT_TYPE_VALUE = "";
+constexpr auto HTTP_CONTENT_TYPE_VALUE = "application/json;charset=UTF-8";
 
 constexpr auto GPOP_URL = "";
 
 constexpr auto NOTICE_URL = "";
 
-constexpr auto PLS_CATEGORY_URL = "/";
+constexpr auto PLS_CATEGORY_URL = "";
 constexpr auto INIT_URL = "";
 constexpr auto UPDATE_URL = "";
 constexpr auto APP_LASTEST_UPDATE_URL = "";
@@ -70,11 +70,11 @@ constexpr auto PLS_LIBRARY_POLICY_ID = "";
 constexpr auto PLS_LIBRARY_SENSETIME_ID_DEV = "";
 constexpr auto PLS_LIBRARY_SENSETIME_ID = "";
 
-constexpr auto PLS_THEMES_PATH = "";
+constexpr auto PLS_THEMES_PATH = ":/css/%1.css";
 
-constexpr auto PLS_APP_ICON_PATH = "";
+constexpr auto PLS_APP_ICON_PATH = ":/images/PRISMLiveStudio.ico";
 
-constexpr auto PLS_PRISM_THUMBNAIL_FILE_PATH = "";
+constexpr auto PLS_PRISM_THUMBNAIL_FILE_PATH = "user/prismThumbnail.png";
 constexpr auto PLS_WHALESPACE_NAME = "whalespace";
 constexpr auto EVENT_APP = "app";
 constexpr auto EVENT_APP_INIT = "init";
@@ -93,44 +93,40 @@ static QString getPrismHost()
 
 static QString getPrismAuthGateWay()
 {
+	auto path = "";
 
-	return "";
+	return QString("%1/%2").arg(getPrismHost()).arg(path);
 }
 
 static QString getPrismSynGateWay()
 {
-	return "";
+	auto path = "";
+	return QString("%1/%2").arg(getPrismHost()).arg(path);
 }
 
 static QString getPrismSidekickGateWay()
 {
-	return "";
+	return QString("%1/%2").arg(getPrismHost()).arg("");
 }
 
 static QString getPrismLogGateWay()
 {
-	return "";
+	return QString("%1/%2").arg(getPrismHost()).arg("");
 }
 
 static QByteArray getPrismHamcKey()
 {
-	return "";
+	return pls_is_dev() ? pls_launcher_const::PLS_PC_HMAC_KEY_DEV : pls_launcher_const::PLS_HMAC_KEY;
 }
 static QString getPolicyId()
 {
-	return "";
+	return pls_is_dev() ? pls_launcher_const::PLS_LIBRARY_POLICY_ID_DEV : pls_launcher_const::PLS_LIBRARY_POLICY_ID;
 }
 static QString getSenseTimeId()
 {
-	return "";
+	return pls_is_dev() ? pls_launcher_const::PLS_LIBRARY_SENSETIME_ID_DEV : pls_launcher_const::PLS_LIBRARY_SENSETIME_ID;
 }
-static QString getTermOfUserUrl()
-{
-	return "";
-}
-static QString getPrivacyUrl()
-{
-	return "";
-}
+static QString getTermOfUserUrl() { return ""; }
+static QString getPrivacyUrl() { return ""; }
 }
 #endif // PLSCOMMONCONST_H

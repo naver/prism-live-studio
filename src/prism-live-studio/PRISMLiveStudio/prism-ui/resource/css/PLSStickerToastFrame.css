@@ -1,0 +1,46 @@
+PLSStickerToastFrame{
+	min-height: /*hdpi*/ 38px;
+	border-radius: /*hdpi*/ 3px;
+	border: /*hdpi*/ 1px solid #343435;
+	background-color: #1e1e1f;
+}
+
+PLSStickerToastFrame #stickerToastLabel{
+	color: #bababa;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	background:transparent;
+}
+
+PLSStickerToastFrame #stickerToastCloseBtn {
+	padding:0;
+	margin: 0;
+	min-width: /*hdpi*/ 14px;
+	max-width: /*hdpi*/ 14px;
+	min-height: /*hdpi*/ 14px;
+	max-height: /*hdpi*/ 14px;
+	image: url(":/resource/images/prism-sticker/ic-prismsticker-toast-close-normal.svg");
+	background: transparent;
+	border: none;
+}
+
+PLSStickerToastFrame #stickerToastCloseBtn:hover{
+    image: url(":/resource/images/prism-sticker/ic-prismsticker-toast-close-hover.svg");
+}
+
+PLSStickerToastFrame #stickerToastCloseBtn:pressed{
+    image: url(":/resource/images/prism-sticker/ic-prismsticker-toast-close-click.svg");
+}
+
+PLSStickerToastFrame #stickerToastEdit{
+	border: none;
+	background:transparent;
+	color: #bababa;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	padding-top: /*hdpi*/0px;
+	padding-left: 0px;
+	padding-right: 0px;
+	padding-bottom: 0px;
+}
+

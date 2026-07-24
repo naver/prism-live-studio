@@ -11,6 +11,9 @@
 #include <pls/pls-statistics.h>
 
 #include <atomic>
+#if defined(_WIN32)
+#include <QThreadPool>
+#endif
 
 class QLabel;
 class QToolButton;
@@ -21,31 +24,31 @@ class PLSPreviewLiveLabel;
 class QWebSocket;
 
 struct PLSBasicStatusData {
-	std::tuple<double, double> cpu; //PRISM/System
-	std::tuple<double, double> gpu; //PRISM/System
+	std::tuple<double, double> cpu{0.0, 0.0}; //PRISM/System
+	std::tuple<double, double> gpu{0.0, 0.0}; //PRISM/System
 
-	double memory;
-	double disk;
+	double memory{0.0};
+	double disk{0.0};
 
-	double renderTime;
-	std::tuple<double, double> renderFPS; //Current/Setting
-	double streamOutputFPS;               //output
-	double recordOutputFPS;
+	double renderTime{0.0};
+	std::tuple<double, double> renderFPS{0.0, 0.0}; //Current/Setting
+	double streamOutputFPS{0.0};                     //output
+	double recordOutputFPS{0.0};
 	double streamOutputFPS_v{0.0};        //vertical output
 	double streamNetworkMilliTime{0.0};   // in ms
 	double streamNetworkMilliTime_v{0.0}; // in ms
 
 	//Droped frames, Total frames, Droped percent
-	std::tuple<uint32_t, uint32_t, double> dropedRendering;
-	std::tuple<uint32_t, uint32_t, double> dropedEncoding;
+	std::tuple<uint32_t, uint32_t, double> dropedRendering{0, 0, 0.0};
+	std::tuple<uint32_t, uint32_t, double> dropedEncoding{0, 0, 0.0};
 	std::tuple<uint32_t, uint32_t, double> dropedEncoding_v{0, 0, 0.0};
-	std::tuple<uint32_t, uint32_t, double> dropedNetwork;
+	std::tuple<uint32_t, uint32_t, double> dropedNetwork{0, 0, 0.0};
 	std::tuple<uint32_t, uint32_t, double> dropedNetwork_v{0, 0, 0.0};
 
 	//bitrate, bytes
-	std::tuple<double, uint64_t> streaming;
+	std::tuple<double, uint64_t> streaming{0.0, 0};
 	std::tuple<double, uint64_t> streaming_v{0.0, 0};
-	std::tuple<double, uint64_t> recording;
+	std::tuple<double, uint64_t> recording{0.0, 0};
 
 	//output latency info
 	pls_statistics_dump latencyInfo{0};
@@ -124,13 +127,16 @@ private:
 
 	float lastCongestion = 0.0f;
 
-	mutable int trigger_count = 0;
-
 	QPointer<QTimer> refreshTimer;
 	QPointer<QTimer> uploadTimer;
 
 	GoLivePannel *goliveWid = nullptr;
 	PLSPreviewLiveLabel *liveArea = nullptr;
+
+#if defined(_WIN32)
+	mutable QThreadPool vcamHostThreadPool;
+	mutable std::atomic<bool> vcamHostScanRunning{false};
+#endif
 
 	void Activate();
 	void Deactivate();
@@ -191,6 +197,7 @@ public:
 	int getRecordDuration() const;
 
 	GoLivePannel *getGoLivePannel() { return goliveWid; }
+	PLSBasicStatusBarButtonFrame *getStatus() { return stats; }
 
 	PLSBasicStatusData m_dataStatus;
 };

@@ -1,0 +1,114 @@
+PLSNoticePopupDialog {
+    qproperty-captionHeight: 36;
+    qproperty-hasHLine: true;
+    /* Same as #content: opaque root avoids dark bleed-through at rounded corners (e.g. after other PLSDialogView modals). */
+    background-color: #272727;
+}
+PLSNoticePopupDialog > #content {
+    background-color:  #272727;
+ }
+
+    PLSNoticePopupDialog #lineView {
+        background-color: #151515;
+        min-height: 1px;
+        max-height: 1px;
+    }
+
+    PLSNoticePopupDialog #middleWidget {
+        background-color: transparent;
+    }
+
+    PLSNoticePopupDialog #topLabel {
+        color: #effc35;
+        font-size: 14px;
+        font-weight: bold;
+        min-height: 55px;
+        max-height: 55px;
+        border: none;
+        background-color: transparent;
+    }
+
+    PLSNoticePopupDialog #confirmButton, PLSNoticePopupDialog #learnMoreButton{
+        min-width: 170px;
+        max-width: 170px;
+        min-height: 38px;
+        max-height: 38px;
+        font-size: 14px;
+        font-weight: bold;
+        border-radius: 3px;
+        padding: 0px;
+        color: white;
+        background-color: #444444;
+    }
+
+    PLSNoticePopupDialog #confirmButton:hover, PLSNoticePopupDialog #learnMoreButton:hover {
+        background-color: #555555;
+    }
+
+    PLSNoticePopupDialog #confirmButton:pressed, PLSNoticePopupDialog #learnMoreButton:pressed {
+        background-color: #1e1e1f;
+    }
+    PLSNoticePopupDialog #NoticeTextIconButton {
+        padding: 0;
+        margin: 0;
+        border: none;
+        min-width: 0;
+        min-height: 18px;
+        max-height: 18px;
+        background-color: transparent;
+    }
+
+    PLSNoticePopupDialog #NoticeTextIconButton #textLabel {
+        font-size: 12px;
+        font-weight: bold;
+        color: #999999;
+    }
+
+    PLSNoticePopupDialog #NoticeTextIconButton #iconLabel {
+        min-width: 10px;
+        max-width: 10px;
+        min-height: 10px;
+        max-height: 10px;
+        background-color: transparent;
+        image: url(":/resource/images/noticeUpdate/ic_next_normal.svg");
+    }
+
+    PLSNoticePopupDialog #NoticeTextIconButton[hovered="true"] #textLabel {
+        color: #ffffff;
+    }
+
+        PLSNoticePopupDialog #NoticeTextIconButton[hovered="true"] #iconLabel {
+            image: url(":/resource/images/noticeUpdate/ic_next_over.svg");
+        }
+
+        PLSNoticePopupDialog #NoticeTextIconButton[pressed="true"] #textLabel {
+            color: #1E1E1F;
+        }
+
+        PLSNoticePopupDialog #NoticeTextIconButton[pressed="true"] #iconLabel {
+            image: url(":/resource/images/noticeUpdate/ic_next_click.svg");
+        }
+    /* Match PLSNoticeUpdateCenterDialog tabFrame buttons: square corners so bottom border is a straight line */
+    PLSNoticePopupDialog #NoticeB2B, PLSNoticePopupDialog #NoticePRISM {
+        padding: 0;
+        margin: 0;
+        background-color: transparent;
+        color: #bababa;
+        font-weight: normal;
+        font-size: 14px;
+        border: none;
+        border-radius: 0;
+        border-bottom: 2px solid transparent;
+    }
+    PLSNoticePopupDialog #NoticeB2B:hover, PLSNoticePopupDialog #NoticePRISM:hover {
+        color: #ffffff;
+    }
+    PLSNoticePopupDialog #NoticeB2B:pressed, PLSNoticePopupDialog #NoticePRISM:pressed {
+        color: #1E1E1F;
+    }
+    PLSNoticePopupDialog #NoticeB2B:checked, PLSNoticePopupDialog #NoticePRISM:checked {
+        color: #effc35;
+        font-weight: bold;
+        border-radius: 0;
+        border-bottom: 2px solid #effc35;
+    }

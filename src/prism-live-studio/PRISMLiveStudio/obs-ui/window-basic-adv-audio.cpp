@@ -9,15 +9,23 @@
 
 Q_DECLARE_METATYPE(OBSSource);
 
+struct EnumSourcesParam {
+	OBSBasicAdvAudio *dialog = nullptr;
+	std::vector<OBSSource> *sources = nullptr;
+};
+
 OBSBasicAdvAudio::OBSBasicAdvAudio(QWidget *parent)
 	: PLSDialogView(parent),
 	  ui(new Ui::OBSAdvAudio),
 	  showInactive(false)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	setupUi(ui);
 	initSize(QSize(1240, 480));
 	setMinimumSize(QSize(1102, 280));
 	setWindowTitle(QTStr("Basic.AdvAudio"));
+
+	pls_uistep_v2_set_name(ui->usePercent, "*", "Volumn CheckBox");
 
 	signal_handler_t *sh = obs_get_signal_handler();
 	sigs.emplace_back(sh, "source_audio_activate", OBSSourceAdded, this);
@@ -33,10 +41,14 @@ OBSBasicAdvAudio::OBSBasicAdvAudio(QWidget *parent)
 	installEventFilter(CreateShortcutFilter(parent));
 
 	/* enum user scene/sources */
-	obs_enum_sources(EnumSources, this);
+	std::vector<OBSSource> sources;
+	EnumSourcesParam enumParam{this, &sources};
+	obs_enum_sources(EnumSources, &enumParam);
+	for (const auto &source : sources)
+		AddAudioSource(source);
 
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-	setAttribute(Qt::WA_DeleteOnClose, true);
+	setAttribute(Qt::WA_DeleteOnClose, false);
 
 	QList<QWidget *> headerWidget;
 	headerWidget << ui->label << ui->label_2 << ui->label_3 << ui->label_4 << ui->label_5 << ui->label_6
@@ -46,6 +58,8 @@ OBSBasicAdvAudio::OBSBasicAdvAudio(QWidget *parent)
 	}
 	ui->closeButton->hide();
 	pls_add_css(this, {"AdvancedAudioProperties"});
+
+	pls_uistep_v2_set_custom_show_hide_name(this, "Audio Mixer Advance Audio Properties");
 }
 
 OBSBasicAdvAudio::~OBSBasicAdvAudio()
@@ -60,12 +74,12 @@ OBSBasicAdvAudio::~OBSBasicAdvAudio()
 
 bool OBSBasicAdvAudio::EnumSources(void *param, obs_source_t *source)
 {
-	OBSBasicAdvAudio *dialog = reinterpret_cast<OBSBasicAdvAudio *>(param);
+	EnumSourcesParam *p = reinterpret_cast<EnumSourcesParam *>(param);
 	uint32_t flags = obs_source_get_output_flags(source);
 
 	if ((flags & OBS_SOURCE_AUDIO) != 0 &&
-	    (dialog->showInactive || (obs_source_active(source) && obs_source_audio_active(source))))
-		dialog->AddAudioSource(source);
+	    (p->dialog->showInactive || (obs_source_active(source) && obs_source_audio_active(source))))
+		p->sources->push_back(OBSSource(source));
 
 	return true;
 }
@@ -176,7 +190,11 @@ void OBSBasicAdvAudio::SetShowInactive(bool show)
 		sigs.emplace_back(sh, "source_create", OBSSourceAdded, this);
 		sigs.emplace_back(sh, "source_remove", OBSSourceRemoved, this);
 
-		obs_enum_sources(EnumSources, this);
+		std::vector<OBSSource> sources;
+		EnumSourcesParam enumParam{this, &sources};
+		obs_enum_sources(EnumSources, &enumParam);
+		for (const auto &source : sources)
+			AddAudioSource(source);
 
 		SetIconsVisible(showVisible);
 	} else {

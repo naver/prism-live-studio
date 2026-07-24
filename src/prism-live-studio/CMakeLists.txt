@@ -30,6 +30,13 @@ set(OBS_ENV_OBS_SRC_DIR $ENV{OBS_SRC_DIR})
 set(OBS_ENV_OBS_BUILD_DIR $ENV{OBS_BUILD_DIR})
 set(OBS_ENV_PRISM_SRC_DIR $ENV{PRISM_SRC_DIR})
 set(OBS_ENV_PRISM_BUILD_DIR $ENV{PRISM_BUILD_DIR})
+set(OBS_ENV_PRISM_VERSION_MAJOR ${PRISM_VERSION_MAJOR})
+set(OBS_ENV_PRISM_VERSION_MINOR ${PRISM_VERSION_MINOR})
+set(OBS_ENV_PRISM_VERSION_PATCH ${PRISM_VERSION_PATCH})
+set(OBS_ENV_PRISM_VERSION_TWEAK ${PRISM_VERSION_TWEAK})
+set(OBS_ENV_PRISM_COMMENTS ${PRISM_COMMENTS})
+set(OBS_ENV_PERFORMANCE_STATS ${PERFORMANCE_STATS})
+set(OBS_ENV_UI_ACTION_STATS ${UI_ACTION_STATS})
 
 if(OS_WINDOWS)
 
@@ -69,7 +76,7 @@ add_custom_command(TARGET obs-build
 endif()
 
 if(OS_WINDOWS)
-add_dependencies(obs-build libutils-api liblog  libhttp-client libipc libtask libui libdump-analyzer)
+add_dependencies(obs-build libutils-api liblog libhttp-client libipc libtask libui libdump-analyzer)
 endif()
 
 add_executable(obs-copy cmake/build.cpp)
@@ -94,8 +101,5 @@ add_custom_command(TARGET obs-copy
 endif()
 
 add_subdirectory(common)
-if(OS_WINDOWS)
+add_subdirectory(daemon)
 add_subdirectory(PRISMLiveStudio)
-elseif(OS_MACOS)
-add_subdirectory(PRISMLiveStudio)
-endif()

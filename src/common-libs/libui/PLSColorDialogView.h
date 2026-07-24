@@ -5,6 +5,8 @@
 
 #include "PLSDialogView.h"
 
+class QShowEvent;
+
 class PLSColorDialogImpl;
 
 class LIBUI_API PLSColorDialogView : public PLSDialogView {
@@ -32,6 +34,8 @@ public:
 
 	void setVisible(bool visible) override;
 
+	void showEvent(QShowEvent *event) override;
+
 	static QColor getColor(const QColor &initial = Qt::white, QWidget *parent = nullptr, const QString &title = QString(), ColorDialogOptions options = ColorDialogOptions());
 
 	static int customCount();
@@ -45,6 +49,8 @@ Q_SIGNALS:
 	void colorSelected(const QColor &color);
 
 private:
+	void syncQtLuminancePickerEraseBackground();
+
 	PLSColorDialogImpl *impl;
 
 	friend class PLSColorDialogImpl;

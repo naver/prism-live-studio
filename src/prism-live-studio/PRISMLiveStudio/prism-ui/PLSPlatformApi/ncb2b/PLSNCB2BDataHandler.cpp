@@ -31,7 +31,7 @@ bool PLSNCB2BDataHandler::tryToUpdate(const QVariantMap &srcInfo, const UpdateCa
 		finishedCall(QList<QVariantMap>{info});
 		return false;
 	}
-	PLS_INFO(MODULE_PLATFORM_NCB2B, "%s %s channelUUID(%s) NCB2B platform(%p) refresh", PrepareInfoPrefix, __FUNCTION__, channelUUID.toStdString().c_str(), platform);
+	PLS_INFO(MODULE_PLATFORM_NCB2B, "%s %s channelUUID(%s) NCB2B platform(%p) refresh", PrepareInfoPrefix, __FUNCTION__, channelUUID.toUtf8().constData(), platform);
 	platform->setInitData(srcInfo);
 	QMetaObject::invokeMethod(platform, [platform, srcInfo, finishedCall]() {
 		platform->reInitLiveInfo();

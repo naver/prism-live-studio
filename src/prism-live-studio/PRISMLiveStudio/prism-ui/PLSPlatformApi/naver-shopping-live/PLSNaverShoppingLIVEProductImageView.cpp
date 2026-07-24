@@ -5,6 +5,8 @@
 #include <QResizeEvent>
 #include <QPainter>
 #include <QDesktopServices>
+#include <QtMath>
+#include "libutils-api.h"
 #include "liblog.h"
 #include "pls-shared-functions.h"
 
@@ -28,6 +30,10 @@ void PLSNaverShoppingLIVEProductImageView::setImage(const QString &url_, const Q
 	this->imageUrl = imageUrl_;
 	this->imagePath = imagePath_;
 	this->opacity = opacity;
+	if (!hasDiscountIcon_) {
+		m_scaledDiscountBadge = QPixmap();
+		m_cachedDpr = 0.0;
+	}
 	if (minimumWidth() > 1 && minimumHeight() > 1) {
 		PLSNaverShoppingLIVEDataManager::instance()->getThumbnailPixmapAsync(this, imageUrl, imagePath, size(), 1);
 	}
@@ -43,6 +49,10 @@ void PLSNaverShoppingLIVEProductImageView::setImage(const QString &url_, const Q
 	this->normalPixmap = normalPixmap_;
 	this->hoveredPixmap = hoveredPixmap_;
 	this->opacity = opacity;
+	if (!hasDiscountIcon_) {
+		m_scaledDiscountBadge = QPixmap();
+		m_cachedDpr = 0.0;
+	}
 	this->update();
 }
 
@@ -68,7 +78,7 @@ bool PLSNaverShoppingLIVEProductImageView::event(QEvent *event)
 	case QEvent::MouseButtonRelease:
 		if (static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton) {
 			PLS_UI_STEP(isInLiveinfo ? MODULE_NAVER_SHOPPING_LIVE_LIVEINFO : MODULE_NAVER_SHOPPING_LIVE_PRODUCT_MANAGER, "Product Thumbnail", ACTION_CLICK);
-			QDesktopServices::openUrl(url);
+			pls_async_invoke([this]() { QDesktopServices::openUrl(url); });
 		}
 		break;
 	default:
@@ -123,10 +133,14 @@ void PLSNaverShoppingLIVEProductImageView::paintEvent(QPaintEvent *)
 		}
 	} else {
 		if (!normalPixmap.isNull()) {
-			QPixmap p = liveDiscountPixmap.scaled(QSize(27, 17) * devicePixelRatioF(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-			p.setDevicePixelRatio(devicePixelRatioF());
+			const qreal dpr = devicePixelRatioF();
+			if (m_scaledDiscountBadge.isNull() || !qFuzzyCompare(m_cachedDpr, dpr)) {
+				m_cachedDpr = dpr;
+				m_scaledDiscountBadge = liveDiscountPixmap.scaled(QSize(27, 17) * m_cachedDpr, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+				m_scaledDiscountBadge.setDevicePixelRatio(m_cachedDpr);
+			}
 			painter.drawPixmap(rect, normalPixmap);
-			painter.drawPixmap(QRect(0, 0, 27, 17), p);
+			painter.drawPixmap(QRect(0, 0, 27, 17), m_scaledDiscountBadge);
 		} else {
 			double dpi = 1;
 			if (hovered) {

@@ -1,9 +1,3 @@
-PLSPrismSticker{
-    min-width:/*hdpi*/300px;
-	min-height: /*hdpi*/ 550px;
-    max-width:/*hdpi*/1472;
-	max-height: /*hdpi*/ 1036px;
-}
 
 PLSPrismSticker #category{
     border: none;
@@ -27,10 +21,10 @@ PLSPrismSticker #prismStickerContainer{
 
 PLSPrismSticker #prismStickerCategoryBtn {
 	border-radius: /*hdpi*/17px;
-	min-height: /*hdpi*/ 33px;
-	max-height: /*hdpi*/ 33px;
+	min-height: /*hdpi*/ 35px;
+	max-height: /*hdpi*/ 35px;
 	color:#bababa;
-	font-weight: bold;
+	font-weight: normal;
 	font-size: /*hdpi*/13px;
 	background-color: #2d2d2d;
 	padding: 0 0 2px 0;
@@ -58,7 +52,7 @@ PLSPrismSticker #prismStickerMore:pressed,#prismStickerCategoryBtn:pressed{
 PLSPrismSticker #prismStickerCategoryBtn:checked{
 	color:#effc35;
 	background-color: #444444;
-    font-weight: bold;
+    font-weight: normal;
 }
 
 PLSPrismSticker #prismStickerLabel {

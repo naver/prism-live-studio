@@ -9,7 +9,6 @@
 #define PLSStrokeManagerOCInterface_h
 
 #ifdef MAC_DEMO
-#import "PLSCurveSmooth.h"
 #import "PLSDrawPenInterface.h"
 #else
 #import "../PLSDrawPenInterface.h"

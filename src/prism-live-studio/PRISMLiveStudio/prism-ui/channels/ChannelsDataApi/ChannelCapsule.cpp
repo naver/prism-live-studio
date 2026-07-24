@@ -212,6 +212,8 @@ ChannelCapsule::~ChannelCapsule()
 void ChannelCapsule::setChannelID(const QString &uuid)
 {
 	mInfoID = uuid;
+	m_lastViewerPix.clear();
+	m_lastLikePix.clear();
 	mConfigPannel->setChannelID(mInfoID);
 }
 
@@ -318,7 +320,7 @@ void ChannelCapsule::updateTextFrames(const QVariantMap &srcData)
 	//catogry = QString("platfo... ") + QString::fromStdWString(std::wstring{0x25CF})+QString(" chann...")
 	//catogry = QString("platfo... ") + QString::fromStdWString(std::wstring{0x00b7}) + QString(" chann...")
 	ui->CatogeryName->setText(line2);
-	ui->TextFrame->repaint();
+	ui->TextFrame->update();
 }
 
 void ChannelCapsule::delayUpdateText()
@@ -388,10 +390,14 @@ bool ChannelCapsule::updateStatisticInfo()
 		viewers = getInfo(info, g_viewers, QString("0"));
 		formatNumber(viewers);
 		ui->ViewerNumberLabel->setText(viewers);
-		auto css = createStatisticsCss(getInfo(info, g_viewersPix, g_defaultViewerIcon));
-		ui->ViewerPicLabel->setStyleSheet(css);
+		auto viewerPix = getInfo(info, g_viewersPix, g_defaultViewerIcon);
+		if (viewerPix != m_lastViewerPix) {
+			m_lastViewerPix = viewerPix;
+			ui->ViewerPicLabel->setStyleSheet(createStatisticsCss(viewerPix));
+		}
 		ui->ViewerFrame->setVisible(true);
 	} else {
+		m_lastViewerPix.clear();
 		ui->ViewerFrame->setVisible(false);
 	}
 	QString likes;
@@ -400,10 +406,14 @@ bool ChannelCapsule::updateStatisticInfo()
 		formatNumber(likes);
 		ui->LikeNumberLabel->setText(likes);
 
-		auto css = createStatisticsCss(getInfo(info, g_likesPix, g_defaultLikeIcon));
-		ui->LikePicLabel->setStyleSheet(css);
+		auto likePix = getInfo(info, g_likesPix, g_defaultLikeIcon);
+		if (likePix != m_lastLikePix) {
+			m_lastLikePix = likePix;
+			ui->LikePicLabel->setStyleSheet(createStatisticsCss(likePix));
+		}
 		ui->LikeInfo->setVisible(true);
 	} else {
+		m_lastLikePix.clear();
 		ui->LikeInfo->setVisible(false);
 	}
 
@@ -457,6 +467,7 @@ bool ChannelCapsule::eventFilter(QObject *watched, QEvent *event)
 			if (!PLSCHANNELS_API->isEmptyToAcquire() || isPannelOutOfView() || mConfigPannel->isVisible() || PLSCHANNELS_API->isShifting()) {
 				return false;
 			}
+			PLS_UI_ACTION("Hover %s Channel", getInfo(mLastMap, g_channelName, QString()).toUtf8().constData());
 			showConfigPannel();
 			return true;
 		case QEvent::HoverLeave:
@@ -479,6 +490,8 @@ bool ChannelCapsule::eventFilter(QObject *watched, QEvent *event)
 void ChannelCapsule::showConfigPannel()
 {
 	if (mConfigPannel && !mConfigPannel->isVisible()) {
+		// PRISM_PC-5108: Fix ConfigPannel being compressed when ChannelCapsule is at the right edge
+		mConfigPannel->setFixedSize(200, 48);
 		mConfigPannel->show();
 	}
 }

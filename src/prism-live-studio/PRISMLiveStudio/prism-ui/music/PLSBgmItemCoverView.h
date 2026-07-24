@@ -27,6 +27,7 @@ protected:
 
 private:
 	QPixmap pixmap;
+	QPixmap m_scaledPixmapCache;
 	bool setRoundedRect{false};
 };
 
@@ -51,8 +52,6 @@ public:
 
 protected:
 	void resizeEvent(QResizeEvent *event) override;
-	void mousePressEvent(QMouseEvent *event) override;
-	void mouseMoveEvent(QMouseEvent *event) override;
 	void mouseReleaseEvent(QMouseEvent *event) override;
 
 private slots:

@@ -1,0 +1,19 @@
+PLSAppLoadingView #iconLabel {
+    qproperty-minimumSize: 188px 27px;
+    qproperty-maximumSize: 188px 27px;
+    image: url(":/resource/images/apploading_logo.svg");
+    background-color: transparent;
+}
+QLabel#textLabel{
+    color: #bababa;
+    font-size: 12px;
+}
+QLabel#label {
+    color: #bababa;
+    font-size: 12px;
+    min-width: 20px;
+    max-width: 20px;
+}
+PLSAppLoadingView{
+    background-color: #272727;
+}

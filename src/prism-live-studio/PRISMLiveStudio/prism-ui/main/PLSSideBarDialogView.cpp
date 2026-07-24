@@ -3,7 +3,7 @@
 #include <libutils-api.h>
 #include <QMetaEnum>
 
-PLSSideBarDialogView::PLSSideBarDialogView(DialogInfo info, QWidget *parent) : PLSDialogView(info, parent), defaultInfo(info)
+PLSSideBarDialogView::PLSSideBarDialogView(DialogInfo info, QWidget *parent, CreateWinId createWinId) : PLSDialogView(info, parent, createWinId), defaultInfo(info)
 {
 #ifdef Q_OS_MACOS
 	defaultInfo.defaultHeight -= 40;
@@ -12,7 +12,7 @@ PLSSideBarDialogView::PLSSideBarDialogView(DialogInfo info, QWidget *parent) : P
 
 PLSSideBarDialogView::~PLSSideBarDialogView()
 {
-	if (!PLSMainView::instance()->isFirstShow()) {
+	if (!PLSMainView::instance()->isFirstShow() && !m_firstShow) {
 
 		config_set_string(App()->GetUserConfig(), getConfigId(), "geometry", saveGeometry().toBase64().constData());
 		config_save(App()->GetUserConfig());
@@ -54,6 +54,7 @@ void PLSSideBarDialogView::onRestoreGeometry()
 
 void PLSSideBarDialogView::showEvent(QShowEvent *event)
 {
+	m_firstShow = false;
 	disableWinSystemBorder();
 	config_set_bool(App()->GetUserConfig(), getConfigId(), "showMode", isVisible());
 	config_save(App()->GetUserConfig());

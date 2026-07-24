@@ -21,10 +21,15 @@ class ChannelDataBaseHandler;
 using PlatformHandlerPtrs = QSharedPointer<ChannelDataBaseHandler>;
 using InfosList = QList<QVariantMap>;
 
-using ImagesMap = QMap<QString, QVariantMap>;
-
 using ImagesContainer = QHash<QSize, QPixmap>;
 Q_DECLARE_METATYPE(ImagesContainer)
+
+struct ImageCacheEntry {
+	QSize originalSize;
+	ImagesContainer images;
+};
+
+using ImagesMap = QMap<QString, ImageCacheEntry>;
 
 size_t qHash(const QSize &keySize, uint seed = 0);
 
@@ -40,9 +45,6 @@ public:
 	~PLSChannelDataAPI() override = default;
 	//add source path image to map,and scale default size image
 	QPixmap addImage(const QString &srcPath, const QPixmap &pix, const QSize &defaultSize = QSize(100, 100));
-	//get or load target size image
-	QPixmap getImage(const QString &srcPath, const QSize &defaultSize = QSize(100, 100));
-
 	QPixmap updateImage(const QString &oldPath, const QString &srcPath, const QSize &size = QSize(100, 100));
 	QPixmap updateImage(const QString &srcPath, const QSize &size = QSize(100, 100));
 
@@ -268,8 +270,12 @@ public:
 	bool isCanSetDualOutput(const QString &uuid) const;
 	void clearDualOutput();
 	int getUserAllowedEnabledChannelsCount() const;
-	void disableChannelWhenDualOutputClose();
 	bool isExistYoutubeWhenRunApp(QString &channelId) const;
+	void checkAllRtmpUrlIsValid();
+
+	void setAutoAddChannelFlag(bool autoAdd) { m_isAutoAddChannel = autoAdd; }
+	bool getAutoAddChannelFlag() const { return m_isAutoAddChannel; }
+
 public slots:
 
 	void stopAll();
@@ -343,8 +349,6 @@ signals:
 
 	void holdOnGolive(bool);
 
-	void sigAllClear();
-
 	void toDoinitialize();
 
 	void sigChannelAreaInialized();
@@ -377,7 +381,14 @@ signals:
 
 	void sigSetChannelDualOutput(const QString &uuid, ChannelData::ChannelDualOutput outputType);
 
+	void sigRtmpUrlIsInvalid(const QString &channelName);
+
+	void sigEndRefreshRtmp();
+
 private:
+	//get or load target size image
+	QPixmap getImage(ImageCacheEntry &cacheEntry, const QSize &defaultSize = QSize(100, 100));
+
 	void registerEnumsForStream() const;
 	void connectSignals();
 	void reCheckExpiredChannels();
@@ -427,6 +438,11 @@ private:
 	static QThread *mPainterThread;
 	static PLSChannelDataAPI *mInstance;
 	static QThread *mDataThread;
+
+	//facebook ,twitch support automatic addition of channels after login
+	//This flag is used to refresh the channel after logging in to show that the dashbord is loading the channel.
+	//This flag is only processed once.
+	bool m_isAutoAddChannel = false;
 };
 #define PLSCHANNELS_API PLSChannelDataAPI::getInstance()
 

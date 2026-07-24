@@ -60,6 +60,8 @@ public:
 	QString getShareUrl() override;
 	QString getShareUrlEnc() override;
 	QString getChannelToken() const override;
+	void onResumeStreaming(const QMap<QString, QVariant> &params) override;
+	QMap<QString, QVariant> getResumeStreamingParams() const override;
 
 	const QString &getFailedErr() const { return m_startFailedStr; }
 	void setFailedErr(const QString &failedStr) { m_startFailedStr = failedStr; }

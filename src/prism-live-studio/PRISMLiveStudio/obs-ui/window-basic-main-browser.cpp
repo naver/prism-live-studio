@@ -127,6 +127,8 @@ void setPrismCookieToChannel(const QString &channelName)
 
 void setAllChatCookie()
 {
+	setNaverCookieToChannel(ALL_CHAT);
+	setPrismCookieToChannel(ALL_CHAT);
 }
 
 #ifdef BROWSER_AVAILABLE
@@ -163,6 +165,9 @@ static void InitPanelCookieManager(const QString &pannelName)
 	sub_path += pannelName.toUtf8().data();
 
 	QCefCookieManager *cookieMgr = cef->create_cookie_manager(sub_path);
+	if (!cookieMgr) {
+		return;
+	}
 	GlobalCookieVars::pannel_cookies_collect.insert(pannelName, cookieMgr);
 	if (0 == pannelName.compare(NAVER_TV, Qt::CaseInsensitive)) {
 		setNaverCookieToChannel(NAVER_TV);
@@ -191,9 +196,10 @@ void DestroyPanelCookieManager()
 		auto iter = GlobalCookieVars::pannel_cookies_collect.begin();
 		auto cm = iter.value();
 		GlobalCookieVars::pannel_cookies_collect.erase(iter);
-
-		cm->FlushStore();
-		pls_delete(cm, nullptr);
+		if (cm) {
+			cm->FlushStore();
+			pls_delete(cm, nullptr);
+		}
 	}
 #endif
 }

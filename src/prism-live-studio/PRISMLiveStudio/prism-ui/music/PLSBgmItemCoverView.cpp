@@ -151,26 +151,6 @@ void PLSBgmItemCoverView::resizeEvent(QResizeEvent *event)
 	QFrame::resizeEvent(event);
 }
 
-void PLSBgmItemCoverView::mousePressEvent(QMouseEvent *event)
-{
-	if (event->button() == Qt::LeftButton) {
-		if (event->pos().x() < 10 || event->pos().x() > width() - 10) {
-			QFrame::mousePressEvent(event);
-			return;
-		}
-		startPoint = event->pos();
-		mousePressed = true;
-	}
-}
-
-void PLSBgmItemCoverView::mouseMoveEvent(QMouseEvent *event)
-{
-	QFrame::mouseMoveEvent(event);
-	if (mousePressed) {
-		emit CoverPressed(event->pos() - startPoint);
-	}
-}
-
 void PLSBgmItemCoverView::mouseReleaseEvent(QMouseEvent *event)
 {
 	mousePressed = false;
@@ -210,6 +190,7 @@ PLSBgmItemCoverImage::PLSBgmItemCoverImage(QWidget *parent) : QLabel(parent) {}
 void PLSBgmItemCoverImage::SetPixmap(const QPixmap &pixmap_)
 {
 	this->pixmap = pixmap_;
+	m_scaledPixmapCache = QPixmap();
 	update();
 }
 
@@ -229,7 +210,10 @@ void PLSBgmItemCoverImage::paintEvent(QPaintEvent *event)
 			QPainterPath painterPath;
 			painterPath.addRoundedRect(this->rect(), 3.0, 3.0);
 			painter.setClipPath(painterPath);
-			painter.drawPixmap(painterPath.boundingRect().toRect(), pixmap.scaled(this->width(), this->height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+			if (m_scaledPixmapCache.isNull() || m_scaledPixmapCache.size() != this->size()) {
+				m_scaledPixmapCache = pixmap.scaled(this->width(), this->height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			}
+			painter.drawPixmap(painterPath.boundingRect().toRect(), m_scaledPixmapCache);
 			painter.setPen(Qt::NoPen);
 			painter.drawPath(painterPath);
 		} else {

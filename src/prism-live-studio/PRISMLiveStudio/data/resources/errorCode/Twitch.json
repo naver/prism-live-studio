@@ -1,0 +1,53 @@
+{
+    "data": [
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "400",
+                "status": "400"
+            },
+            "err": {
+                "prismCode": 10002,
+                "prismName": "COMMON_TOKEN_EXPIRED_ERROR",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Expired",
+                "arg": "Twitch",
+                "msgText": "Your %1 channel verification information has expired.",
+                "errorType": "TokenExpired",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "login,dashBoard",
+            "api": {
+                "$statusCode": "400",
+                "status": "400"
+            },
+            "err": {
+                "prismCode": 10003,
+                "prismName": "COMMON_CHANNEL_LOGIN_TOKEN_EXPIRED_ERROR",
+                "msgKey": "Channels.expiredQuestion",
+                "arg": "Twitch",
+                "msgText": "Your %1 account verification information has expired. You will be transferred to the login page.",
+                "errorType": "TokenExpired",
+                "alertType": "Normal_Code"
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "status": [
+                "status"
+            ],
+            "message": [
+                "message"
+            ]
+        },
+        "logAppend": [
+            "status: {{status}}",
+            "message: {{message}}"
+        ],
+        "inherit": [
+            "PRISM"
+        ]
+    }
+}

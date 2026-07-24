@@ -28,9 +28,6 @@ struct BasicOutputHandler {
 	bool replayBufferActive = false;
 	bool virtualCamActive = false;
 	OBSBasic *main;
-	PLSOutputHandler *manager;
-	size_t outputIndex;
-	bool vertical;
 
 	std::unique_ptr<MultitrackVideoOutput> multitrackVideo;
 	bool multitrackVideoActive = false;
@@ -42,8 +39,6 @@ struct BasicOutputHandler {
 			       : OBSOutputAutoRelease{obs_output_get_ref(streamOutput)};
 	}
 
-	QTimer delayTimer;
-
 	obs_view_t *virtualCamView = nullptr;
 	video_t *virtualCamVideo = nullptr;
 	obs_scene_t *vCamSourceScene = nullptr;
@@ -51,6 +46,7 @@ struct BasicOutputHandler {
 
 	std::string outputType;
 	std::string lastError;
+	volatile bool isEncoderError = false;
 
 	std::string lastRecordingPath;
 
@@ -71,12 +67,6 @@ struct BasicOutputHandler {
 	OBSSignal recordFileChanged;
 	OBSSignal replayBufferStopping;
 	OBSSignal replayBufferSaved;
-
-	uint64_t outputLastTotalFrame = 0;
-	std::chrono::steady_clock::time_point outputFpsLastRequestTime;
-
-	uint64_t recordLastTotalFrame = 0;
-	std::chrono::steady_clock::time_point recordFpsLastRequestTime;
 
 	inline BasicOutputHandler(OBSBasic *main_, PLSOutputHandler *manager_, size_t outputIndex);
 
@@ -126,6 +116,21 @@ protected:
 						      size_t main_audio_mixer, std::optional<size_t> vod_track_mixer,
 						      std::function<void(std::optional<bool>)> continuation);
 	OBSDataAutoRelease GenerateMultitrackVideoStreamDumpConfig();
+
+public: //--------------------------------------------- prism code -------------------------------------------
+	PLSOutputHandler *manager = __nullptr;
+	size_t outputIndex = 0;
+	bool vertical = false;
+
+	QTimer delayTimer;
+
+	uint64_t outputLastTotalFrame = 0;
+	std::chrono::steady_clock::time_point outputFpsLastRequestTime;
+
+	uint64_t recordLastTotalFrame = 0;
+	std::chrono::steady_clock::time_point recordFpsLastRequestTime;
+
+	void pls_log_output_info(obs_output_t *output, obs_service_t *service, const char *func);
 };
 
 BasicOutputHandler *CreateSimpleOutputHandler(OBSBasic *main, PLSOutputHandler *manager, bool vertical);

@@ -2,6 +2,7 @@
 #define PLSTAKECAMERASNAPSHOT_H
 
 #include <QHBoxLayout>
+#include <QPointer>
 
 #include "PLSDialogView.h"
 #include "qt-display.hpp"
@@ -92,12 +93,32 @@ class PLSTakeCameraSnapshot : public PLSDialogView {
 	Q_OBJECT
 
 public:
+	/**
+	 * @brief Close mode for the dialog.
+	 */
+	enum CloseMode {
+		Hide,   // Hide window, do not destroy source
+		Destroy // Destroy window and release source
+	};
+
+	QString getSnapshot(CloseMode closeMode = Hide);
+	void setSourceValid(bool isValid);
+
+signals:
+	/**
+	 * @brief User selected an image.
+	 * @param imageFilePath Path to the image file.
+	 */
+	void imageSelected(const QString &imageFilePath);
+
+	/**
+	 * @brief User cancelled the operation.
+	 */
+	void cancelled();
+
+public:
 	PLSTakeCameraSnapshot(QString &camera, QWidget *parent = nullptr);
 	~PLSTakeCameraSnapshot() override;
-
-	QString getSnapshot();
-	static QList<QPair<QString, QString>> getCameraList();
-	void setSourceValid(bool isValid);
 
 private:
 	void init(const QString &camera);
@@ -110,6 +131,41 @@ private:
 	void ShowLoading();
 	void HideLoading();
 	void stopTimer();
+
+	void RegisterLensState();
+	void UnregisterLensState();
+
+	/**
+	 * @brief Check if source is valid for the given camera.
+	 * @param cameraId Camera device ID.
+	 * @return true if source exists and is valid.
+	 */
+	bool checkSourceReallyValid(const obs_source_t *source, const QString &cameraId) const;
+
+	/**
+	 * @brief Clear source connections but keep source reference.
+	 */
+	void clearSourceConnections();
+
+	/**
+	 * @brief Destroy source (release reference).
+	 */
+	void destroySource();
+
+	/**
+	 * @brief Hide window without destroying source.
+	 */
+	void hideWindow();
+
+	/**
+	 * @brief Destroy source and hide window.
+	 */
+	void destroyWindow();
+
+	/**
+	 * @brief Reset window state when showing again.
+	 */
+	void resetWindowState();
 
 private slots:
 	void on_cameraList_currentIndexChanged(int index);
@@ -141,15 +197,21 @@ private:
 	bool captureImage = false;
 	std::atomic_bool sourceValid = false;
 	volatile bool inprocess = false;
-	OBSSource source;
+	OBSSourceAutoRelease source;
 	QString imageFilePath;
 	QString errorMessage;
-	QString &camera;
+	QString camera;
 	PLSLoadingEvent *m_pLoadingEvent = nullptr;
 	QWidget *m_pWidgetLoadingBG = nullptr;
 	QPointer<ScreenshotObj> m_pScreenCapture = nullptr;
 
 	OBSSignal updatePropertiesSignal;
+
+	std::vector<QPair<QString, QString>> m_cameraList; // access in UI thread only
+
+	// Close mode
+	CloseMode m_closeMode = Hide;
+	bool m_shouldDestroy = false;
 };
 
 #endif // PLSTAKECAMERASNAPSHOT_H

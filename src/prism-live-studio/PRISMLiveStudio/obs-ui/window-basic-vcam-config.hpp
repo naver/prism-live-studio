@@ -19,9 +19,13 @@ class OBSBasicVCamConfig : public PLSDialogView {
 	bool vcamActive;
 	VCamOutputType activeType;
 	bool requireRestart;
+	bool firstShow = true;
 
 public:
 	explicit OBSBasicVCamConfig(const VCamConfig &config, bool VCamActive, QWidget *parent = 0);
+
+protected:
+	void showEvent(QShowEvent *event) override;
 
 private slots:
 	void OutputTypeChanged();

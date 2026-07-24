@@ -2,20 +2,18 @@
 QMenu#helpMenu {
 	border: /*hdpi*/ 1px solid #111111;
 	background: #2d2d2d;
-	min-height: /*hdpi*/ 216px;
-	max-height: /*hdpi*/ 216px;
-	min-width: /*hdpi*/ 180px;
-	max-width: /*hdpi*/ 180px;
+	min-height: /*hdpi*/ 296px;
+	max-height: /*hdpi*/ 296px;
+	min-width: /*hdpi*/ 212px;
 	padding: 0px;
 }
 
 PLSMainView #helpListWidget {
 	border: /*hdpi*/ none;
 	background-color: transparent;
-	min-height: /*hdpi*/ 216px;
-	max-height: /*hdpi*/ 216px;
-	min-width: /*hdpi*/ 180px;
-	max-width: /*hdpi*/ 180px;
+	min-height: /*hdpi*/ 296px;
+	max-height: /*hdpi*/ 296px;
+	min-width: /*hdpi*/ 212px;
 	padding-top: /*hdpi*/ 8px;
 	padding-bottom: /*hdpi*/ 8px;
 }
@@ -25,9 +23,9 @@ PLSMainView #helpListWidget:focus {
 }
 
 PLSMainView #helpListWidget::item {
-	padding: /*hdpi*/ 0px /*hdpi*/ 20px /*hdpi*/ 0px /*hdpi*/ 20px;
+	padding: /*hdpi*/ 0px;
 	min-height: /*hdpi*/ 40px;
-	min-width: /*hdpi*/ 180px;
+	min-width: /*hdpi*/ 212px;
 }
 
 PLSMainView #helpListWidget::item:hover {

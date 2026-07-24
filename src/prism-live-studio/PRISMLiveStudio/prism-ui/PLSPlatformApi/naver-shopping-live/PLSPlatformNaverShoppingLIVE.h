@@ -88,7 +88,7 @@ public:
 	void checkSupportResolution() const;
 	bool checkGoLiveShoppingResolution(const PLSNaverShoppingLIVEAPI::NaverShoppingPrepareLiveInfo &prepareInfo) const;
 	bool isPortraitSupportResolution() const;
-	bool showResolutionAlertView(const QString &message, bool errorMsg = false) const;
+	bool showResolutionAlertView(const QString &resolutionArg, bool isResolutionModeTip) const;
 	void checkPushNotification(const std::function<void()> &onNext);
 	void setShareLink(const QString &sharelink) const;
 	bool getScalePixmapPath(QString &scaleImagePath, const QString &originPath);
@@ -109,6 +109,8 @@ public slots:
 
 protected:
 	void convertScheduleListToMapList() override;
+	void onResumeStreaming(const QMap<QString, QVariant> &params) override;
+	QMap<QString, QVariant> getResumeStreamingParams() const override;
 
 signals:
 	void showLiveinfoLoading();

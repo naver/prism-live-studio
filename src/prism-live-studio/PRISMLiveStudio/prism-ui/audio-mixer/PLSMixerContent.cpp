@@ -99,27 +99,38 @@ void PLSMixerContent::changeEvent(QEvent *event)
 	QWidget::changeEvent(event);
 }
 
-void PLSMixerContent::mousePressEvent(QMouseEvent *event)
+bool PLSMixerContent::eventFilter(QObject *watcher, QEvent *e)
 {
-	startDragPoint = event->position().toPoint();
+	if (watcher == m_dockWidget && e->type() == QEvent::MouseButtonPress) {
+		QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(e);
+		if (mouseEvent->button() == Qt::LeftButton) {
 
-	VolControl *vol = qobject_cast<VolControl *>(childAt(startDragPoint));
-	if (!vol) {
-		QWidget::mousePressEvent(event);
-		return;
+			QPoint parentPos = mouseEvent->position().toPoint();
+			QPoint inLabel = mapFrom(m_dockWidget, parentPos);
+			startDragPoint = inLabel;
+			VolControl *vol = qobject_cast<VolControl *>(childAt(startDragPoint));
+			if (!vol) {
+				if (lastClickedVol) {
+					lastClickedVol->setClickState(false);
+					lastClickedVol = nullptr;
+				}
+				return QWidget::eventFilter(watcher, e);
+			}
+
+			if (vol == lastClickedVol)
+				return QWidget::eventFilter(watcher, e);
+
+			vol->setClickState(true);
+			if (lastClickedVol) {
+				lastClickedVol->setClickState(false);
+				lastClickedVol = nullptr;
+			}
+
+			lastClickedVol = vol;
+			return QWidget::eventFilter(watcher, e);
+		}
 	}
-
-	if (vol == lastClickedVol)
-		return;
-
-	vol->setClickState(true);
-	if (lastClickedVol) {
-		lastClickedVol->setClickState(false);
-	}
-
-	lastClickedVol = vol;
-
-	QWidget::mousePressEvent(event);
+	return QWidget::eventFilter(watcher, e);
 }
 
 void PLSMixerContent::mouseMoveEvent(QMouseEvent *event)
@@ -142,6 +153,12 @@ void PLSMixerContent::mouseMoveEvent(QMouseEvent *event)
 			auto drag = pls_new<QDrag>(this);
 			drag->setMimeData(mimeData);
 			drag->setHotSpot(startDragPoint - child->pos());
+
+#ifdef Q_OS_WIN
+			QSize cursorSize = pls_get_win_cursor_size(this);
+			drag->setDragCursor(pls_get_win_custom_drag_pixmap(this), Qt::MoveAction);
+#endif //  Q_OS_WIN
+
 #if defined(__APPLE__)
 			/* PRISM_PC-1050: In order to remove the dotted rectangle when dragging on MacOs,
              we use the trick of setting a small and transparent pixmap for the drag. */
@@ -238,6 +255,13 @@ void PLSMixerContent::ClearItemBorder()
 	if (lastDisplayedVol) {
 		lastDisplayedVol->displayBorder(false);
 	}
+}
+
+void PLSMixerContent::AddListenDockWidget(OBSDock *dockWidget)
+{
+	m_dockWidget = dockWidget;
+	installEventFilter(this);
+	m_dockWidget->installEventFilter(this);
 }
 
 void PLSMixerContent::OnDragMoveEvent(QDragMoveEvent *event)

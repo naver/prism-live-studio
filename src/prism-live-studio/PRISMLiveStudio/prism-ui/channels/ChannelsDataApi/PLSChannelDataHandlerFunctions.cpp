@@ -159,28 +159,242 @@ bool RTMPAddToPrism(const QString &uuid)
 {
 	PRE_LOG_MSG_STEP("add rtmp begin", g_addChannelStep, INFO)
 	HolderReleaser releaser(&PLSChannelDataAPI::addingHold);
-	FinishTaskReleaser finishAdd(uuid);
+
+	if (PLSCHANNELS_API->isChannelInfoExists(uuid)) {
+
+		PLSCHANNELS_API->release();
+		auto headerMap = createPrismHeader();
+		if (headerMap.isEmpty()) {
+			PLSCHANNELS_API->acquire();
+			PRE_LOG_MSG_STEP("add rtmp failed", g_addChannelStep, ERROR)
+			return false;
+		}
+		pls::http::Request request;
+		request.rawHeaders(headerMap);
+		request.timeout(PRISM_NET_REQUEST_TIMEOUT);
+		auto obj = createJsonArrayFromInfo(uuid);
+		request.body(obj);
+
+		request.jsonContentType();
+
+		request.cookie(createPrismCookie());
+		request.url(PLS_RTMP_ADD_V2.arg(PRISM_SSL));
+		request.hmacKey(PLS_PC_HMAC_KEY.toUtf8());
+		request.withLog();
+		request.id(CUSTOM_RTMP);
+
+		auto handleSuccess = [uuid](const pls::http::Reply &reply) {
+			PLSCHANNELS_API->acquire();
+			auto &lastInfo = PLSCHANNELS_API->getChanelInfoRef(uuid);
+			auto jsonDoc = QJsonDocument::fromJson(reply.data());
+			auto jsonMap = jsonDoc.toVariant().toMap();
+			auto seq = jsonMap[g_customUserDataSeq].toString();
+			auto customData = jsonMap[g_customData].toMap();
+			addToMap(lastInfo, customData);
+			lastInfo[g_customUserDataSeq] = seq;
+			FinishTaskReleaser finishAdd(uuid);
+			PRE_LOG_MSG_STEP("add rtmp success:" + seq, g_addChannelStep, INFO)
+		};
+
+		auto handleFail = [uuid](const pls::http::Reply &reply) {
+			PLSCHANNELS_API->acquire();
+			PLSCHANNELS_API->removeChannelInfo(uuid, false, false);
+			FinishTaskReleaser finishUpdate(uuid);
+			PRE_LOG_MSG_STEP("add rtmp failed", g_addChannelStep, ERROR)
+			ChannelsNetWorkPretestWithAlerts(reply);
+		};
+
+		request.okResult(handleSuccess);
+		request.failResult(handleFail);
+		request.receiver(PLSCHANNELS_API);
+		request.method(pls::http::Method::Post);
+		pls::http::request(request);
+	}
 	return true;
 }
 
 bool AddOrgDataToNewApi(const QString &uuid, bool bAddFlag)
 {
+	if (bAddFlag) {
+		PLS_INFO(CHANNELDATAHANDLER, "Add flag to new API");
+	} else {
+		PLS_INFO(CHANNELDATAHANDLER, "Add OrgData to new API");
+	}
+	HolderReleaser releaser(&PLSChannelDataAPI::holdOnChannelArea);
+	PLSCHANNELS_API->release();
+	auto headerMap = createPrismHeader();
+	if (headerMap.isEmpty()) {
+		endRefresh();
+		if (bAddFlag) {
+			PLS_ERROR(CHANNELDATAHANDLER, "Add flag to new API failed");
+		} else {
+			PLS_ERROR(CHANNELDATAHANDLER, "Add OrgData to new API failed");
+		}
+		return false;
+	}
+	pls::http::Request request;
+	request.rawHeaders(headerMap);
+	request.timeout(PRISM_NET_REQUEST_TIMEOUT);
+	QJsonObject obj;
+	if (bAddFlag) {
+		obj = createJsonArrayFromInfo("");
+	} else {
+		obj = createJsonArrayFromInfo(uuid);
+	}
+
+	request.body(obj);
+
+	request.jsonContentType();
+
+	request.cookie(createPrismCookie());
+	request.url(PLS_RTMP_ADD_V2.arg(PRISM_SSL));
+	request.hmacKey(PLS_PC_HMAC_KEY.toUtf8());
+	request.withLog();
+	request.id(CUSTOM_RTMP);
+
+	auto handleSuccess = [bAddFlag, uuid](const pls::http::Reply &reply) {
+		endRefresh();
+		auto jsonDoc = QJsonDocument::fromJson(reply.data());
+		auto jsonMap = jsonDoc.toVariant().toMap();
+		auto seq = jsonMap[g_customUserDataSeq].toString();
+		if (bAddFlag) {
+			PLS_INFO(CHANNELDATAHANDLER, "Add flag to new API success,seq is %s", seq.toUtf8().constData());
+		} else {
+			PLS_INFO(CHANNELDATAHANDLER, "Add OrgData to new API success,seq is %s", seq.toUtf8().constData());
+			auto &lastInfo = PLSCHANNELS_API->getChanelInfoRef(uuid);
+			auto customData = jsonMap[g_customData].toMap();
+			addToMap(lastInfo, customData);
+			lastInfo[g_customUserDataSeq] = seq;
+		}
+	};
+
+	auto handleFail = [bAddFlag](const pls::http::Reply &reply) {
+		endRefresh();
+		if (bAddFlag) {
+			PLS_ERROR(CHANNELDATAHANDLER, "Add flag to new API failed");
+		} else {
+			PLS_ERROR(CHANNELDATAHANDLER, "Add OrgData to new API failed");
+		}
+		ChannelsNetWorkPretestWithAlerts(reply);
+	};
+
+	request.okResult(handleSuccess);
+	request.failResult(handleFail);
+	request.receiver(PLSCHANNELS_API);
+	request.method(pls::http::Method::Post);
+	pls::http::request(request);
+
 	return true;
 }
 
 bool RTMPUpdateToPrism(const QString &uuid)
 {
+
 	PRE_LOG_MSG_STEP("Update RTMP Begin ", g_updateChannelStep, INFO)
 	HolderReleaser releaser(&PLSChannelDataAPI::holdOnChannelArea);
-	FinishTaskReleaser finishUpdate(uuid);
+
+	if (PLSCHANNELS_API->isChannelInfoExists(uuid)) {
+		PLSCHANNELS_API->release();
+		auto headerMap = createPrismHeader();
+		if (headerMap.isEmpty()) {
+			PLSCHANNELS_API->acquire();
+			PLSCHANNELS_API->recoverInfo(uuid);
+			PRE_LOG_MSG_STEP("Update RTMP failed for Prism Header is empty ", g_updateChannelStep, ERROR)
+			return false;
+		}
+
+		pls::http::Request request;
+		request.rawHeaders(headerMap);
+		request.timeout(PRISM_NET_REQUEST_TIMEOUT);
+		auto obj = createJsonArrayFromInfo(uuid);
+		request.body(obj);
+		request.jsonContentType();
+
+		request.cookie(createPrismCookie());
+		auto sqNo = PLSCHANNELS_API->getValueOfChannel(uuid, g_customUserDataSeq, QString());
+		QString url = QString(PLS_RTMP_MODIFY_V2).arg(PRISM_SSL, sqNo);
+		request.url(url);
+		request.hmacKey(PLS_PC_HMAC_KEY.toUtf8());
+		request.withLog();
+		request.id(CUSTOM_RTMP);
+
+		auto handleSuccess = [uuid](const pls::http::Reply &reply) {
+			PLSCHANNELS_API->acquire();
+			auto &lastInfo = PLSCHANNELS_API->getChanelInfoRef(uuid);
+			auto jsonDoc = QJsonDocument::fromJson(reply.data());
+			auto jsonMap = jsonDoc.toVariant().toMap();
+			auto customData = jsonMap[g_customData].toMap();
+			addToMap(lastInfo, customData);
+			PLSCHANNELS_API->clearBackup(uuid);
+			PRE_LOG_MSG_STEP("Update RTMP success ", g_updateChannelStep, INFO)
+			FinishTaskReleaser finishUpdate(uuid);
+		};
+
+		auto handleFail = [uuid](const pls::http::Reply &reply) {
+			PLSCHANNELS_API->acquire();
+			PLSCHANNELS_API->recoverInfo(uuid);
+			PRE_LOG_MSG_STEP("Update RTMP failed ", g_updateChannelStep, ERROR)
+			FinishTaskReleaser finishUpdate(uuid);
+
+			ChannelsNetWorkPretestWithAlerts(reply);
+		};
+
+		request.okResult(handleSuccess);
+		request.failResult(handleFail);
+		request.receiver(PLSCHANNELS_API);
+		request.method(pls::http::Method::Put);
+		pls::http::request(request);
+	}
 	return true;
 }
 
 bool RTMPDeleteToPrism(const QString &uuid)
 {
+
 	PRE_LOG_MSG_STEP("Remove RMP channel Begin", g_removeChannelStep, INFO)
-	FinishTaskReleaser finishUpdate(uuid);
-	PLSCHANNELS_API->removeChannelInfo(uuid, true, false);
+	if (PLSCHANNELS_API->isChannelInfoExists(uuid)) {
+		PLSCHANNELS_API->release();
+		auto headerMap = createPrismHeader();
+		if (headerMap.isEmpty()) {
+			PLSCHANNELS_API->acquire();
+			PRE_LOG_MSG_STEP("Remove RMP channel Error for Prism header is empty", g_removeChannelStep, ERROR)
+			return false;
+		}
+		pls::http::Request request;
+		request.rawHeaders(headerMap);
+		request.timeout(PRISM_NET_REQUEST_TIMEOUT);
+		QString seq = PLSCHANNELS_API->getValueOfChannel(uuid, g_customUserDataSeq, QString());
+		QString url = QString(PLS_RTMP_DELETE_V2).arg(PRISM_SSL, seq);
+		PLS_INFO(CHANNELDATAHANDLER, "Delete data form new API seq is %s", seq.toUtf8().constData());
+
+		request.cookie(createPrismCookie());
+		request.url(url);
+		request.hmacKey(PLS_PC_HMAC_KEY.toUtf8());
+		request.withLog();
+		request.id(CUSTOM_RTMP);
+
+		auto handleSuccess = [uuid](const pls::http::Reply &) {
+			PLSCHANNELS_API->acquire();
+			PRE_LOG_MSG_STEP("Remove RMP channel end ,success", g_removeChannelStep, INFO)
+			PLSCHANNELS_API->removeChannelInfo(uuid, true, false);
+			FinishTaskReleaser finishUpdate(uuid);
+		};
+
+		auto handleFail = [uuid](const pls::http::Reply &reply) {
+			PLSCHANNELS_API->acquire();
+			FinishTaskReleaser finishUpdate(uuid);
+			PRE_LOG_MSG_STEP("Remove RMP channel end ,falied", g_removeChannelStep, ERROR)
+			ChannelsNetWorkPretestWithAlerts(reply);
+		};
+
+		request.okResult(handleSuccess);
+		request.failResult(handleFail);
+		request.receiver(PLSCHANNELS_API);
+		request.method(pls::http::Method::Delete);
+		pls::http::request(request);
+	} else {
+		PLS_ERROR(CHANNELDATAHANDLER, "ChannelInfo not exist,uuid is %s", uuid.toUtf8().constData());
+	}
 	return true;
 }
 
@@ -192,14 +406,101 @@ QNetworkCookie createPrismCookie()
 	return cookie;
 }
 
-void updateAllRtmpsV1() {}
+void updateAllRtmpsV1()
+{
+	PRE_LOG("update all old API RTMPs begin", INFO)
+	HolderReleaser releaser(&PLSChannelDataAPI::holdOnChannelArea);
+	PLSCHANNELS_API->release();
+
+	auto headerMap = createPrismHeader();
+	if (headerMap.isEmpty()) {
+		PRE_LOG("update all RTMPs error when prism token is not right", INFO)
+		PLSCHANNELS_API->acquire();
+		if (!PLSCHANNELS_API->isInitilized()) {
+			PLSCHANNELS_API->resetInitializeState(true);
+		}
+		return;
+	}
+	pls::http::Request request;
+	request.timeout(PRISM_NET_REQUEST_TIMEOUT);
+	request.rawHeaders(headerMap);
+
+	request.cookie(createPrismCookie());
+
+	request.url(PLS_RTMP_LIST.arg(PRISM_SSL));
+	request.hmacKey(PLS_PC_HMAC_KEY.toUtf8());
+	request.withLog();
+	request.id(CUSTOM_RTMP);
+	auto handleSuccess = [](const pls::http::Reply &reply) {
+		PRE_LOG("use old API update all rtmp ok", INFO)
+		updateRTMPCallback(reply.data(), false);
+	};
+
+	auto handleFail = [](const pls::http::Reply &reply) {
+		PRE_LOG("use old API update all rtmp error", INFO)
+		ChannelsNetWorkPretestWithAlerts(reply);
+		endRefresh();
+		PLSCHANNELS_API->sigEndRefreshRtmp();
+	};
+
+	request.okResult(handleSuccess);
+	request.failResult(handleFail);
+	request.receiver(App()->getMainView());
+	request.method(pls::http::Method::Get);
+	pls::http::request(request);
+}
 
 void updateAllRtmps()
 {
-	PRE_LOG(update all RTMPs begin, INFO)
+	PRE_LOG("update all new API RTMPs begin", INFO)
 	HolderReleaser releaser(&PLSChannelDataAPI::holdOnChannelArea);
 	PLSCHANNELS_API->release();
-	endRefresh();
+
+	auto headerMap = createPrismHeader();
+	if (headerMap.isEmpty()) {
+		PRE_LOG("update all RTMPs error when prism token is not right", INFO)
+		PLSCHANNELS_API->acquire();
+		if (!PLSCHANNELS_API->isInitilized()) {
+			PLSCHANNELS_API->resetInitializeState(true);
+		}
+		return;
+	}
+	auto handleSuccess = [](const pls::http::Reply &reply) {
+		PRE_LOG("use new API update all rtmp ok", INFO)
+		auto jsonDoc = QJsonDocument::fromJson(reply.data());
+		auto jsArray = jsonDoc.array().toVariantList();
+		if (jsArray.size() == 0) {
+			PRE_LOG("use new API update all rtmp,return size 0, request old API data", INFO)
+			PLSCHANNELS_API->acquire();
+			updateAllRtmpsV1();
+			PLSCHANNELS_API->addRISTandSRT2RtmpServer();
+			AddOrgDataToNewApi("", true);
+		} else {
+			updateRTMPCallback(reply.data(), true);
+		}
+	};
+
+	auto handleFail = [](const pls::http::Reply &reply) {
+		PRE_LOG("use new API update all rtmp error", INFO)
+		ChannelsNetWorkPretestWithAlerts(reply);
+		endRefresh();
+		PLSCHANNELS_API->sigEndRefreshRtmp();
+	};
+
+	pls::http::Request request;
+	request.method(pls::http::Method::Get)
+		.rawHeaders(headerMap)
+		.timeout(PRISM_NET_REQUEST_TIMEOUT)
+		.cookie(createPrismCookie())
+		.url(PLS_RTMP_LIST_V2.arg(PRISM_SSL))
+		.hmacKey(PLS_PC_HMAC_KEY.toUtf8())
+		.withLog()
+		.receiver(App()->getMainView())
+		.jsonContentType()
+		.okResult(handleSuccess)
+		.failResult(handleFail)
+		.id(CUSTOM_RTMP);
+	pls::http::request(request);
 }
 
 void endRefresh()
@@ -225,6 +526,7 @@ struct RtmpRun : public QRunnable {
 	~RtmpRun() override
 	{
 		PRE_LOG(End RTMP update..., INFO)
+		PLSCHANNELS_API->sigEndRefreshRtmp();
 		endRefresh();
 	}
 	Q_DISABLE_COPY(RtmpRun)

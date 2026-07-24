@@ -19,6 +19,8 @@
 #include <liblog.h>
 
 const int DOCK_WIDGET_MIN_WIDTH = 20;
+// Delay before clearing isChangeTopLevel after drag/topLevel change; must be long enough so any QEvent::Show that follows attach/detach is still suppressed.
+static const int DOCK_LAYOUT_CHANGE_SUPPRESS_MS = 500;
 
 class PLSDockTitlePopupMenu {
 public:
@@ -54,6 +56,9 @@ PLSDockTitle::PLSDockTitle(PLSDock *parent) : QFrame(parent), dock(parent)
 	advButton = pls_new<PLSDockAdvButton>(this);
 	advButton->setObjectName(QString::fromUtf8("advButton"));
 	advButton->setProperty("useFor", "dockTitle");
+	advButton->setToolTip(tr("Dock.Advance.More"));
+	pls_uistep_v2_set_value(advButton, "More");
+	pls_uistep_v2_set_custom_enter_leave_name(advButton, [this]() { return (pls_uistep_v2_get_title(dock) + "'s More Button").toUtf8(); });
 
 	buttonsLayout = pls_new<QHBoxLayout>();
 	buttonsLayout->setSpacing(contentSpacing);
@@ -62,6 +67,7 @@ PLSDockTitle::PLSDockTitle(PLSDock *parent) : QFrame(parent), dock(parent)
 
 	closeButton = pls_new<QToolButton>();
 	closeButton->setObjectName("closeButton");
+	pls_uistep_v2_set_value(closeButton, "Close");
 	connect(closeButton, &QToolButton::clicked, [this]() {
 		dock->setProperty("vis", false);
 		dock->setVisible(false);
@@ -82,6 +88,7 @@ PLSDockTitle::PLSDockTitle(PLSDock *parent) : QFrame(parent), dock(parent)
 	connect(advButton, &QToolButton::clicked, [this]() {
 		if (advButtonMenu) {
 			advButtonMenu->exec(QCursor::pos());
+			pls_check_app_exiting();
 			advButton->update();
 		}
 	});
@@ -158,9 +165,17 @@ void PLSDockTitle::setButtonActions(QList<QAction *> actions)
 		button->setObjectName(action->objectName());
 		setButtonPropertiesFromAction(button, action);
 		connect(button, &QToolButton::clicked, action, &QAction::triggered);
-		button->setToolTip(action->toolTip());
+		if (auto toolTip = action->toolTip(); !toolTip.isEmpty())
+			button->setToolTip(toolTip);
+		else if (auto text = action->text(); !text.isEmpty())
+			button->setToolTip(text);
+		if (auto value = pls_uistep_v2_get_value(action, PLS_UI_STEPS_V2_SIGNAL_TRIGGERED); !value.isEmpty()) {
+			pls_uistep_v2_set_value(button, [action]() { return pls_uistep_v2_get_value(action, PLS_UI_STEPS_V2_SIGNAL_TRIGGERED); });
+			pls_uistep_v2_set_custom_enter_leave_name(button, [action]() { return pls_uistep_v2_get_value(action, PLS_UI_STEPS_V2_SIGNAL_TRIGGERED).toUtf8(); });
+		}
 		buttonsLayout->addWidget(button);
 		buttons.append(button);
+		pls_uistep_v2_enable(action, false);
 	}
 }
 
@@ -182,6 +197,12 @@ void PLSDockTitle::setAdvButtonActions(QList<QAction *> actions)
 	advButtonMenu->setWindowFlags(advButtonMenu->windowFlags() | Qt::NoDropShadowWindowHint);
 	advButtonMenu->addActions(actions);
 	advButton->show();
+
+#if defined(PLS_UI_ACTION_STATS)
+	if (auto custom_show_hide_name = pls_uistep_v2_get_custom_show_hide_name(dock); custom_show_hide_name.has_value()) {
+		pls_uistep_v2_set_custom_show_hide_name(advButtonMenu, custom_show_hide_name.value() + QByteArrayLiteral("'s More Menu"));
+	}
+#endif
 }
 
 void PLSDockTitle::addAdvButtonMenu(QMenu *menu)
@@ -233,6 +254,15 @@ void PLSDockTitle::setCloseButtonVisible(bool visible)
 	}
 }
 
+void PLSDockTitle::setButtonLocked(bool locked)
+{
+	if (closeButton) {
+		closeButton->setEnabled(!locked);
+	}
+
+	setAdvButtonActionsEnabledByObjName("detachBtn", !locked);
+}
+
 void PLSDockTitle::setHasCloseButton(bool has)
 {
 	hasCloseButton = has;
@@ -245,6 +275,11 @@ void PLSDockTitle::setButtonPropertiesFromAction(QToolButton *button, const QAct
 	}
 
 	pls_flush_style(button);
+}
+
+QString PLSDockTitle::title() const
+{
+	return titleLabel->text();
 }
 
 void PLSDockTitle::updateTitle(const QString &title)
@@ -322,6 +357,7 @@ void PLSDockTitle::showEvent(QShowEvent *event)
 
 PLSDock::PLSDock(QWidget *parent) : PLSWidgetCloseHookQt<QDockWidget>(parent)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	pls_add_css(this, {"PLSDock"});
 
 	dockTitle = pls_new<PLSDockTitle>(this);
@@ -329,6 +365,12 @@ PLSDock::PLSDock(QWidget *parent) : PLSWidgetCloseHookQt<QDockWidget>(parent)
 
 	// remove dock title context menu
 	setContextMenuPolicy(Qt::PreventContextMenu);
+
+	setProperty("windows", !pls_is_os_sys_macos());
+
+#ifdef Q_OS_MAC
+	setAttribute(Qt::WA_MacAlwaysShowToolWindow, true);
+#endif
 
 	content = pls_new<QFrame>();
 	content->setObjectName(QStringLiteral("content"));
@@ -341,6 +383,12 @@ PLSDock::PLSDock(QWidget *parent) : PLSWidgetCloseHookQt<QDockWidget>(parent)
 	setCursor(Qt::ArrowCursor);
 
 	connect(this, &PLSDock::topLevelChanged, this, [this](bool toplevel) {
+#if defined(PLS_UI_ACTION_STATS)
+		if (auto custom_show_hide_name = pls_uistep_v2_get_custom_show_hide_name(this); custom_show_hide_name.has_value()) {
+			PLS_UI_ACTION(toplevel ? "Dock %s Detached" : "Dock %s Attached", custom_show_hide_name.value().constData());
+		}
+#endif
+
 		pls_flush_style(this);
 		pls_flush_style(dockTitle);
 		pls_flush_style(content);
@@ -352,12 +400,28 @@ PLSDock::PLSDock(QWidget *parent) : PLSWidgetCloseHookQt<QDockWidget>(parent)
 		if (toplevel) {
 			QMetaObject::invokeMethod(this, [this] { geometryOfNormal = geometry(); }, Qt::QueuedConnection);
 		}
+		setChangeState(true);
+		delayReleaseState();
 	});
 	connect(&mouseReleaseChecker, &QTimer::timeout, this, [this]() {
 		if (!pls_is_mouse_pressed(Qt::LeftButton)) {
 			setMoving(false);
 		}
 	});
+
+	connect(this, &QDockWidget::featuresChanged, this, &PLSDock::onDockFeaturesChanged, Qt::QueuedConnection);
+	onDockFeaturesChanged(features());
+
+	pls_uistep_v2_set_title(this, [this]() { return dockTitle->title(); });
+}
+
+void PLSDock::onDockFeaturesChanged(QDockWidget::DockWidgetFeatures f)
+{
+	if (!dockTitle) {
+		return;
+	}
+	const bool locked = (f == QDockWidget::NoDockWidgetFeatures);
+	dockTitle->setButtonLocked(locked);
 }
 
 bool PLSDock::isMoving() const
@@ -433,8 +497,14 @@ void PLSDock::setMoving(bool moving_)
 
 	if (this->moving) {
 		mouseReleaseChecker.start(100);
+		// Mark layout change so any Show during/after drag (e.g. when floating window appears) does not emit dockReallyShown.
+		setChangeState(true);
+		delayReleaseState();
 	} else {
 		mouseReleaseChecker.stop();
+		// Also mark and delay on release: Show may come after drag-in, and the start-drag timer may have already expired.
+		setChangeState(true);
+		delayReleaseState();
 	}
 }
 
@@ -515,11 +585,17 @@ void PLSDock::delayReleaseState()
 {
 	if (delayTimer == nullptr) {
 		delayTimer = QSharedPointer<QTimer>::create(this);
-		delayTimer->setInterval(500);
+		delayTimer->setInterval(DOCK_LAYOUT_CHANGE_SUPPRESS_MS);
 		delayTimer->setSingleShot(true);
 		connect(delayTimer.data(), &QTimer::timeout, this, [this]() { isChangeTopLevel = false; });
 	}
 	delayTimer->start();
+}
+
+void PLSDock::hideEvent(QHideEvent *event)
+{
+	m_wasHidden = true;
+	PLSWidgetCloseHookQt<QDockWidget>::hideEvent(event);
 }
 
 void PLSDock::closeEvent(QCloseEvent *event)
@@ -550,7 +626,17 @@ bool PLSDock::event(QEvent *event)
 		return PLSWidgetCloseHookQt<QDockWidget>::event(event);
 	case QEvent::ChildAdded:
 		return PLSWidgetCloseHookQt<QDockWidget>::event(event);
-	case QEvent::Show:
+	case QEvent::Show: {
+		const bool reallyShown = !isMoving() && !isChangeTopLevel && (m_wasHidden || !m_hasEverBeenShown);
+		if (reallyShown) {
+			m_wasHidden = false;
+			m_hasEverBeenShown = true;
+			emit dockReallyShown();
+		}
+		pls_async_call(this, [this]() {
+			raise();
+			activateWindow();
+		});
 		if (isFloating()) {
 #if __APPLE__
 			PLSCustomMacWindow::removeMacTitleBar(this);
@@ -559,6 +645,7 @@ bool PLSDock::event(QEvent *event)
 			printChatGeometryLog("PLSDock after fit");
 		}
 		return PLSWidgetCloseHookQt<QDockWidget>::event(event);
+	}
 	default:
 		return PLSWidgetCloseHookQt<QDockWidget>::event(event);
 	}

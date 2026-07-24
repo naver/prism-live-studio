@@ -55,6 +55,9 @@ public:
 	void setCloseButtonVisible(bool visible);
 	void setHasCloseButton(bool has);
 
+	void setButtonLocked(bool locked);
+
+	QString title() const;
 	void updateTitle(const QString &title = QString());
 
 private:
@@ -128,12 +131,16 @@ public:
 
 signals:
 	void doubleClicked();
+	/** Emitted only when the dock is truly shown (user opened from hidden), not during drag/detach/attach. */
+	void dockReallyShown();
 
 private slots:
 	void delayReleaseState();
+	void onDockFeaturesChanged(QDockWidget::DockWidgetFeatures features);
 
 protected:
 	void closeEvent(QCloseEvent *event) override;
+	void hideEvent(QHideEvent *event) override;
 	void paintEvent(QPaintEvent *event) override;
 	bool event(QEvent *event) override;
 	void resizeEvent(QResizeEvent *event) override;
@@ -153,6 +160,8 @@ private:
 	QSharedPointer<QTimer> delayTimer = nullptr;
 	bool isChangeTopLevel = false;
 	QTimer mouseReleaseChecker;
+	bool m_wasHidden = false;
+	bool m_hasEverBeenShown = false;
 
 	friend class PLSDockTitle;
 	friend class PLSWidgetResizeHandler;

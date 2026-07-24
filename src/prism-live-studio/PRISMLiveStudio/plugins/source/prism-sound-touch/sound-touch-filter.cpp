@@ -276,6 +276,8 @@ static bool pitch_model_clicked(obs_properties_t *ppts, obs_property_t *p, void 
 	obs_data_set_bool(privateSettings, "set_default_highlight", false);
 
 	obs_source_update_properties(filter->source);
+
+	pls_on_source_property_updated(filter->source);
 	return true;
 }
 

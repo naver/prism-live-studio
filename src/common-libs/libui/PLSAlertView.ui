@@ -18,7 +18,7 @@
     <number>0</number>
    </property>
    <property name="sizeConstraint">
-    <enum>QLayout::SetMinimumSize</enum>
+    <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
    </property>
    <property name="leftMargin">
     <number>0</number>
@@ -38,21 +38,21 @@
       <number>0</number>
      </property>
      <property name="sizeConstraint">
-      <enum>QLayout::SetMinimumSize</enum>
+      <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
      </property>
      <property name="leftMargin">
-      <number>25</number>
+      <number>24</number>
      </property>
      <property name="topMargin">
       <number>30</number>
      </property>
      <property name="rightMargin">
-      <number>25</number>
+      <number>24</number>
      </property>
      <property name="bottomMargin">
       <number>30</number>
      </property>
-     <item alignment="Qt::AlignVCenter">
+     <item alignment="Qt::AlignmentFlag::AlignVCenter">
       <widget class="QLabel" name="icon">
        <property name="minimumSize">
         <size>
@@ -77,7 +77,7 @@
         <number>0</number>
        </property>
        <property name="sizeConstraint">
-        <enum>QLayout::SetMinimumSize</enum>
+        <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
        </property>
        <property name="leftMargin">
         <number>0</number>
@@ -92,7 +92,7 @@
         <number>0</number>
        </property>
        <item>
-        <widget class="QLabel" name="message">
+        <widget class="PLSHeightFromWidthLabel" name="message">
          <property name="styleSheet">
           <string notr="true"/>
          </property>
@@ -100,7 +100,7 @@
           <string/>
          </property>
          <property name="alignment">
-          <set>Qt::AlignCenter</set>
+          <set>Qt::AlignmentFlag::AlignCenter</set>
          </property>
          <property name="wordWrap">
           <bool>true</bool>
@@ -111,7 +111,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="nameLabel">
+        <widget class="PLSHeightFromWidthLabel" name="nameLabel">
          <property name="minimumSize">
           <size>
            <width>360</width>
@@ -131,7 +131,7 @@
           <string/>
          </property>
          <property name="alignment">
-          <set>Qt::AlignCenter</set>
+          <set>Qt::AlignmentFlag::AlignCenter</set>
          </property>
          <property name="openExternalLinks">
           <bool>true</bool>
@@ -155,7 +155,7 @@
        <number>0</number>
       </property>
       <property name="sizeConstraint">
-       <enum>QLayout::SetMinimumSize</enum>
+       <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
       </property>
       <property name="leftMargin">
        <number>0</number>
@@ -172,10 +172,10 @@
       <item>
        <spacer name="horizontalSpacer">
         <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+         <enum>Qt::Orientation::Horizontal</enum>
         </property>
         <property name="sizeType">
-         <enum>QSizePolicy::Expanding</enum>
+         <enum>QSizePolicy::Policy::Expanding</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
@@ -194,17 +194,17 @@
          </sizepolicy>
         </property>
         <property name="standardButtons">
-         <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+         <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
         </property>
        </widget>
       </item>
       <item>
        <spacer name="horizontalSpacer_2">
         <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+         <enum>Qt::Orientation::Horizontal</enum>
         </property>
         <property name="sizeType">
-         <enum>QSizePolicy::Expanding</enum>
+         <enum>QSizePolicy::Policy::Expanding</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
@@ -224,6 +224,11 @@
    <class>PLSDialogButtonBox</class>
    <extends>QDialogButtonBox</extends>
    <header>PLSDialogButtonBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSHeightFromWidthLabel</class>
+   <extends>QLabel</extends>
+   <header>PLSLabel.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

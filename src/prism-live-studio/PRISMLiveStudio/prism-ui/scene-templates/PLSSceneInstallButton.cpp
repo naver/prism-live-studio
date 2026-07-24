@@ -59,3 +59,9 @@ void PLSSceneInstallButton::endInstall()
 	bringWindowToTop(App()->getMainView());
 #endif
 }
+
+void PLSSceneInstallButton::setEnableState(bool enable)
+{
+	setEnabled(enable);
+	pls_flush_style(ui->installLabel, "enable", enable);
+}

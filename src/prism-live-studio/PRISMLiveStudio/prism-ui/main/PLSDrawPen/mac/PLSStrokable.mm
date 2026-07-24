@@ -9,6 +9,28 @@
 
 #import <AppKit/AppKit.h>
 
+// Brush smoothing was removed; use the raw stroke points as-is, connected by
+// straight (degenerate cubic bezier) segments so PLSStrokeBase's drawing code
+// keeps working unchanged.
+static void pls_build_raw_ctrl_pts(std::vector<PointF> &ctrlPts, const std::vector<PointF> &points)
+{
+	if (points.empty()) {
+		return;
+	}
+	if (points.size() == 1) {
+		for (int i = 0; i < 4; i++) {
+			ctrlPts.push_back(points[0]);
+		}
+		return;
+	}
+	for (size_t i = 0; i + 1 < points.size(); i++) {
+		ctrlPts.push_back(points[i]);
+		ctrlPts.push_back(points[i]);
+		ctrlPts.push_back(points[i + 1]);
+		ctrlPts.push_back(points[i + 1]);
+	}
+}
+
 // MARK: - PLSStrokeAction
 
 @implementation PLSStrokeAction
@@ -127,53 +149,53 @@
 
 - (void)beginFrom:(NSPoint)point
 {
-    PointF p;
-    p.x = point.x;
-    p.y = point.y;
-    self->_points->push_back(p);
-    if (self.useCtrlPoints) {
-        self->_ctrlPoints->clear();
-		*_ctrlPoints = *_points;
-    }
-    
-    if (_checkErasePath) {
-        CGPathRelease(_checkErasePath);
-        _checkErasePath = NULL;
-    }
+	PointF p;
+	p.x = point.x;
+	p.y = point.y;
+	self->_points->push_back(p);
+	if (self.useCtrlPoints) {
+		self->_ctrlPoints->clear();
+		pls_build_raw_ctrl_pts(*_ctrlPoints, *_points);
+	}
+
+	if (_checkErasePath) {
+		CGPathRelease(_checkErasePath);
+		_checkErasePath = NULL;
+	}
 }
 
 - (BOOL)moveToPoint:(NSPoint)point
 {
-    size_t size = self->_points->size();
-    if (size > 0 && self->_points->at(size - 1).x == point.x && self->_points->at(size - 1).y == point.y) {
-        return FALSE;
-    }
-    PointF p;
-    p.x = point.x;
-    p.y = point.y;
-    self->_points->push_back(p);
-    if (self.useCtrlPoints) {
-        self->_ctrlPoints->clear();
-		*_ctrlPoints = *_points;
-    }
-    return TRUE;
+	size_t size = self->_points->size();
+	if (size > 0 && self->_points->at(size - 1).x == point.x && self->_points->at(size - 1).y == point.y) {
+		return FALSE;
+	}
+	PointF p;
+	p.x = point.x;
+	p.y = point.y;
+	self->_points->push_back(p);
+	if (self.useCtrlPoints) {
+		self->_ctrlPoints->clear();
+		pls_build_raw_ctrl_pts(*_ctrlPoints, *_points);
+	}
+	return TRUE;
 }
 
 - (void)endTo:(NSPoint)point
 {
-    PointF p;
-    p.x = point.x;
-    p.y = point.y;
-    self->_points->push_back(p);
-    if (self.useCtrlPoints) {
-        self->_ctrlPoints->clear();
-		*_ctrlPoints = *_points;
-    }
-    
-    if (_checkErasePath) {
-        CGPathRelease(_checkErasePath);
-        _checkErasePath = NULL;
-    }
+	PointF p;
+	p.x = point.x;
+	p.y = point.y;
+	self->_points->push_back(p);
+	if (self.useCtrlPoints) {
+		self->_ctrlPoints->clear();
+		pls_build_raw_ctrl_pts(*_ctrlPoints, *_points);
+	}
+
+	if (_checkErasePath) {
+		CGPathRelease(_checkErasePath);
+		_checkErasePath = NULL;
+	}
 }
 
 - (void)increaseEraseCount

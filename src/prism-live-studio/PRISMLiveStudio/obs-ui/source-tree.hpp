@@ -78,12 +78,14 @@ public:
 
 	void OnMouseStatusChanged(const char *s);
 	void UpdateIndicator(IndicatorType type);
+	void UpdateSourceUI();
 
 	// only refresh selected ui for group item in dual output
 	void SelectGroupItem(bool selected);
 	void resetMousePressed(bool mousePressed);
 	bool getMousePressed();
 	bool checkItemSelected(bool horSelected);
+	SourceTreeItem *getItemWidget(OBSSceneItem item);
 
 private:
 	QSpacerItem *spacer = nullptr;
@@ -132,7 +134,7 @@ private slots:
 	void EnterEditMode();
 	void ExitEditMode(bool save);
 
-	void HorVisibilityChanged(bool visible);
+	void VisibilityChanged(bool visible);
 	void VerVisibilityChanged(bool visible);
 	void LockedChanged(bool locked);
 
@@ -144,8 +146,12 @@ private slots:
 
 	void OnSourceScrollShow(bool isShow);
 
-	void UpdateNameColor(bool selected, bool visible);
-	void UpdateIcon(bool visible);
+	void UpdateNameColor(bool visible, bool invalid);
+	void UpdateIcon(bool visible, bool invalid);
+	void updateSourceLabelInvalidUI(bool visible, bool invalid);
+	void updateSourceInvalidUI(bool visible, bool invalid);
+	void updateSceneitemUIStatus(bool visible);
+	bool getSceneitemVisible(OBSSceneItem horItem);
 };
 
 class SourceTreeModel : public QAbstractListModel {
@@ -253,6 +259,7 @@ class SourceTree : public QListView {
 	void ResetWidgets();
 	void UpdateWidget(const QModelIndex &idx, obs_sceneitem_t *item);
 	void UpdateWidgets(bool force = false);
+	void updateGeometry(const QModelIndex &idx, SourceTreeItem *item);
 
 	inline SourceTreeModel *GetStm() const { return reinterpret_cast<SourceTreeModel *>(model()); }
 	void NotifyItemSelect(obs_sceneitem_t *sceneitem, bool select);
@@ -290,6 +297,7 @@ public:
 	bool CheckGroupAllItemSelected(obs_sceneitem_t *sceneitem);
 	void SetGroupAllItemSelected(obs_sceneitem_t *sceneitem);
 	void CheckGroupItemUnselectStatus(obs_sceneitem_t *sceneitem);
+	void UpdateGroupSelected();
 
 	void UpdateIcons() const;
 	void SetIconsVisible(bool visible);
@@ -298,6 +306,7 @@ public:
 	QVector<OBSSceneItem> GetItems() const;
 
 	void ResetDragOver();
+	void ClearHoverExcept(SourceTreeItem *exceptItem);
 	bool GetDestGroupItem(QPoint pos, obs_sceneitem_t *&item_output) const;
 	bool CheckDragSceneToGroup(const obs_sceneitem_t *dragItem, const obs_sceneitem_t *destGroupItem) const;
 	bool IsValidDrag(obs_sceneitem_t *destGroupItem, QVector<OBSSceneItem> items) const;
@@ -338,6 +347,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *event) override;
 	void leaveEvent(QEvent *event) override;
 	virtual void paintEvent(QPaintEvent *event) override;
+	void startDrag(Qt::DropActions supportedActions) override;
 
 	virtual void selectionChanged(const QItemSelection &selected, const QItemSelection &deselected) override;
 signals:

@@ -72,6 +72,10 @@ static const float BG_COLOR_B = BG_COLOR_R;
 static const float BG_COLOR_A = 0.8f;
 
 static constexpr auto IS_LOOP = "is_loop";
+static constexpr auto LOOP_MODE = "loopMode";
+static constexpr auto LOOP_ALL = "LoopAll";
+static constexpr auto LOOP_ONE = "LoopOne";
+static constexpr auto NO_LOOP = "NoLoop";
 static constexpr auto IS_SHOW = "is_show";
 static constexpr auto SCENE_ENABLE = "scene enable";
 static constexpr auto MUSIC = "music";
@@ -174,6 +178,7 @@ struct prism_bgm_source {
 	bool restart{false};
 
 	bool set_auto_pause{false};
+	bool auto_play_next{false};
 
 	string valid_font_name{};
 	std::set<string, std::less<>> played_urls;
@@ -333,6 +338,9 @@ bgm_url_info get_current_url_info(const struct prism_bgm_source *source)
 {
 	for (const auto &url : source->urls) {
 		if (url.url == source->playing_url && url.duration_type == source->playing_id) {
+			if (url.is_disable) {
+				return {};
+			}
 			return url;
 		}
 	}
@@ -373,7 +381,7 @@ static void media_state_changed(obs_media_state state, void *data, calldata_t *c
 		return;
 
 	PLS_PLUGIN_INFO("bgm: receive media state changed from source: %p, state:[%d] %s .", source, state, get_state_string(state));
-
+	PLS_UI_ACTION("bgm: receive media state changed from source: %p, state:[%d] %s .", source, state, get_state_string(state));
 	if (state == OBS_MEDIA_STATE_STOPPED || state == OBS_MEDIA_STATE_ENDED) {
 		if (!source->real_stop) {
 			bgm_url_info current = get_current_url_info(source);
@@ -385,6 +393,7 @@ static void media_state_changed(obs_media_state state, void *data, calldata_t *c
 				pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_STATE_CHANGED, state);
 				return;
 			}
+			source->auto_play_next = true;
 			prism_bgm_switch_to_next_song(source);
 			return;
 		} else {
@@ -404,6 +413,8 @@ static void media_state_changed(obs_media_state state, void *data, calldata_t *c
 		obs_data_t *settings = obs_source_get_settings(source->source);
 		obs_source_update(source->source, settings);
 		obs_data_release(settings);
+	} else if (state == OBS_MEDIA_STATE_PLAYING && source->playing_url.empty()) {
+		return;
 	}
 	pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_STATE_CHANGED, state);
 }
@@ -509,23 +520,35 @@ std::vector<bgm_url_info> get_unplayed_url(const struct prism_bgm_source *source
 	return unplayed_url;
 }
 
-static bgm_url_info get_next_available_song_in_playorder_mode_with_loop(const struct prism_bgm_source *source)
+static bgm_url_info get_next_available_song_in_playorder_mode_with_loop(struct prism_bgm_source *source)
 {
 	vector<bgm_url_info> urls = source->urls;
 	for (const auto &url : urls) {
 		if (url.is_disable) {
 			continue;
 		}
-
 		return url;
 	}
 	return bgm_url_info();
 }
 
-static bgm_url_info switch_to_next_song_in_playorder_mode(const struct prism_bgm_source *source, bool loop)
+static bgm_url_info switch_to_next_on_loop_one_mode(struct prism_bgm_source *source)
+{
+	auto data = get_current_url_info(source);
+	if (data.title.empty()) {
+		return get_next_available_song_in_playorder_mode_with_loop(source);
+	}
+	return data;
+}
+
+static bgm_url_info switch_to_next_song_in_playorder_mode(struct prism_bgm_source *source, bool loop, const char *loopMode)
 {
 	if (!source) {
 		return bgm_url_info();
+	}
+
+	if (pls_is_equal(loopMode, LOOP_ONE) && source->auto_play_next) {
+		return switch_to_next_on_loop_one_mode(source);
 	}
 
 	vector<bgm_url_info> urls = source->urls;
@@ -541,7 +564,6 @@ static bgm_url_info switch_to_next_song_in_playorder_mode(const struct prism_bgm
 		if (info.is_disable || info.is_current) {
 			continue;
 		}
-
 		return info;
 	}
 
@@ -551,7 +573,6 @@ static bgm_url_info switch_to_next_song_in_playorder_mode(const struct prism_bgm
 		}
 		return bgm_url_info();
 	}
-
 	return bgm_url_info();
 }
 
@@ -572,10 +593,14 @@ static vector<bgm_url_info> get_available_song_in_random_mode_with_loop(const st
 	return available_urls;
 }
 
-static bgm_url_info switch_to_next_song_in_random_mode(struct prism_bgm_source *source, bool loop)
+static bgm_url_info switch_to_next_song_in_random_mode(struct prism_bgm_source *source, bool loop, const char *loopMode)
 {
 	if (!source) {
 		return bgm_url_info();
+	}
+
+	if (pls_is_equal(loopMode, LOOP_ONE) && source->auto_play_next) {
+		return switch_to_next_on_loop_one_mode(source);
 	}
 
 	std::vector<bgm_url_info> unplayed_urls = get_unplayed_url(source);
@@ -624,6 +649,7 @@ static void without_loop(prism_bgm_source *source)
 			clear_current_url_info(source);
 			source->played_urls.clear();
 			source->real_stop = true;
+			pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_STATE_CHANGED, state);
 			push_back_queue_url(source, latest_url());
 		} else if (state == OBS_MEDIA_STATE_ERROR) {
 			clear_current_url_info(source);
@@ -651,13 +677,14 @@ static void prism_bgm_switch_to_next_song(void *data)
 	bgm_url_info next_song_info{};
 	obs_data_t *private_settings = obs_source_get_private_settings(source->source);
 	bool loop = obs_data_get_bool(private_settings, IS_LOOP);
+	string loopMode = obs_data_get_string(private_settings, LOOP_MODE);
 	bool play_in_order = obs_data_get_bool(private_settings, PLAY_IN_ORDER);
 	if (play_in_order) {
-		next_song_info = switch_to_next_song_in_playorder_mode(source, loop);
+		next_song_info = switch_to_next_song_in_playorder_mode(source, loop, loopMode.c_str());
 	} else {
-		next_song_info = switch_to_next_song_in_random_mode(source, loop);
+		next_song_info = switch_to_next_song_in_random_mode(source, loop, loopMode.c_str());
 	}
-
+	source->auto_play_next = false;
 	// next song was same with playing songs
 	// 1: only one song with loop and removing it : stop playing music.
 	// 2: only one song without out loop: ignore.
@@ -681,7 +708,7 @@ static void prism_bgm_switch_to_next_song(void *data)
 		if (!loop) {
 			obs_data_release(private_settings);
 			return;
-		} else {
+		} else if (loopMode == LOOP_ALL) {
 			obs_media_state state = obs_source_media_get_state(source->source);
 			if (state == OBS_MEDIA_STATE_PAUSED || state == OBS_MEDIA_STATE_PLAYING) {
 				obs_data_release(private_settings);
@@ -715,12 +742,15 @@ static bgm_url_info get_previous_available_song_in_playorder_mode_with_loop(stru
 	return bgm_url_info();
 }
 
-static bgm_url_info switch_to_previous_song_in_playorder_mode(struct prism_bgm_source *source, bool loop)
+static bgm_url_info switch_to_previous_song_in_playorder_mode(struct prism_bgm_source *source, bool loop, const char *loopMode)
 {
 	if (!source) {
 		return bgm_url_info();
 	}
 
+	if (pls_is_equal(loopMode, LOOP_ONE) && source->auto_play_next) {
+		return switch_to_next_on_loop_one_mode(source);
+	}
 	vector<bgm_url_info> previous_urls;
 	for (const auto &data : source->urls) {
 		if (!data.is_current) {
@@ -747,20 +777,22 @@ static void prism_bgm_switch_to_previous_song(void *data)
 	bgm_url_info previous_song_info{};
 	obs_data_t *private_settings = obs_source_get_private_settings(source->source);
 	bool loop = obs_data_get_bool(private_settings, IS_LOOP);
+	auto loopMode = obs_data_get_string(private_settings, LOOP_MODE);
 	bool play_in_order = obs_data_get_bool(private_settings, PLAY_IN_ORDER);
 	if (play_in_order) {
-		previous_song_info = switch_to_previous_song_in_playorder_mode(source, loop);
+		previous_song_info = switch_to_previous_song_in_playorder_mode(source, loop, loopMode);
 	} else {
-		previous_song_info = switch_to_next_song_in_random_mode(source, loop);
+		previous_song_info = switch_to_next_song_in_random_mode(source, loop, loopMode);
 	}
-
 	if (previous_song_info.url == source->select_music && previous_song_info.duration_type == source->select_id) {
 		bool is_random_mode = obs_data_get_bool(private_settings, RANDOM_PLAY);
 		if (is_random_mode) {
 			source->played_urls.insert(source->select_music + source->select_id);
 		}
 		obs_data_release(private_settings);
-		return;
+		if (!pls_is_equal(loopMode, LOOP_ONE)) {
+			return;
+		}
 	}
 
 	if (previous_song_info.url.empty()) {
@@ -801,8 +833,10 @@ static void bgm_source_start(struct prism_bgm_source *s)
 		return;
 	}
 
+	bool isLoopOne = pls_is_equal(obs_data_get_string(settings, LOOP_MODE), LOOP_ONE);
+
 	obs_media_state state = obs_source_media_get_state(s->media_source);
-	if (!changed && state == OBS_MEDIA_STATE_PLAYING) {
+	if (!changed && state == OBS_MEDIA_STATE_PLAYING && !isLoopOne) {
 		obs_source_media_play_pause(s->source, true);
 		obs_data_release(settings);
 		return;
@@ -1011,6 +1045,7 @@ static void prism_bgm_defaults(obs_data_t *settings)
 	obs_data_release(font_obj);
 
 	obs_data_set_default_bool(settings, IS_LOOP, true);
+	obs_data_set_default_string(settings, LOOP_MODE, LOOP_ALL);
 	obs_data_set_default_bool(settings, IS_SHOW, false);
 	obs_data_set_default_bool(settings, SCENE_ENABLE, false);
 	obs_data_set_default_bool(settings, PLAY_IN_ORDER, true);
@@ -1536,7 +1571,9 @@ static void prism_bgm_tick(void *data, float)
 		obs_source_update(source->source, settings);
 
 		if (url.url.empty()) {
-			pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_STATE_CHANGED, OBS_MEDIA_STATE_STOPPED);
+			if (OBS_MEDIA_STATE_ENDED != obs_source_media_get_state(source->media_source)) {
+				pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_STATE_CHANGED, OBS_MEDIA_STATE_ENDED);
+			}
 			erase_queue_first_url(source);
 		}
 	}
@@ -1620,22 +1657,34 @@ static void prism_bgm_render(void *data, gs_effect_t *effect_)
 	if (!source->is_show || source->select_title.empty() || source->select_producer.empty()) {
 		return;
 	}
-
+	pls_on_source_property_render(source->source, 0);
 	gs_blend_state_push();
 	gs_reset_blend_state();
 
 	const gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	gs_technique_t *tech = gs_effect_get_technique(effect, "Draw");
 
+	const bool nonlinear_fade = gs_get_color_space() == GS_CS_SRGB;
+	const bool previous = gs_framebuffer_srgb_enabled();
+	gs_enable_framebuffer_srgb(!nonlinear_fade);
+
 	gs_technique_begin(tech);
 	gs_technique_begin_pass(tech, 0);
-	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), source->output_texture);
+
+	auto param = gs_effect_get_param_by_name(effect, "image");
+	if (nonlinear_fade) {
+		gs_effect_set_texture(param, source->output_texture);
+	} else {
+		gs_effect_set_texture_srgb(param, source->output_texture);
+	}
+
 	gs_draw_sprite(source->output_texture, 0, source->output_width, source->output_height);
 
 	gs_technique_end_pass(tech);
 	gs_technique_end(tech);
 
 	gs_blend_state_pop();
+	gs_enable_framebuffer_srgb(previous);
 }
 
 static uint32_t prism_bgm_width(void *data)
@@ -1655,6 +1704,7 @@ static void prism_bgm_play_pause(void *data, bool pause)
 {
 	auto source = static_cast<prism_bgm_source *>(data);
 	obs_source_media_play_pause(source->media_source, pause);
+	pls_on_source_property_updated(source->source);
 }
 
 static void prism_bgm_stop(void *data)
@@ -1671,6 +1721,7 @@ static void bgm_bgm_restart(void *data)
 
 	obs_data_t *settings = obs_source_get_settings(s->source);
 	obs_source_update(s->source, settings);
+	pls_on_source_property_updated(s->source);
 	obs_data_release(settings);
 }
 
@@ -1844,6 +1895,7 @@ static void create_media_source(struct prism_bgm_source *source)
 	obs_data_set_bool(ffmpeg_settings, "looping", false);
 
 	source->media_source = obs_source_create_private("ffmpeg_source", "prism_bgm_play_source", ffmpeg_settings);
+	pls_set_action_parent(source->media_source, source->source);
 	obs_source_add_audio_capture_callback(source->media_source, audio_capture, source);
 
 	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_load", media_load, source);
@@ -2114,6 +2166,8 @@ static void bgm_loop(struct prism_bgm_source *source, obs_data_t *private_data)
 	obs_data_t *settings = obs_source_get_private_settings(source->source);
 	bool is_loop = obs_data_get_bool(private_data, IS_LOOP);
 	obs_data_set_bool(settings, IS_LOOP, is_loop);
+	auto loopModeStr = obs_data_get_string(private_data, LOOP_MODE);
+	obs_data_set_string(settings, LOOP_MODE, loopModeStr);
 
 	source->played_urls.clear();
 
@@ -2124,7 +2178,14 @@ static void bgm_loop(struct prism_bgm_source *source, obs_data_t *private_data)
 		source->played_urls.insert(source->select_music + source->select_id);
 	}
 
-	pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_LOOP_STATE_CHANGED, static_cast<int>(is_loop));
+	int loopMode = 0;
+	if (pls_is_equal(loopModeStr, LOOP_ONE)) {
+		loopMode = 1;
+	} else if (pls_is_equal(loopModeStr, NO_LOOP)) {
+		loopMode = 2;
+	}
+
+	pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_LOOP_STATE_CHANGED, loopMode);
 }
 
 static void bgm_play_mode(struct prism_bgm_source *source, obs_data_t *private_data)
@@ -2177,6 +2238,7 @@ static void bgm_disable(struct prism_bgm_source *source, obs_data_t *private_dat
 
 	bool gotoNext = obs_data_get_bool(private_data, "goto_next_songs");
 	if (gotoNext) {
+		source->auto_play_next = true;
 		prism_bgm_switch_to_next_song(source);
 	}
 }
@@ -2213,6 +2275,27 @@ static void bgm_update_cover_path(struct prism_bgm_source *source, obs_data_t *p
 	update_source_settings_playlist_data(source);
 }
 
+static void bgm_visible(struct prism_bgm_source *source, obs_data_t *private_data)
+{
+	auto state = obs_source_media_get_state(source->media_source);
+	bool isPaused = state == OBS_MEDIA_STATE_PAUSED;
+	bool isPlaying = state == OBS_MEDIA_STATE_PLAYING;
+	if (!isPaused && !isPlaying) {
+		return;
+	}
+
+	bool visible = obs_data_get_bool(private_data, "visible");
+	if (visible && isPaused) {
+		if (source->set_auto_pause) {
+			obs_source_media_play_pause(source->media_source, false);
+			source->set_auto_pause = false;
+		}
+	} else if (!visible && isPlaying) {
+		obs_source_media_play_pause(source->media_source, true);
+		source->set_auto_pause = true;
+	}
+}
+
 static void prism_bgm_set_private_data(void *data, obs_data_t *private_data)
 {
 	auto source = static_cast<prism_bgm_source *>(data);
@@ -2239,6 +2322,8 @@ static void prism_bgm_set_private_data(void *data, obs_data_t *private_data)
 	} else if (method == "bgm_get_opening") {
 		bgm_erase_queue_first_url(source);
 		source->restart = false;
+	} else if (method == "bgm_visible") {
+		bgm_visible(source, private_data);
 	}
 }
 
@@ -2273,6 +2358,7 @@ static void prism_bgm_get_private_data(void *data, obs_data_t *private_data)
 
 		obs_data_set_bool(private_data, IS_SHOW, obs_data_get_bool(settings, IS_SHOW));
 		obs_data_set_bool(private_data, IS_LOOP, obs_data_get_bool(settings, IS_LOOP));
+		obs_data_set_string(private_data, LOOP_MODE, obs_data_get_string(settings, LOOP_MODE));
 		obs_data_set_bool(private_data, PLAY_IN_ORDER, obs_data_get_bool(settings, PLAY_IN_ORDER));
 		obs_data_set_bool(private_data, RANDOM_PLAY, obs_data_get_bool(settings, RANDOM_PLAY));
 		obs_data_release(settings);
@@ -2299,6 +2385,7 @@ static OBSDataAutoRelease prism_bgm_get_props_params(void *data)
 	auto pSource = static_cast<prism_bgm_source *>(data);
 	obs_data_t *private_settings = obs_source_get_private_settings(pSource->source);
 	bool loop = obs_data_get_bool(private_settings, IS_LOOP);
+	auto loopMode = obs_data_get_string(private_settings, LOOP_MODE);
 	bool play_in_order = obs_data_get_bool(private_settings, PLAY_IN_ORDER);
 	bool is_random = obs_data_get_bool(private_settings, RANDOM_PLAY);
 	bool is_enable = obs_data_get_bool(private_settings, SCENE_ENABLE);
@@ -2306,6 +2393,7 @@ static OBSDataAutoRelease prism_bgm_get_props_params(void *data)
 
 	OBSDataAutoRelease params = obs_data_create();
 	obs_data_set_bool(params, IS_LOOP, loop);
+	obs_data_set_string(params, LOOP_MODE, loopMode);
 	obs_data_set_bool(params, PLAY_IN_ORDER, play_in_order);
 	obs_data_set_bool(params, RANDOM_PLAY, is_random);
 	obs_data_set_bool(params, SCENE_ENABLE, is_enable);

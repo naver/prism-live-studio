@@ -1,0 +1,152 @@
+{
+    "data": [
+        {
+            "api": {
+                "errorCode": "-1"
+            },
+            "err": {
+                "prismCode": 57999,
+                "prismName": "PRISM_OUTPUT_BAD_PATH",
+                "msgKey": "Output.ConnectFail.BadPath",
+                "title": "Output.ConnectFail.Title",
+                "msgText": "Invalid Path or Connection URL. Please check your settings to confirm that they are valid."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-2"
+            },
+            "err": {
+                "prismCode": 57998,
+                "prismName": "PRISM_OUTPUT_CONNECT_FAILED",
+                "msgKey": "Output.ConnectFail.ConnectFailed",
+                "title": "Output.ConnectFail.Title",
+                "msgText": "Failed to connect to server",
+                "alertType": "Normal_Code_Blog"
+            },
+            "alert": {
+                "normal": {
+                    "blogText": "Live.Button.View.Help",
+                    "blogLink": "https://guide.prismlive.com/desktop/guides/error-solution/streaming/failed-to-connect-to-the-server"
+                }
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-3"
+            },
+            "err": {
+                "prismCode": 57997,
+                "prismName": "PRISM_OUTPUT_INVALID_STREAM",
+                "msgKey": "Output.ConnectFail.InvalidStream",
+                "title": "Output.ConnectFail.Title",
+                "msgText": "Could not access the specified channel or stream key, please double-check your stream key. If it is correct, there may be a problem connecting to the server.",
+                "alertType": "Normal_Code_Blog"
+            },
+            "alert": {
+                "normal": {
+                    "blogText": "Live.Button.View.Help",
+                    "blogLink": "https://guide.prismlive.com/desktop/guides/error-solution/streaming/how-to-fix-rtmp-streaming-errors"
+                }
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-4"
+            },
+            "err": {
+                "prismCode": 57996,
+                "prismName": "PRISM_OUTPUT_ERROR",
+                "msgKey": "Output.ConnectFail.Error",
+                "title": "Output.ConnectFail.Title",
+                "msgText": "An unexpected error occurred when trying to connect to the server. More information in the log file."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-5"
+            },
+            "err": {
+                "prismCode": 57995,
+                "prismName": "PRISM_OUTPUT_DISCONNECTED",
+                "msgKey": "Output.ConnectFail.Disconnected",
+                "title": "Output.ConnectFail.Title",
+                "msgText": "Disconnected from server.",
+                "alertType": "Normal_Code_Blog"
+            },
+            "alert": {
+                "normal": {
+                    "blogText": "Live.Button.View.Help",
+                    "blogLink": "https://guide.prismlive.com/desktop/guides/error-solution/streaming/disconnected-from-server"
+                }
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-6"
+            },
+            "err": {
+                "prismCode": 57994,
+                "prismName": "PRISM_OUTPUT_UNSUPPORTED",
+                "msgKey": "Output.RecordFail.Unsupported",
+                "title": "Output.RecordFail.Title",
+                "msgText": "The output format is either unsupported or does not support more than one audio track. Please check your settings and try again."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-7"
+            },
+            "err": {
+                "prismCode": 57993,
+                "prismName": "PRISM_OUTPUT_NO_SPACE",
+                "msgKey": "Output.RecordNoSpace.Msg",
+                "title": "Output.RecordNoSpace.Title",
+                "msgText": "There is not sufficient disk space to continue recording."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-8"
+            },
+            "err": {
+                "prismCode": 57992,
+                "prismName": "PRISM_OUTPUT_ENCODE_ERROR",
+                "msgKey": "Output.StreamEncodeError.Msg",
+                "title": "Output.StreamEncodeError.Title",
+                "msgText": "An encoder error occurred while streaming"
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-8",
+                "hasErrorCode": "1"
+            },
+            "err": {
+                "prismCode": 57992,
+                "prismName": "PRISM_OUTPUT_ENCODE_ERROR",
+                "msgKey": "Output.StreamEncodeError.Msg.LastError",
+                "arg": "{{arg_lastError}}",
+                "title": "Output.StreamEncodeError.Title",
+                "msgText": "An encoder error occurred while streaming:%1"
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-9"
+            },
+            "err": {
+                "prismCode": 57991,
+                "prismName": "PRISM_OUTPUT_HDR_DISABLED",
+                "msgKey": "Output.ConnectFail.HdrDisabled",
+                "title": "Output.ConnectFail.Title",
+                "msgText": "HDR output is currently disabled for this output."
+            }
+        }
+    ],
+    "extra": {
+        "append": [
+            "{{lastError}}"
+        ]
+    }
+}

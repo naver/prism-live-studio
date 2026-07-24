@@ -53,7 +53,7 @@ PLSLiveInfoFacebook #shareSecondObject:checked{
 
 PLSLiveInfoFacebook #shareFirstObject:disabled,
 PLSLiveInfoFacebook #shareSecondObject:disabled{
-	background-color: #373737;
+	background-color: #444444;
 }
 
 PLSLiveInfoFacebook #titleField {

@@ -20,9 +20,23 @@ const char *const s_ChatStatusSelect = "select";
 
 const char *const s_fontSessionName = "PLSChatFontZoom";
 const char *const s_fontSessionKey = "scale";
+constexpr auto CHAT_WEB_PATH = "PRISMLiveStudio/resources/library/library_Policy_PC/chat/";
 static QString getChatUrl(const QString &name)
 {
-	return "";
+	QString fullName = pls_get_user_path(CHAT_WEB_PATH + name);
+	if (!QFile::exists(fullName)) {
+		QDir appDir(QCoreApplication::applicationDirPath());
+
+#if defined(Q_OS_WIN)
+		fullName = QString("../../data/prism-studio/chat/").append(name);
+#elif defined(Q_OS_MACOS)
+		fullName = QString("../Resources/data/prism-studio/chat/").append(name);
+#endif
+		fullName = appDir.absoluteFilePath(fullName);
+	}
+
+	auto fullUrl = QUrl::fromLocalFile(fullName).toString();
+	return fullUrl;
 }
 
 PLSChatHelper *PLSChatHelper::instance()
@@ -99,45 +113,21 @@ static QString getChatTabImagePath(const QString &objectName, const QString &pla
 #define GET_IMAGE_PATH(Type) getChatTabImagePath(objectName, platName, platNameNoLower, Type)
 QString PLSChatHelper::getTabButtonCss(const QString &objectName, const QString &platName, const QString &platNameNoLower) const
 {
-	auto img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offNormal);
-	auto shNormal = QString(R"(PLSChatDialog #%1 {image:url("%2");})").arg(objectName).arg(img);
+	const auto imgOnNormal = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onNormal);
+	QString styleSheet;
+	styleSheet.reserve(1024);
+	auto appendRule = [&](const QString &sel, const QString &img) { styleSheet += "PLSChatDialog #" + objectName + sel + " {image:url(\"" + img + "\");}"; };
 
-	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offDisable);
-	QString shDisable = QString(R"(PLSChatDialog #%1:disable {image:url("%3");})").arg(objectName).arg(img);
-
-	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onNormal);
-	auto shSelect = QString(R"(PLSChatDialog #%1[status=%2] {image:url("%3");})").arg(objectName).arg(s_ChatStatusSelect).arg(img);
-
-	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onNormal);
-	auto shOnlyOne = QString(R"(PLSChatDialog #%1[status=%2] {image:url("%3");})").arg(objectName).arg(s_ChatStatusOnlyOne).arg(img);
-
-	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onNormal);
-	auto shOnlyOneHover = QString(R"(PLSChatDialog #%1[status=%2]:hover {image:url("%3");})").arg(objectName).arg(s_ChatStatusOnlyOne).arg(img);
-
-	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onNormal);
-	auto shOnlyOnePressed = QString(R"(PLSChatDialog #%1[status=%2]:pressed {image:url("%3");})").arg(objectName).arg(s_ChatStatusOnlyOne).arg(img);
-
-	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onHover);
-	auto shSelectHover = QString(R"(PLSChatDialog #%1[status=%2]:hover {image:url("%3");})").arg(objectName).arg(s_ChatStatusSelect).arg(img);
-
-	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onClick);
-	auto shSelectPressed = QString(R"(PLSChatDialog #%1[status=%2]:pressed {image:url("%3");})").arg(objectName).arg(s_ChatStatusSelect).arg(img);
-
-	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offHover);
-	auto shNormalHover = QString(R"(PLSChatDialog #%1[status=%2]:hover {image:url("%3");})").arg(objectName).arg(s_ChatStatusNormal).arg(img);
-
-	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offClick);
-	auto shNormalPressed = QString(R"(PLSChatDialog #%1[status=%2]:pressed {image:url("%3");})").arg(objectName).arg(s_ChatStatusNormal).arg(img);
-
-	QString styleSheet = shNormal.append(shDisable)
-				     .append(shSelect)
-				     .append(shOnlyOne)
-				     .append(shOnlyOneHover)
-				     .append(shOnlyOnePressed)
-				     .append(shSelectHover)
-				     .append(shSelectPressed)
-				     .append(shNormalHover)
-				     .append(shNormalPressed);
+	appendRule("", GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offNormal));
+	appendRule(":disabled", GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offDisable));
+	appendRule(QString("[status=%1]").arg(s_ChatStatusSelect), imgOnNormal);
+	appendRule(QString("[status=%1]").arg(s_ChatStatusOnlyOne), imgOnNormal);
+	appendRule(QString("[status=%1]:hover").arg(s_ChatStatusOnlyOne), imgOnNormal);
+	appendRule(QString("[status=%1]:pressed").arg(s_ChatStatusOnlyOne), imgOnNormal);
+	appendRule(QString("[status=%1]:hover").arg(s_ChatStatusSelect), GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onHover));
+	appendRule(QString("[status=%1]:pressed").arg(s_ChatStatusSelect), GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onClick));
+	appendRule(QString("[status=%1]:hover").arg(s_ChatStatusNormal), GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offHover));
+	appendRule(QString("[status=%1]:pressed").arg(s_ChatStatusNormal), GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offClick));
 	//	qDebug() << "\n" << styleSheet << "\n";
 	return styleSheet;
 }
@@ -454,9 +444,6 @@ std::string PLSChatHelper::getChatUrlWithIndex(int index, const QVariantMap &inf
 	default:
 		break;
 	}
-	if (QString::fromStdString(showUrl).contains(".html")) {
-			return "https://prismlive.com";
-		}
 	return showUrl;
 }
 
@@ -625,9 +612,9 @@ QString PLSChatHelper::getDispatchJS(int index, const QString &url)
 
 QString PLSChatHelper::getYoutubeDisableBackupJS()
 {
-	QString downloadPath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/youtube_add_login_btn.js"));
+	QString downloadPath = PLS_RSM_getLibraryPolicy_Path(QStringLiteral("Library_Policy_PC/youtube_add_login_btn.js"));
 
-	QByteArray jsData =	pls_read_data(downloadPath);
+	QByteArray jsData = pls_read_data(downloadPath);
 	if (!jsData.isEmpty()) {
 		return jsData;
 	}
@@ -638,5 +625,5 @@ QString PLSChatHelper::getYoutubeDisableBackupJS()
 #elif defined(Q_OS_MACOS)
 	path = QString("../Resources/data/prism-studio/webpage/youtube_add_login_btn.js");
 #endif
-	return pls_read_data(path);;
+	return pls_read_data(path);
 }

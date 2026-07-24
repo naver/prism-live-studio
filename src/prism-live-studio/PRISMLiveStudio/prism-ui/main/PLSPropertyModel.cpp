@@ -50,6 +50,9 @@ pls::ITemplateListPropertyModel::IButtonGroup *PLSTemplateListPropertyModel::gro
 		button->setFullGif(true);
 		button->attachGifResource(tpl.rcPath, tpl.value);
 		gridLayout->addWidget(button, (int)i / 4, i % 4);
+
+		pls_uistep_v2_set_name(button, QStringLiteral("clicked"), "Template");
+		pls_uistep_v2_set_value(button, QStringLiteral("clicked"), QString("Index %1").arg(i));
 	}
 	return group;
 }

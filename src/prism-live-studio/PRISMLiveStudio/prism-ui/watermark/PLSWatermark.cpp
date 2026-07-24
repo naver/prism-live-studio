@@ -10,6 +10,7 @@
 #include "nlohmann/json.hpp"
 #include <sstream>
 #include <math.h>
+#include <QImageReader>
 #include "pls/pls-dual-output.h"
 
 #define PLS_WATERMARK_ID "pls_watermark"
@@ -26,6 +27,30 @@ static const float MAX_V_LOGO_WIDTH = 960;
 
 static const float DESIGN_V_LOGO_HEIGHT = 96;
 static const float DESIGN_V_LOGO_WIDTH = 192;
+
+static bool readImageSizeFromMetadata(const std::filesystem::path &filePath, float &width, float &height)
+{
+	if (filePath.empty()) {
+		return false;
+	}
+
+	QString imagePath;
+#ifdef _WIN32
+	imagePath = QString::fromStdWString(filePath.wstring());
+#else
+	imagePath = QString::fromStdString(filePath.string());
+#endif
+
+	QImageReader reader(imagePath);
+	const QSize size = reader.size();
+	if (!size.isValid()) {
+		return false;
+	}
+
+	width = static_cast<float>(size.width());
+	height = static_cast<float>(size.height());
+	return width > 0.0f && height > 0.0f;
+}
 
 PLSWatermarkConfig::PLSWatermarkConfig(std::function<void(std::string)> logFunction)
 {
@@ -151,6 +176,7 @@ std::shared_ptr<PLSWatermarkSource> PLSWatermark::createSource(bool isVertical)
 
 		if (image_source) {
 			source->source = image_source;
+			readImageSizeFromMetadata(_config->filePath, source->metadataWidth, source->metadataHeight);
 
 			OBSSceneItem item;
 			if (isVertical) {
@@ -218,7 +244,16 @@ void PLSWatermark::updatePosition(std::shared_ptr<PLSWatermarkSource> source)
 	float image_width = obs_source_get_width(source->source);
 	float image_height = obs_source_get_height(source->source);
 
-	struct vec2 size;
+	if ((image_width <= 0.0f || image_height <= 0.0f) && source->metadataWidth > 0.0f && source->metadataHeight > 0.0f) {
+		image_width = source->metadataWidth;
+		image_height = source->metadataHeight;
+	}
+
+	if (image_width <= 0.0f || image_height <= 0.0f) {
+		return;
+	}
+
+	struct vec2 size = {0.0f, 0.0f};
 
 	if (image_height == MAX_H_LOGO_HEIGHT) {
 		size.y = DESIGN_H_LOGO_HEIGHT;

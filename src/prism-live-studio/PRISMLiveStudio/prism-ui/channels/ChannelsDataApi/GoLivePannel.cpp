@@ -19,6 +19,7 @@ GoLivePannel::GoLivePannel(QWidget *parent) : QFrame(parent), ui(new Ui::GoLiveP
 	ui->setupUi(this);
 	pls_add_css(this, {"GoLivePannel"});
 
+	ui->GoLiveShift->setProperty("subWindowLoadingName", "GoLive Button Loading");
 	mBusyFrame = new PLSAddingFrame(ui->GoLiveShift);
 	mBusyFrame->setObjectName("LoadingFrame");
 	mBusyFrame->setContent("");
@@ -28,6 +29,18 @@ GoLivePannel::GoLivePannel(QWidget *parent) : QFrame(parent), ui(new Ui::GoLiveP
 	layout->setContentsMargins(0, 0, 0, 0);
 	ui->GoLiveShift->setLayout(layout);
 	mBusyFrame->hide();
+
+	ui->Record->setProperty("subWindowLoadingName", "Rec Button Loading");
+	m_busyFrameForRec = new PLSAddingFrame(ui->Record);
+	m_busyFrameForRec->setAttribute(Qt::WA_NoMousePropagation);
+	m_busyFrameForRec->setObjectName("LoadingFrame");
+	m_busyFrameForRec->setContent("");
+	m_busyFrameForRec->setSourceFirstFile(g_loadingPixPath);
+	auto *recLayout = new QHBoxLayout(ui->Record);
+	recLayout->addWidget(m_busyFrameForRec);
+	recLayout->setContentsMargins(0, 0, 0, 0);
+	ui->Record->setLayout(recLayout);
+	m_busyFrameForRec->hide();
 
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::recordingChanged, this, &GoLivePannel::updateRecordButton);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::liveStateChanged, this, &GoLivePannel::updateGoliveButton);
@@ -47,6 +60,10 @@ GoLivePannel::GoLivePannel(QWidget *parent) : QFrame(parent), ui(new Ui::GoLiveP
 
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStartRecord, ui->Record, [this]() { toggleRecord(true); });
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStopRecord, ui->Record, [this]() { toggleRecord(false); });
+	pls_uistep_v2_enable(ui->Record, PLS_UI_STEPS_V2_SIGNAL_CLICKED, false);
+	pls_uistep_v2_enable(ui->GoLiveShift, PLS_UI_STEPS_V2_SIGNAL_CLICKED, false);
+	pls_uistep_v2_custom_button(ui->Record, PLS_UI_STEPS_V2_SIGNAL_TOGGLED);
+	pls_uistep_v2_custom_button(ui->GoLiveShift, PLS_UI_STEPS_V2_SIGNAL_TOGGLED);
 }
 
 GoLivePannel::~GoLivePannel()
@@ -74,8 +91,6 @@ void GoLivePannel::showEvent(QShowEvent *event)
 
 void GoLivePannel::on_Record_toggled(bool isCheck)
 {
-	PLS_LIVE_UI_STEP("channels", isCheck ? ("Reocrd Start") : ("Record Stop "), "clicked ");
-	ui->Record->setDisabled(true);
 	toggleRecord(isCheck);
 }
 
@@ -90,22 +105,19 @@ void GoLivePannel::toggleRecord(bool isStart)
 	if (bSame && mBusyFrame->isVisible()) {
 		int state = PLSCHANNELS_API->currentBroadcastState();
 		PLS_INFO("GoLivePannel", "current BroadcastState is %d", state);
-		QString errMessage;
+		PLSErrorHandler::ExtraData extraData("click record button while golive button is busy");
 		if (PLSCHANNELS_API->isRehearsaling()) {
 			if (state == BroadcastGo || state == CanBroadcastState || state == StreamStarting) {
-				errMessage = tr("StartingRehearsal.GoLiveBtnIsBusy.Text");
+				PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_GOLIVE_BUSY_STARTING_REHEARSAL, PLSErrKeyAllAlert, {}, extraData);
 			} else if (state == StopBroadcastGo || state == CanBroadcastStop || state == StreamStopping || state == StreamStopped) {
-				errMessage = tr("EndingRehearsal.GoLiveBtnIsBusy.Text");
+				PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_GOLIVE_BUSY_ENDING_REHEARSAL, PLSErrKeyAllAlert, {}, extraData);
 			}
 		} else {
 			if (state == BroadcastGo || state == CanBroadcastState || state == StreamStarting) {
-				errMessage = tr("StartingStream.GoLiveBtnIsBusy.Text");
+				PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_GOLIVE_BUSY_STARTING_STREAM, PLSErrKeyAllAlert, {}, extraData);
 			} else if (state == StopBroadcastGo || state == CanBroadcastStop || state == StreamStopping || state == StreamStopped) {
-				errMessage = tr("EndingStream.GoLiveBtnIsBusy.Text");
+				PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_GOLIVE_BUSY_ENDING_STREAM, PLSErrKeyAllAlert, {}, extraData);
 			}
-		}
-		if (!errMessage.isEmpty()) {
-			PLSAlertView::warning(this, tr("Alert.Title"), errMessage);
 		}
 
 		ui->Record->setDisabled(false);
@@ -113,6 +125,37 @@ void GoLivePannel::toggleRecord(bool isStart)
 		bool bCheck = ui->Record->isChecked();
 		ui->Record->setChecked(!bCheck);
 		return;
+	}
+
+	// Check encoder mismatch when streaming is active and trying to start recording
+	if (isStart && !bSame && PLSCHANNELS_API->isLiving()) {
+		PLS_INFO("GoLivePannel", "Encoder mismatch detected while streaming, showing warning");
+		const bool encAdvanced = PLSBasic::instance()->isAdvancedOutputMode();
+		PLSErrorHandler::ExtraData encExtra(encAdvanced ? "GoLive encoder mismatch streaming advanced" : "GoLive encoder mismatch streaming simple");
+		const auto encCode = encAdvanced ? PLSErrorHandler::ALERT_GOLIVE_ENCODER_MISMATCH_STREAMING_ADVANCED : PLSErrorHandler::ALERT_GOLIVE_ENCODER_MISMATCH_STREAMING_SIMPLE;
+		PLSErrorHandler::RetData encAlert = PLSErrorHandler::getAlertStringByPrismCode(encCode, PLSErrKeyAllAlert, {}, encExtra);
+		pls_text_t message(encAlert.alertMsg, encAlert.alertMsgEnglish);
+
+		PLSAlertView alert(pls_get_main_view(), PLSAlertView::Icon::Warning, tr("Alert.Title"), message, QString(),
+				   {{PLSAlertView::Button::Yes, tr("Output.EncoderMismatch.ContinueRecording")}, {PLSAlertView::Button::No, tr("OK")}}, PLSAlertView::Button::No,
+				   {{"disableExtralLink", true}});
+		alert.setTextFormat(Qt::RichText);
+		connect(&alert, &PLSAlertView::contentlinkActivated, this, [&alert](const QString &link) {
+			if (link == "openOutputSettings") {
+				alert.close();
+				QMetaObject::invokeMethod(PLSBasic::Get(), "onPopupSettingView", Qt::QueuedConnection, Q_ARG(QString, "Output"), Q_ARG(QString, ""));
+			}
+		});
+		auto result = static_cast<PLSAlertView::Button>(alert.exec());
+
+		if (result != PLSAlertView::Button::Yes) {
+			PLS_INFO("GoLivePannel", "User cancelled recording due to encoder mismatch");
+			ui->Record->setDisabled(false);
+			QSignalBlocker blocker(ui->Record);
+			ui->Record->setChecked(false);
+			return;
+		}
+		PLS_INFO("GoLivePannel", "User continued recording despite encoder mismatch");
 	}
 
 	HolderReleaser holder(&GoLivePannel::setEnteredRecord, this);
@@ -148,6 +191,7 @@ void GoLivePannel::toggleRecord(bool isStart)
 		ignoreChange();
 		break;
 	}
+	holdOnRec(true);
 }
 
 void GoLivePannel::updateRecordButton(int state)
@@ -160,6 +204,7 @@ void GoLivePannel::updateRecordButton(int state)
 			QSignalBlocker blocker(ui->Record);
 			ui->Record->setChecked(true);
 		}
+		holdOnRec(false);
 		ui->Record->setText(QTStr("Channels.STOP"));
 		ui->Record->setDisabled(false);
 		ui->Record->setToolTip(QTStr("Channels.stopRec.tooltip"));
@@ -171,6 +216,7 @@ void GoLivePannel::updateRecordButton(int state)
 			QSignalBlocker blocker(ui->Record);
 			ui->Record->setChecked(false);
 		}
+		holdOnRec(false);
 		ui->Record->setText(QTStr("Channels.REC"));
 		ui->Record->setDisabled(false);
 		setRecTooltip();
@@ -179,7 +225,6 @@ void GoLivePannel::updateRecordButton(int state)
 	case RecordStarting:
 	case RecordStopping:
 	case RecordStopGo:
-		ui->Record->setDisabled(true);
 		break;
 	default:
 		break;
@@ -221,9 +266,13 @@ bool GoLivePannel::confirmToContinue() const
 	}
 
 	quint64 time = 10 * 1000;
-	auto msg = PLSCHANNELS_API->isRehearsaling() ? tr("golive.endrehearsal.confirm") : tr("golive.endlive.confirm");
-	auto toEndLive = PLSCHANNELS_API->isRehearsaling() ? tr("yes.endRehearsal") : tr("yes.endlive");
-	auto notEnd = PLSCHANNELS_API->isRehearsaling() ? tr("no.continue.rehearsal") : tr("no.continue.live");
+	const bool rehearsing = PLSCHANNELS_API->isRehearsaling();
+	PLSErrorHandler::ExtraData countdownExtra(rehearsing ? "GoLive end rehearsal countdown confirm" : "GoLive end live countdown confirm");
+	const auto countdownCode = rehearsing ? PLSErrorHandler::ALERT_GOLIVE_END_REHEARSAL_CONFIRM : PLSErrorHandler::ALERT_GOLIVE_END_LIVE_CONFIRM;
+	PLSErrorHandler::RetData countdownAlert = PLSErrorHandler::getAlertStringByPrismCode(countdownCode, PLSErrKeyAllAlert, {}, countdownExtra);
+	pls_text_t msg(countdownAlert.alertMsg, countdownAlert.alertMsgEnglish);
+	pls_language_key_t toEndLive(rehearsing ? ("yes.endRehearsal") : ("yes.endlive"));
+	pls_language_key_t notEnd(rehearsing ? ("no.continue.rehearsal") : ("no.continue.live"));
 	//according ux, continue left,end right,so use cancel and apply .
 
 	auto ret = PLSAlertView::questionWithCountdownView(pls_get_main_view(), tr("Confirm"), msg, "", {{PLSAlertView::Button::Cancel, notEnd}, {PLSAlertView::Button::Apply, toEndLive}},
@@ -238,13 +287,18 @@ bool GoLivePannel::confirmToContinue() const
 	return false;
 }
 
+void GoLivePannel::holdOnRec(bool holdOn)
+{
+	m_busyFrameForRec->setVisible(holdOn);
+	if (holdOn) {
+		m_busyFrameForRec->start(200);
+	} else {
+		m_busyFrameForRec->stop();
+	}
+}
+
 void GoLivePannel::on_GoLiveShift_toggled(bool isGolive)
 {
-	QString finishStr = PLSCHANNELS_API->isRehearsaling() ? "Finish rehearsal " : "Finish live ";
-	PLS_LIVE_UI_STEP("channels", isGolive ? ("Golive") : finishStr.toUtf8().constData(), "clicked ");
-	if (!isGolive) {
-		PLS_PLATFORM_API->sendLiveAnalog(true);
-	}
 	ui->GoLiveShift->setDisabled(true);
 	holdOnAll(true);
 	toggleBroadcast(isGolive);
@@ -263,9 +317,11 @@ void GoLivePannel::toggleBroadcast(bool toStart)
 		int state = PLSCHANNELS_API->currentReocrdState();
 		PLS_INFO("GoLivePannel", "current Reocrd is %d", state);
 		if (state == RecordStarting) {
-			PLSAlertView::warning(this, tr("Alert.Title"), tr("StartingRec.RECBtnIsBusy.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_GOLIVE_BUSY_STARTING_REC, PLSErrKeyAllAlert, {},
+							      PLSErrorHandler::ExtraData("click golive button while record is starting"));
 		} else if (state == RecordStopGo || state == RecordStopping) {
-			PLSAlertView::warning(this, tr("Alert.Title"), tr("EndingRec.RECBtnIsBusy.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_GOLIVE_BUSY_ENDING_REC, PLSErrKeyAllAlert, {},
+							      PLSErrorHandler::ExtraData("click golive button while record is ending"));
 		}
 
 		ui->GoLiveShift->setDisabled(false);
@@ -275,16 +331,49 @@ void GoLivePannel::toggleBroadcast(bool toStart)
 		return;
 	}
 
+	// Check encoder mismatch when recording is active (or will start with streaming) and trying to start streaming
+	bool recordWhenStreaming = config_get_bool(App()->GetUserConfig(), "BasicWindow", "RecordWhenStreaming");
+	if (toStart && !bSame && (PLSCHANNELS_API->isRecording() || recordWhenStreaming)) {
+		PLS_INFO("GoLivePannel", "Encoder mismatch detected while recording, showing warning");
+		const bool encAdvanced = PLSBasic::instance()->isAdvancedOutputMode();
+		PLSErrorHandler::ExtraData encExtra(encAdvanced ? "GoLive encoder mismatch recording advanced" : "GoLive encoder mismatch recording simple");
+		const auto encCode = encAdvanced ? PLSErrorHandler::ALERT_GOLIVE_ENCODER_MISMATCH_RECORDING_ADVANCED : PLSErrorHandler::ALERT_GOLIVE_ENCODER_MISMATCH_RECORDING_SIMPLE;
+		PLSErrorHandler::RetData encAlert = PLSErrorHandler::getAlertStringByPrismCode(encCode, PLSErrKeyAllAlert, {}, encExtra);
+		pls_text_t message(encAlert.alertMsg, encAlert.alertMsgEnglish);
+
+		PLSAlertView alert(pls_get_main_view(), PLSAlertView::Icon::Warning, tr("Alert.Title"), message, QString(),
+				   {{PLSAlertView::Button::Yes, tr("Output.EncoderMismatch.ContinueStreaming")}, {PLSAlertView::Button::No, tr("OK")}}, PLSAlertView::Button::No,
+				   {{"disableExtralLink", true}});
+		alert.setTextFormat(Qt::RichText);
+		connect(&alert, &PLSAlertView::contentlinkActivated, this, [&alert](const QString &link) {
+			if (link == "openOutputSettings") {
+				alert.close();
+				QMetaObject::invokeMethod(PLSBasic::Get(), "onPopupSettingView", Qt::QueuedConnection, Q_ARG(QString, "Output"), Q_ARG(QString, ""));
+			}
+		});
+		auto result = static_cast<PLSAlertView::Button>(alert.exec());
+
+		if (result != PLSAlertView::Button::Yes) {
+			PLS_INFO("GoLivePannel", "User cancelled streaming due to encoder mismatch");
+			ui->GoLiveShift->setDisabled(false);
+			QSignalBlocker blocker(ui->GoLiveShift);
+			ui->GoLiveShift->setChecked(false);
+			holdOnAll(false);
+			return;
+		}
+		PLS_INFO("GoLivePannel", "User continued streaming despite encoder mismatch");
+	}
+
 	HolderReleaser holder(&GoLivePannel::setEnteredGolive, this);
 
 	int state = PLSCHANNELS_API->currentBroadcastState();
 
 	if (state == StreamStopping) {
-		auto ret = PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(NeedForceStop),
-						  {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
+		PLSErrorHandler::RetData retData =
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_GOLIVE_FORCE_STOP_CONFIRM, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("GoLive force stop confirm"));
 		ui->GoLiveShift->setDisabled(false);
 
-		if (ret == PLSAlertView::Button::Yes && PLSCHANNELS_API->currentBroadcastState() == StreamStopping) {
+		if (retData.clickedBtn == QDialogButtonBox::Yes && PLSCHANNELS_API->currentBroadcastState() == StreamStopping) {
 			PLSBasic::instance()->ForceStopStreaming();
 			QSignalBlocker blocker(ui->GoLiveShift);
 			auto bCheck = ui->GoLiveShift->isChecked();

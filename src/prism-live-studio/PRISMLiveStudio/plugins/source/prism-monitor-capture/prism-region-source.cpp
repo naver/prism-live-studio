@@ -337,6 +337,8 @@ void prism_region_source::gdi_render_region()
 		while (gs_effect_loop(effect, "Draw")) {
 			obs_source_draw(tex, 0, 0, 0, 0, false);
 		}
+
+		pls_on_source_property_render(source, 0); //PRISM/wangshaohui/20260112/PRISM_PC-5037/action log
 	}
 }
 

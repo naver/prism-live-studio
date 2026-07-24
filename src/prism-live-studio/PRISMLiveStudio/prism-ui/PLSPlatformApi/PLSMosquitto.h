@@ -1,7 +1,6 @@
 /*
 * @file		PLSMosquitto.h
 * @brief	A mqtt client
-* @author	wu.longyue@navercorp.com
 * @date		2020-03-14
 */
 

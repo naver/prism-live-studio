@@ -398,8 +398,8 @@ static Json::object parse_scenes(QDomElement &scenes)
 				first = name;
 
 			Json out = Json::object{{"id", "scene"},
-						{"name", name.toStdString().c_str()},
-						{"src_id", id.toStdString().c_str()}};
+						{"name", name.toUtf8().constData()},
+						{"src_id", id.toUtf8().constData()}};
 
 			sources.push_back(out);
 		}

@@ -1,6 +1,18 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <assert.h>
+
+#define ACTION_PEN "pen"
+#define ACTION_HIGHLIGHT "highlight"
+#define ACTION_GLOW "glow"
+#define ACTION_SHAPE "shape"
+#define ACTION_ERASER "eraser"
+#define ACTION_UNDO "undo"
+#define ACTION_REDO "redo"
+#define ACTION_CLEAR "clear"
+#define ACTION_HIDE "hide"
+#define ACTION_SHOW "show"
 
 //prism point(int) for line
 struct PointI {
@@ -25,14 +37,24 @@ using PointFs = std::vector<PointF>;
 using PointFsPointer = std::vector<PointF> *;
 using IntPtrs = std::vector<int *>;
 
-enum class ShapeType { ST_STRAIGHT_ARROW = 0, ST_LINE, ST_RECTANGLE, ST_ROUND, TRIANGLE };
-enum class DrawType { DT_PEN, DT_HIGHLIGHTER, DT_GLOW_PEN, DT_2DSHAPE, DT_RUBBER };
+enum class ShapeType {
+	ST_STRAIGHT_ARROW = 0,
+	ST_LINE,
+	ST_RECTANGLE,
+	ST_ROUND,
+	TRIANGLE,
+};
 
-constexpr auto LINE_0 = 4;
-constexpr auto LINE_1 = 8;
-constexpr auto LINE_2 = 10;
-constexpr auto LINE_3 = 14;
-constexpr auto LINE_4 = 18;
+enum class DrawType {
+	DT_INVALID = -1,
+	DT_PEN,
+	DT_HIGHLIGHTER, // transparency effect
+	DT_GLOW_PEN,    // edge glow effect
+	DT_2DSHAPE,
+	DT_RUBBER,
+};
+
+#define DEFAULT_LINE_WITDH_INDEX 1
 
 #define COLOR_(r, g, b, a) color_to_int(r, g, b, a)
 
@@ -55,9 +77,12 @@ static inline uint32_t color_to_int(float r, float g, float b, float a)
 	return shift((unsigned int)r, 0) | shift((unsigned int)g, 8) | shift((unsigned int)b, 16) | shift((unsigned int)a, 24);
 }
 
-static const std::vector<int> lineWidth{LINE_0, LINE_1, LINE_2, LINE_3, LINE_4};
-static const std::vector<uint32_t> colors{C_SOLID_COLOR_0, C_SOLID_COLOR_1, C_SOLID_COLOR_2, C_SOLID_COLOR_3, C_SOLID_COLOR_4,  C_SOLID_COLOR_5,
-					  C_SOLID_COLOR_6, C_SOLID_COLOR_7, C_SOLID_COLOR_8, C_SOLID_COLOR_9, C_SOLID_COLOR_10, C_SOLID_COLOR_11};
+static const std::vector<uint32_t> colors{
+	C_SOLID_COLOR_0, C_SOLID_COLOR_1, C_SOLID_COLOR_2, C_SOLID_COLOR_3, C_SOLID_COLOR_4,  C_SOLID_COLOR_5,
+	C_SOLID_COLOR_6, C_SOLID_COLOR_7, C_SOLID_COLOR_8, C_SOLID_COLOR_9, C_SOLID_COLOR_10, C_SOLID_COLOR_11,
+};
+
+int get_line_width(int index, DrawType type);
 
 static inline void colorf_from_rgba(float &r, float &g, float &b, float &a, uint32_t rgba)
 {
@@ -79,4 +104,23 @@ static inline void colorI_from_rgba(int &r, int &g, int &b, int &a, uint32_t rgb
 	b = (int)((double)(rgba & 0xFF));
 	rgba >>= 8;
 	a = (int)((double)(rgba & 0xFF));
+}
+
+static inline int get_shape_index(ShapeType shape)
+{
+	switch (shape) {
+	case ShapeType::ST_STRAIGHT_ARROW:
+		return 0;
+	case ShapeType::ST_LINE:
+		return 1;
+	case ShapeType::ST_RECTANGLE:
+		return 2;
+	case ShapeType::ST_ROUND:
+		return 3;
+	case ShapeType::TRIANGLE:
+		return 4;
+	default:
+		assert(false);
+		return -1;
+	}
 }

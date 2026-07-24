@@ -6,17 +6,20 @@
 #include "giphy/PLSGiphyStickerView.h"
 #include "prism-sticker/PLSPrismSticker.h"
 #include "PLSDrawPen/PLSDrawPenView.h"
-#include "PLSBasicStatusBar.hpp"
 #include "PLSBasicStatusPanel.hpp"
 #include "PLSRegionCapture.h"
+#include "PLSBasicStatusBar.hpp"
+#include "PLSLoginDataHandler.h"
 #include "audio-mixer/PLSAudioMixer.h"
 #include "ncb2b/PLSNCB2bBrowserSettings.h"
 #include <set>
 #include "PLSSceneTemplateContainer.h"
 #include "obs.h"
 #include "bubbletips.h"
+#include <queue>
 
 class HookNativeEvent;
+class PLSNewIconActionWidget;
 class PLSBackgroundMusicView;
 struct pls_frontend_callbacks;
 struct QCefCookieManager;
@@ -26,6 +29,7 @@ extern const std::vector<QString> presetColorListWithOpacity;
 
 using BgmSourceVecType = std::vector<std::pair<QString, quint64>>;
 using setAlertParent = std::function<void(QWidget *)>;
+
 enum class PlatformType {
 	Empty = 0,
 
@@ -41,7 +45,6 @@ enum class PlatformType {
 	MpCustomRTMP = MultiPlatform | CustomRTMP,
 	MpBandAndCustomRTMP = MultiPlatform | Band | CustomRTMP
 };
-enum class RestartAppType { Direct = 0, Logout, ChangeLang, Update };
 
 enum class ShowType { ST_Show, ST_Hide, ST_Switch };
 
@@ -76,18 +79,64 @@ public:
 	using QObject::QObject;
 	~CheckCamProcessWorker();
 
-private slots:
-	void CheckCamProcessIsExisted(const QString &processName);
-	void Check();
+public slots:
+	void initCamProcessWorker();
+	void checkCamProcessIsVisible();
+	void checkCamProcessIsRunning();
+	void checkWindowVisible();
+	void checkProcessRunning();
+	bool getCamProcessState();
+
 signals:
-	void checkFinished(bool isExisted);
+	void checkVisble(bool isVisble);
+	void checkRunning(bool isRunning);
 
 private:
-	QPointer<QTimer> checkTimer;
-	bool processIsExisted{false};
-	QString processName;
+	QPointer<QTimer> m_checkVisbleTimer;
+	QPointer<QTimer> m_checkRunningTimer;
+	QString m_camProcessName;
+	bool m_camIsRuning = false;
+};
+class PLSInitApiFlow {
+
+public:
+	enum class InitStatus {
+		InitApiStarting = 1,
+		InitApiFinished,
+	};
+	enum class SessionStatus {
+		SessionApiStarting = 1,
+		SessionApiFinished,
+	};
+
+public:
+	static PLSInitApiFlow *instance()
+	{
+		static PLSInitApiFlow instance;
+		return &instance;
+	}
+	InitStatus getInitStatus() const { return m_initStatus; };
+	SessionStatus getSessionStatus() const { return m_sessionStatus; };
+
+	void setInitStatus(InitStatus status) { m_initStatus = status; };
+	void setSessionStatus(SessionStatus status) { m_sessionStatus = status; };
+
+	void startInitApisFlow();
+	void requestTwitchServiceData();
+	const QJsonObject &getTwitchServiceList() const;
+	QList<QPair<QString, QString>> getTwitchServer() const;
+
+private:
+	PLSInitApiFlow();
+	~PLSInitApiFlow() = default;
+
+private:
+	InitStatus m_initStatus{InitStatus::InitApiStarting};
+	SessionStatus m_sessionStatus{SessionStatus::SessionApiStarting};
+	QJsonObject m_twitchServiceListObj;
 };
 
+class PLSBgmItemData;
 class PLSBasic : public OBSBasic {
 	Q_OBJECT
 	Q_PROPERTY(QIcon viewerCountIcon READ GetViewerCountIcon WRITE SetViewerCountIcon DESIGNABLE true)
@@ -105,6 +154,7 @@ class PLSBasic : public OBSBasic {
 	Q_PROPERTY(QIcon decklinkInputIcon READ GetDecklinkInputIcon WRITE SetDecklinkInputIcon DESIGNABLE true)
 	Q_PROPERTY(QIcon regionIcon READ GetRegionIcon WRITE SetRegionIcon DESIGNABLE true)
 	friend class HookNativeEvent;
+	friend class PLSMainView;
 
 public:
 	explicit PLSBasic(PLSMainView *mainView);
@@ -119,6 +169,10 @@ public:
 	static void removeConfig(const char *config);
 	void backupSceneCollection(QString &secneCollectionName, QString &sceneCollectionFile);
 	static void clearPrismConfigInfo();
+
+	//PRISM/FanZirong/20251112/PRISM_PC-3577/source capture failed guidance
+	static QString getFailedGuideText(obs_source_failed_status_sub_code sub_code);
+	QStringList getFilterSourceList(const QStringList &sourceGuideList);
 
 public:
 	void PLSInit();
@@ -139,19 +193,19 @@ public:
 	bool isBgmSourceBySourceId(const obs_scene_item *item) const;
 	BgmSourceVecType EnumAllBgmSource() const;
 	void ClearMusicResource();
+	PLSBgmItemData getMusicPlaylistCurrentRow();
 
-	static void GetSourceTypeList(std::vector<std::vector<QString>> &preset, std::vector<QString> &other, std::map<QString, bool> &monitors);
+	static void GetSourceTypeList(std::vector<std::pair<std::string, std::vector<QString>>> &preset, std::vector<QString> &other, std::map<QString, bool> &monitors);
 	static void loadSourceTypeList(std::map<QString, bool> &monitors, std::vector<QString> &otherList);
 	QString getSupportLanguage() const;
 	void replaceMenuActionWithWidgetAction(QMenuBar *menuBar, QAction *originAction, QWidgetAction *replaceAction);
 	void replaceMenuActionWithWidgetAction(QMenu *menu, QAction *originAction, QWidgetAction *replaceAction);
-	void CheckAppUpdate(bool isShowAlert = true);
+	void CheckAppUpdate(bool isShowAlert = true, bool isNeedLatestApi = false);
 	bool isForceUpdateApp() const { return m_updateForceUpdate; }
 	void CheckAppUpdateFinished(bool isShowAlert = true, const PLSErrorHandler::RetData &retData = PLSErrorHandler::RetData());
-	int compareVersion(const QString &v1, const QString &v2) const;
-	int getUpdateResult() const;
+	AppUpdateResult getUpdateResult() const;
 	bool ShowUpdateView(QWidget *parent);
-	void restartPrismApp(bool isUpdated = false);
+	void restartPrismApp(RestartAppType restartAppType = RestartAppType::Direct, const QStringList &params = {}, bool isUpdated = false) override;
 	void initSideBarWindowVisible();
 	bool CheckStreamEncoder() const;
 	void restartAppDirect(bool isUpdate);
@@ -221,9 +275,10 @@ public:
 	static QString cookiePath(const QString &pannelName);
 	// scene display method
 	void showChangeSceneDisplayAlert();
-	void SetSceneDisplayMethod(int method);
-	int GetSceneDisplayMethod() const;
+	void SetSceneDisplayMethod(DisplayMethod method);
+	DisplayMethod GetSceneDisplayMethod() const;
 	QMenu *CreateSceneDisplayMenu();
+	void showSceneDisplayConfirmAndSet(DisplayMethod method, const QString &text);
 	void SetDpi(float dpi);
 
 	QString getStreamState() const;
@@ -231,13 +286,14 @@ public:
 	int getRecordDuration() const;
 
 	OBSDock *GetChatDock() const { return ui->chatDock; }
-	void InitChatDockGeometry();
+	OBSDock *GetBgmDock() const { return ui->bgmDock; }
+	void InitChatDockGeometry(bool inInnerMain);
+	void InitBgmDockGeometry();
 	void SetAttachWindowBtnText(QAction *action, bool isFloating) const;
 
 	void OnBrowserDockSeperatedBtnClicked();
 	void OnBrowserDockTopLevelChanged();
 	void CreateAdvancedButtonForBrowserDock(OBSDock *dock, const QString &uuid, bool bDetach = false);
-	void setDockDetachEnabled(bool dockLocked);
 
 	static void frontendEventHandler(enum obs_frontend_event event, void *private_data);
 	static void frontendEventHandler(pls_frontend_event event, const QVariantList &params, void *context);
@@ -265,6 +321,13 @@ public:
 	bool getSourceLoaded();
 
 	void ForceUpdateGroupsSize();
+	void setRestartAppType(RestartAppType restartAppType);
+	RestartAppType restartAppType() const;
+
+	void AutoAddFilter(OBSSource source, QString filterId);
+	bool IsOpeningLens();
+
+	static void updateWebSources(const std::string &sourceId, int subCode);
 
 public slots:
 	void OnSideBarButtonClicked(int buttonId);
@@ -286,7 +349,7 @@ public slots:
 	void on_actionHelpOpenSource_triggered();
 	void on_actionDiscord_triggered() const;
 	void on_actionWebsite_triggered() const;
-	void on_actionContactUs_triggered(const QString &message = QString(), const QString &additionalMessage = QString());
+	void on_actionContactUs_triggered(const QString &message = QString(), const QString &code = QString(), const QString &additionalMessage = QString());
 	void on_actionRepair_triggered() const;
 	void on_actionUserGuide_triggered() const;
 	void on_stats_triggered();
@@ -295,6 +358,7 @@ public slots:
 	void on_actionPrismPolicy_triggered() const;
 
 	void on_checkUpdate_triggered();
+	void onNoticeUpdateMsgTirggered();
 	void actionLaboratory_triggered();
 	void OnScenesCurrentItemChanged();
 	void OnStickerClicked();
@@ -305,11 +369,19 @@ public slots:
 	void CheckStickerSource() const;
 	void OnDrawPenClicked() const;
 	void OnSceneTemplateClicked(ShowType);
-	void OnCamStudioClicked(QStringList arguments, QWidget *parent);
-	bool CheckCamStudioInstalled(QString &program);
+	void OnCamStudioClicked(QStringList arguments, QWidget *parent, bool isMobile);
+	void OnOpenCamStudio(QStringList arguments, QWidget *parent, bool isMobile);
 	void ShowInstallCamStudioTips(QWidget *parent, QString title, QString content, QString okTip, QString cancelTip);
 
-	void OnPRISMStickerApplied(const StickerHandleResult &stickerData);
+	void OnPRISMStickerAddedApplied(const StickerHandleResult &stickerData);
+	void OnEnterStickerUpdateMode(obs_source_t *source);
+	void OnEnterStickerAddedMode();
+	void OnPRISMStickerUpdateApplied(obs_source_t *source);
+	bool OnCancelStickerUpdate(obs_source_t *source);
+	void OnLeaveStickerUpdateMode();
+	void OnPRISMStickerUpdatedResource(const StickerHandleResult &stickerData, obs_source_t *source);
+	void OnDefaultsStickerUpdated(obs_source_t *source);
+	void OnRestoreStickerUpdated(obs_source_t *source);
 	void CreateStickerDownloader(obs_source_t *source);
 	void OnStickerDownloadCallback(const TaskResponData &responData);
 	void InitGiphyStickerViewVisible();
@@ -317,7 +389,6 @@ public slots:
 	void InitDualOutputEnabled();
 	void OnMixerOrderChanged();
 
-	void OnSetBgmViewVisible(bool state);
 	void RenameBgmSourceName(obs_sceneitem_t *sceneItem, const QString &newName, const QString &prevName);
 	void SetBgmItemSelected(obs_scene_item *item, bool isSelected);
 	void SetBgmItemVisible(obs_scene_item *item, bool isVisible);
@@ -333,7 +404,7 @@ public slots:
 	void moveStatusPanel();
 	void updateStatusPanel(PLSBasicStatusData &dataStatus) const;
 
-	void singletonWakeup();
+	void singletonWakeup(bool fromAppStart = false);
 	QList<QAction *> adjustedMenu();
 	void adjustFileMenu();
 	void initVirtualCamMenu();
@@ -356,14 +427,17 @@ public slots:
 	void checkTwitchAudioWithLeader(bool bLeader);
 
 	bool checkRecEncoder();
+	bool isAdvancedOutputMode() const;
 	void removeChzzkSponsorSource();
 	void setAllChzzkSourceSetting(const QString &platformName);
 	bool setChzzkSponsorSourceSetting(obs_source_t *source);
 	bool bSuccessGetChzzkSourceUrl(QWidget *parent);
 
 	void createNcb2bBrowserSettings();
+	void showNcb2bBrowserSettings();
 	void onBrowserSettingsClicked();
 	void initNcb2bBrowserSettingsVisible();
+	PLSErrorHandler::ErrCode getBrowserSettingsErrorCode();
 
 	void ReorderAudioMixer();
 
@@ -378,6 +452,8 @@ public slots:
 	void changeOutputCount(int);
 
 	void ResetStatsHotkey() override;
+	void onBgmClicked();
+	void SetBgmViewVisible(bool visible);
 
 public:
 	static void MediaStateChanged(void *data, calldata_t *calldata);
@@ -385,6 +461,7 @@ public:
 	static void PropertiesChanged(void *param, calldata_t *data);
 
 	static void OnSourceNotify(void *data, calldata_t *calldata);
+	static void OnSourceLoading(void *data, calldata_t *calldata);
 	static void OnSourceMessage(void *data, calldata_t *calldata);
 
 	static void RenderVerticalProgram(void *data, uint32_t cx, uint32_t cy);
@@ -412,23 +489,32 @@ private:
 	void OnSourceDockSeperatedBtnClicked();
 	void OnSceneDockSeperatedBtnClicked();
 	void OnChatDockSeperatedBtnClicked();
+	void OnBgmDockSeperatedBtnClicked();
+	void OnBgmDockTopLevelChanged();
 	void changeDockState(PLSDock *dock, QAction *action) const;
 	void SetDocksMovePolicy(PLSDock *dock) const;
 	void docksMovePolicy(PLSDock *dock, const QPoint &pre) const;
 
 	QStringList getRestartParams(bool isUpdate);
 	void ClearStickerCache() const;
-	void InitInteractData() const;
+	static void InitInteractData(WId mainWId, const QFont &font);
 	void SaveInteractData() const;
 	bool hasSourceMonitor() const;
 	void updateInfoViewShow();
 	void getLocalUpdateResult();
 
-	void InitCamStudioSidebarState();
-	void CreateCheckCamProcessThread(const QString &processName);
-
+	void createCheckCamThread();
 	void CreatePreviewTitle();
 	void checkNoticeAndForceUpdate();
+	void mainViewIsShown();
+
+	//PRISM/chenguoxi/20251103/PRISM_PC-3578/window and monitor capture failed guidance
+	void handleSourceFailedGuide(OBSSource source, int code);
+	void updateSourceTreeFailedUI(OBSSource source, int code);
+
+	QString getStickerSourceResourceId(obs_source_t *source);
+	bool updateStickerIsChanged(obs_source_t *source);
+	PLSAlertView::Button showStickerChangeAlertView(QWidget *parent);
 
 private slots:
 	void OnUpdateSceneCollectionTimeTimerTriggered();
@@ -438,16 +524,15 @@ private slots:
 	bool CreateSource(const char *id, OBSSource &newSource, obs_data_t *settings = nullptr);
 
 	// bgm
-	void OnBgmClicked();
-	void createBackgroundMusicView();
-	void SetBgmViewVisible(bool visible);
 	void ReorderBgmSourceList();
 	bool GetBgmViewVisible() const;
 
 	void OnSourceNotifyAsync(QString name, int msg, int code);
+	void OnSourceLoadingAsync(QString name, bool loading);
 	void OnMainViewShow(bool isShow);
 
 	void PrismLogout() const;
+	void pauseStatistics(bool bPaused) override;
 
 signals:
 	void backgroundTemplateSourceError(int msg, int code);
@@ -456,6 +541,7 @@ signals:
 	void sigOpenDualOutput(bool bOpen);
 	void sigOutputActiveChanged(bool);
 	void sigUpdateUrlChanged(const QString &url);
+	void onLensOpening(bool opening);
 
 private:
 #if defined(Q_OS_WIN)
@@ -479,7 +565,7 @@ private:
 	QString m_updateInfoUrl;
 	bool m_updateForceUpdate;
 	bool m_isShowedUpdateView = false;
-	int m_checkUpdateResult = 0;
+	AppUpdateResult m_checkUpdateResult = AppUpdateResult::AppFailed;
 	bool m_requestUpdate = false;
 	bool m_isLogout = false;
 	bool m_isUpdateLanguage = false;
@@ -503,6 +589,7 @@ private:
 	QMenu *virtualCamMenu = nullptr;
 	QAction *virtualCam = nullptr;
 	QAction *virtualCamSetting = nullptr;
+	QAction *actionNoticeAndUpdate = nullptr;
 	QAction *prismLab = nullptr;
 	QAction *logOut = nullptr;
 	QAction *exitApp = nullptr;
@@ -519,7 +606,6 @@ private:
 	bool m_isAppUpdating = false;
 	QTimer m_noticeTimer;
 
-	QAction *actionRealTime = nullptr;
 	QAction *actionThumbnail = nullptr;
 	QAction *actionText = nullptr;
 	PLSSceneTemplateContainer *m_sceneTemplate{nullptr};
@@ -534,4 +620,13 @@ private:
 	QPointer<PLSDualOutputTitle> dualOutputTitle;
 	bool m_showMixerAudioTrackTip{false};
 	QPointer<bubbletips> m_bubbleTips;
+
+	std::queue<setAlertParent> m_delayShowQueue{};
+	bool m_isMainViewShown = false;
+	RestartAppType m_restartAppType{RestartAppType::Direct};
+	bool m_libraryUpdateDone = false;
+	bool m_rtmpUpdateDone = false;
+	bool m_isOpeningLens = false;
+
+	RestoreUpdateStickerData *m_restoreUpdateStickerPtr{nullptr};
 };

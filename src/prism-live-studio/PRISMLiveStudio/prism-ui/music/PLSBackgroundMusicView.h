@@ -9,7 +9,6 @@
 #include "obs.hpp"
 #include "window-basic-main.hpp"
 #include "PLSBasic.h"
-#include "PLSBgmControlsBase.h"
 #include "pls/media-info.h"
 
 #include <QLabel>
@@ -94,14 +93,17 @@ signals:
 	void AudioFileDraggedIn(const QStringList &paths);
 };
 
-class PLSBackgroundMusicView : public PLSSideBarDialogView {
+class PLSBackgroundMusicView : public QWidget {
 	Q_OBJECT
 
 public:
 	enum class PlayMode { InOrderMode, RandomMode, UnknownMode };
 	Q_ENUM(PlayMode)
 
-	explicit PLSBackgroundMusicView(DialogInfo info, QWidget *parent = nullptr);
+	enum class LoopMode { LoopAll = 0, LoopOne, NoLoop };
+	Q_ENUM(LoopMode)
+
+	explicit PLSBackgroundMusicView(QWidget *parent = nullptr);
 	~PLSBackgroundMusicView() override;
 
 	PLSBackgroundMusicView(const PLSBackgroundMusicView &) = delete;
@@ -120,6 +122,8 @@ public:
 	void UpdateSourceSelectUI();
 	PLSBgmItemData GetCurrentPlayListDataBySettings(const QString &name) const;
 
+	PLSBgmItemData getCurrentRow() const;
+
 public slots:
 	void UpdateLoadUIState(const QString &name, bool load, bool isOpen);
 	void AddSourceAndRefresh(const QString &sourceName, quint64 sceneItem);
@@ -131,6 +135,8 @@ public slots:
 	void OnSceneChanged();
 	void UpdateLoadingStartState(const QString &sourceName);
 	void UpdateLoadingEndState(const QString &sourceName);
+	/** Called when the dock that embeds this view is truly shown (not during drag/detach/attach). */
+	void OnDockReallyShown();
 
 	// media callback
 	void OnMediaStateChanged(const QString &name, obs_media_state state);
@@ -148,7 +154,7 @@ private slots:
 	void OnNoNetwork(const QString &toast, const PLSBgmItemData &data, bool gotoNext = false);
 	void OnInvalidSongs(const QString &name, bool gotoNext = false) const;
 	void OnRetryNetwork();
-	void OnPlayListItemDoublePressed(const QModelIndex &index);
+	void OnPlayListItemPressed(const QModelIndex &index);
 	void OnPlayListItemRowChanged(const int &srcIndex, const int &destIndex);
 	void OnAudioFileDraggedIn(const QStringList &paths);
 	void OnAddCachePlayList(const QVector<PLSBgmItemData> &datas);
@@ -156,7 +162,7 @@ private slots:
 	void OnPlayButtonClicked() const;
 	void OnPreButtonClicked();
 	void OnNextButtonClicked();
-	void OnLoopBtnClicked(const quint64 &sceneItem, bool checked);
+	void OnLoopBtnClicked(const quint64 &sceneItem);
 	void OnLocalFileBtnClicked();
 	void OnLibraryBtnClicked();
 	void OnAddSourceBtnClicked() const;
@@ -182,21 +188,28 @@ private slots:
 	void UpdateStatuPlayling(const QString &name);
 
 	int GetDelayResponseIntervalMs();
+	void onNetworkChanged(bool available);
 
 private:
 	void initUI();
 	void clearUI(quint64 sceneItem);
 	void Save() const;
-	void SetLoop(const quint64 &sceneItem, bool checked);
+	void SetLoop(const quint64 &sceneItem, LoopMode mode);
+	void SetLoop(OBSSource source, LoopMode mode);
+	void refreshLoopUi();
 
 	/* create thread */
 	void CreateCheckValidThread();
+	void createGetCoverThread();
 
 	void AddSource(const QString &sourceName, quint64 sceneItem, bool createNew = true);
 	void RemoveSource(const QString &sourceName, quint64 sceneItem);
 	obs_source_t *GetSource(const quint64 &sceneItem);
 	bool SameWithCurrentSource(const QString &sourceName);
 	bool SameWithCurrentSource(const quint64 &sceneItem);
+	bool isSceneitemVisible(const quint64 &sceneItem);
+	void checkSceneitemEnableToastDisplayed(const quint64 &sceneitem, bool alwaysShowToast = false);
+	void checkSceneitemEnableToastDisplayed(OBSSceneItem sceneitem, bool alwaysShowToast = false);
 	bool IsSameState(OBSSource source, obs_media_state state);
 	QVector<PLSBgmItemData> GetPlayListData(obs_data_t *settings) const;
 	PLSBgmItemData GetPlayListDataBySettings(obs_data_t *settings) const;
@@ -208,17 +221,16 @@ private:
 	void AddPlayListUI(const quint64 &sceneItem);
 	void SetPlayerControllerStatus(const quint64 &sceneItem, bool listChanged = false);
 	void ResetControlView();
-	void DisablePlayerControlUI(bool disable);
+	void DisablePlayerControlUI(bool disable, bool needShowCover = false);
 	void SetCurrentPlayMode(PlayMode mode);
 	static void PLSFrontendEvent(enum obs_frontend_event event, void *ptr);
 
 	int GetPlayListItemIndexByKey(const QString &key) const;
 
-	void SetUrlInfo(OBSSource source, const PLSBgmItemData &data) const;
+	void SetUrlInfo(OBSSource source, const PLSBgmItemData &data, bool playImmediately = true) const;
 	void SetUrlInfoToSettings(obs_data_t *settings, const PLSBgmItemData &data) const;
 
 	QString StrcatString(const QString &title, const QString &producer) const;
-	bool IsSourceAvailable(const QString &sourceName, quint64 sceneItem) const;
 
 	void StartSliderPlayingTimer();
 	void StopSliderPlayingTimer();
@@ -251,6 +263,9 @@ private:
 	void SeekTo(int val);
 	int64_t GetSliderTime(int val);
 
+	void setCurrentRow(OBSSource source);
+	void setCurrentRow(OBSSource source, const PLSBgmItemData &data);
+
 signals:
 	void bgmViewVisibleChanged(bool isVisible);
 	void RefreshSourceProperty(const QString &sourceName, bool disable = false);
@@ -261,6 +276,7 @@ private:
 	quint64 currentSceneItem{};
 
 	PlayMode mode = PlayMode::InOrderMode;
+	LoopMode m_loopMode = LoopMode::LoopAll;
 	PLSBgmLibraryView *libraryView{nullptr};
 
 	QTimer *sliderTimer{};
@@ -289,5 +305,7 @@ private:
 	bool seeking = false;
 	bool prevPaused = false;
 };
+
+using LoopMode = PLSBackgroundMusicView::LoopMode;
 
 #endif // PLSBACKGROUNDMUSICVIEW_H

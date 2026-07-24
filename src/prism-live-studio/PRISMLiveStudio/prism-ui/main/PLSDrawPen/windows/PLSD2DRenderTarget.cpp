@@ -35,17 +35,18 @@ void PLSD2DRenderTarget::DrawEnd() const
 	d3d11DeviceContext->Flush();
 }
 
-void PLSD2DRenderTarget::DrawCurve(const std::vector<PointF> &points, uint32_t rgba, FLOAT line, bool round, int offset) const
+bool PLSD2DRenderTarget::DrawCurve(const std::vector<PointF> &points, uint32_t rgba, FLOAT line, bool round, int offset) const
 {
 	if (!d2d1RenderTarget || !d2d1ColorBrush || points.empty())
-		return;
+		return false;
 
-	DrawBegin();
+	if (!DrawBegin())
+		return false;
 
 	auto pathGeometry = (ID2D1PathGeometry *)(PLSD2DGeometry::CalculateCurveGeometry(points));
 	if (!pathGeometry) {
 		DrawEnd();
-		return;
+		return false;
 	}
 
 	D2D1_COLOR_F color;
@@ -60,7 +61,7 @@ void PLSD2DRenderTarget::DrawCurve(const std::vector<PointF> &points, uint32_t r
 
 	DrawEnd();
 
-	return;
+	return true;
 }
 
 void PLSD2DRenderTarget::Draw2DShape(const std::vector<PointF> &points, ShapeType type, uint32_t rgba, FLOAT line) const
@@ -277,6 +278,8 @@ gs_texture_t *PLSD2DRenderTarget::GetSharedTexture()
 
 bool PLSD2DRenderTarget::ResetRenderTarget()
 {
+	Destroy();
+
 	uint32_t w = 0;
 	uint32_t h = 0;
 	PLSDrawPenMgr::Instance()->GetSize(w, h);

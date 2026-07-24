@@ -20,6 +20,7 @@ PLSLoadingCombox::PLSLoadingCombox(QWidget *parent) : QPushButton(parent)
 	this->installEventFilter(this);
 	pls_add_css(this, {"PLSLoadingCombox"});
 	pls_flush_style(ui->titleLabel);
+	pls_uistep_v2_set_custom_show_hide_name(m_menu, "Loading menu");
 }
 
 PLSLoadingCombox::~PLSLoadingCombox()
@@ -111,13 +112,13 @@ bool PLSLoadingCombox::eventFilter(QObject *watched, QEvent *event)
 		QString str = fontMetric.elidedText(m_title, Qt::ElideRight, ui->titleLabel->width());
 		ui->titleLabel->setText(str);
 	} else if (event->type() == QEvent::EnabledChange) {
-		if (isEnabled()) {
-			ui->titleLabel->setStyleSheet("color:white;");
-			ui->arrowLabel->setStyleSheet("image:url(\":/channels/resource/images/navershopping/txt-dropbox-open-normal.svg\")");
-		} else {
-			ui->titleLabel->setStyleSheet("color:#666666;");
-			ui->arrowLabel->setStyleSheet("image:url(\":/channels/resource/images/navershopping/txt-dropbox-open-disable.svg\")");
-		}
+		// Text/arrow always render as if enabled, regardless of isEnabled(): PLSLiveInfoFacebook
+		// briefly disables shareSecondObject during its GoLive permission check (see
+		// PLSLiveInfoFacebook.css's matching #shareFirstObject/#shareSecondObject:disabled
+		// background-color), and the two combos must look identical during that window instead of
+		// the disabled one's text dimming to gray, which read as its content briefly disappearing.
+		ui->titleLabel->setStyleSheet("color:white;");
+		ui->arrowLabel->setStyleSheet("image:url(\":/channels/resource/images/navershopping/txt-dropbox-open-normal.svg\")");
 	}
 	return QPushButton::eventFilter(watched, event);
 }
@@ -125,13 +126,9 @@ bool PLSLoadingCombox::eventFilter(QObject *watched, QEvent *event)
 void PLSLoadingCombox::showComboListView(bool show)
 {
 	this->setChecked(show);
-	if (isEnabled()) {
-		ui->titleLabel->setStyleSheet("color:white;");
-		ui->arrowLabel->setStyleSheet("image:url(\":/channels/resource/images/navershopping/txt-dropbox-open-normal.svg\")");
-	} else {
-		ui->titleLabel->setStyleSheet("color:#666666;");
-		ui->arrowLabel->setStyleSheet("image:url(\":/channels/resource/images/navershopping/txt-dropbox-open-disable.svg\")");
-	}
+	// See eventFilter()'s EnabledChange handling: always the enabled look, regardless of isEnabled().
+	ui->titleLabel->setStyleSheet("color:white;");
+	ui->arrowLabel->setStyleSheet("image:url(\":/channels/resource/images/navershopping/txt-dropbox-open-normal.svg\")");
 	pls_flush_style(this);
 }
 
@@ -142,5 +139,6 @@ void PLSLoadingCombox::itemDidSelect(const QListWidgetItem *item)
 		return;
 	}
 	m_menu->hide();
+	PLS_UI_ACTION("PLSLoadingCombox item select %d", data.showIndex);
 	emit clickItemIndex(data.showIndex);
 }

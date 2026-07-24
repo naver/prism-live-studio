@@ -199,6 +199,9 @@ signals:
 protected:
 	void convertScheduleListToMapList() override;
 
+	void onResumeStreaming(const QMap<QString, QVariant> &params) override;
+	QMap<QString, QVariant> getResumeStreamingParams() const override;
+
 private slots:
 	void onCheckStatus();
 	void onShowScheLiveNotice();

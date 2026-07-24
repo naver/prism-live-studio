@@ -1,46 +1,110 @@
+/*---------  common  -------------------*/
 PLSDock#chatDock {
-	qproperty-contentMarginLeft: /*hdpi*/ 1;
-	qproperty-contentMarginRight: /*hdpi*/ 1;
-	qproperty-contentMarginBottom: /*hdpi*/ 1;
-	background-color: #1e1e1f;
-}
-
-PLSDock#chatDock[floating="true"] {
-	qproperty-contentMarginLeft: /*hdpi*/ 0;
-	qproperty-contentMarginRight: /*hdpi*/ 0;
-	qproperty-contentMarginBottom: /*hdpi*/ 0;
+	qproperty-contentMarginLeft: 1;
+	qproperty-contentMarginRight: 1;
+	qproperty-contentMarginBottom: 1;
 	background-color: #1e1e1f;
 }
 
 PLSDock#chatDock PLSDockTitle {
-	qproperty-marginLeft: /*hdpi*/ 19;
-	qproperty-marginRight: /*hdpi*/ 9;
-	qproperty-contentSpacing: /*hdpi*/ 10;
-	qproperty-captionHeight: /*hdpi*/ 49;
+	qproperty-marginLeft: 19;
+	qproperty-marginRight: 9;
+	qproperty-contentSpacing: 10;
+	qproperty-captionHeight: 49;
 	background-color: #272727;
 }
 
-
-PLSDock#chatDock #content {
-	border-top: /*hdpi*/ 1px solid #111111;
-}
-
 PLSDock#chatDock {
-	border-top:  1px solid #111111;
-	border-left:1px solid #111111;
-	border-bottom:  1px solid #111111;
-	border-right:  1px solid #111111;
-
 	background-color: #1e1e1f;
-	min-width: /*hdpi*/ 182px;
-	min-height: /*hdpi*/ 132px;
+	min-width: 182px;
+	min-height: 132px;
+}
+PLSDock#chatDock #content {
+	border-top: 1px solid #111111;
 }
 
-PLSDock#chatDock[movingAndFloating="true"] {
-		border-top: 1px solid #effc35;
-		border-left:  1px solid #effc35;
-		border-bottom: 1px solid #effc35;
-		border-right:  1px solid #effc35;
+/*---------  mac  -------------------*/
+PLSDock#chatDock[floating="true"][windows="false"] {
+	qproperty-contentMarginLeft: 0;
+	qproperty-contentMarginRight: 0;
+	qproperty-contentMarginBottom: 0;
+	background-color: #1e1e1f;
+}
+
+PLSDock#chatDock[windows="false"] {
+	border-top: 1px solid #111111;
+	border-left: 1px solid #111111;
+	border-bottom: 1px solid #111111;
+	border-right: 1px solid #111111;
+}
+
+PLSDock#chatDock[movingAndFloating="true"][windows="false"] {
+	border-top: 1px solid #effc35;
+	border-left:  1px solid #effc35;
+	border-bottom: 1px solid #effc35;
+	border-right:  1px solid #effc35;
 }
 
 
+
+/*---------  win  -------------------*/
+PLSDock#chatDock[floating="true"][windows="true"] {
+	qproperty-contentMarginLeft: 0;
+	qproperty-contentMarginRight: 0;
+	qproperty-contentMarginBottom: 0;
+	background-color: #111111;
+}
+PLSDock#chatDock[windows="true"] PLSDockTitle {
+	border-left: 2px solid #272727;
+	border-right: 2px solid #272727;
+	border-top: 2px solid #272727;
+}
+
+PLSDock#chatDock[windows="true"] PLSDockTitle #titleLabel {
+	background-color: transparent;
+}
+
+PLSDock#chatDock[floating="false"][windows="true"] PLSDockTitle {
+	border-left: 0px solid #272727;
+	border-right: 0px solid #272727;
+	border-top: 0px solid #272727;
+}
+
+PLSDock#chatDock[windows="true"] #content {
+	border-top: 1px solid #111111;
+	background-color:  #272727;
+}
+PLSDock#chatDock[floating="false"][windows="true"] #content {
+	background-color: #272727;
+}
+
+PLSDock#chatDock[windows="true"] {
+	border-top: 2px solid #111111;
+	border-left: 2px solid #111111;
+	border-bottom: 2px solid #111111;
+	border-right: 2px solid #111111;
+}
+
+PLSDock#chatDock[windows="true"][movingAndFloating="true"] {
+	border-top: 2px solid #effc35;
+	border-left: 2px solid #effc35;
+	border-bottom: 2px solid #effc35;
+	border-right: 2px solid #effc35;
+}
+PLSDock#chatDock[windows="true"][moving="true"]  #content{
+	border-left: 1px solid #effc35;
+	border-bottom: 1px solid #effc35;
+	border-right: 1px solid #effc35;
+}
+PLSDock#chatDock[windows="true"][moving="true"][floating="false"] PLSDockTitle {
+	border-left: 1px solid #effc35;
+	border-right: 1px solid #effc35;
+	border-top: 1px solid #effc35;
+}
+
+
+/** border color level from outside to inner
+ *  PLSDock#chatDock[windows="true"]
+ *  PLSDock#chatDock[floating="true"][windows="true"] #content  some 2k
+ *  PLSDock#chatDock[windows="true"] #content
+ **/

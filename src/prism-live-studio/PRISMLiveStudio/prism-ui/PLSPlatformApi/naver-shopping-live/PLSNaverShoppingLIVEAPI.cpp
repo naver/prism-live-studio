@@ -29,13 +29,13 @@
 #include "libhttp-client.h"
 
 using namespace common;
-constexpr auto CHANNEL_NAVER_SHOPPING_LIVE_HEADER_KEY = "";
+constexpr auto CHANNEL_NAVER_SHOPPING_LIVE_HEADER_KEY = "apigw-routing-key";
 
-#define UPLOAD_IMAGE_PARAM_IMAGE QStringLiteral("")
-#define UPLOAD_IMAGE_PARAM_USERID QStringLiteral("")
-#define HEADER_MINE_APPLICATION QStringLiteral("")
-#define ApiPropertyShowAlert QStringLiteral("")
-#define ApiPropertyHandleTokenExpire QStringLiteral("")
+#define UPLOAD_IMAGE_PARAM_IMAGE QStringLiteral("image")
+#define UPLOAD_IMAGE_PARAM_USERID QStringLiteral("userId")
+#define HEADER_MINE_APPLICATION QStringLiteral("application/octet-stream")
+#define ApiPropertyShowAlert QStringLiteral("ApiPropertyShowAlert")
+#define ApiPropertyHandleTokenExpire QStringLiteral("ApiPropertyHandleTokenExpire")
 
 const int AM = 0;
 const int PM = 1;
@@ -77,7 +77,12 @@ static bool hasProductNo(const QJsonObject &object)
 
 static QString getUserAgent()
 {
-	return "";
+#define _VERSTR_I(major, minor, patch) #major "." #minor "." #patch
+#define _VERSTR(major, minor, patch) _VERSTR_I(major, minor, patch)
+	return "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36 NAVER(pc; prism; prism-pc; " _VERSTR(
+		PLS_RELEASE_CANDIDATE_MAJOR, PLS_RELEASE_CANDIDATE_MINOR, PLS_RELEASE_CANDIDATE_PATCH) ";)";
+#undef _VERSTR_I
+#undef _VERSTR
 }
 
 PLSNaverShoppingLIVEAPI::NaverShoppingUserInfo::NaverShoppingUserInfo(const QJsonObject &object)
@@ -254,10 +259,8 @@ void PLSNaverShoppingLIVEAPI::refreshChannelToken(const PLSPlatformNaverShopping
 						   PLS_ERROR(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "Naver Shopping Live refresh token and get user info failed, reason: %s",
 							     error.errorString().toUtf8().constData());
 						   pls_async_call_mt(receiver, receiverIsValid, [callback, data = reply.data(), statusCode = reply.statusCode(), error = reply.error()]() {
-							   PLSErrorHandler::ExtraData exData;
-							   exData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_REFRESH_TOKEN;
 							   PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ErrCode::CHANNEL_NAVER_SHOPPING_LIVE_REFRESH_UNKNOWN_ERROR, NAVER_SHOPPING_LIVE,
-												 "TempErrorTryAgain", exData);
+												 "TempErrorTryAgain", PLSErrorHandler::ExtraData(CHANNEL_NAVER_SHOPPING_LIVE_REFRESH_TOKEN));
 						   });
 					   })
 				   .failResult([callback, receiver, receiverIsValid](const pls::http::Reply &reply) {
@@ -276,13 +279,13 @@ void PLSNaverShoppingLIVEAPI::uploadImage(PLSPlatformNaverShoppingLIVE *platform
 	auto sessionKeyOkCallback = [platform, imagePath, callback, receiver, receiverIsValid](const QJsonDocument &json) {
 		QJsonObject object = json.object();
 		QString sessionKey = JSON_getString(object, sessionKey);
-		QString uploaderDomain = "";
-		QString deliveryDomain = "";
+		QString uploaderDomain = object.value("phinfInfo").toObject().value("uploaderDomain").toString();
+		QString deliveryDomain = object.value("phinfInfo").toObject().value("deliveryDomain").toString();
 		if (uploaderDomain.isEmpty() || deliveryDomain.isEmpty() || sessionKey.isEmpty()) {
 			callback(PLSAPINaverShoppingType::PLSNaverShoppingFailed, QString(), "");
 			return;
 		}
-		QString uploadURL = "";
+		QString uploadURL = QString("%1/%2/simpleUpload/0").arg(uploaderDomain).arg(sessionKey);
 		uploadLocalImage(platform, uploadURL, deliveryDomain, imagePath, callback, receiver, receiverIsValid);
 	};
 	Url url(urlForPath(CHANNEL_NAVER_SHOPPING_LIVE_GET_SEESION_KEY.arg(platform->getUserInfo().broadcasterId)),
@@ -696,8 +699,11 @@ void PLSNaverShoppingLIVEAPI::downloadImage(const PLSPlatformNaverShoppingLIVE *
 				   .okResult([receiver, receiverIsValid, callback](const pls::http::Reply &reply) {
 					   pls_async_call_mt(receiver, receiverIsValid, [callback, imagePath = reply.downloadFilePath()]() { pls_invoke_safe(callback, true, imagePath); });
 				   })
-				   .failResult([receiver, receiverIsValid, callback](const pls::http::Reply &) {
-					   pls_async_call_mt(receiver, receiverIsValid, [callback]() { pls_invoke_safe(callback, false, QString()); }); //
+				   .failResult([receiver, receiverIsValid, callback, url](const pls::http::Reply &) {
+					   PLS_ERROR(MODULE_PLATFORM_NAVER_SHOPPING_LIVE,
+						    "Naver Shopping Live image download failed, imageUrl: %s (may cause thumbnail not shown; check network/SSL)",
+						    pls_masking_person_info(url).toUtf8().constData());
+					   pls_async_call_mt(receiver, receiverIsValid, [callback]() { pls_invoke_safe(callback, false, QString()); });
 				   }));
 }
 
@@ -894,9 +900,8 @@ void PLSNaverShoppingLIVEAPI::processRequestFailCallback(PLSPlatformNaverShoppin
 			PLS_ERROR(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "Naver Shopping Live %s invalid access token", PLSNaverShoppingLIVEAPI::getStrValueByEnum(urlType));
 		}
 	}
-	PLSErrorHandler::ExtraData extraData;
+	PLSErrorHandler::ExtraData extraData(urlPath);
 	extraData.pathValueMap["logContent"] = QMetaEnum::fromType<PLSAPINaverShoppingUrlType>().valueToKey(static_cast<int>(urlType));
-	extraData.urlEn = urlPath;
 
 	PLSErrorHandler::RetData retData = PLSErrorHandler::getAlertString({statusCode, networkError, data}, NAVER_SHOPPING_LIVE, "", extraData);
 	if (retData.isExactMatch) {

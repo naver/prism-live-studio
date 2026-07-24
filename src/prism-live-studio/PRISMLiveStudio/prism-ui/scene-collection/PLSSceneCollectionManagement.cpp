@@ -6,10 +6,16 @@
 #include <QWidgetAction>
 #include <QTimer>
 #include <QMouseEvent>
+#include <QShowEvent>
 #include "liblog.h"
 #include "log/module_names.h"
 
 using namespace common;
+
+// Scene collection popup menu: item height, total border width, top margin
+const int SCENE_COLLECTION_POPUP_ITEM_HEIGHT = 40;
+const int SCENE_COLLECTION_POPUP_BORDER_WIDTH = 3;
+const int SCENE_COLLECTION_POPUP_TOP_MARGIN = 6;
 
 PLSSceneCollectionManagement::PLSSceneCollectionManagement(QWidget *parent) : QFrame(parent)
 {
@@ -17,10 +23,12 @@ PLSSceneCollectionManagement::PLSSceneCollectionManagement(QWidget *parent) : QF
 	ui->setupUi(this);
 	ui->listview->SetEnableDrops(false);
 	ui->managementLabel->SetText(QTStr("Scene.Collection.View.Management"));
-
+	pls_uistep_v2_set_title(this, QStringLiteral("Scenes Dock"));
 	ui->buttonFrame->installEventFilter(this);
+	ui->listview->installEventFilter(this);
 
 	pls_add_css(this, {"PLSSceneCollectionManagement"});
+	pls_uistep_v2_set_value(ui->goBtn, QStringLiteral("Go"));
 	this->installEventFilter(this);
 	connect(ui->goBtn, &QPushButton::clicked, this, [this]() { emit ShowSceneCollectionView(); });
 	connect(ui->listview, &PLSSceneCollectionListView::TriggerEventEvent, this, &PLSSceneCollectionManagement::OnTriggerEnterEvent);
@@ -83,7 +91,13 @@ void PLSSceneCollectionManagement::Resize(int count)
 	ui->listview->setProperty("fixed", (count - 1) == 1);
 	pls_flush_style(ui->listview);
 
-	this->resize(198, count * 40 + 3);
+	this->resize(198, count * SCENE_COLLECTION_POPUP_ITEM_HEIGHT + SCENE_COLLECTION_POPUP_BORDER_WIDTH + SCENE_COLLECTION_POPUP_TOP_MARGIN);
+}
+
+void PLSSceneCollectionManagement::showEvent(QShowEvent *event)
+{
+	QFrame::showEvent(event);
+	pls_flush_style(ui->buttonFrame, STATUS, STATUS_NORMAL);
 }
 
 void PLSSceneCollectionManagement::OnTriggerEnterEvent(const QString &name, const QString &path)
@@ -109,7 +123,7 @@ bool PLSSceneCollectionManagement::eventFilter(QObject *obj, QEvent *event)
 			auto mouseEvent = dynamic_cast<QMouseEvent *>(event);
 			if (mouseEvent->button() == Qt::LeftButton) {
 				pls_flush_style(ui->buttonFrame, STATUS, STATUS_CLICKED);
-				PLS_UI_STEP(MAIN_SCENE_COLLECTION, "scene set manager", ACTION_LBUTTON_CLICK);
+				pls_uistep_v2(this, "Click", "Button", "Scene Set Management");
 				emit ShowSceneCollectionView();
 			}
 		} else if (event->type() == QEvent::Enter) {
@@ -117,6 +131,9 @@ bool PLSSceneCollectionManagement::eventFilter(QObject *obj, QEvent *event)
 		} else if (event->type() == QEvent::Leave) {
 			pls_flush_style(ui->buttonFrame, STATUS, STATUS_NORMAL);
 		}
+	} else if (obj == ui->listview && event->type() == QEvent::Enter) {
+		// Mouse entered listview without buttonFrame getting Leave; clear buttonFrame hover.
+		pls_flush_style(ui->buttonFrame, STATUS, STATUS_NORMAL);
 	}
 
 	return QFrame::eventFilter(obj, event);

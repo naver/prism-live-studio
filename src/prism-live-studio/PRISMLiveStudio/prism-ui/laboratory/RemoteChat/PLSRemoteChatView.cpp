@@ -12,7 +12,7 @@ PLSRemoteChatView::PLSRemoteChatView(DialogInfo info, QWidget *parent) : PLSSide
 #if defined(Q_OS_WIN)
 	setFixedSize(820, 600);
 #elif defined(Q_OS_MACOS)
-	setFixedSize(820, 560);
+	setFixedSize(820, 600 - PLS_TITLE_BAR_HEIGHT);
 #endif
 	setWindowTitle(LabManage->getStringInfo(LABORATORY_REMOTECHAT_ID, laboratory_data::g_laboratoryTitle));
 	setResizeEnabled(false);

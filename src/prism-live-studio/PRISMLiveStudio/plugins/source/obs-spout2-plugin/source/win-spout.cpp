@@ -51,19 +51,12 @@ static void spout_obs_event(enum obs_frontend_event event, void *)
 void spout_obs_reset(pls_frontend_event event, const QVariantList &params, void *context)
 {
 	Q_UNUSED(params)
-	pls_check_app_exiting();
 	if (pls_frontend_event::PLS_FRONTEND_EVENT_RESET_VIDEO == event) {
+		pls_check_app_exiting();
 		if (!win_spout_out) {
 			return;
 		}
-
-		obs_output_stop(win_spout_out);
-		obs_output_release(win_spout_out);
-		win_spout_out = nullptr;
-
-		obs_data_t *settings = obs_data_create();
-		win_spout_out = obs_output_create("spout_output", "PRISM Spout Output", settings, NULL);
-		obs_data_release(settings);
+		obs_output_set_media(win_spout_out, obs_get_video(), obs_get_audio());
 	} else if (pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_SHUTTING_DOWN == event) {
 		//PRISM/FanZirong/20240802/PRISM_PC-755/save setting in shutdown
 		if (spout_output_settings)

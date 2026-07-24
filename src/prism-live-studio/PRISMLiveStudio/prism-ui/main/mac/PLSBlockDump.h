@@ -11,6 +11,7 @@
 
 #pragma once
 #include <atomic>
+#include <mutex>
 #include <string>
 #include <QObject>
 #include <QTimerEvent>
@@ -45,11 +46,14 @@ public:
 	void stopMonitor();
 	void signExitEvent();
 
+	void updateNotifyEvent(QObject *obj, QEvent *evt);
+	std::string getPreviousObject();
+
 protected:
 	void initSavePath();
 	void checkThreadInner();
 	bool isHandleSigned(Event *event, int milliSecond);
-	bool isBlockState(uint64_t preHeartbeat, uint64_t currentTime);
+	bool isBlockState(uint64_t preHeartbeat, uint64_t currentTime, int timeoutMs);
 	std::string saveDumpFile();
 
 private:
@@ -58,8 +62,9 @@ private:
 	int heartbeatTimer = 0;
 
 	std::atomic<uint64_t> preEventTime = getTickCount();
-	std::atomic<uint64_t> preObject = 0;
-	std::atomic<uint64_t> preEvent = 0;
+	QString preObjectName;
+	QString preClassName;
+	std::recursive_mutex lockPreName;
 
 	Event *checkBlockThread = nullptr;
 	Event *threadExitEvent = nullptr;

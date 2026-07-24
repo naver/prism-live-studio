@@ -15,9 +15,9 @@ PLSDrawPenView QPushButton {
 	/*background: transparent;*/
 }
 
-PLSDrawPenView #frame_Content{
-	max-width: /*hdpi*/ 636px;
-	min-width : /*hdpi*/ 564px;
+PLSDrawPenView #frame_Content {
+	max-width: /*hdpi*/ 756px;
+	min-width: /*hdpi*/ 756px;
 	min-height: /*hdpi*/ 40px;
 	max-height: /*hdpi*/ 40px;
 }
@@ -397,7 +397,7 @@ PLSDrawPenView #pushButton_Rubber:checked:disabled {
 }
 
 PLSDrawPenView #pushButton_Width{
-	image: url(":/resource/images/draw-pen/ic-toolbar-border-10-normal.svg");
+	image: url(":/resource/images/draw-pen/ic_stroke_weight_normal.svg");
 	min-width: /*hdpi*/ 28px;
 	max-width: /*hdpi*/ 28px;
 	min-height: /*hdpi*/ 28px;
@@ -405,142 +405,19 @@ PLSDrawPenView #pushButton_Width{
 	background: transparent;
 }
 
-PLSDrawPenView #pushButton_Width[style="0"],
-PLSDrawPenView #pushButton_Width[style="0"]:checked, 
-PLSDrawPenView #pushButton_Width[style="0"]:checked:hover,
-PLSDrawPenView #pushButton_Width[style="0"]:checked:pressed{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-4-normal.svg");
-		background: transparent;
+PLSDrawPenView #pushButton_Width:hover {
+	image: url(":/resource/images/draw-pen/ic_stroke_weight_hover.svg");
+	background-color: #444444;
 }
 
-PLSDrawPenView #pushButton_Width[style="0"]:checked:disabled{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-4-disable.svg");
-		background-color:#333333;
+PLSDrawPenView #pushButton_Width:pressed {
+	image: url(":/resource/images/draw-pen/ic_stroke_weight_click.svg");
+	background-color: #2d2d2d;
 }
 
-PLSDrawPenView #pushButton_Width[style="0"]:hover {
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-4-over.svg");
-		background-color:#444444;
-}
-
-PLSDrawPenView #pushButton_Width[style="0"]:pressed {
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-4-over.svg");
-		background-color:#2d2d2d;
-}
-
-PLSDrawPenView #pushButton_Width[style="0"]:disabled{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-4-disable.svg");
-		background: transparent;
-}
-
-PLSDrawPenView #pushButton_Width[style="1"],
-PLSDrawPenView #pushButton_Width[style="1"]:checked, 
-PLSDrawPenView #pushButton_Width[style="1"]:checked:hover,
-PLSDrawPenView #pushButton_Width[style="1"]:checked:pressed{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-8-normal.svg");
-		background: transparent;
-}
-
-PLSDrawPenView #pushButton_Width[style="1"]:checked:disabled{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-8-disable.svg");
-		background-color:#333333;
-}
-
-PLSDrawPenView #pushButton_Width[style="1"]:hover {
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-8-over.svg");
-		background-color:#444444;
-}
-
-PLSDrawPenView #pushButton_Width[style="1"]:pressed {
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-8-over.svg");
-		background-color:#2d2d2d;
-}
-
-PLSDrawPenView #pushButton_Width[style="1"]:disabled{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-8-disable.svg");
-		background: transparent;
-}
-
-PLSDrawPenView #pushButton_Width[style="2"],
-PLSDrawPenView #pushButton_Width[style="2"]:checked, 
-PLSDrawPenView #pushButton_Width[style="2"]:checked:hover,
-PLSDrawPenView #pushButton_Width[style="2"]:checked:pressed{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-10-normal.svg");
-		background: transparent;
-}
-
-PLSDrawPenView #pushButton_Width[style="2"]:checked:disabled{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-10-disable.svg");
-		background-color:#333333;
-}
-
-PLSDrawPenView #pushButton_Width[style="2"]:hover {
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-10-over.svg");
-		background-color:#444444;
-}
-
-PLSDrawPenView #pushButton_Width[style="2"]:pressed {
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-10-over.svg");
-		background-color:#2d2d2d;
-}
-
-PLSDrawPenView #pushButton_Width[style="2"]:disabled{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-10-disable.svg");
-		background: transparent;
-}
-PLSDrawPenView #pushButton_Width[style="3"],
-PLSDrawPenView #pushButton_Width[style="3"]:checked, 
-PLSDrawPenView #pushButton_Width[style="3"]:checked:hover,
-PLSDrawPenView #pushButton_Width[style="3"]:checked:pressed{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-14-normal.svg");
-		background: transparent;
-}
-
-PLSDrawPenView #pushButton_Width[style="3"]:checked:disabled{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-14-disable.svg");
-		background-color:#333333;
-}
-
-PLSDrawPenView #pushButton_Width[style="3"]:hover {
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-14-over.svg");
-		background-color:#444444;
-}
-
-PLSDrawPenView #pushButton_Width[style="3"]:pressed {
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-14-over.svg");
-		background-color:#2d2d2d;
-}
-
-PLSDrawPenView #pushButton_Width[style="3"]:disabled{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-14-disable.svg");
-		background: transparent;
-}
-PLSDrawPenView #pushButton_Width[style="4"],
-PLSDrawPenView #pushButton_Width[style="4"]:checked, 
-PLSDrawPenView #pushButton_Width[style="4"]:checked:hover,
-PLSDrawPenView #pushButton_Width[style="4"]:checked:pressed{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-18-normal.svg");
-		background: transparent;
-}
-
-PLSDrawPenView #pushButton_Width[style="4"]:checked:disabled{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-18-disable.svg");
-		background-color:#333333;
-}
-
-PLSDrawPenView #pushButton_Width[style="4"]:hover {
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-18-over.svg");
-		background-color:#444444;
-}
-
-PLSDrawPenView #pushButton_Width[style="4"]:pressed {
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-18-over.svg");
-		background-color:#2d2d2d;
-}
-
-PLSDrawPenView #pushButton_Width[style="4"]:disabled{
-		image: url(":/resource/images/draw-pen/ic-toolbar-border-18-disable.svg");
-		background: transparent;
+PLSDrawPenView #pushButton_Width:disabled {
+	image: url(":/resource/images/draw-pen/ic_stroke_weight_disable.svg");
+	background: transparent;
 }
 
 PLSDrawPenView #pushButton_Color{
@@ -1028,6 +905,16 @@ PLSDrawPenView #pushButton_Visible[visibled="false"]:pressed {
 		background-color:#2d2d2d;
 }
 
+
+	PLSDrawPenView #pushButton_Exit {
+		min-width: /*hdpi*/ 52px;
+		max-width: /*hdpi*/ 52px;
+		min-height: /*hdpi*/ 28px;
+		max-height: /*hdpi*/ 28px;
+		font-size: 12px;
+		font-weight: 400;
+	}
+
 PLSDrawPenView #shape_0{
 	image: url(":/resource/images/draw-pen/ic-arrow-off-normal.svg");
 	min-width: /*hdpi*/ 28px;
@@ -1427,3 +1314,94 @@ PLSDrawPenView #popup {
 	border: /*hdpi*/ 1px solid #111111;
 	padding:/*hdpi*/ 10px;
 }
+
+	/************************************ shape selected style ******************************************/
+	PLSDrawPenView #shape_0[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic-arrow-on-normal.svg");
+	}
+
+	PLSDrawPenView #shape_1[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic-line-on-normal.svg");
+	}
+
+	PLSDrawPenView #shape_2[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic-rectangle-on-normal.svg");
+	}
+
+	PLSDrawPenView #shape_3[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic-circle-on-normal.svg");
+	}
+
+	PLSDrawPenView #shape_4[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic-triangle-on-normal.svg");
+	}
+
+	/************************************ pen width style ******************************************/
+	PLSDrawPenView #line_width_0[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_layer_border_4_normal.svg");
+	}
+
+	PLSDrawPenView #line_width_1[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_layer_border_8_normal.svg");
+	}
+
+	PLSDrawPenView #line_width_2[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_layer_border_10_normal.svg");
+	}
+
+	PLSDrawPenView #line_width_3[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_layer_border_14_normal.svg");
+	}
+
+	PLSDrawPenView #line_width_4[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_layer_border_18_normal.svg");
+	}
+
+	/************************************ pen color style ******************************************/
+	PLSDrawPenView #color_0[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_01_selected.svg");
+	}
+
+	PLSDrawPenView #color_1[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_02_selected.svg");
+	}
+
+	PLSDrawPenView #color_2[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_03_selected.svg");
+	}
+
+	PLSDrawPenView #color_3[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_04_selected.svg");
+	}
+
+	PLSDrawPenView #color_4[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_05_selected.svg");
+	}
+
+	PLSDrawPenView #color_5[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_06_selected.svg");
+	}
+
+	PLSDrawPenView #color_6[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_07_selected.svg");
+	}
+
+	PLSDrawPenView #color_7[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_08_selected.svg");
+	}
+
+	PLSDrawPenView #color_8[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_09_selected.svg");
+	}
+
+	PLSDrawPenView #color_9[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_10_selected.svg");
+	}
+
+	PLSDrawPenView #color_10[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_11_selected.svg");
+	}
+
+	PLSDrawPenView #color_11[state="selected"] {
+		image: url(":/resource/images/draw-pen/ic_color_12_selected.svg");
+	}

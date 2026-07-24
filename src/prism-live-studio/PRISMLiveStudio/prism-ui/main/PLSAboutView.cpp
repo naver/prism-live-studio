@@ -12,11 +12,12 @@ PLSAboutView::PLSAboutView(QWidget *parent) : PLSDialogView(parent)
 	setResizeEnabled(false);
 	pls_set_css(this, {"PLSAboutView"});
 	setupUi(ui);
+	setFixedSize(342, 360);
 	initSize(342, 360);
-	QString version = QString::asprintf("%s %s", tr(ABOUT_CURRENT_VERSION).toUtf8().constData(), PRISM_VERSION);
-	ui->versionLabel->setText(version);
+	ui->versionLabel->setText(QString("%1.%2.%3 (Build %4)").arg(PRISM_VERSION_MAJOR).arg(PRISM_VERSION_MINOR).arg(PRISM_VERSION_PATCH).arg(PRISM_VERSION_BUILD));
 	bool disabled = pls_is_output_actived();
 	ui->checkUpdateButton->setDisabled(disabled);
+	pls_uistep_v2_set_title(this, QStringLiteral("About"));
 
 #if defined(Q_OS_MACOS)
 	ui->verticalSpacer_2->changeSize(0, 51, QSizePolicy::Fixed, QSizePolicy::Fixed);

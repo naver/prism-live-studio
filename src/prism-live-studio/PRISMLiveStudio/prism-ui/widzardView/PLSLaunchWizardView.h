@@ -11,7 +11,6 @@
 #include <QHBoxLayout>
 #include <qjsonobject.h>
 #include "libresource.h"
-#include "libbrowser.h"
 namespace Ui {
 class PLSLaunchWizardView;
 }
@@ -84,8 +83,8 @@ private:
 	void checkStackOrder() const;
 	void getBannerJson();
 
-	void createAdView();
-	void releaseAdView();
+	void updateFixedHeight();
+	void updateAlertViewHeight();
 
 public slots:
 	void singletonWakeup();
@@ -120,6 +119,7 @@ private:
 	//banner param
 	QMap<QString, QString> mBannerUrls;
 	QMap<QString, QString> mLinks;
+	QMap<QString, int> mBannerIndexes; // filePath -> bannerIndex, -1 means random
 
 	bool isLoadBannerSuccess = false;
 	bool isLoadingBanner = false;
@@ -134,8 +134,6 @@ private:
 	int m_UpdateCount = 0;
 	bool m_bShowFlag = false;
 	QString m_jsonPath;
-	pls::browser::BrowserWidget *m_browser = nullptr;
-	QWidget *m_browserContainer = nullptr;
 	QSharedPointer<QTimer> m_stopLoadingTimer;
 };
 

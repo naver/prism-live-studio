@@ -10,14 +10,15 @@
 #include "pls-channel-const.h"
 #include "pls-shared-functions.h"
 #include "ui_DefaultPlatformsAddList.h"
-
 using namespace ChannelData;
 
 DefaultPlatformsAddList::DefaultPlatformsAddList(QWidget *parent) : QFrame(parent), ui(new Ui::DefaultPlatformsAddList)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	ui->setupUi(this);
 	initUi();
 	pls_add_css(this, {"DefaultPlatformsAddList"});
+	pls_uistep_v2_set_title(this, QStringLiteral("Default Platforms Add List"));
 }
 
 DefaultPlatformsAddList::~DefaultPlatformsAddList()
@@ -27,9 +28,10 @@ DefaultPlatformsAddList::~DefaultPlatformsAddList()
 
 void DefaultPlatformsAddList::runBtnCMD() const
 {
+	PLS_PERFORMANCE_GLOBAL_START("Add Channel/Rtmp");
+	PLS_PERFORMANCE_GLOBAL_START("Show Before", "Add Channel/Rtmp");
 	auto btn = dynamic_cast<QToolButton *>(sender());
-	auto cmdStr = getInfoOfObject(btn, g_channelName.toStdString().c_str(), QString("add"));
-	PRE_LOG_UI_MSG_STRING(("Default Platform" + cmdStr), "clicked")
+	auto cmdStr = getInfoOfObject(btn, g_channelName.toUtf8().constData(), QString("add"));
 	btn->hide();
 	runCMD(cmdStr);
 }
@@ -120,9 +122,11 @@ void DefaultPlatformsAddList::initUi()
 		hoverBtn->setObjectName("hoverBtn");
 
 		hoverBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
-		hoverBtn->setProperty(g_channelName.toStdString().c_str(), platformName);
+		hoverBtn->setProperty(g_channelName.toUtf8().constData(), platformName);
+		pls_uistep_v2_set_value(hoverBtn, QStringLiteral("*"), platformName);
 		if (fixPlatformName.contains(NCB2B)) {
-			hoverBtn->setProperty(g_fixPlatformName.toStdString().c_str(), "NCB2B");
+			hoverBtn->setProperty(g_fixPlatformName.toUtf8().constData(), QStringLiteral("NCB2B"));
+			pls_uistep_v2_set_value(hoverBtn, QStringLiteral("*"), QStringLiteral("NCB2B"));
 		}
 		hoverBtn->hide();
 		connect(hoverBtn, &QToolButton::clicked, this, &DefaultPlatformsAddList::runBtnCMD, Qt::QueuedConnection);

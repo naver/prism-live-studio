@@ -1,0 +1,68 @@
+{
+    "buildDate": 1708674639000,
+    "connection": {
+        "apis": {
+            "fallback": {
+                "ssl": "",
+                "url": ""
+            },
+            "ssl": "",
+            "url": ""
+        }
+    },
+    "optional": {
+        "common": {
+            "deviceType": "win64",
+            "regionCode": "",
+            "stage": "dev",
+            "tag": "i",
+            "version": 2
+        },
+        "snsCallbackUrls": {
+            "facebook": "",
+            "google": "",
+            "line": "",
+            "naver": "",
+            "twitch": "",
+            "twitter": "",
+            "whalespace": ""
+        },
+        "supportedPlatforms": {
+            "channel": [
+                "PandaTV",
+                "Twitch",
+                "YouTube",
+                "Facebook",
+                "Naver Shopping LIVE",
+                "CHZZK",
+                "NAVER TV",
+                "BAND",
+                "afreecaTV",
+                "Custom RTMP"
+            ],
+            "login": [
+                "Facebook",
+                "Google",
+                "Twitch",
+                "NAVER",
+                "LINE",
+                "Whalespace",
+                "NAVER Cloud B2B"
+            ],
+            "resolutionGuide": [
+                "Twitch",
+                "Youtube",
+                "Facebook",
+                "Naver Shopping LIVE",
+                "Chzzk",
+                "NAVER TV",
+                "BAND",
+                "Now",
+                "afreecaTV",
+                "kakaoTV",
+                "NAVER Cloud Platform",
+                "PandaTV"
+            ]
+        }
+    }
+}

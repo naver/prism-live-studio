@@ -39,7 +39,7 @@ void PLSSceneDataMgr::RenameSceneData(const QString &preName, const QString &nex
 		SceneDisplayVector &vec = iterMap->second;
 		auto iter = vec.begin();
 		for (; iter != vec.end(); ++iter) {
-			if (0 == strcmp(iter->first.toStdString().c_str(), preName.toStdString().c_str())) {
+			if (0 == strcmp(iter->first.toUtf8().constData(), preName.toUtf8().constData())) {
 				iter->first = nextName;
 				break;
 			}
@@ -88,7 +88,7 @@ PLSSceneItemView *PLSSceneDataMgr::FindSceneData(const QString &name)
 		SceneDisplayVector &vec = iterMap->second;
 		auto iter = vec.begin();
 		for (; iter != vec.end(); ++iter) {
-			if (0 == strcmp(iter->first.toStdString().c_str(), name.toStdString().c_str())) {
+			if (0 == strcmp(iter->first.toUtf8().constData(), name.toUtf8().constData())) {
 				return iter->second;
 			}
 		}
@@ -162,42 +162,42 @@ void PLSSceneDataMgr::SetDisplayVector(const SceneDisplayVector &dVec, QString f
 	}
 }
 
-void PLSSceneDataMgr::SwapData(const int &romoveRow, const int &removeCol, const int &appendRow, const int &appendCol, const int &columnCount)
+QString PLSSceneDataMgr::SwapData(const int &romoveRow, const int &removeCol, const int &appendRow, const int &appendCol, const int &columnCount)
 {
 	if (removeCol == appendCol && romoveRow == appendRow) {
-		return;
+		return {};
 	}
 
 	auto iterMap = sceneDisplay.find(GetCurrentSceneCollectionName());
 	if (iterMap == sceneDisplay.end()) {
-		return;
+		return {};
 	}
 
 	SceneDisplayVector &vec = iterMap->second;
 	auto iter = vec.begin() + romoveRow * columnCount + removeCol;
 	if (iter == vec.end()) {
-		return;
+		return {};
 	}
 
 	PLSSceneItemView *view = iter->second;
 	vec.erase(iter);
 	if (!view) {
-		return;
+		return {};
 	}
 
-	SwapDataToVec(romoveRow, removeCol, appendRow, appendCol, columnCount, view, vec);
+	return SwapDataToVec(romoveRow, removeCol, appendRow, appendCol, columnCount, view, vec);
 }
 
-void PLSSceneDataMgr::SwapDataInListMode(const int &romoveRow, const int &appendRow)
+QString PLSSceneDataMgr::SwapDataInListMode(const int &romoveRow, const int &appendRow)
 {
 	auto iterMap = sceneDisplay.find(GetCurrentSceneCollectionName());
 	if (iterMap == sceneDisplay.end()) {
-		return;
+		return {};
 	}
 
 	SceneDisplayVector &vec = iterMap->second;
 	if (romoveRow == appendRow || appendRow < 0 || romoveRow < 0 || romoveRow >= vec.size() || appendRow >= vec.size()) {
-		return;
+		return {};
 	}
 
 	auto iters = vec.begin();
@@ -205,12 +205,21 @@ void PLSSceneDataMgr::SwapDataInListMode(const int &romoveRow, const int &append
 
 	PLSSceneItemView *view = iters->second;
 	if (!view) {
-		return;
+		return {};
 	}
 	vec.erase(iters);
-
+	QString dragSceneName = view->GetName();
+	QString log;
 	auto iter = vec.begin() + appendRow;
+	if (iter == vec.end()) { // append last
+		log = dragSceneName + " after " + vec.back().first;
+	} else if (iter == vec.begin()) { // append first
+		log = dragSceneName + " before " + vec.front().first;
+	} else {
+		log = dragSceneName + " before " + (*iter).first;
+	}
 	vec.emplace(iter, SceneDisplayVector::value_type(view->GetName(), view));
+	return log;
 }
 
 void PLSSceneDataMgr::SwapToUp(const QString &name)
@@ -352,33 +361,45 @@ QString PLSSceneDataMgr::GetCurrentSceneCollectionAbsName() const
 	return QString(path.data()).append("/").append(GetCurrentSceneCollectionName());
 }
 
-void PLSSceneDataMgr::SwapDataToVec(const int &romoveRow, const int &removeCol, const int &appendRow, const int &appendCol, const int &columnCount, PLSSceneItemView *view,
-				    SceneDisplayVector &vec) const
+QString PLSSceneDataMgr::SwapDataToVec(const int &romoveRow, const int &removeCol, const int &appendRow, const int &appendCol, const int &columnCount, PLSSceneItemView *view,
+				       SceneDisplayVector &vec) const
 {
-	if (!view) {
-		return;
+	if (!view || vec.empty()) {
+		return {};
 	}
-
+	QString dragSceneName = view->GetName();
+	QString dropSceneName;
 	if (appendRow * columnCount + appendCol >= vec.size() + 1) { // append last
+		dropSceneName = vec.back().first;
 		vec.emplace_back(SceneDisplayVector::value_type(view->GetName(), view));
-		return;
+		return dragSceneName + " after " + dropSceneName;
 	}
 	if (appendRow * columnCount + appendCol == 0) { // append first
+		dropSceneName = vec.front().first;
 		vec.emplace(vec.begin(), SceneDisplayVector::value_type(view->GetName(), view));
-		return;
+		return dragSceneName + " before " + dropSceneName;
 	}
 
 	if (removeCol + romoveRow > appendCol + appendRow) { // append middle
 		if (romoveRow < appendRow) {
-			vec.emplace(vec.begin() + appendRow * columnCount + appendCol - 1, SceneDisplayVector::value_type(view->GetName(), view));
+			auto iter = vec.begin() + appendRow * columnCount + appendCol - 1;
+			dropSceneName = (*iter).first;
+			vec.emplace(iter, SceneDisplayVector::value_type(view->GetName(), view));
 		} else {
+			auto iter = vec.begin() + appendRow * columnCount + appendCol;
+			dropSceneName = (*iter).first;
 			vec.emplace(vec.begin() + appendRow * columnCount + appendCol, SceneDisplayVector::value_type(view->GetName(), view));
 		}
 	} else {
 		if (romoveRow > appendRow) {
+			auto iter = vec.begin() + appendRow * columnCount + appendCol;
+			dropSceneName = (*iter).first;
 			vec.emplace(vec.begin() + appendRow * columnCount + appendCol, SceneDisplayVector::value_type(view->GetName(), view));
 		} else {
+			auto iter = vec.begin() + appendRow * columnCount + appendCol - 1;
+			dropSceneName = (*iter).first;
 			vec.emplace(vec.begin() + appendRow * columnCount + appendCol - 1, SceneDisplayVector::value_type(view->GetName(), view));
 		}
 	}
+	return dragSceneName + " before " + dropSceneName;
 }

@@ -3,6 +3,7 @@
 #include "PLSSceneTemplateContainer.h"
 #include <pls/media-info.h>
 #include <QDir>
+#include <QtConcurrent/QtConcurrent>
 
 PLSSceneTemplateMediaManage::PLSSceneTemplateMediaManage(QObject *parent) : QObject(parent) {}
 
@@ -17,7 +18,9 @@ PLSSceneTemplateMediaManage::~PLSSceneTemplateMediaManage() {}
 PLSMediaRender *PLSSceneTemplateMediaManage::getVideoViewByPath(const QString &videoPath)
 {
 	if (videoViewCache.contains(videoPath)) {
-		return videoViewCache.value(videoPath);
+		if (auto video = videoViewCache.value(videoPath); video) {
+			return video;
+		}
 	}
 	auto *videoView = new PLSMediaRender;
 	videoViewCache.insert(videoPath, videoView);
@@ -27,7 +30,9 @@ PLSMediaRender *PLSSceneTemplateMediaManage::getVideoViewByPath(const QString &v
 PLSSceneTemplateImageView *PLSSceneTemplateMediaManage::getImageViewByPath(const QString &imagePath)
 {
 	if (imageViewCache.contains(imagePath)) {
-		return imageViewCache.value(imagePath);
+		if (auto image = imageViewCache.value(imagePath); image) {
+			return image;
+		}
 	}
 	PLSSceneTemplateImageView *imageView = new PLSSceneTemplateImageView;
 	imageView->updateImagePath(imagePath);
@@ -88,7 +93,10 @@ void PLSSceneTemplateMediaManage::enterDetailScenePage(const SceneTemplateItem &
 	if (!pls_object_is_valid(m_sceneContainer)) {
 		return;
 	}
-	m_sceneContainer->showDetailSceneTemplatePage(mode);
+
+	if (mode.status() == pls::rsm::State::Ok) {
+		m_sceneContainer->showDetailSceneTemplatePage(mode);
+	}
 }
 
 void PLSSceneTemplateMediaManage::enterMainScenePage()
@@ -131,46 +139,52 @@ bool PLSSceneTemplateMediaManage::isImageType(const QString &path)
 	return valid;
 }
 
-bool PLSSceneTemplateMediaManage::getVideoFirstFrame(const QString &videoPath, QPixmap &pixmap)
+bool PLSSceneTemplateMediaManage::getVideoFirstFrame(const QString &videoPath, std::function<void(bool, QPixmap)> callback)
 {
-	if (videoThumbnailCache.contains(videoPath)) {
-		pixmap = videoThumbnailCache.value(videoPath);
-		return true;
-	}
-
-	QFileInfo fileInfo(videoPath);
-	QString baseName = fileInfo.baseName();
-	QString targetFilePath = fileInfo.absoluteDir().path() + "/VideoThumbnail_" + baseName + ".png";
-	if (QFileInfo(targetFilePath).exists()) {
-		if (!pixmap.load(targetFilePath, "PNG")) {
-			return false;
+	QtConcurrent::run([=]() {
+		QPixmap pixmap;
+		bool success = false;
+		{
+			QReadLocker locker(&videoThumbnailCacheLock);
+			if (videoThumbnailCache.contains(videoPath)) {
+				pixmap = videoThumbnailCache.value(videoPath);
+				success = true;
+			}
 		}
-		videoThumbnailCache.insert(videoPath, pixmap);
-		return true;
-	}
-
-	//open file failed
-	media_info_t mi;
-	if (!mi_open(&mi, videoPath.toUtf8().constData(), MI_OPEN_DIRECTLY)) {
-		return false;
-	}
-
-	auto firstFrame = (mi_frame_t *)mi_get_obj(&mi, "first_frame_obj");
-	if (!firstFrame) {
-		mi_free(&mi);
-		return false;
-	}
-
-	qint64 width = mi_get_int(&mi, "width");
-	qint64 height = mi_get_int(&mi, "height");
-	QImage saveImage = QImage((const uchar *)firstFrame->data, static_cast<int>(width), static_cast<int>(height), QImage::Format_RGBX8888);
-	if (!saveImage.save(targetFilePath)) {
-		mi_free(&mi);
-		return false;
-	}
-	pixmap = QPixmap::fromImage(saveImage);
-	videoThumbnailCache.insert(videoPath, pixmap);
-	mi_free(&mi);
+		if (!success) {
+			QFileInfo fileInfo(videoPath);
+			QString baseName = fileInfo.baseName();
+			QString targetFilePath = fileInfo.absoluteDir().path() + "/VideoThumbnail_" + baseName + ".png";
+			if (QFileInfo(targetFilePath).exists()) {
+				if (pixmap.load(targetFilePath, "PNG")) {
+					QWriteLocker locker(&videoThumbnailCacheLock);
+					videoThumbnailCache.insert(videoPath, pixmap);
+					success = true;
+				}
+			} else {
+				media_info_t mi;
+				if (mi_open(&mi, videoPath.toUtf8().constData(), MI_OPEN_DIRECTLY)) {
+					auto firstFrame = (mi_frame_t *)mi_get_obj(&mi, "first_frame_obj");
+					if (firstFrame) {
+						qint64 width = mi_get_int(&mi, "width");
+						qint64 height = mi_get_int(&mi, "height");
+						QImage saveImage = QImage((const uchar *)firstFrame->data, static_cast<int>(width), static_cast<int>(height), QImage::Format_RGBX8888);
+						if (saveImage.save(targetFilePath)) {
+							pixmap = QPixmap::fromImage(saveImage);
+							QWriteLocker locker(&videoThumbnailCacheLock);
+							videoThumbnailCache.insert(videoPath, pixmap);
+							success = true;
+						}
+					}
+					mi_free(&mi);
+				}
+			}
+		}
+		pls_async_call_mt(this, [success, pixmap, callback]() {
+			if (callback)
+				callback(success, pixmap);
+		});
+	});
 	return true;
 }
 

@@ -25,6 +25,8 @@
 #include "PLSMessageBox.h"
 #include "utils-api.h"
 #include "obs-app.hpp"
+#include "PLSPlatformBase.hpp"
+#include "PLSErrorHandler.h"
 
 static QString setImageDir(const QString &imageDir)
 {
@@ -69,6 +71,7 @@ QString getTempImageFilePath(const QString &suffix)
 
 PLSSelectImageButton::PLSSelectImageButton(QWidget *parent) : QLabel(parent)
 {
+	PLS_PERFORMANCE_GLOBAL_START("PLSSelectImageButton::constructor", "PLSLiveInfoNaverShoppingLIVE::setupUi");
 	ui = pls_new<Ui::PLSSelectImageButton>();
 
 	pls_add_css(this, {"PLSSelectImageButton"});
@@ -109,6 +112,7 @@ PLSSelectImageButton::PLSSelectImageButton(QWidget *parent) : QLabel(parent)
 	setMaskBgWidgetVisible(false);
 	setRemoveRetainSizeWhenHidden(ui->maskBgWidget);
 	setRemoveRetainSizeWhenHidden(ui->imageLabel);
+	PLS_PERFORMANCE_GLOBAL_END("PLSSelectImageButton::constructor");
 }
 
 PLSSelectImageButton::~PLSSelectImageButton()
@@ -187,11 +191,6 @@ void PLSSelectImageButton::setImageSize(const QSize &imageSize_)
 	imageSize = imageSize_;
 }
 
-void PLSSelectImageButton::setImageChecker(const ImageChecker &imageChecker_)
-{
-	imageChecker = imageChecker_;
-}
-
 void PLSSelectImageButton::mouseEnter()
 {
 	if (property("ignoreHover").toBool()) {
@@ -217,36 +216,36 @@ void PLSSelectImageButton::mouseLeave()
 
 void PLSSelectImageButton::on_takeButton_clicked()
 {
+	mouseLeave();
 	setMaskBgWidgetVisible(false);
 	emit takeButtonClicked();
 
 	setFocus();
 
-	for (QString camera;;) {
-		PLSTakeCameraSnapshot takeCameraSnapshot(camera, this);
-		QString imageFilePath = takeCameraSnapshot.getSnapshot();
+	QString camera;
+	PLSTakeCameraSnapshot takeCameraSnapshot(camera, this);
+	takeCameraSnapshot.setAttribute(Qt::WA_DeleteOnClose, false);
+
+	for (;;) {
+		QString imageFilePath = takeCameraSnapshot.getSnapshot(PLSTakeCameraSnapshot::Hide);
+
 		if (imageFilePath.isEmpty()) {
 			break;
 		}
 
 		QPixmap cropedImage;
 		int button = PLSCropImage::cropImage(cropedImage, imageFilePath, imageSize, PLSCropImage::Back | PLSCropImage::Ok, this);
+
 		if (button == PLSCropImage::Back) {
 			continue;
 		} else if (button != PLSCropImage::Ok || cropedImage.isNull()) {
 			break;
 		}
 
-		QString cropedImageFile = getTempImageFilePath(".png");
-		cropedImage.save(cropedImageFile, "PNG");
-
-		if (auto result = imageChecker(cropedImage, cropedImageFile); !result.first) {
-			PLSMessageBox::warning(pls_get_toplevel_view(this), tr("Alert.Title"), result.second);
-			return;
-		}
+		QString cropedImageFile;
+		dealCropedImage(cropedImage, cropedImageFile);
 
 		setPixmap(cropedImage);
-
 		this->imagePath = cropedImageFile;
 		emit imageSelected(cropedImageFile);
 		break;
@@ -254,6 +253,7 @@ void PLSSelectImageButton::on_takeButton_clicked()
 }
 void PLSSelectImageButton::on_selectButton_clicked()
 {
+	mouseLeave();
 	setMaskBgWidgetVisible(false);
 	emit selectButtonClicked();
 
@@ -272,33 +272,31 @@ void PLSSelectImageButton::on_selectButton_clicked()
 
 	QPixmap originalImagge(imageFilePath);
 	if (originalImagge.isNull()) {
-		pls_alert_error_message(toplevelView, tr("Alert.Title"), tr("SelectImage.Alert.Message.ErrorPhoto"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_TAKE_PHOTO_NULL, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("PLSSelectImageButton::on_selectButton_clicked"),
+						      toplevelView);
 		return;
 	}
 
 	if (!m_isIgoreMinSize && (originalImagge.width() < imageSize.width() || originalImagge.height() < imageSize.height())) {
-		pls_alert_error_message(toplevelView, tr("Alert.Title"), tr("SelectImage.Alert.Message.PhotoTooSmall").arg(imageSize.width()).arg(imageSize.height()));
+		PLSErrorHandler::ExtraData extraData("PLSSelectImageButton::on_selectButton_clicked");
+		extraData.defaultArg = {QString::number(imageSize.width()), QString::number(imageSize.height())};
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_SELECT_IMAGE_PHOTO_TOO_SMALL, PLSErrKeyAllAlert, {}, extraData, toplevelView);
 		return;
 	}
 
 	if ((originalImagge.width() * originalImagge.height()) > (MAX_PHOTO_WIDTH * MAX_PHOTO_HEIGHT)) {
-		pls_alert_error_message(toplevelView, tr("Alert.Title"), tr("SelectImage.Alert.Message.PhotoTooLarge"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_SELECT_IMAGE_PHOTO_TOO_LARGE, PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData("PLSSelectImageButton::on_selectButton_clicked"), toplevelView);
 		return;
 	}
-
 	QPixmap cropedImage;
 	int button = PLSCropImage::cropImage(cropedImage, originalImagge, imageSize, PLSCropImage::Ok | PLSCropImage::Cancel, this);
 	if (button != PLSCropImage::Ok || cropedImage.isNull()) {
 		return;
 	}
 
-	QString cropedImageFile = getTempImageFilePath(".png");
-	cropedImage.save(cropedImageFile, "PNG");
-
-	if (auto result = imageChecker(cropedImage, cropedImageFile); !result.first) {
-		PLSAlertView::warning(toplevelView, tr("Alert.Title"), result.second);
-		return;
-	}
+	QString cropedImageFile;
+	dealCropedImage(cropedImage, cropedImageFile);
 
 	setPixmap(cropedImage);
 
@@ -306,11 +304,33 @@ void PLSSelectImageButton::on_selectButton_clicked()
 	emit imageSelected(cropedImageFile);
 }
 
+void PLSSelectImageButton::dealCropedImage(QPixmap &cropedImage, QString &cropedImageFile)
+{
+
+	if (m_jpgMaxKB == -1) {
+		cropedImageFile = getTempImageFilePath(".jpg");
+		cropedImage.save(cropedImageFile, "JPG");
+		PLS_INFO(MODULE_PlatformService, "select image use default scale size.");
+		return;
+	}
+	for (int quality = 100; quality >= 0; quality -= 10) {
+		cropedImageFile = getTempImageFilePath(".jpg");
+		cropedImage.save(cropedImageFile, "JPG", quality);
+		if (QFile(cropedImageFile).size() <= (m_jpgMaxKB * 1024)) {
+			cropedImage = QPixmap(cropedImageFile);
+			PLS_INFO(MODULE_PlatformService, "select image use scale size: %i.", quality);
+			break;
+		}
+	}
+}
+
 void PLSSelectImageButton::on_deleteButton_clicked()
 {
+	mouseLeave();
 	emit deleteButtonClicked();
 	setFocus();
 	setImagePath("");
+	PLS_UI_ACTION("Widget PLSSelectImageButton Clear Done");
 }
 
 bool PLSSelectImageButton::event(QEvent *event)
@@ -345,11 +365,6 @@ bool PLSSelectImageButton::nativeEvent(const QByteArray &eventType, void *messag
 	}
 #endif
 	return QLabel::nativeEvent(eventType, message, result);
-}
-
-QPair<bool, QString> PLSSelectImageButton::defaultImageChecker(const QPixmap &, const QString &)
-{
-	return {true, QString()};
 }
 
 void PLSSelectImageButton::setRemoveRetainSizeWhenHidden(QWidget *widget) const

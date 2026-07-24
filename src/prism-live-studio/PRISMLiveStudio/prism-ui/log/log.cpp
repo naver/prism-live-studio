@@ -12,7 +12,14 @@
 #include "PLSApp.h"
 #include "liblog.h"
 #include "pls-shared-values.h"
+#include "pls-performance.h"
 #include <stdlib.h>
+
+#ifdef _WIN32
+#include <Windows.h>
+#include <Psapi.h>
+#include <assert.h>
+#endif
 
 const int LOG_SUBPROCESS_EXCEPTION = -100;
 
@@ -73,6 +80,9 @@ static void def_obs_log_handler(int log_level, const char *format, va_list args,
 	case LOG_DEBUG:
 		pls_logvaex(false, PLS_LOG_DEBUG, "obs", nullptr, 0, {}, -1, format, args);
 		break;
+	case LOG_UI_ACTION:
+		pls_logvaex(false, PLS_LOG_UI_ACTION, "obs", nullptr, 0, {}, -1, format, args);
+		break;
 	default:
 		break;
 	}
@@ -98,6 +108,9 @@ static void def_obs_log_handler(bool kr, int log_level, const char *format, va_l
 		break;
 	case LOG_DEBUG:
 		pls_logvaex(kr, PLS_LOG_DEBUG, "obs", nullptr, 0, tmp_fields, arg_count, format, args);
+		break;
+	case LOG_UI_ACTION:
+		pls_logvaex(kr, PLS_LOG_UI_ACTION, "obs", nullptr, 0, tmp_fields, arg_count, format, args);
 		break;
 	case LOG_SUBPROCESS_EXCEPTION:
 		if (field_count == 2) {
@@ -138,8 +151,64 @@ static std::string parse_bcrash_reason(const char *desc)
 	return reason;
 }
 
+#ifdef _WIN32
+bool SendCommitMemoryInfo()
+{
+	PERFORMANCE_INFORMATION perfInfo = {};
+	perfInfo.cb = sizeof(perfInfo);
+
+	if (!GetPerformanceInfo(&perfInfo, perfInfo.cb)) {
+		assert(false);
+		return false;
+	}
+
+	const DWORD pageSize = (DWORD)perfInfo.PageSize;
+	if (pageSize == 0) {
+		assert(false);
+		return false;
+	}
+
+	// commit info of system
+	uint64_t systemCommitLimit = static_cast<uint64_t>(perfInfo.CommitLimit) * pageSize / 1024 / 1024;
+	uint64_t systemCommittedTotal = static_cast<uint64_t>(perfInfo.CommitTotal) * pageSize / 1024 / 1024;
+	uint64_t processCommittedSize = 0;
+
+	// commited memory of current process
+	PROCESS_MEMORY_COUNTERS_EX pmc = {};
+	pmc.cb = sizeof(pmc);
+	if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS *>(&pmc), pmc.cb)) {
+		processCommittedSize = static_cast<uint64_t>(pmc.PagefileUsage) / 1024 / 1024;
+	}
+
+	std::string systemLimit = std::to_string(systemCommitLimit) + std::string(" MB");
+	std::string systemCommit = std::to_string(systemCommittedTotal) + std::string(" MB");
+	std::string prismCommit = std::to_string(processCommittedSize) + std::string(" MB");
+	std::string systemUsage = 0 == systemCommitLimit ? "invalid" : std::to_string(double(systemCommittedTotal) / double(systemCommitLimit));
+	PLS_LOGEX(PLS_LOG_WARN, "libobs",
+		  {
+			  {"systemLimit", systemLimit.c_str()},
+			  {"systemCommit", systemCommit.c_str()},
+			  {"prismCommit", prismCommit.c_str()},
+			  {"systemUsage", systemUsage.c_str()},
+		  },
+		  "libobs failed to malloc memory. systemUsage=%s \n"
+		  "\t systemLimit=%lluMB \n"
+		  "\t systemCommit=%lluMB \n"
+		  "\t prismCommit=%lluMB",
+		  systemUsage.c_str(), systemCommitLimit, systemCommittedTotal, processCommittedSize);
+	return true;
+}
+#endif
+
+std::atomic<bool> exception_happened = false;
 static void def_obs_crash_handler(const char *fmt, va_list args, void *param)
 {
+	exception_happened = true;
+  
+#ifdef _WIN32
+	SendCommitMemoryInfo();
+#endif
+
 	std::array<char, 1024> desc;
 	vsnprintf(desc.data(), desc.size(), fmt, args);
 
@@ -180,13 +249,14 @@ static void def_pls_add_global_field_cn(const char *key, const char *value)
 
 bool log_init(const char *session_id, const std::chrono::steady_clock::time_point &startTime, const char *sub_session_id)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	log_session_id = session_id;
 	base_set_log_handler(def_obs_log_handler, nullptr);
 	base_set_log_handler_ex(def_obs_log_handler, nullptr);
 	base_set_log_global_field_handler_cn(def_pls_add_global_field_cn);
 	base_set_crash_handler(def_obs_crash_handler, nullptr);
 
-	pls_prism_log_init(PLS_VERSION, "prism-log", log_session_id.c_str());
+	pls_prism_log_init(PLS_VERSION, "prism-log", log_session_id.c_str(), sub_session_id);
 	pls_add_global_field("prismSession", session_id);
 #if defined(Q_OS_WIN)
 	pls_add_global_field("OSType", "Windows");
@@ -217,6 +287,8 @@ void set_log_handler(log_handler_t handler, void *param)
 
 void runtime_stats(pls_runtime_stats_type_t runtime_stats_type, const std::chrono::steady_clock::time_point &time)
 {
+	auto request = PLS_PLATFORM_PRSIM->getUploadStatusRequest("/prismpc/runtime");
+	runtime_stats(runtime_stats_type, time, request.request());
 }
 
 static QString toString(const QJsonArray &array)

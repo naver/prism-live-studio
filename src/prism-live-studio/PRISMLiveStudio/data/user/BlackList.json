@@ -1,0 +1,314 @@
+{
+	"version": 9,
+	"win64": {
+		"blacklist": {
+			"3rdPlugins": {
+				"Processing.NDI.Lib.x64.dll": {},
+				"Processing.NDI.Plugins.IPCam.x64.dll": {},
+				"advanced-scene-switcher.dll": {},
+				"bongobs-cat.dll": {},
+				"laboratory-win-capture-audio.dll": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-laboratory-win-capture-audio-dll-0xxxxx-mmdevapi-dll-0xxxxx-3f1805345660",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222867883146"
+				},
+				"logi_obs_plugin_x64.dll": {},
+				"obs-transition-matrix.dll": {},
+				"obs-virtualoutput.dll": {},
+				"obs-virtualsource.dll": {},
+				"obs_google_caption_plugin.dll": {},
+				"own3d.dll": {},
+				"prism-test-source.dll": {},
+				"obs-streamelements-core.qt6.dymod": {},
+				"downstream-keyer.dll": {},
+				"streamup.dll": {},
+				"durchblick.dll": {},
+				"vertical-canvas.dll": {},
+				"xObsBeam.dl": {},
+				"obs-text-slideshow.dll": {},
+				"obs-backgroundremoval.dll": {},
+				"obs-localvocal.dll": {},
+				"source-record.dll": {},
+				"obs-cleanstream.dll": {},
+				"VoicemeeterRemote64.dll": {},
+				"libavcodec_plugin.dll": {},
+				"obs-multi-rtmp.dll": {},
+				"obs-soundboard.dll": {},
+				"lovense-smart-object.dll": {},
+				"LumensOBSPlugin.dll": {},
+				"move-transition.dll": {},
+				"lovense-relay-server.dll": {},
+				"sl-browser-plugin.dll": {}
+			},
+			"3rdPrograms": {
+				"BLGraphicLib_x64.dll": {},
+				"BMSMMDrv_x64.dll": {},
+				"BMServ2Dll_x64.dll": {},
+				"Bridger64.dll": {},
+				"DBROverlayIconBackuped.dll": {},
+				"FTLPTP.dll": {},
+				"GPP64.dll": {},
+				"GTII-OSD64.dll": {},
+				"GoogleInputTools.ime": {},
+				"MMDevAPI.dll": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-laboratory-win-capture-audio-dll-0xxxxx-mmdevapi-dll-0xxxxx-3f1805345660",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222867883146"
+				},
+				"NkdPTP.dll": {},
+				"RTSSHooks64.dll": {},
+				"SS2OSD.dll": {},
+				"T_Prevent64.dll": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-t-prevent64-dll-0xxxxx-obs-browser-dll-0xxxxx-unknown-0x0-10ebe94e029",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222867477835"
+				},
+				"axTotalConverter64.dll": {},
+				"dxgi.dll": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-dxgi-dll-0xxxxx-6b54beb13e89",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222917426776"
+				},
+				"explorerframe.dll": {},
+				"fdk-aac.dll": {},
+				"frida-agent.dll": {},
+				"jsonWrapper.dll": {},
+				"libcrypto-1_1-x64.dll": {},
+				"libcurl.dll": {},
+				"libdshowcapture.dll": {},
+				"libmbedcrypto.dll": {},
+				"libogg-0.dll": {},
+				"libopus-0.dll": {},
+				"libpng16-16.dll": {},
+				"libsrt.dll": {},
+				"libvorbis-0.dll": {},
+				"libvorbisenc-2.dll": {},
+				"libvorbisfile-3.dll": {},
+				"libvpx-1.dll": {},
+				"libx264-161.dll": {},
+				"lua51.dll": {},
+				"mfplat.dll": {},
+				"npggNT64.des": {},
+				"r3ldp64.dll": {},
+				"st_mobile.dll": {},
+				"websockets.dll": {},
+				"windows.storage.dll": {},
+				"wslbscr64.dll": {},
+				"wslbscrwh64.dll": {},
+				"zlib.dll": {},
+				"libcef.dll": {},
+				"NVVideoEffects.dll": {}
+			},
+			"DefaultUrl": {
+				"en-US": "https://medium.com/prismlivestudio/error-reporting-guide-f6f508a07f31",
+				"ko-KR": "https://blog.naver.com/prismlivestudio/222697665675"
+			},
+			"customType": {
+				"Elgato": {
+					"ElgatoVirtualCapture.ax": {
+						"en-US": "https://medium.com/prismlivestudio/error-solution-windows-videocapturefilter-ax-0xxxxx-elgatovirtualcapture-ax-0xxxxx-1ce7cc7d8998",
+						"ko-KR": "https://blog.naver.com/prismlivestudio/222867496498"
+					},
+					"VideoCaptureFilter.ax": {
+						"en-US": "https://medium.com/prismlivestudio/error-solution-windows-videocapturefilter-ax-0xxxxx-elgatovirtualcapture-ax-0xxxxx-1ce7cc7d8998",
+						"ko-KR": "https://blog.naver.com/prismlivestudio/222867496498"
+					}
+				},
+				"Fasoo": {
+					"f_sps.dll": {
+						"en-US": "https://medium.com/prismlivestudio/error-solution-windows-kernelbase-dll-0xxxxx-f-sps-dll-0xxxxx-235db10e207b",
+						"ko-KR": "https://blog.naver.com/prismlivestudio/222858907544"
+					}
+				},
+				"LensNative": {
+					"core.node": {}
+				}
+			},
+			"deviceDrivers": {
+				"AvtakeVideoS4.dll": {},
+				"DeckLink64.dll": {},
+				"DeckLinkAvStreamPlugIn64.ax": {},
+				"Etprop64.ax": {},
+				"FTLPTP.dll": {},
+				"FlyCapture2DirectShowSource_v100.ax": {},
+				"GOPROW~1.DLL": {},
+				"GoProWebcam.dll": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-goprowebcam-dll-0xxxxx-122ef744405",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222868696540"
+				},
+				"HncShellExt64.dll": {},
+				"IntelCameraPlugin64.dll": {},
+				"LogiCam.dll": {},
+				"MevoWebcam-DirectShowFilter-x64.dll": {},
+				"NahimicOSD.dll": {},
+				"NvVirtualCameraFilter_x64.dll": {},
+				"PropPage_FX3_x64.ax": {},
+				"SpITDevMft64.dll": {},
+				"UnityCaptureFilter64bit.dll": {},
+				"VCamPPage_x64.dll": {},
+				"VSFilter.dll": {},
+				"VideoCaptureApi.dll": {},
+				"VysorCamera.dll": {},
+				"avfcp.ax": {},
+				"avmC835devicecontrol_X64.dll": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-avmlgp2audiose-ax-fee2893dd2b6",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222867857385"
+				},
+				"avmC875devicecontrol_X64.dll": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-avmlgp2audiose-ax-fee2893dd2b6",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222867857385"
+				},
+				"avmlgmse.ax": {},
+				"avmlgp2audiose.ax": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-avmlgp2audiose-ax-fee2893dd2b6",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222867857385"
+				},
+				"avmlguvse.ax": {},
+				"avmvirtualcamera.ax": {},
+				"ca_core.dll": {},
+				"douwan-virtualcam64.dll": {},
+				"druver64.dll": {},
+				"eos-webcam-utility-beta-x64.ax": {},
+				"ff_vfw.dll": {},
+				"fujivcam.dll": {},
+				"hcphfilter.dll": {},
+				"ksproxy.ax": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-ksproxy-ax-0xxxxx-5efad4f37fde",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222917705871"
+				},
+				"lvcod64.dll": {},
+				"obs-virtualcam-module64.dll": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-obs-virtualcam-module64-dll-0xxxxx-a98cce262a38",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222868711882"
+				},
+				"vMixAudio.ax": {},
+				"vMixVideo.ax": {},
+				"video64.dll": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-video64-dll-14b5ac1abb31",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222868732737"
+				},
+				"wdmaud.drv": {},
+				"winepulse.drv": {},
+				"wuta_vcam64.dll": {},
+				"x64-release-virtualcamera-addition-win32.ax": {},
+				"eos-webcam-utility-x64.ax": {},
+				"RsDMFT64.dll": {},
+				"DShowCamera.dll": {}
+			},
+			"exceptionTypes": {
+				"Out of Memory": "blacklist.crashed.outofmemory"
+			},
+			"graphicsDrivers": {
+				"amdocl64.dll": {},
+				"amdxx64.dll": {},
+				"amfrtdrv64.dll": {},
+				"aticfx64.dll": {},
+				"atidxx64.dll": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-atidxx64-dll-0xxxxx-306ddb7a274c",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222867866759"
+				},
+				"atiumd6a.dll": {},
+				"igc64.dll": {},
+				"igd10iumd64.dll": {},
+				"igd10umd64.dll": {},
+				"igdusc64.dll": {},
+				"libmfxhw64.dll": {},
+				"nvcuvid.dll": {},
+				"nvumdshimx.dll": {},
+				"nvwgf2umx.dll": {},
+				"atio6axx.dll": {},
+				"nvapi64.dll": {},
+				"igd10um64xe.DLL": {},
+				"libmfx64-gen.dll": {},
+				"nvcuda64.dll": {}
+			},
+			"vstPlugins": {
+				"AmpliTube 4.vpa": {},
+				"Auburn Sounds Graillon 2-64.dll": {},
+				"BC Flanger 3 VST(Stereo).dll": {},
+				"BC Triple EQ 4 VST(Stereo).dll": {},
+				"BL-Denoiser.dll": {},
+				"BLACK GURU.dll": {},
+				"Cymatics Space Lite.dll": {},
+				"ERA6_AudioCleanUpAssistant.dll": {
+					"en-US": "https://medium.com/prismlivestudio/error-solution-windows-era6-audiocleanupassistant-dll-0xxxxx-dd23ff9cbdc5",
+					"ko-KR": "https://blog.naver.com/prismlivestudio/222868729001"
+				},
+				"EchoBoy.dll": {},
+				"Equalizer 601 Mono.dll": {},
+				"FL Studio VSTi (Multi).dll": {},
+				"FLEngine_x64.dll": {},
+				"Fruity Delay Bank_x64.dll": {},
+				"FuzzPlus3.dll": {},
+				"GEQ_VST2_64_FREE.dll": {},
+				"Groove Agent SE.dll": {},
+				"Guitar Rig 6.dll": {},
+				"HALion Sonic SE.dll": {},
+				"IL Minihost Modular (FX).dll": {},
+				"IL Minihost Modular.dll": {},
+				"Kontakt.dll": {},
+				"Lisp x64.dll": {},
+				"Lurssen Mastering Console.dll": {},
+				"MeldaProductionAudioPluginKernelV1164.dll": {},
+				"Microtonic Multi.dll": {},
+				"Nova67P-x64.dll": {},
+				"OrilRiver.dll": {},
+				"Pitchwheel.dll": {},
+				"RX 8 Voice De-noise.dll": {},
+				"ReverbSolo.dll": {},
+				"SSL Native Vocalstrip 2.dll": {},
+				"SonoBus.dll": {},
+				"T-RackS CS CSR Hall.vpa64": {},
+				"T-RackS CS CSR Room.vpa64": {},
+				"TDR Molotok.dll": {},
+				"UVIWorkstationVSTx64.dll": {},
+				"ValhallaRoom_x64.dll": {},
+				"VariMoon_x64.dll": {},
+				"Vocal Finalizer x64.dll": {},
+				"WaveShell2-VST 12.0_x64.dll": {},
+				"WaveShell6-VST 11.0_x64.dll": {},
+				"Youlean Loudness Meter 2.dll": {},
+				"dsp_ippv2_x64.dll": {},
+				"iZNectar3.dll": {},
+				"iZOzone9.dll": {},
+				"iZRX8VoiceDe-noise.dll": {},
+				"nvoglv64.dll": {},
+				"obs-vst.dll": {},
+				"pitchproof-x64.dll": {},
+				"reacomp-standalone.dll": {},
+				"reacontrolmidi-standalone.dll": {},
+				"reaeq-standalone.dll": {},
+				"reastream-standalone-16.dll": {},
+				"reastream-standalone-32.dll": {},
+				"Superplugin.dll": {}
+			}
+		}
+	},
+	"mac": {
+		"blacklist": {
+			"3rdPlugins": {
+				"downstream-keyer": {},
+				"libMeldaProductionAudioPluginKernelV11.dylib": {},
+				"iOSScreenCapture": {},
+				"transition-table": {},
+				"UAD Pure Plate": {},
+				"streamup": {},
+				"audio-monitor": {},
+				"obs-plugin-countdown": {},
+				"obs-backgroundremoval ": {},
+				"vertical-canvas": {},
+				"Chromium Embedded Framework": {},
+				"source-record": {}
+			},
+			"3rdPrograms": {},
+			"DefaultUrl": {
+				"en-US": "https://medium.com/prismlivestudio/error-reporting-guide-f6f508a07f31",
+				"ko-KR": "https://blog.naver.com/prismlivestudio/222697665675"
+			},
+			"customType": {
+				"LensNative": {
+					"core.node": {}
+				}
+			},
+			"deviceDrivers": {},
+			"graphicsDrivers": {},
+			"vstPlugins": {}
+		}
+	}
+}

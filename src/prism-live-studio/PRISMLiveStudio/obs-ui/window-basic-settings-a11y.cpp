@@ -41,20 +41,25 @@ QColor OBSBasicSettings::GetColor(uint32_t colorVal, QString label)
 
 void OBSBasicSettings::LoadA11ySettings(bool presetChange)
 {
+	if (!accessPage) {
+		return;
+	}
+
 	config_t *config = App()->GetUserConfig();
 
 	loading = true;
 	if (!presetChange) {
 		preset = config_get_int(config, "Accessibility", "ColorPreset");
 
-		bool block = ui->colorPreset->blockSignals(true);
-		ui->colorPreset->setCurrentIndex(std::min(preset, (uint32_t)ui->colorPreset->count() - 1));
-		ui->colorPreset->blockSignals(block);
+		bool block = accessPage->colorPreset->blockSignals(true);
+		accessPage->colorPreset->setCurrentIndex(
+			std::min(preset, (uint32_t)accessPage->colorPreset->count() - 1));
+		accessPage->colorPreset->blockSignals(block);
 
 		bool checked = config_get_bool(config, "Accessibility", "OverrideColors");
 
-		ui->colorCheckBox->setChecked(checked);
-		ui->colorsGroupBox->setEnabled(checked);
+		accessPage->colorCheckBox->setChecked(checked);
+		accessPage->colorsGroupBox->setEnabled(checked);
 	}
 
 	if (preset == COLOR_PRESET_DEFAULT) {
@@ -73,6 +78,7 @@ void OBSBasicSettings::LoadA11ySettings(bool presetChange)
 		selectRed = 0x3349F9;
 		selectGreen = 0xFF56C9;
 		selectBlue = 0xB09B44;
+		selectPurple = 0xEE00FF;
 
 		SetDefaultColors();
 	} else if (preset == COLOR_PRESET_CUSTOM) {
@@ -81,6 +87,7 @@ void OBSBasicSettings::LoadA11ySettings(bool presetChange)
 		selectRed = config_get_int(config, "Accessibility", "SelectRed");
 		selectGreen = config_get_int(config, "Accessibility", "SelectGreen");
 		selectBlue = config_get_int(config, "Accessibility", "SelectBlue");
+		selectPurple = config_get_int(config, "Accessibility", "SelectPurple");
 
 		mixerGreen = config_get_int(config, "Accessibility", "MixerGreen");
 		mixerYellow = config_get_int(config, "Accessibility", "MixerYellow");
@@ -98,14 +105,19 @@ void OBSBasicSettings::LoadA11ySettings(bool presetChange)
 
 void OBSBasicSettings::SaveA11ySettings()
 {
+	if (!accessPage) {
+		return;
+	}
+
 	config_t *config = App()->GetUserConfig();
 
-	config_set_bool(config, "Accessibility", "OverrideColors", ui->colorCheckBox->isChecked());
+	config_set_bool(config, "Accessibility", "OverrideColors", accessPage->colorCheckBox->isChecked());
 	config_set_int(config, "Accessibility", "ColorPreset", preset);
 
 	config_set_int(config, "Accessibility", "SelectRed", selectRed);
 	config_set_int(config, "Accessibility", "SelectGreen", selectGreen);
 	config_set_int(config, "Accessibility", "SelectBlue", selectBlue);
+	config_set_int(config, "Accessibility", "SelectPurple", selectPurple);
 	config_set_int(config, "Accessibility", "MixerGreen", mixerGreen);
 	config_set_int(config, "Accessibility", "MixerYellow", mixerYellow);
 	config_set_int(config, "Accessibility", "MixerRed", mixerRed);
@@ -133,24 +145,26 @@ static void SetStyle(QLabel *label, uint32_t colorVal)
 
 void OBSBasicSettings::UpdateA11yColors()
 {
-	ui->colorSelectLabel_1->setWordWrap(true);
-	ui->colorSelectLabel_2->setWordWrap(true);
-	ui->colorSelectLabel_3->setWordWrap(true);
-	ui->colorSelectLabel_4->setWordWrap(true);
-	ui->colorSelectLabel_5->setWordWrap(true);
-	ui->colorSelectLabel_6->setWordWrap(true);
-	ui->colorSelectLabel_7->setWordWrap(true);
-	ui->colorSelectLabel_8->setWordWrap(true);
-	ui->colorSelectLabel_9->setWordWrap(true);
-	SetStyle(ui->color1, selectRed);
-	SetStyle(ui->color2, selectGreen);
-	SetStyle(ui->color3, selectBlue);
-	SetStyle(ui->color4, mixerGreen);
-	SetStyle(ui->color5, mixerYellow);
-	SetStyle(ui->color6, mixerRed);
-	SetStyle(ui->color7, mixerGreenActive);
-	SetStyle(ui->color8, mixerYellowActive);
-	SetStyle(ui->color9, mixerRedActive);
+	accessPage->colorSelectLabel_1->setWordWrap(true);
+	accessPage->colorSelectLabel_2->setWordWrap(true);
+	accessPage->colorSelectLabel_3->setWordWrap(true);
+	accessPage->colorSelectLabel_4->setWordWrap(true);
+	accessPage->colorSelectLabel_5->setWordWrap(true);
+	accessPage->colorSelectLabel_6->setWordWrap(true);
+	accessPage->colorSelectLabel_7->setWordWrap(true);
+	accessPage->colorSelectLabel_8->setWordWrap(true);
+	accessPage->colorSelectLabel_9->setWordWrap(true);
+	accessPage->colorSelectLabel_10->setWordWrap(true);
+	SetStyle(accessPage->color1, selectRed);
+	SetStyle(accessPage->color2, selectGreen);
+	SetStyle(accessPage->color3, selectBlue);
+	SetStyle(accessPage->color10, selectPurple);
+	SetStyle(accessPage->color4, mixerGreen);
+	SetStyle(accessPage->color5, mixerYellow);
+	SetStyle(accessPage->color6, mixerRed);
+	SetStyle(accessPage->color7, mixerGreenActive);
+	SetStyle(accessPage->color8, mixerYellowActive);
+	SetStyle(accessPage->color9, mixerRedActive);
 }
 
 void OBSBasicSettings::SetDefaultColors()
@@ -159,6 +173,7 @@ void OBSBasicSettings::SetDefaultColors()
 	config_set_default_int(config, "Accessibility", "SelectRed", selectRed);
 	config_set_default_int(config, "Accessibility", "SelectGreen", selectGreen);
 	config_set_default_int(config, "Accessibility", "SelectBlue", selectBlue);
+	config_set_default_int(config, "Accessibility", "SelectPurple", selectPurple);
 
 	config_set_default_int(config, "Accessibility", "MixerGreen", mixerGreen);
 	config_set_default_int(config, "Accessibility", "MixerYellow", mixerYellow);
@@ -174,6 +189,7 @@ void OBSBasicSettings::ResetDefaultColors()
 	selectRed = 0x35FCEC;
 	selectGreen = 0x5141C3;
 	selectBlue = 0xFF9100;
+	selectPurple = 0xEE00FF;
 	mixerGreen = 0x2E4821;
 	mixerYellow = 0x275E63;
 	mixerRed = 0x222255;
@@ -184,7 +200,7 @@ void OBSBasicSettings::ResetDefaultColors()
 
 void OBSBasicSettings::on_colorPreset_currentIndexChanged(int idx)
 {
-	preset = idx == ui->colorPreset->count() - 1 ? COLOR_PRESET_CUSTOM : idx;
+	preset = idx == accessPage->colorPreset->count() - 1 ? COLOR_PRESET_CUSTOM : idx;
 	LoadA11ySettings(true);
 }
 
@@ -198,9 +214,9 @@ void OBSBasicSettings::on_choose1_clicked()
 	selectRed = color_to_int(color);
 
 	preset = COLOR_PRESET_CUSTOM;
-	bool block = ui->colorPreset->blockSignals(true);
-	ui->colorPreset->setCurrentIndex(ui->colorPreset->count() - 1);
-	ui->colorPreset->blockSignals(block);
+	bool block = accessPage->colorPreset->blockSignals(true);
+	accessPage->colorPreset->setCurrentIndex(accessPage->colorPreset->count() - 1);
+	accessPage->colorPreset->blockSignals(block);
 
 	A11yChanged();
 
@@ -217,9 +233,9 @@ void OBSBasicSettings::on_choose2_clicked()
 	selectGreen = color_to_int(color);
 
 	preset = COLOR_PRESET_CUSTOM;
-	bool block = ui->colorPreset->blockSignals(true);
-	ui->colorPreset->setCurrentIndex(ui->colorPreset->count() - 1);
-	ui->colorPreset->blockSignals(block);
+	bool block = accessPage->colorPreset->blockSignals(true);
+	accessPage->colorPreset->setCurrentIndex(accessPage->colorPreset->count() - 1);
+	accessPage->colorPreset->blockSignals(block);
 
 	A11yChanged();
 
@@ -236,9 +252,28 @@ void OBSBasicSettings::on_choose3_clicked()
 	selectBlue = color_to_int(color);
 
 	preset = COLOR_PRESET_CUSTOM;
-	bool block = ui->colorPreset->blockSignals(true);
-	ui->colorPreset->setCurrentIndex(ui->colorPreset->count() - 1);
-	ui->colorPreset->blockSignals(block);
+	bool block = accessPage->colorPreset->blockSignals(true);
+	accessPage->colorPreset->setCurrentIndex(accessPage->colorPreset->count() - 1);
+	accessPage->colorPreset->blockSignals(block);
+
+	A11yChanged();
+
+	UpdateA11yColors();
+}
+
+void OBSBasicSettings::on_choose10_clicked()
+{
+	QColor color = GetColor(selectPurple, QTStr("Basic.Settings.Accessibility.ColorOverrides.SelectPurple"));
+
+	if (!color.isValid())
+		return;
+
+	selectPurple = color_to_int(color);
+
+	preset = COLOR_PRESET_CUSTOM;
+	bool block = accessPage->colorPreset->blockSignals(true);
+	accessPage->colorPreset->setCurrentIndex(accessPage->colorPreset->count() - 1);
+	accessPage->colorPreset->blockSignals(block);
 
 	A11yChanged();
 
@@ -255,9 +290,9 @@ void OBSBasicSettings::on_choose4_clicked()
 	mixerGreen = color_to_int(color);
 
 	preset = COLOR_PRESET_CUSTOM;
-	bool block = ui->colorPreset->blockSignals(true);
-	ui->colorPreset->setCurrentIndex(ui->colorPreset->count() - 1);
-	ui->colorPreset->blockSignals(block);
+	bool block = accessPage->colorPreset->blockSignals(true);
+	accessPage->colorPreset->setCurrentIndex(accessPage->colorPreset->count() - 1);
+	accessPage->colorPreset->blockSignals(block);
 
 	A11yChanged();
 
@@ -274,9 +309,9 @@ void OBSBasicSettings::on_choose5_clicked()
 	mixerYellow = color_to_int(color);
 
 	preset = COLOR_PRESET_CUSTOM;
-	bool block = ui->colorPreset->blockSignals(true);
-	ui->colorPreset->setCurrentIndex(ui->colorPreset->count() - 1);
-	ui->colorPreset->blockSignals(block);
+	bool block = accessPage->colorPreset->blockSignals(true);
+	accessPage->colorPreset->setCurrentIndex(accessPage->colorPreset->count() - 1);
+	accessPage->colorPreset->blockSignals(block);
 
 	A11yChanged();
 
@@ -293,9 +328,9 @@ void OBSBasicSettings::on_choose6_clicked()
 	mixerRed = color_to_int(color);
 
 	preset = COLOR_PRESET_CUSTOM;
-	bool block = ui->colorPreset->blockSignals(true);
-	ui->colorPreset->setCurrentIndex(ui->colorPreset->count() - 1);
-	ui->colorPreset->blockSignals(block);
+	bool block = accessPage->colorPreset->blockSignals(true);
+	accessPage->colorPreset->setCurrentIndex(accessPage->colorPreset->count() - 1);
+	accessPage->colorPreset->blockSignals(block);
 
 	A11yChanged();
 
@@ -313,9 +348,9 @@ void OBSBasicSettings::on_choose7_clicked()
 	mixerGreenActive = color_to_int(color);
 
 	preset = COLOR_PRESET_CUSTOM;
-	bool block = ui->colorPreset->blockSignals(true);
-	ui->colorPreset->setCurrentIndex(ui->colorPreset->count() - 1);
-	ui->colorPreset->blockSignals(block);
+	bool block = accessPage->colorPreset->blockSignals(true);
+	accessPage->colorPreset->setCurrentIndex(accessPage->colorPreset->count() - 1);
+	accessPage->colorPreset->blockSignals(block);
 
 	A11yChanged();
 
@@ -333,9 +368,9 @@ void OBSBasicSettings::on_choose8_clicked()
 	mixerYellowActive = color_to_int(color);
 
 	preset = COLOR_PRESET_CUSTOM;
-	bool block = ui->colorPreset->blockSignals(true);
-	ui->colorPreset->setCurrentIndex(ui->colorPreset->count() - 1);
-	ui->colorPreset->blockSignals(block);
+	bool block = accessPage->colorPreset->blockSignals(true);
+	accessPage->colorPreset->setCurrentIndex(accessPage->colorPreset->count() - 1);
+	accessPage->colorPreset->blockSignals(block);
 
 	A11yChanged();
 
@@ -352,9 +387,9 @@ void OBSBasicSettings::on_choose9_clicked()
 	mixerRedActive = color_to_int(color);
 
 	preset = COLOR_PRESET_CUSTOM;
-	bool block = ui->colorPreset->blockSignals(true);
-	ui->colorPreset->setCurrentIndex(ui->colorPreset->count() - 1);
-	ui->colorPreset->blockSignals(block);
+	bool block = accessPage->colorPreset->blockSignals(true);
+	accessPage->colorPreset->setCurrentIndex(accessPage->colorPreset->count() - 1);
+	accessPage->colorPreset->blockSignals(block);
 
 	A11yChanged();
 

@@ -22,7 +22,7 @@ PLSLaboratory::PLSLaboratory(QWidget *parent) : PLSDialogView(parent)
 #if defined(Q_OS_WIN)
 	setFixedSize(820, 600);
 #elif defined(Q_OS_MACOS)
-	setFixedSize(820, 560);
+	setFixedSize(820, 600 - PLS_TITLE_BAR_HEIGHT);
 #endif
 	setWindowTitle(tr("Basic.MainMenu.File.laboratory"));
 	setupListWidgetItems();
@@ -61,6 +61,9 @@ PLSLaboratory::PLSLaboratory(QWidget *parent) : PLSDialogView(parent)
 		return true;
 	};
 	setCloseEventCallback(closeEvent);
+
+	pls_uistep_v2_set_title(this, QStringLiteral("Laboratory"));
+	pls_uistep_v2_auto_bind(this);
 }
 
 PLSLaboratory::~PLSLaboratory()
@@ -122,6 +125,7 @@ void PLSLaboratory::refreshCurrentItemSelected()
 	auto checkButton = static_cast<PLSLaboratoryItem *>(m_buttonGroup.checkedButton());
 	int stackWidgetPage = checkButton == nullptr ? 0 : 1;
 	LAB_LOG(QString("laboratory view show page index is %1").arg(stackWidgetPage));
+	PLS_UI_ACTION("PLSLaboratory: refreshCurrentItemSelected");
 	ui->stackedWidget->setCurrentIndex(stackWidgetPage);
 	if (ui->stackedWidget->currentIndex() == 0) {
 		LAB_LOG("laboratory show default page no selected item");
@@ -196,6 +200,7 @@ void PLSLaboratory::openLab(const QString &labId)
 	LAB_LOG("show user install view");
 	PLSLaboratoryInstallView installView(labId, this);
 	int code = installView.exec();
+	PLSErrorHandler::ExtraData extraData("PLSLaboratory");
 	if (code == g_installSuccess) {
 		if (!LabManage->isDllType(labId)) {
 			LAB_LOG("install non-plugin type lab success");
@@ -206,7 +211,7 @@ void PLSLaboratory::openLab(const QString &labId)
 		if (!pls_load_plugin(LabManage->getAppDllFilePathWithLabId(labId).toUtf8().constData(), LabManage->getAppDllDataDirPathByLabId(labId).toUtf8().constData())) {
 			LAB_LOG(QString("loading the plugins in the plugin directory failed, lab id is %1").arg(labId));
 			LAB_LOG("install plugin type lab failed");
-			pls_alert_error_message(nullptr, tr("Alert.Title"), tr("laboratory.item.open.other.reason.failed.text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LABORATORY_ITEM_OPEN_OTHER_REASON_FAILED_TEXT_1, PLSErrKeyAllAlert, QString(), extraData);
 			return;
 		}
 		LAB_LOG(QString("loading the plugins in the plugin directory success, lab id is %1").arg(labId));
@@ -214,10 +219,10 @@ void PLSLaboratory::openLab(const QString &labId)
 		checkInstallFinished(labId, true);
 	} else if (code == g_installNetworkError) {
 		LAB_LOG("install lab network error");
-		PLSAlertView::warning(nullptr, tr("Alert.Title"), tr("laboratory.item.open.network.failed.text"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LABORATORY_ITEM_OPEN_NETWORK_FAILED_TEXT, PLSErrKeyAllAlert, QString(), extraData);
 	} else if (code == g_installUnkownError) {
 		LAB_LOG("install lab unkown error");
-		pls_alert_error_message(nullptr, tr("Alert.Title"), tr("laboratory.item.open.other.reason.failed.text"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LABORATORY_ITEM_OPEN_OTHER_REASON_FAILED_TEXT_1, PLSErrKeyAllAlert, QString(), extraData);
 	}
 }
 
@@ -299,8 +304,12 @@ bool PLSLaboratory::checkInstallFinishedRestart(const QString &labId, bool insta
 	if (installPageEnter) {
 		content = QTStr("laboratory.item.install.finished.restartapp.content");
 	}
-	PLSAlertView::Button button = PLSMessageBox::question(this, QTStr("Confirm"), content, PLSAlertView::Button::Yes | PLSAlertView::Button::No);
-	if (button == PLSAlertView::Button::Yes) {
+	PLSErrorHandler::ExtraData extraData("PLSLaboratory");
+
+	const PLSErrorHandler::ErrCode prismCode = installPageEnter ? PLSErrorHandler::ALERT_LABORATORY_ITEM_INSTALL_FINISHED_RESTART_APP_CONTENT
+								    : PLSErrorHandler::ALERT_LABORATORY_ITEM_OPEN_RESTART_TEXT;
+
+	if (PLSAlertView::Button::Yes == PLSErrorHandler::showAlertByPrismCode(prismCode, PLSErrKeyAllAlert, {}, extraData).clickedBtn) {
 		LAB_LOG(QString("user clicked restart now, lab id is %1").arg(labId));
 		auto basic = PLSBasic::instance();
 		basic->restartPrismApp();
@@ -327,10 +336,12 @@ void PLSLaboratory::on_openButton_clicked()
 	QString labId = checkButton->itemId();
 	if (isOpenButtonChecked()) {
 		LAB_LOG(QString("user click open checkbox button state is unchecked, lab id is %1 ").arg(labId));
+		PLS_UI_ACTION("user click open checkbox button state is unchecked");
 		closeLab(labId);
 	} else {
 		LAB_LOG(QString("user click open checkbox button state is checked , lab id is %1 ").arg(labId));
 		PLS_LOGEX(PLS_LOG_INFO, MODULE_ABORATORY, {{"labPluginId", checkButton->itemName().toUtf8().constData()}}, "user click open checkbox button state is checked");
+		PLS_UI_ACTION("user click open checkbox button state is checked");
 		openLab(labId);
 	}
 }

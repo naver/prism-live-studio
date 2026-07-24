@@ -1,50 +1,38 @@
 
 ChannelConfigPannel {
-	min-height: /*hdpi*/ 48px;
-	max-height: /*hdpi*/ 48px;
-	min-width: /*hdpi*/ 200px;
-	max-width: /*hdpi*/ 200px;
-	margin-top: /*hdpi*/ 1px;
-	padding: /*hdpi*/ 0px;
-	border: /*hdpi*/ none;
-	border-radius: /*hdpi*/ 3px;
+	min-height: 48px;
+	max-height: 48px;
+	min-width: 200px;
+	max-width: 200px;
+	margin-top: 1px;
+	padding: 0px;
+	border: none;
+	border-radius: 3px;
 	background-color: rgb(68, 68, 68);
-	qproperty-minimumSize: /*hdpi*/ 200px /*hdpi*/ 48px;
-	qproperty-maximumSize: /*hdpi*/ 200px /*hdpi*/ 48px;
+	qproperty-minimumSize: 200px 48px;
+	qproperty-maximumSize: 200px 48px;
 }
 
 	ChannelConfigPannel * {
-		padding: /*hdpi*/ 0px;
-		margin: /*hdpi*/ 0px;
-	}
-
-	ChannelConfigPannel QToolTip {
-		background-color: #111111;
-		border: /*hdpi*/ none;
-		font-size: /*hdpi*/ 11px;
-		color: #bababa;
-		min-height: 24px;
-		padding-left: 3px;
-		padding-right: 3px;
-		padding-top:4px;
-		margin:0;
+		padding: 0px;
+		margin: 0px;
 	}
 
 	ChannelConfigPannel #ConfigWidget {
-		border: /*hdpi*/ none;
-		padding: /*hdpi*/ 0px;
-		margin: /*hdpi*/ 0px;
+		border: none;
+		padding: 0px;
+		margin: 0px;
 	}
 
 	ChannelConfigPannel #EnableSwitch {
-		min-height: /*hdpi*/ 17px;
-		max-height: /*hdpi*/ 17px;
-		max-width: /*hdpi*/ 28px;
-		min-width: /*hdpi*/ 28px;
+		min-height: 17px;
+		max-height: 17px;
+		max-width: 28px;
+		min-width: 28px;
 		image: url(":/channels/resource/images/ChannelsSource/slider-on.svg");
 		background-color: transparent;
 		color: transparent;
-		qproperty-maximumSize: /*hdpi*/ 28px /*hdpi*/ 17px;
+		qproperty-maximumSize: 28px 17px;
 		
 	}
 
@@ -82,10 +70,10 @@ ChannelConfigPannel {
 
 
 	ChannelConfigPannel #showInfoBtn {
-		min-height: /*hdpi*/ 22px;
-		max-height: /*hdpi*/ 22px;
-		max-width: /*hdpi*/ 22px;
-		min-width: /*hdpi*/ 22px;
+		min-height: 22px;
+		max-height: 22px;
+		max-width: 22px;
+		min-width: 22px;
 		background-color: transparent;
 		color: transparent;
 		image: url(":/channels/resource/images/ChannelsSource/ic-liveinfo-normal.svg");
@@ -121,10 +109,10 @@ ChannelConfigPannel {
 
 
 	ChannelConfigPannel #ShareBtn {
-		min-height: /*hdpi*/ 22px;
-		max-height: /*hdpi*/ 22px;
-		max-width: /*hdpi*/ 22px;
-		min-width: /*hdpi*/ 22px;
+		min-height: 22px;
+		max-height: 22px;
+		max-width: 22px;
+		min-width: 22px;
 		background-color: transparent;
 		color: transparent;
 		image: url(":/channels/resource/images/ChannelsSource/ic-share-normal.svg");
@@ -144,10 +132,10 @@ ChannelConfigPannel {
 
 
 	ChannelConfigPannel #ConfigBtn {
-		min-height: /*hdpi*/ 22px;
-		max-height: /*hdpi*/ 22px;
-		max-width: /*hdpi*/ 22px;
-		min-width: /*hdpi*/ 22px;
+		min-height: 22px;
+		max-height: 22px;
+		max-width: 22px;
+		min-width: 22px;
 		background-color: transparent;
 		color: transparent;
 		image: url(":/channels/resource/images/ChannelsSource/ic-large-more-normal.svg");
@@ -166,27 +154,27 @@ ChannelConfigPannel {
 		}
 
 	ChannelConfigPannel QMenu {
-		max-width: /*hdpi*/ 208px;
-		min-height: /*hdpi*/ 56px;
-		margin: /*hdpi*/ 0px;
-		padding: /*hdpi*/ 8px /*hdpi*/ 0px /*hdpi*/ 8px /*hdpi*/ 0px;
-		border: /*hdpi*/ 1px solid #111111;
+		max-width: 208px;
+		min-height: 56px;
+		margin: 0px;
+		padding: 8px 0px 8px 0px;
+		border: 1px solid #111111;
 		background-color: #2d2d2d;
-		qproperty-minimumSize: /*hdpi*/ 210px /*hdpi*/ 56px;
-		qproperty-maximumSize: /*hdpi*/ 210px /*hdpi*/ 136px;
+		qproperty-minimumSize: 210px 56px;
+		qproperty-maximumSize: 210px 136px;
 	}
 
 	ChannelConfigPannel QMenu::item {
-		padding: /*hdpi*/ 0px;
-		padding-left: /*hdpi*/ 20px;
-		margin: /*hdpi*/ 0px;
+		padding: 0px;
+		padding-left: 20px;
+		margin: 0px;
 		background-color: transparent;
-		border: /*hdpi*/ none;
-		min-height: /*hdpi*/ 40px;
-		max-height: /*hdpi*/ 40px;
-		max-width: /*hdpi*/ 187px;
-		min-width: /*hdpi*/ 187px;
-		font-size: /*hdpi*/ 14px;
+		border: none;
+		min-height: 40px;
+		max-height: 40px;
+		max-width: 187px;
+		min-width: 187px;
+		font-size: 14px;
 		font-weight: normal;
 		font-style: normal;
 		color: #ffffff;
@@ -203,31 +191,41 @@ ChannelConfigPannel {
 	}
 
 	ChannelConfigPannel #dualOutputBtn {
-		margin: /*hdpi*/ 0px;
-		padding: /*hdpi*/ 0px;
-		min-height: /*hdpi*/ 28px;
-		max-height: /*hdpi*/ 28px;
-		max-width: /*hdpi*/ 41px;
-		min-width: /*hdpi*/ 41px;
+		margin: 0px;
+		padding: 0px;
+		min-height: 28px;
+		max-height: 28px;
+		max-width: 41px;
+		min-width: 41px;
 
 	}
-	ChannelConfigPannel #arrowIconLabel {
-		max-width: /*hdpi*/ 7px;
-		min-width: /*hdpi*/ 7px;
-		min-height: /*hdpi*/ 7px;
-		max-height: /*hdpi*/ 7px;
-		padding-left:3px;
-		padding-right:3px;
-		padding-top:10px;
-		padding-bottom:11px;
-		border: none;
+
+ChannelConfigPannel #arrowIconLabel {
+	max-width: 9px;
+	min-width: 9px;
+	min-height: 9px;
+	max-height: 9px;
+	padding-left: 2px;
+	padding-right: 2px;
+	padding-top: 9px;
+	padding-bottom: 10px;
+	border: none;
+	image: url(":/channels/resource/images/ChannelsSource/btn_cd_layeropen_normal.svg");
+}
+	ChannelConfigPannel #arrowIconLabel[state="normal"] {
 		image: url(":/channels/resource/images/ChannelsSource/btn_cd_layeropen_normal.svg");
 	}
+	ChannelConfigPannel #arrowIconLabel[state="hover"] {
+		image: url(":/channels/resource/images/ChannelsSource/btn_cd_layeropen_over.svg");
+	}
+	ChannelConfigPannel #arrowIconLabel[state="pressed"] {
+		image: url(":/channels/resource/images/ChannelsSource/btn_cd_layeropen_click.svg");
+	}
 	ChannelConfigPannel #dualOutputIconLabel {
-		max-width: /*hdpi*/ 28px;
-		min-width: /*hdpi*/ 28px;
-		min-height: /*hdpi*/ 28px;
-		max-height: /*hdpi*/ 28px;
+		max-width: 28px;
+		min-width: 28px;
+		min-height: 28px;
+		max-height: 28px;
 		border:none;
 		background-color:transparent;
 	}
@@ -243,9 +241,9 @@ ChannelConfigPannel {
 
 	ChannelConfigPannel #seprator {
 		border:none;
-		max-width: /*hdpi*/ 1px;
-		min-width: /*hdpi*/ 1px;
-		min-height: /*hdpi*/ 20px;
-		max-height: /*hdpi*/ 20px;
+		max-width: 1px;
+		min-width: 1px;
+		min-height: 20px;
+		max-height: 20px;
 		background-color:#5e5e5e;
 	}

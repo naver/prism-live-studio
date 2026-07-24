@@ -108,8 +108,6 @@ LIBHTTPCLIENT_API const QString RS_DOWNLOAD_WORKER_GROUP = "rs-download-worker-g
 #define g_workers Client::s_client->m_workers
 #define g_cleanupWaitTimeout Client::s_client->s_cleanupWaitTimeout
 
-
-
 enum class ClientStatus { Uninitialized, Initialized, Initializing, Destroying };
 
 qint64 genRequestId();
@@ -121,7 +119,7 @@ struct RequestImpl {
 	mutable Method m_method = Method::Get;
 	mutable QUrl m_originalUrl;
 	mutable QUrl m_url;
-	mutable QMap<QString, QString> m_urlParams;
+	mutable QHash<QString, QString> m_urlParams;
 	mutable std::optional<QByteArray> m_hmacKey;
 	mutable std::optional<QByteArray> m_customMethod;
 	mutable std::optional<QList<QNetworkCookie>> m_cookie;
@@ -952,13 +950,13 @@ class Client : public ExclusiveWorker {
 
 public:
 	DefaultRequestHeadersFactory m_factory;
-	std::map<QString, int> m_shareCounts;
+	std::unordered_map<QString, int> m_shareCounts;
 
 	Proxy *m_proxy = nullptr;
-	std::map<QThread *, NetworkAccessManagerWeakPtr> m_workers; // worker -> NetworkAccessManager
+	std::unordered_map<QThread *, NetworkAccessManagerWeakPtr> m_workers; // worker -> NetworkAccessManager
 	std::set<QString> m_rids;
-	std::map<QString, ReplyHook> m_hooks;
-	std::map<QString, ReplyMonitor> m_monitors;
+	std::unordered_map<QString, ReplyHook> m_hooks;
+	std::unordered_map<QString, ReplyMonitor> m_monitors;
 
 	static ClientStatus s_clientStatus;
 	static std::atomic<qint64> s_requestId;
@@ -1719,7 +1717,7 @@ const Request &Request::hmacUrl(const QUrl &url, const QByteArray &hmacKey) cons
 }
 const Request &Request::urlParams(const QMap<QString, QString> &params) const
 {
-	m_impl->m_urlParams.insert(params);
+	pls_for_each(params, [this](const QString &name, const QString &value) { m_impl->m_urlParams.insert(name, value); });
 	return *this;
 }
 const Request &Request::urlParams(const QVariantMap &params) const
@@ -2775,7 +2773,8 @@ LIBHTTPCLIENT_API bool checkResult(const Reply &reply)
 
 LIBHTTPCLIENT_API QUrl buildHmacUrl(const QUrl &url, const QByteArray &hmacKey)
 {
-	return QUrl();
+	pls_unused(hmacKey);
+	return url;
 }
 
 LIBHTTPCLIENT_API QString contentType2Suffix(const QString &contentType)
@@ -2827,6 +2826,11 @@ LIBHTTPCLIENT_API QString suffix2ContentType(const QString &suffix)
 		return QStringLiteral("image/tiff");
 	}
 	return {};
+}
+LIBHTTPCLIENT_API QString getQueryParam(const QUrl &url, const QString &name)
+{
+	QUrlQuery query(url);
+	return query.queryItemValue(name, QUrl::FullyDecoded);
 }
 
 LIBHTTPCLIENT_API void setCleanupWaitTimeout(int timeout)

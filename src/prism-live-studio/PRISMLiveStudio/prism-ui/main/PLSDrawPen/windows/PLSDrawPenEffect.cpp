@@ -20,7 +20,7 @@ PLSDrawPenGlowEffect::~PLSDrawPenGlowEffect()
 	obs_leave_graphics();
 }
 
-void PLSDrawPenGlowEffect::RenderEffect(gs_texture_t *srcTexture, gs_texture_t *dstTexture, uint32_t rgba, float range, bool clear)
+void PLSDrawPenGlowEffect::RenderEffect(gs_texture_t *srcTexture, gs_texture_t *maskTexture, gs_texture_t *dstTexture, uint32_t rgba, float range, bool clear)
 {
 	if (!dstTexture || !srcTexture)
 		return;
@@ -50,7 +50,18 @@ void PLSDrawPenGlowEffect::RenderEffect(gs_texture_t *srcTexture, gs_texture_t *
 	gs_ortho(0.0f, (float)rt_width, 0.0f, (float)rt_height, -100.0f, 100.0f);
 	gs_set_viewport(0, 0, rt_width, rt_height);
 
-	gs_technique_t *tech = gs_effect_get_technique(outerGlowEffect, "Draw");
+	gs_technique_t *tech = nullptr;
+	if (maskTexture) {
+		tech = gs_effect_get_technique(outerGlowEffect, "DrawWithMask");
+		if (tech) {
+			gs_eparam_t *param_imageMask = gs_effect_get_param_by_name(outerGlowEffect, "imageMask");
+			if (param_imageMask)
+				gs_effect_set_texture(param_imageMask, maskTexture);
+		}
+	}
+	if (!tech)
+		tech = gs_effect_get_technique(outerGlowEffect, "Draw");
+
 	gs_eparam_t *param = gs_effect_get_param_by_name(outerGlowEffect, "image");
 
 	gs_eparam_t *param_tex_size = gs_effect_get_param_by_name(outerGlowEffect, "tex_size");

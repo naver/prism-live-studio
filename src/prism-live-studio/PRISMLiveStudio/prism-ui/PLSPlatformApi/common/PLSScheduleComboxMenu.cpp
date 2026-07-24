@@ -29,6 +29,7 @@ using namespace common;
 PLSScheduleComboxMenu::PLSScheduleComboxMenu(QWidget *parent) : QMenu(parent)
 {
 	m_listWidget = pls_new<QListWidget>(this);
+	pls_uistep_v2_enable(m_listWidget, false);
 
 	connect(m_listWidget, &QListWidget::itemClicked, this, &PLSScheduleComboxMenu::itemDidSelect);
 
@@ -157,9 +158,14 @@ void PLSScheduleComboxMenu::itemDidSelect(const QListWidgetItem *item)
 	if (data.type == PLSScheComboxItemType::Ty_Header) {
 		return;
 	}
+	m_type = data.type;
 	emit scheduleItemClicked(data._id);
 }
 
+QString PLSScheduleComboxMenu::getSelectedType() const
+{
+	return pls_enum_2_string(m_type);
+}
 bool PLSScheduleComboxMenu::eventFilter(QObject *i_Object, QEvent *i_Event)
 {
 	if (i_Object == this && i_Event->type() == QEvent::KeyPress) {
@@ -194,9 +200,15 @@ bool PLSScheduleComboxMenu::eventFilter(QObject *i_Object, QEvent *i_Event)
 
 void PLSScheduleComboxMenu::hideEvent(QHideEvent *event)
 {
+	PLS_UI_ACTION("Widget PLSScheduleComboxMenu Hide");
 	m_vecItems.clear();
 	m_listWidget->clear();
 	QMenu::hideEvent(event);
+}
+void PLSScheduleComboxMenu::showEvent(QShowEvent *event)
+{
+	PLS_UI_ACTION("Widget PLSScheduleComboxMenu Show");
+	QMenu::showEvent(event);
 }
 
 QString PLSScheduleComboxMenu::getDetailTime(const PLSScheComboxItemData &data, bool &willDelete)

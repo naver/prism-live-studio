@@ -1,7 +1,6 @@
 /**
 * @file		PLSPlatformApi.h
 * @brief	A class to manage all platforms
-* @author	wu.longyue@navercorp.com
 * @date		2020-01-06
 **/
 
@@ -10,6 +9,7 @@
 #include <vector>
 #include <list>
 #include <QObject>
+#include <QString>
 #include <QTimer>
 #include <QRecursiveMutex>
 
@@ -59,29 +59,9 @@ enum class EndLiveType { NONE_TYPE, MQTT_END_LIVE, CLICK_FINISH_BUTTON, OBS_END_
 enum class LiveStatus { Normal, PrepareLive, ToStart, LiveStarted, Living, PrepareFinish, ToStop, LiveStoped, LiveEnded };
 enum class PLSEndPageType;
 #define BOOL2STR(x) (x) ? "true" : "false"
-#define LiveInfoPrefix ChannelData::g_liveInfoPrefix.toStdString().c_str()
+#define LiveInfoPrefix ChannelData::g_liveInfoPrefix.toUtf8().constData()
 
 constexpr auto PrepareInfoPrefix = "prepare status: ";
-
-extern const QString ANALOG_IS_SUCCESS_KEY;
-extern const QString ANALOG_FAIL_CODE_KEY;
-extern const QString ANALOG_FAIL_REASON_KEY;
-extern const QString ANALOG_LIVERECORD_SCENE_COUNT_KEY;
-extern const QString ANALOG_LIVERECORD_SOURCE_COUNT_KEY;
-const QString ANALOG_GIPHY_ID_KEY = "giphyId";
-const QString ANALOG_TOUCH_STICKER_CATEGORY_ID_KEY = "categoryId";
-const QString ANALOG_TOUCH_STICKER_ID_KEY = "stickerId";
-const QString ANALOG_VIRTUAL_BG_ID_KEY = "virtualBgId";
-const QString ANALOG_VIRTUAL_BG_CATEGORY_KEY = "categoryId";
-const QString ANALOG_SOURCE_TYPE_KEY = "sourceType";
-const QString ANALOG_ITEM_KEY = "item";
-const QString ANALOG_DETAIL_KEY = "detail";
-const QString ANALOG_FILTER_TYPE_KEY = "filterType";
-const QString ANALOG_BGM_CATEGORY_KEY = "categoryId";
-const QString ANALOG_BGM_TYPE_KEY = "type";
-const QString ANALOG_BGM_ID_KEY = "musicId";
-const QString ANALOG_BGM_DURATION_KEY = "duration";
-const QString ANALOG_VIRTUAL_CAM_PROCESS_KEY = "targetProcessName";
 
 //live abort info key
 extern const QString LIVE_ABORT_STATUS_CODE_KEY;
@@ -93,6 +73,20 @@ class PLSPlatformApi : public QObject {
 	Q_OBJECT
 
 public:
+	// Streaming mode for crash recovery
+	enum class StreamingMode {
+		// Non-dual output mode
+		Single = 0, // Single platform streaming
+		Multi,      // Multiple platforms streaming
+
+		// Dual output mode (horizontal + vertical)
+		DualHSingleVSingle, // Horizontal single + Vertical single
+		DualHMultiVMulti,   // Horizontal multi + Vertical multi
+		DualHSingleVMulti,  // Horizontal single + Vertical multi
+		DualHMultiVSingle   // Horizontal multi + Vertical single
+	};
+	Q_ENUM(StreamingMode)
+
 	static PLSPlatformApi *instance();
 	PLSPlatformApi();
 	~PLSPlatformApi() override;
@@ -140,7 +134,7 @@ public:
 	bool isStopForExit() const { return m_bStopForExit; };
 
 	//Whether MQTT is currently connected
-	bool isConnectedMQTT() const { return false; };
+	bool isConnectedMQTT() const { return m_isConnectedMQTT; };
 
 	//Whether platfrom prepared api is successful after GoLive
 	PLSPlatformLiveStartedStatus isApiPrepared() const { return m_bApiPrepared; };
@@ -317,29 +311,6 @@ public:
 	void setLiveEndReason(const QString &liveEndReason, EndLiveType endLiveType = EndLiveType::OTHER_TYPE);
 	void stopStreaming(const QString &reason, EndLiveType endLiveType = EndLiveType::OTHER_TYPE, DualOutputType outputType = DualOutputType::All);
 
-	//send analog request
-	void createAnalogInfo(QVariantMap &uploadVariantMap) const;
-	void sendLiveAnalog(bool success, const QString &reason = QString(), int code = 0) const;
-	void sendLiveAnalog(const QVariantMap &info) const;
-	void sendRecordAnalog(bool success, const QString &reason = QString(), int code = 0) const;
-	void sendRecordAnalog(const QVariantMap &info) const;
-	void sendAnalog(AnalogType type, const QVariantMap &info) const;
-	void sendBeautyAnalog(const QVariantMap &info) const;
-	void sendVirtualBgAnalog(const QVariantMap &info) const;
-	void sendDrawPenAnalog(const QVariantMap &info) const;
-	void sendSourceAnalog(const QVariantMap &info) const;
-	void sendFilterAnalog(const QVariantMap &info) const;
-	void sendBgmAnalog(const QVariantMap &info) const;
-	void sendVirtualCamAnalog(const QVariantMap &info) const;
-	void sendBgTemplateAnalog(OBSData privious, OBSData current) const;
-	void sendAudioVisualizerAnalog(const char *id, OBSData privious, OBSData current) const;
-	void sendCameraDeviceAnalog(OBSData privious, OBSData current) const;
-	void sendAnalogOnUserConfirm(OBSSource source, OBSData privious, OBSData current) const;
-	void sendCodecAnalog(const QVariantMap &info) const;
-	void sendSceneTemplateAnalog(const QVariantMap &info) const;
-	void sendPlatformOutputGuideAnalog(const QVariantMap &info) const;
-	void sendNCB2BLogin(const QVariantMap &info) const;
-
 	void updateAllScheduleList();
 	void loadingWidzardCheck(bool isCheck = true);
 	QVariantList getAllScheduleList() const;
@@ -349,6 +320,24 @@ public:
 	int currentTaskCount(const QString &taskKey) const;
 	void decreaseCount(const QString &taskKey, int vol = 1);
 	void resetTaskCount(const QString &taskKey);
+
+	//set and get resume streaming flag (for crash recovery)
+	void setResumeStreamingFlag(bool isResume);
+	bool getResumeStreamingFlag() const;
+
+	// Streaming state management for crash recovery
+	void saveStreamingState();
+	void clearStreamingState();
+	bool hasPendingStreamingState() const;
+	void checkStreamingState();
+	static QString getStreamingStateFilePath();
+	void markChannelLiveEndInStreamingState(const QString &channelUuid, const QString &liveEndReason) const;
+	StreamingMode getCurrentStreamingMode() const;
+
+	// Getters for resume streaming state
+	qint64 getResumeStartTime() const { return m_resumeStartTime; }
+	const QJsonObject &getResumeStreamingState() const { return m_resumeStreamingState; }
+	QVariantMap getResumePlatformParams(const QString &uuid) const;
 
 	//Receive a message that the program has been closed
 	void ensureStopOutput();
@@ -446,7 +435,6 @@ signals:
 public slots:
 	void onActive(const QString &which);
 	void onInactive(const QString &which);
-	void onClearChannel();
 	void onAddChannel(const QString &channelUUID);
 	void onRemoveChannel(const QString &channelUUID, const QVariantMap &unDeletedChannelData);
 	void onUpdateChannel(const QString &which);
@@ -465,11 +453,15 @@ private:
 	//The function called during the preparation phase of the onPrepare method
 	//Display Multi-Platform Disable Live Alert with Resolutions greater than 1080p
 	void showMultiplePlatformGreater1080pAlert();
+	static qint64 pixelProductFromMaxResolutionString(const QString &widthByHeight);
+	qint64 multiPushMinAllowedOutputPixelProduct() const;
 	void sortPlatforms();
+	void resumeStreamingFromSavedState();
 	bool checkNetworkConnected();
 	void resetPlatformsLivingInfo();
 	bool checkWaterMarkAndOutroResource();
 	bool checkOutputBitrateValid();
+	std::string getLiveStreamURLForLog() const;
 
 	//MQTT  related
 	void doStatRequest(const QJsonObject &data);
@@ -566,10 +558,23 @@ private:
 	bool m_bReplayBuffer = false;
 	bool m_bStopForExit = false;
 	bool m_bVirtualCamera = false;
+	bool m_bResumeStreaming = false;
+
+	// Resume streaming state (parsed from streaming_state.json)
+	qint64 m_resumeStartTime = 0;
+	QJsonObject m_resumeStreamingState;
+
+	//Used for mqtt
+	std::array<QPointer<PLSMosquitto>, DualOutputType::All> m_pMQTT{};
+	QTimer m_timerMQTT;
+	QString m_strLastMqttChat;
+	QString m_strLastMqttStatus;
+	QString m_strLastMqttStat;
 
 	//when live and record stop same time, will ignore record end page show and toast.
 	bool m_isIgnoreNextRecordShow = false;
 	bool m_ignoreRequestBroadcastEnd = false;
+	bool m_isConnectedMQTT = false;
 	QMap<QString, int> m_taskWaiting;
 	PLSPlatformBase *m_generalPlatform{nullptr};
 	QMap<QString, QString> m_platFormUrlMap;

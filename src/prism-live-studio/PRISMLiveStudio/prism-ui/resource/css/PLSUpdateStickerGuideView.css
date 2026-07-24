@@ -1,0 +1,55 @@
+PLSUpdateStickerGuideView {
+	border-radius: /*hdpi*/ 3px;
+	border: /*hdpi*/ 1px solid #343435;
+	background-color: #1e1e1f;
+}
+
+PLSUpdateStickerGuideView #updateStickerGuideIcon {
+	min-width: /*hdpi*/ 24px;
+	max-width: /*hdpi*/ 24px;
+	min-height: /*hdpi*/ 24px;
+	max-height: /*hdpi*/ 24px;
+	background-color: transparent;
+	color: white;
+	image: none;
+}
+
+PLSUpdateStickerGuideView #updateStickerGuideIcon[useDefault="true"] {
+	image: url(:/resource/images/giphy/thumb-loading.svg);
+}
+
+PLSUpdateStickerGuideView #updateStickerGuideTitle {
+	min-height: /*hdpi*/ 1px;
+	background-color: transparent;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	color: #bababa;
+	padding: 0;
+	margin: 0;
+}
+
+PLSUpdateStickerGuideView #updateStickerOkButton {
+	min-height: 18px;
+    max-height: 18px;
+	text-align: right;
+	padding: 0;
+	padding-left: 5px;
+	margin: 0;
+	font-size: /*hdpi*/ 12px;
+	color: #EFFC35;
+	font-weight: normal;
+    background-color:transparent;
+	border-radius: 0px;
+} 
+
+PLSUpdateStickerGuideView #updateStickerOkButton:hover{
+    color:#F1FA75;
+}
+
+PLSUpdateStickerGuideView #updateStickerOkButton:pressed{
+    color:#7A7F34;
+}
+
+PLSUpdateStickerGuideView #updateStickerOkButton:disabled{
+    color: #666666;
+}

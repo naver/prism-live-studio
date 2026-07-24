@@ -8,7 +8,7 @@ using namespace common;
 PLSImageTextButton::PLSImageTextButton(QWidget *parent) : QPushButton(parent)
 {
 	auto horizontalLayout = pls_new<QHBoxLayout>(parent);
-	horizontalLayout->setContentsMargins(0, 0, 0, 0);
+	horizontalLayout->setContentsMargins(1, 0, 1, 0);
 	horizontalLayout->setSpacing(4);
 
 	m_leftSpacer = pls_new<QSpacerItem>(1, 1, QSizePolicy::Expanding, QSizePolicy::Minimum);
@@ -16,45 +16,51 @@ PLSImageTextButton::PLSImageTextButton(QWidget *parent) : QPushButton(parent)
 
 	m_labelLeft = pls_new<QLabel>();
 	m_labelLeft->setObjectName(QString::fromUtf8("labelLeft"));
+	m_imgLabel = m_labelLeft;
 
 	horizontalLayout->addWidget(m_labelLeft);
 
 	m_labelRight = pls_new<QLabel>();
 	m_labelRight->setObjectName(QString::fromUtf8("labelRight"));
+	m_textLabel = m_labelRight;
 	horizontalLayout->addWidget(m_labelRight, 1, Qt::AlignLeft | Qt::AlignVCenter);
 
 	this->setLayout(horizontalLayout);
 	pls_flush_style_recursive(this, STATUS, STATUS_NORMAL);
 }
 
-void PLSImageTextButton::setLabelText(const QString &str, bool isElidedText)
+void PLSImageTextButton::setLabelText(const QString &str, bool isElidedText, bool isIconLeft)
 {
-	m_oriRightText = str;
-	m_labelRight->setText(str);
+	m_oriText = str;
+	if (isIconLeft) {
+		m_imgLabel = m_labelLeft;
+		m_textLabel = m_labelRight;
+	} else {
+		m_imgLabel = m_labelRight;
+		m_textLabel = m_labelLeft;
+	}
+	m_textLabel->setText(str);
 	m_isElidedText = isElidedText;
-
 	elidedLabelText();
 }
-
+void PLSImageTextButton::modifyContentCenter()
+{
+	auto l = dynamic_cast<QHBoxLayout *>(layout());
+	m_leftSpacer->changeSize(0, 0, QSizePolicy::Fixed, QSizePolicy::Fixed);
+	l->addItem(new QSpacerItem(0, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum));
+	l->addWidget(m_textLabel, 0, Qt::AlignHCenter | Qt::AlignVCenter);
+	l->addWidget(m_imgLabel, 0, Qt::AlignHCenter | Qt::AlignVCenter);
+	l->addItem(new QSpacerItem(0, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum));
+}
 void PLSImageTextButton::setFileButtonEnabled(bool enabled)
 {
 	this->setEnabled(enabled);
 	pls_flush_style_recursive(this, STATUS, enabled ? STATUS_NORMAL : STATUS_DISABLE);
 }
 
-const QFont &PLSImageTextButton::getRightFont() const
-{
-	if (m_labelRight) {
-		return m_labelRight->font();
-	}
-	return this->font();
-}
-
 void PLSImageTextButton::setWordWrap(bool wordWrap)
 {
-	if (m_labelRight) {
-		m_labelRight->setWordWrap(wordWrap);
-	}
+	m_textLabel->setWordWrap(wordWrap);
 }
 
 void PLSImageTextButton::seIsLeftAlign(bool isLeft)
@@ -65,8 +71,8 @@ void PLSImageTextButton::seIsLeftAlign(bool isLeft)
 }
 void PLSImageTextButton::onlyHideContent(bool hide)
 {
-	m_labelLeft->setHidden(hide);
-	m_labelRight->setHidden(hide);
+	m_imgLabel->setHidden(hide);
+	m_textLabel->setHidden(hide);
 
 	setDisabled(hide);
 }
@@ -115,9 +121,9 @@ void PLSImageTextButton::elidedLabelText()
 	if (!m_isElidedText) {
 		return;
 	}
-	QFontMetrics titleFont(m_labelRight->font());
-	QString elidedText = titleFont.elidedText(m_oriRightText, Qt::ElideRight, this->geometry().width() - 20 /*left width*/);
-	m_labelRight->setText(elidedText);
+	QFontMetrics titleFont(m_textLabel->font());
+	QString elidedText = titleFont.elidedText(m_oriText, Qt::ElideRight, this->geometry().width() - 22 /*left width*/);
+	m_textLabel->setText(elidedText);
 }
 
 PLSBorderButton::PLSBorderButton(QWidget *parent) : QPushButton(parent)

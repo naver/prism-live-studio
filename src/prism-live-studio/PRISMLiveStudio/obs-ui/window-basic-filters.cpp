@@ -49,6 +49,7 @@
 #include <pls/pls-source.h>
 #include "frontend-api.h"
 #include "PLSPlatformApi.h"
+#include "PLSAutoActionLog.hpp"
 
 using namespace std;
 
@@ -67,13 +68,26 @@ OBSBasicFilters::OBSBasicFilters(QWidget *parent, OBSSource source_)
 	  renameSourceSignal(obs_source_get_signal_handler(source), "rename", OBSBasicFilters::SourceRenamed, this),
 	  noPreviewMargin(13)
 {
+	PLS_DISABLE_UISTEP_V2(this);
+
+	pls_add_css(this, {"OBSBasicFilters", "VisibilityCheckBox"});
+
 	main = reinterpret_cast<OBSBasic *>(parent);
+
+	const char *id = obs_source_get_id(source);
+	if (!pls_is_empty(id))
+		pls_uistep_v2_add_to_english_cb(id, [](const QByteArray &plugin_id, const QString &text) {
+			const char *out = nullptr;
+			if (text_lookup_get_plugin_english_str(text.toUtf8().constData(), plugin_id.constData(),
+							       &out)) {
+				return QString::fromUtf8(out);
+			}
+			return QString();
+		});
 
 	setupUi(ui);
 	initSize({930, 700});
 	setResizeEnabled(false);
-	ui->asyncEmptyDesLabel->hide();
-	ui->effectEmptyDesLabel->hide();
 
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
@@ -83,11 +97,6 @@ OBSBasicFilters::OBSBasicFilters(QWidget *parent, OBSSource source_)
 	ui->asyncFilters->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
 	ui->effectFilters->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
 
-	/*ui->asyncFilters->setStyle(
-		new PLSFiltersProxyStyle());
-	ui->effectFilters->setStyle(
-		new PLSFiltersProxyStyle());*/
-
 	const char *name = obs_source_get_name(source);
 	setWindowTitle(QTStr("Basic.Filters.Title").arg(QT_UTF8(name)));
 
@@ -96,13 +105,13 @@ OBSBasicFilters::OBSBasicFilters(QWidget *parent, OBSSource source_)
 #endif // QT_NO_SHORTCUT
 
 	//PRISM/FanZirong/20240326/4824/start/Create copy and past Action in advance
-	copyAction = new QAction(QTStr("Copy"));
+	copyAction = new QAction(QTStr("Copy"), this);
 	connect(copyAction, &QAction::triggered, this, &OBSBasicFilters::CopyFilter);
 	copyAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_C));
 	ui->effectWidget->addAction(copyAction);
 	ui->asyncWidget->addAction(copyAction);
 
-	pasteAction = new QAction(QTStr("Paste"));
+	pasteAction = new QAction(QTStr("Paste"), this);
 	pasteAction->setEnabled(main->copyFilter);
 	connect(pasteAction, &QAction::triggered, this, &OBSBasicFilters::PasteFilter);
 	pasteAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_V));
@@ -117,14 +126,8 @@ OBSBasicFilters::OBSBasicFilters(QWidget *parent, OBSSource source_)
 
 	installEventFilter(CreateShortcutFilter(parent));
 
-	connect(ui->asyncEmptyDesLabel, &ClickableLabel::rightclicked, this, [=]() {
-		QPoint pos = this->mapFromGlobal(QCursor::pos());
-		CustomContextMenu(pos, true);
-	});
-	connect(ui->effectEmptyDesLabel, &ClickableLabel::rightclicked, this, [=]() {
-		QPoint pos = this->mapFromGlobal(QCursor::pos());
-		CustomContextMenu(pos, false);
-	});
+	//PRISM/wangshaohui/20260104/4931/fix list flash
+	InitEmptyWidget();
 
 	connect(ui->asyncFilters->itemDelegate(), &QAbstractItemDelegate::closeEditor,
 		[this](QWidget *editor) { FilterNameEdited(editor, ui->asyncFilters); });
@@ -141,6 +144,14 @@ OBSBasicFilters::OBSBasicFilters(QWidget *parent, OBSSource source_)
 
 	connect(ui->asyncFilters->model(), &QAbstractItemModel::rowsMoved, this, &OBSBasicFilters::FiltersMoved);
 	connect(ui->effectFilters->model(), &QAbstractItemModel::rowsMoved, this, &OBSBasicFilters::FiltersMoved);
+
+	// PRISM/wangshaohui/20250815/PRISM_PC-3594/disable defaults button if no item is selected
+	CheckEnableButtons(true, false);
+	CheckEnableButtons(false, false);
+	auto btn = ui->property_buttonBox->button(QDialogButtonBox::RestoreDefaults);
+	if (btn) {
+		btn->setEnabled(false);
+	}
 
 	uint32_t caps = obs_source_get_output_flags(source);
 	bool audio = (caps & OBS_SOURCE_AUDIO) != 0;
@@ -190,13 +201,56 @@ OBSBasicFilters::OBSBasicFilters(QWidget *parent, OBSSource source_)
 #endif
 
 	UpdateFilters();
-	pls_set_css(this, {"OBSBasicFilters"});
 
 #ifdef __APPLE__ // PRISM/wangshaohui/20250523/#3011/MAC: audio filter list should not be first tab-focus
 	QWidget::setTabOrder(ui->moveEffectFilterUp, ui->asyncFilters);
 #endif
 
 	blog(LOG_INFO, "OBSBasicFilters UI Inited (UI : %p , Source : %p)", this, source.Get());
+
+	if (!pls_is_empty(name)) {
+		QString plugin_display_name = "";
+		auto plugin_id = obs_source_get_id(source_);
+		if (plugin_id) {
+			auto str = obs_source_get_display_name(plugin_id);
+			if (str) {
+				const char *out = nullptr;
+				if (text_lookup_get_plugin_english_str(str, plugin_id, &out)) {
+					plugin_display_name = out;
+				} else {
+					plugin_display_name = str;
+				}
+			}
+		}
+
+		auto formatEn = pls_uistep_v2_to_english(QTStr("Basic.Filters.Title"));
+		auto nameEn = pls_uistep_v2_to_english(QT_UTF8(name));
+
+		auto title = QString("'%1' ").arg(plugin_display_name) + formatEn.arg(nameEn);
+		pls_uistep_v2_set_title(this, title);
+	}
+	pls_uistep_v2_auto_bind(this);
+	pls_uistep_v2_custom(ui->asyncFilters, QStringLiteral("currentItemChanged"),
+			     QStringLiteral("currentItemChanged"), "list", [this]() {
+				     auto row = ui->asyncFilters->currentIndex().row();
+				     auto filter = GetFilter(row, true);
+				     return filter ? obs_source_get_name(filter) : "";
+			     });
+	pls_uistep_v2_set_value(ui->effectFilters, QStringLiteral("currentItemChanged"), [this]() {
+		auto row = ui->effectFilters->currentIndex().row();
+		auto filter = GetFilter(row, false);
+		return filter ? obs_source_get_name(filter) : "";
+	});
+
+	pls_uistep_v2_set_value(ui->addAsyncFilter, QStringLiteral("clicked"), QStringLiteral("Add"));
+	pls_uistep_v2_set_value(ui->removeAsyncFilter, QStringLiteral("clicked"), QStringLiteral("Remove"));
+	pls_uistep_v2_set_value(ui->moveAsyncFilterDown, QStringLiteral("clicked"), QStringLiteral("MoveDown"));
+	pls_uistep_v2_set_value(ui->moveAsyncFilterUp, QStringLiteral("clicked"), QStringLiteral("MoveUp"));
+
+	pls_uistep_v2_set_value(ui->addEffectFilter, QStringLiteral("clicked"), QStringLiteral("Add"));
+	pls_uistep_v2_set_value(ui->removeEffectFilter, QStringLiteral("clicked"), QStringLiteral("Remove"));
+	pls_uistep_v2_set_value(ui->moveEffectFilterDown, QStringLiteral("clicked"), QStringLiteral("MoveDown"));
+	pls_uistep_v2_set_value(ui->moveEffectFilterUp, QStringLiteral("clicked"), QStringLiteral("MoveUp"));
 }
 
 OBSBasicFilters::~OBSBasicFilters()
@@ -204,6 +258,8 @@ OBSBasicFilters::~OBSBasicFilters()
 	obs_source_dec_showing(source);
 	ClearListItems(ui->asyncFilters);
 	ClearListItems(ui->effectFilters);
+	if (const char *id = obs_source_get_id(source); !pls_is_empty(id))
+		pls_uistep_v2_remove_to_english_cb(id);
 	blog(LOG_INFO, "OBSBasicFilters UI Released (UI : %p , Source : %p)", this, source.Get());
 }
 
@@ -217,6 +273,35 @@ OBSSource OBSBasicFilters::GetSource() const
 	return source;
 }
 
+//PRISM/wangshaohui/20251203/PRISM_PC-4257/fix cursor issue
+OBSSource OBSBasicFilters::GetItemSource(QListWidgetItem *item)
+{
+	if (!item)
+		return OBSSource();
+
+	{
+		std::lock_guard<std::recursive_mutex> autoLock(lockMap);
+		auto &view = mapItems[item];
+		if (view) {
+			auto filter = view->GetFilter();
+			return filter;
+		}
+	}
+
+	QString str = item->data(Qt::UserRole).toString();
+	if (str.isEmpty())
+		return OBSSource();
+
+	auto source = obs_get_source_by_uuid(str.toUtf8().constData());
+	if (!source)
+		return OBSSource();
+
+	OBSSource filter = source;
+	obs_source_release(source); // obs_get_source_by_uuid increases ref count
+
+	return filter;
+}
+
 inline OBSSource OBSBasicFilters::GetFilter(int row, bool async)
 {
 	if (row == -1)
@@ -227,8 +312,7 @@ inline OBSSource OBSBasicFilters::GetFilter(int row, bool async)
 	if (!item)
 		return OBSSource();
 
-	QVariant v = item->data(Qt::UserRole);
-	return v.value<OBSSource>();
+	return GetItemSource(item);
 }
 
 void FilterChangeUndoRedo(void *vp, obs_data_t *nd_old_settings, obs_data_t *new_settings)
@@ -277,6 +361,12 @@ void OBSBasicFilters::UpdatePropertiesView(int row, bool async)
 		return;
 	}
 
+	// PRISM/wangshaohui/20250815/PRISM_PC-3594/disable defaults button if no item is selected
+	auto btn = ui->property_buttonBox->button(QDialogButtonBox::RestoreDefaults);
+	if (btn) {
+		btn->setEnabled(filter != nullptr);
+	}
+
 	if (view) {
 		updatePropertiesSignal.Disconnect();
 		ui->propertiesFrame->setVisible(true);
@@ -302,32 +392,28 @@ void OBSBasicFilters::UpdatePropertiesView(int row, bool async)
 	}
 
 	if (!filter) {
-		if (async) {
-			ui->asyncFilters->hide();
-			ui->asyncEmptyDesLabel->show();
-		} else {
-			ui->effectFilters->hide();
-			ui->effectEmptyDesLabel->show();
-		}
-
 		return;
 	}
 
 	if (async) {
-		ui->asyncFilters->show();
-		ui->asyncEmptyDesLabel->hide();
 		// PRISM/wangshaohui/20250520/#3009/force update {isAsync}
-		// on_addEffectFilter_clicked, asyncFilters->setFocus will fail if asyncFilters is invisible, 
+		// on_addEffectFilter_clicked, asyncFilters->setFocus will fail if asyncFilters is invisible,
 		// so on_asyncFilters_GotFocus will not be called, and then {isAsync} can't be updated.
-		if (!ui->asyncFilters->hasFocus())
+		if (!ui->asyncFilters->hasFocus()) {
 			isAsync = true;
 
+			// PRISM/wangshaohui/20250815/PRISM_PC-3597/ensure only one list has selection effect
+			CheckInvertList();
+		}
+
 	} else {
-		ui->effectFilters->show();
-		ui->effectEmptyDesLabel->hide();
 		// PRISM/wangshaohui/20250520/#3009/force update {isAsync}
-		if (!ui->effectFilters->hasFocus())
+		if (!ui->effectFilters->hasFocus()) {
 			isAsync = false;
+
+			// PRISM/wangshaohui/20250815/PRISM_PC-3597/ensure only one list has selection effect
+			CheckInvertList();
+		}
 	}
 
 	OBSDataAutoRelease settings = obs_source_get_settings(filter);
@@ -348,6 +434,9 @@ void OBSBasicFilters::UpdatePropertiesView(int row, bool async)
 					     (PropertiesUpdateCallback)FilterChangeUndoRedo,
 					     (PropertiesVisualUpdateCb)disabled_undo);
 
+		auto title = pls_uistep_v2_to_english(tr("Basic.PropertiesWindow")).arg(id);
+		pls_uistep_v2_set_title(view, title);
+
 		updatePropertiesSignal.Connect(obs_source_get_signal_handler(filter), "update_properties",
 					       OBSBasicFilters::UpdateProperties, this);
 	}
@@ -357,10 +446,9 @@ void OBSBasicFilters::UpdatePropertiesView(int row, bool async)
 	ui->propertiesLayout->addWidget(view);
 	view->show();
 
-	//#PRISM_PC-1351 ren.jinbo windows need add a item after linked label, so can show mouse
-	QWidget *placeholderMouse = new QWidget(this);
-	placeholderMouse->hide();
-	ui->propertiesLayout->addWidget(placeholderMouse);
+	if (id) {
+		PLS_UI_ACTION("%s is displayed in filter window", id);
+	}
 }
 
 void OBSBasicFilters::UpdateProperties(void *data, calldata_t *)
@@ -380,9 +468,15 @@ void OBSBasicFilters::AddFilter(OBSSource filter, bool focus)
 	Qt::ItemFlags itemFlags = item->flags();
 
 	item->setFlags(itemFlags | Qt::ItemIsEditable);
-	item->setData(Qt::UserRole, QVariant::fromValue(filter));
+	// PRISM/wangshaohui/20251203/PRISM_PC-4257/If we set UserRole with custom type, exception will happen in FocusList::startDrag
+	//item->setData(Qt::UserRole, QVariant::fromValue(filter));
+	const char *uuid = obs_source_get_uuid(filter);
+	if (uuid) {
+		item->setData(Qt::UserRole, QString::fromUtf8(uuid));
+	}
 
 	list->addItem(item);
+	PLS_DISABLE_UISTEP_V2(list);
 	if (focus)
 		list->setCurrentItem(item);
 
@@ -397,11 +491,16 @@ void OBSBasicFilters::RemoveFilter(OBSSource filter)
 
 	for (int i = 0; i < list->count(); i++) {
 		QListWidgetItem *item = list->item(i);
-		QVariant v = item->data(Qt::UserRole);
-		OBSSource curFilter = v.value<OBSSource>();
+		OBSSource curFilter = GetItemSource(item);
 
 		if (filter == curFilter) {
 			DeleteListItem(list, item);
+
+			//PRISM/wangshaohui/20251203/PRISM_PC-4257/fix cursor issue
+			std::lock_guard<std::recursive_mutex> autoLock(lockMap);
+			if (auto itr = mapItems.find(item); itr != mapItems.end())
+				mapItems.erase(itr);
+
 			break;
 		}
 	}
@@ -432,8 +531,7 @@ void OBSBasicFilters::ReorderFilter(QListWidget *list, obs_source_t *filter, siz
 
 	for (int i = 0; i < count; i++) {
 		QListWidgetItem *listItem = list->item(i);
-		QVariant v = listItem->data(Qt::UserRole);
-		OBSSource filterItem = v.value<OBSSource>();
+		OBSSource filterItem = GetItemSource(listItem);
 
 		if (filterItem == filter) {
 			if ((int)idx != i) {
@@ -485,31 +583,35 @@ void OBSBasicFilters::UpdateFilters()
 	ClearListItems(ui->effectFilters);
 	ClearListItems(ui->asyncFilters);
 
+	//PRISM/wangshaohui/avoid block render thread ----------------------------- start
+	//obs_source_enum_filters(
+	//	source,
+	//	[](obs_source_t *, obs_source_t *filter, void *p) {
+	//		OBSBasicFilters *window = reinterpret_cast<OBSBasicFilters *>(p);
+	//		window->AddFilter(filter, false);
+	//	},
+	//	this);
+	std::vector<OBSSource> sourceList;
 	obs_source_enum_filters(
 		source,
 		[](obs_source_t *, obs_source_t *filter, void *p) {
-			OBSBasicFilters *window = reinterpret_cast<OBSBasicFilters *>(p);
-
-			window->AddFilter(filter, false);
+			std::vector<OBSSource> *sourceList = reinterpret_cast<std::vector<OBSSource> *>(p);
+			sourceList->push_back(filter);
 		},
-		this);
+		&sourceList);
+	for (auto &item : sourceList) {
+		if (item.Get())
+			this->AddFilter(item, false);
+	}
+	//PRISM/wangshaohui/avoid block render thread ----------------------------- end
 
 	if (ui->asyncFilters->count() > 0) {
 		ui->asyncFilters->setCurrentItem(ui->asyncFilters->item(0));
-		ui->asyncFilters->setFocus();
+		ui->asyncFilters->setFocus(); // PRISM added
 	}
 	if (ui->effectFilters->count() > 0) {
 		ui->effectFilters->setCurrentItem(ui->effectFilters->item(0));
-		ui->effectFilters->setFocus();
-	}
-
-	if (0 == ui->asyncFilters->count()) {
-		ui->asyncFilters->hide();
-		ui->asyncEmptyDesLabel->show();
-	}
-	if (0 == ui->effectFilters->count()) {
-		ui->effectFilters->hide();
-		ui->effectEmptyDesLabel->show();
+		ui->effectFilters->setFocus(); // PRISM added
 	}
 
 	main->SaveProject();
@@ -585,7 +687,8 @@ QMenu *OBSBasicFilters::CreateAddFilterPopupMenu(bool async)
 
 	sort(types.begin(), types.end());
 
-	QMenu *popup = new QMenu(QTStr("Add"), this);
+	const char *action = async ? "audio filter list" : "video filter list";
+	QMenu *popup = new CustomMenu(action, QTStr("Add"), this);
 	for (FilterInfo &type : types) {
 		uint32_t filterFlags = obs_get_source_output_flags(type.type.c_str());
 
@@ -608,9 +711,11 @@ QMenu *OBSBasicFilters::CreateAddFilterPopupMenu(bool async)
 	return popup;
 }
 
-void OBSBasicFilters::AddNewFilter(const char *id)
+void OBSBasicFilters::AddNewFilter(const char *id, bool need_confirm_name)
 {
 	if (id && *id) {
+		PLS_UI_ACTION("choosed filter to add");
+
 		OBSSourceAutoRelease existing_filter;
 		string name = obs_source_get_display_name(id);
 
@@ -621,20 +726,33 @@ void OBSBasicFilters::AddNewFilter(const char *id)
 			text = QString("%1 %2").arg(placeholder).arg(i++);
 		}
 
-		bool success = PLSNameDialog::AskForName(this, QTStr("Basic.Filters.AddFilter.Title"),
-							 QTStr("Basic.Filters.AddFilter.Text"), name, text);
-		if (!success)
-			return;
+		if (need_confirm_name) {
+			bool success = PLSNameDialog::AskForName(this, QTStr("Basic.Filters.AddFilter.Title"),
+								 QTStr("Basic.Filters.AddFilter.Text"), name, text);
+			if (!success)
+				return;
+		} else {
+			//PRISM/wangshaohui/20260123/PRISM_PC-5165/ignore name dialog for lens/chromakey
+			name = text.toStdString();
+		}
+
+		PLS_UI_ACTION("%s is added in filter window", id);
 
 		if (name.empty()) {
-			OBSMessageBox::warning(this, QTStr("Alert.Title"), QTStr("NoNameEntered.Text"));
+			PLSErrorHandler::showAlertByPrismCode(
+				PLSErrorHandler::ALERT_FILTER_NO_NAME_ENTER_NOTICE, PLSErrKeyAllAlert, {},
+				PLSErrorHandler::ExtraData(QString::fromUtf8(__FUNCTION__)), this);
+
 			AddNewFilter(id);
 			return;
 		}
 
 		existing_filter = obs_source_get_filter_by_name(source, name.c_str());
 		if (existing_filter) {
-			OBSMessageBox::warning(this, QTStr("Alert.Title"), QTStr("NameExists.Text"));
+			PLSErrorHandler::showAlertByPrismCode(
+				PLSErrorHandler::ALERT_FILTER_NAME_EXIST_NOTICE, PLSErrKeyAllAlert, {},
+				PLSErrorHandler::ExtraData(QString::fromUtf8(__FUNCTION__)), this);
+
 			AddNewFilter(id);
 			return;
 		}
@@ -646,11 +764,6 @@ void OBSBasicFilters::AddNewFilter(const char *id)
 			blog(LOG_INFO, "User added filter '%s' (%s) to source '%s'", name.c_str(), id, sourceName);
 
 			obs_source_filter_add(source, filter);
-
-			const char *filterId = obs_source_get_id(filter);
-			pls_send_analog(AnalogType::ANALOG_ADD_FILTER,
-					{{ANALOG_FILTER_TYPE_KEY, pls_get_analog_filter_id(filterId)}});
-
 		} else {
 			blog(LOG_WARNING, "Creating filter '%s' failed!", id);
 			return;
@@ -805,22 +918,17 @@ static bool QueryRemove(QWidget *parent, obs_source_t *source)
 {
 	const char *name = obs_source_get_name(source);
 
-	QString text = QTStr("ConfirmRemove.Text.title");
+	PLSErrorHandler::ExtraData extraData(QString::fromUtf8(__FUNCTION__));
+	extraData.defaultArg = {QString::fromUtf8(name)};
 
-	if (0 == strcmp(App()->GetLocale(), "ko-KR")) {
-		return PLSAlertView::Button::Ok ==
-		       PLSMessageBox::question(parent, QTStr("ConfirmRemove.Title"), name, text,
-					       PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel);
-
-	} else {
-		return PLSAlertView::Button::Ok ==
-		       PLSMessageBox::question(parent, QTStr("ConfirmRemove.Title"), text, name,
-					       PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel);
-	}
+	auto ret = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_FILTER_CONFIRM_REMOVE,
+							 PLSErrKeyAllAlert, {}, extraData, parent);
+	return (PLSAlertView::Button::Ok == ret.clickedBtn);
 }
 
 void OBSBasicFilters::on_addAsyncFilter_clicked()
 {
+	PLS_UI_ACTION("request %s", "audio filter list");
 	ui->asyncFilters->setFocus();
 	QScopedPointer<QMenu> popup(CreateAddFilterPopupMenu(true));
 	if (popup)
@@ -842,32 +950,45 @@ void OBSBasicFilters::on_removeAsyncFilter_clicked()
 void OBSBasicFilters::on_moveAsyncFilterUp_clicked()
 {
 	OBSSource filter = GetFilter(ui->asyncFilters->currentRow(), true);
-	if (filter)
+	if (filter) {
 		obs_source_filter_set_order(source, filter, OBS_ORDER_MOVE_UP);
+	}
 }
 
 void OBSBasicFilters::on_moveAsyncFilterDown_clicked()
 {
 	OBSSource filter = GetFilter(ui->asyncFilters->currentRow(), true);
-	if (filter)
+	if (filter) {
 		obs_source_filter_set_order(source, filter, OBS_ORDER_MOVE_DOWN);
+	}
 }
 
 void OBSBasicFilters::on_asyncFilters_GotFocus()
 {
 	if (ui->asyncFilters->count() == 0)
 		return;
+
+	// PRISM/wangshaohui/20250815/PRISM_PC-3597/ensure only one list has selection effect
+	ui->asyncFilters->setCurrentRow(ui->asyncFilters->currentRow());
+
 	UpdatePropertiesView(ui->asyncFilters->currentRow(), true);
 	isAsync = true;
+
+	// PRISM/wangshaohui/20250815/PRISM_PC-3597/ensure only one list has selection effect
+	CheckInvertList();
 }
 
 void OBSBasicFilters::on_asyncFilters_currentRowChanged(int row)
 {
 	UpdatePropertiesView(row, true);
+
+	// PRISM/wangshaohui/20250815/PRISM_PC-3594/disable button if no item is selected
+	CheckEnableButtons(true, row >= 0);
 }
 
 void OBSBasicFilters::on_addEffectFilter_clicked()
 {
+	PLS_UI_ACTION("request %s", "video filter list");
 	ui->effectFilters->setFocus();
 	QScopedPointer<QMenu> popup(CreateAddFilterPopupMenu(false));
 	if (popup)
@@ -889,28 +1010,40 @@ void OBSBasicFilters::on_removeEffectFilter_clicked()
 void OBSBasicFilters::on_moveEffectFilterUp_clicked()
 {
 	OBSSource filter = GetFilter(ui->effectFilters->currentRow(), false);
-	if (filter)
+	if (filter) {
 		obs_source_filter_set_order(source, filter, OBS_ORDER_MOVE_UP);
+	}
 }
 
 void OBSBasicFilters::on_moveEffectFilterDown_clicked()
 {
 	OBSSource filter = GetFilter(ui->effectFilters->currentRow(), false);
-	if (filter)
+	if (filter) {
 		obs_source_filter_set_order(source, filter, OBS_ORDER_MOVE_DOWN);
+	}
 }
 
 void OBSBasicFilters::on_effectFilters_GotFocus()
 {
 	if (ui->effectFilters->count() == 0)
 		return;
+
+	// PRISM/wangshaohui/20250815/PRISM_PC-3597/ensure only one list has selection effect
+	ui->effectFilters->setCurrentRow(ui->effectFilters->currentRow());
+
 	UpdatePropertiesView(ui->effectFilters->currentRow(), false);
 	isAsync = false;
+
+	// PRISM/wangshaohui/20250815/PRISM_PC-3597/ensure only one list has selection effect
+	CheckInvertList();
 }
 
 void OBSBasicFilters::on_effectFilters_currentRowChanged(int row)
 {
 	UpdatePropertiesView(row, false);
+
+	// PRISM/wangshaohui/20250815/PRISM_PC-3594/disable button if no item is selected
+	CheckEnableButtons(false, row >= 0);
 }
 
 void OBSBasicFilters::on_actionRemoveFilter_triggered()
@@ -948,13 +1081,16 @@ void OBSBasicFilters::on_actionRenameFilter_triggered()
 
 void OBSBasicFilters::CustomContextMenu(const QPoint &pos, bool async)
 {
+	const char *action = async ? "audio filter list" : "video filter list";
+	PLS_UI_ACTION("request %s", action);
+
 	QListWidget *list = async ? ui->asyncFilters : ui->effectFilters;
 	if (!list)
 		return;
 	QPoint localPos = list->mapFromGlobal(QCursor::pos());
 	QListWidgetItem *item = list->itemAt(localPos);
 
-	QMenu popup(window());
+	CustomMenu popup(action, "", this);
 
 	popup.setObjectName("filterItemMenu");
 	if (async)
@@ -972,10 +1108,13 @@ void OBSBasicFilters::CustomContextMenu(const QPoint &pos, bool async)
 		else
 			ui->effectFilters->setCurrentItem(item);
 
-		popup.addSeparator();
-		popup.addAction(QTStr("Duplicate"), this, [&]() {
+		QAction *duplicateAction = new QAction(QTStr("Duplicate"), this);
+		pls_connect(duplicateAction, &QAction::triggered, this, [&]() {
 			DuplicateItem(async ? ui->asyncFilters->currentItem() : ui->effectFilters->currentItem());
 		});
+
+		popup.addSeparator();
+		popup.addAction(duplicateAction);
 		popup.addSeparator();
 		popup.addAction(ui->actionRenameFilter);
 		popup.addAction(ui->actionRemoveFilter);
@@ -1011,7 +1150,7 @@ void OBSBasicFilters::EditItem(QListWidgetItem *item, bool async)
 		return;
 
 	Qt::ItemFlags flags = item->flags();
-	OBSSource filter = item->data(Qt::UserRole).value<OBSSource>();
+	OBSSource filter = GetItemSource(item);
 	const char *name = obs_source_get_name(filter);
 	QListWidget *list = async ? ui->asyncFilters : ui->effectFilters;
 
@@ -1029,7 +1168,7 @@ void OBSBasicFilters::EditItem(QListWidgetItem *item, bool async)
 
 void OBSBasicFilters::DuplicateItem(QListWidgetItem *item)
 {
-	OBSSource filter = item->data(Qt::UserRole).value<OBSSource>();
+	OBSSource filter = GetItemSource(item);
 	string name = obs_source_get_name(filter);
 	OBSSourceAutoRelease existing_filter;
 
@@ -1046,14 +1185,22 @@ void OBSBasicFilters::DuplicateItem(QListWidgetItem *item)
 		return;
 
 	if (name.empty()) {
-		OBSMessageBox::warning(this, QTStr("Alert.Title"), QTStr("NoNameEntered.Text"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_FILTER_NO_NAME_ENTER_NOTICE,
+						      PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData(QString::fromUtf8(__FUNCTION__)),
+						      this);
+
 		DuplicateItem(item);
 		return;
 	}
 
 	existing_filter = obs_source_get_filter_by_name(source, name.c_str());
 	if (existing_filter) {
-		OBSMessageBox::warning(this, QTStr("Alert.Title"), QTStr("NameExists.Text"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_FILTER_NAME_EXIST_NOTICE,
+						      PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData(QString::fromUtf8(__FUNCTION__)),
+						      this);
+
 		DuplicateItem(item);
 		return;
 	}
@@ -1094,7 +1241,7 @@ void OBSBasicFilters::RenameEffectFilter()
 void OBSBasicFilters::FilterNameEdited(QWidget *editor, QListWidget *list)
 {
 	QListWidgetItem *listItem = list->currentItem();
-	OBSSource filter = listItem->data(Qt::UserRole).value<OBSSource>();
+	OBSSource filter = GetItemSource(listItem);
 	QLineEdit *edit = qobject_cast<QLineEdit *>(editor);
 	string name = QT_TO_UTF8(edit->text().trimmed());
 
@@ -1109,9 +1256,13 @@ void OBSBasicFilters::FilterNameEdited(QWidget *editor, QListWidget *list)
 		listItem->setText(QT_UTF8(prevName));
 
 		if (foundFilter) {
-			OBSMessageBox::information(window(), QTStr("NameExists.Title"), QTStr("NameExists.Text"));
+			PLSErrorHandler::showAlertByPrismCode(
+				PLSErrorHandler::ALERT_FILTER_NAME_EXIST, PLSErrKeyAllAlert, {},
+				PLSErrorHandler::ExtraData(QString::fromUtf8(__FUNCTION__)), window());
 		} else if (name.empty()) {
-			OBSMessageBox::information(window(), QTStr("NoNameEntered.Title"), QTStr("NoNameEntered.Text"));
+			PLSErrorHandler::showAlertByPrismCode(
+				PLSErrorHandler::ALERT_FILTER_NO_NAME_ENTER, PLSErrKeyAllAlert, {},
+				PLSErrorHandler::ExtraData(QString::fromUtf8(__FUNCTION__)), window());
 		}
 	} else {
 		const char *sourceName = obs_source_get_name(source);
@@ -1150,12 +1301,11 @@ void OBSBasicFilters::FilterNameEdited(QWidget *editor, QListWidget *list)
 
 static bool ConfirmReset(QWidget *parent)
 {
-	QMessageBox::StandardButton button;
-
-	button = OBSMessageBox::question(parent, QTStr("ConfirmReset.Title"), QTStr("ConfirmReset.Text"),
-					 QMessageBox::Yes | QMessageBox::No);
-
-	return button == QMessageBox::Yes;
+	auto ret = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_FILTER_CONFIRM_RESET, PLSErrKeyAllAlert,
+							 {},
+							 PLSErrorHandler::ExtraData(QString::fromUtf8(__FUNCTION__)),
+							 parent);
+	return (PLSAlertView::Button::Yes == ret.clickedBtn);
 }
 
 void OBSBasicFilters::ResetFilters()
@@ -1273,6 +1423,77 @@ void OBSBasicFilters::PLSSetupVisibilityItem(QListWidget *list, QListWidgetItem 
 	connect(baseWidget, &PLSFiltersItemView::OnCreateCustomContextMenu, this, &OBSBasicFilters::CustomContextMenu);
 
 	list->setItemWidget(item, baseWidget);
+
+	//PRISM/wangshaohui/20251203/PRISM_PC-4257/fix cursor issue
+	std::lock_guard<std::recursive_mutex> autoLock(lockMap);
+	mapItems[item] = QPointer<PLSFiltersItemView>(baseWidget);
+}
+
+// PRISM/wangshaohui/20250815/PRISM_PC-3594/disable defaults button if no item is selected
+void OBSBasicFilters::CheckEnableButtons(bool async, bool enabled)
+{
+	if (async) {
+		if (enabled && ui->asyncFilters->count() <= 0) {
+			return;
+		}
+
+		ui->removeAsyncFilter->setEnabled(enabled);
+		ui->moveAsyncFilterDown->setEnabled(enabled);
+		ui->moveAsyncFilterUp->setEnabled(enabled);
+	} else {
+		if (enabled && ui->effectFilters->count() <= 0) {
+			return;
+		}
+
+		ui->removeEffectFilter->setEnabled(enabled);
+		ui->moveEffectFilterDown->setEnabled(enabled);
+		ui->moveEffectFilterUp->setEnabled(enabled);
+	}
+}
+
+// PRISM/wangshaohui/20250815/PRISM_PC-3597/ensure only one list has selection effect
+void OBSBasicFilters::CheckInvertList()
+{
+	// only clear highlight, keep the selected row, so never call setCurrentRow(-1)
+	if (isAsync) {
+		ui->effectFilters->clearSelection();
+	} else {
+		ui->asyncFilters->clearSelection();
+	}
+
+	// PRISM/wangshaohui/20250815/PRISM_PC-3594/disable defaults button if no item is selected
+	// since its highlight is clear, so we should treat it as no selection
+	CheckEnableButtons(!isAsync, false);
+	CheckEnableButtons(isAsync, true);
+}
+
+//PRISM/wangshaohui/20260104/4931/fix list flash
+void OBSBasicFilters::InitEmptyWidget()
+{
+	auto asyncEmptyDesLabel = new ClickableLabel(ui->asyncFilters);
+	asyncEmptyDesLabel->setObjectName("asyncEmptyDesLabel");
+	asyncEmptyDesLabel->setAlignment(Qt::AlignCenter);
+	asyncEmptyDesLabel->setWordWrap(true);
+	asyncEmptyDesLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	asyncEmptyDesLabel->setText(QCoreApplication::translate("OBSBasicFilters", "Basic.Filters.Empty", nullptr));
+	ui->asyncFilters->SetEmptyWidget(asyncEmptyDesLabel);
+
+	auto effectEmptyDesLabel = new ClickableLabel(ui->effectFilters);
+	effectEmptyDesLabel->setObjectName("effectEmptyDesLabel");
+	effectEmptyDesLabel->setAlignment(Qt::AlignCenter);
+	effectEmptyDesLabel->setWordWrap(true);
+	effectEmptyDesLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	effectEmptyDesLabel->setText(QCoreApplication::translate("OBSBasicFilters", "Basic.Filters.Empty", nullptr));
+	ui->effectFilters->SetEmptyWidget(effectEmptyDesLabel);
+
+	connect(asyncEmptyDesLabel, &ClickableLabel::rightclicked, this, [=]() {
+		QPoint pos = this->mapFromGlobal(QCursor::pos());
+		CustomContextMenu(pos, true);
+	});
+	connect(effectEmptyDesLabel, &ClickableLabel::rightclicked, this, [=]() {
+		QPoint pos = this->mapFromGlobal(QCursor::pos());
+		CustomContextMenu(pos, false);
+	});
 }
 
 void OBSBasicFilters::FiltersMoved(const QModelIndex &, int srcIdxStart, int, const QModelIndex &, int)

@@ -18,13 +18,21 @@
 #include "PLSMotionFileManager.h"
 #include "CategoryVirtualTemplate.h"
 #include "pls/pls-source.h"
-#include "PLSAction.h"
 #include "qt-display.hpp"
 #include "PLSBasic.h"
 #if defined(Q_OS_MACOS)
 #include "mac/PLSPermissionHelper.h"
 #endif
 #include "PLSPlatformApi.h"
+#include "PLSTrackers.h"
+#include <QDir>
+#include <QGuiApplication>
+#include <QImage>
+#include <QPainter>
+#include <QPointer>
+#include <QScreen>
+#include <QStandardPaths>
+#include <QSvgRenderer>
 
 using namespace std;
 using namespace common;
@@ -33,7 +41,6 @@ const auto PROPERTY_WINDOW_DEFAULT_H = 710;
 
 extern bool hasActivedChatChannel();
 extern PlatformType viewerCountCheckPlatform();
-extern void sendPrismSourceAnalog(const char *sourceId, OBSData oldSettings, OBSData newSettings);
 
 static void checkViewerCountSourceTip(PLSBasicProperties *properties, OBSQTDisplay *preview)
 {
@@ -63,7 +70,7 @@ static void checkViewerCountSourceTip(PLSBasicProperties *properties, OBSQTDispl
 
 PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsigned flag) : OBSBasicProperties(parent, source_), operationFlags(flag)
 {
-
+	PLS_PERFORMANCE_GLOBAL_START("PLSBasicProperties init", "Properties Page Construct");
 	//invoke async to ensure sub-sources were created
 	pls_async_call(this, [this]() { pls_source_properties_edit_start(source); });
 
@@ -84,17 +91,34 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 	ui->preview->setObjectName(common::OBJECT_NAME_PROPERTYVIEW);
 	ui->preview->setMouseTracking(true);
 
+	//PRISM/FanZirong/20251112/PRISM_PC-3577/source capture failed guidance
+	obs_source_failed_status_sub_code sub_code = pls_source_get_failed_status_sub_code(source);
+	setFailedCode(sub_code);
+
+	QPointer<PLSBasicProperties> self(this);
+	QTimer::singleShot(100, this, [self, this]() {
+		pls_check_app_exiting();
+		if (!self)
+			return;
+
+		QString guideText = PLSBasic::getFailedGuideText(getFailedCode());
+		auto loading = pls_is_source_loading(source);
+		ui->preview->setFailedText(guideText, loading);
+	});
+
 	const char *id = obs_source_get_id(source);
 	if (id) {
 		PLS_INFO(PROPERTY_MODULE, "Property window for %s is openned", id);
 		setProperty("sourceId", id);
+
+		auto title = pls_uistep_v2_to_english(tr("Basic.PropertiesWindow")).arg(id);
+		pls_uistep_v2_set_title(this, title);
 	}
 
 	int marginViewTop = pls_conditional_select(pls_is_in_str(id, common::PRISM_MOBILE_SOURCE_ID, common::PRISM_CHAT_SOURCE_ID, common::BGM_SOURCE_ID), 10, 0);
 	ui->propertiesLayout->setContentsMargins(15, marginViewTop, 6, 0);
 
 	setWidthResizeEnabled(false);
-
 	connect(view, &PLSPropertiesView::OpenFilters, this, [this]() { emit OpenFilters(source); });
 	connect(view, &PLSPropertiesView::OpenStickers, this, [this]() { emit OpenStickers(source); });
 	connect(view, &PLSPropertiesView::OpenMusicButtonClicked, this, [this](OBSSource) { emit OpenMusicButtonClicked(); });
@@ -102,8 +126,9 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 	connect(view, &PLSPropertiesView::reloadOldSettings, this, &PLSBasicProperties::onReloadOldSettings);
 
 	updatePropertiesOKButtonSignal.Connect(obs_source_get_signal_handler(source), "update_properties_ok_button_enable", PLSBasicProperties::UpdatePropertiesOkButtonEnable, this);
-
+	PLS_PERFORMANCE_GLOBAL_START("PLSBasicProperties init pls_set_css", "PLSBasicProperties init");
 	pls_set_css(this, {"PLSBasicProperties", "PLSLoadingBtn"});
+	PLS_PERFORMANCE_GLOBAL_END("PLSBasicProperties init pls_set_css");
 	initSize({PROPERTY_WINDOW_DEFAULT_W, PROPERTY_WINDOW_DEFAULT_H});
 
 	if (pls_is_equal(id, PRISM_TEXT_TEMPLATE_ID)) {
@@ -121,14 +146,11 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 		ui->windowSplitter->setSizes({DISPLAY_VIEW_DEFAULT_HEIGHT, 364});
 #endif
 	}
-
 	installEventFilter(this);
 	if ((pls_is_equal(id, PRISM_CHAT_SOURCE_ID) || pls_is_equal(id, PRISM_CHATV2_SOURCE_ID)) && obs_frontend_streaming_active() && !hasActivedChatChannel()) {
 		ui->preview->showGuideText(tr("Chat.Property.ChatSource.NoSupportChannel.InStreaming"));
 	} else if (pls_is_equal(id, PRISM_VIEWER_COUNT_SOURCE_ID)) {
 		checkViewerCountSourceTip(this, ui->preview);
-	} else if (pls_is_equal(id, OBS_DSHOW_SOURCE_ID)) {
-		ui->preview->showGuideText("");
 	}
 
 #if defined(Q_OS_MACOS)
@@ -144,21 +166,23 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 			});
 		},
 		Qt::QueuedConnection);
+#else
+	pls_async_call_mt([this]() {
+		resizeTracker()->addWidget(ui->previewFrame);
+		connect(resizeTracker(), &PLSResizeTracker::beginResize, ui->preview, &QWidget::hide);
+		connect(resizeTracker(), &PLSResizeTracker::endResize, ui->preview, &QWidget::show);
+		ui->previewFrame->installEventFilter(this);
+	});
 #endif
+	
+	PLS_PERFORMANCE_GLOBAL_END("PLSBasicProperties init");
 }
 
 PLSBasicProperties::~PLSBasicProperties()
 {
 	pls_notify_close_modal_views_with_parent(this);
-
+	
 	view->CheckValues();
-	if (acceptClicked) {
-		OBSData srcSettings = obs_source_get_settings(source);
-		action::CheckPropertyAction(source, oldSettings, srcSettings, operationFlags);
-		PLS_PLATFORM_API->sendAnalogOnUserConfirm(source, oldSettings, srcSettings);
-		sendPrismSourceAnalog(obs_source_get_id(source), oldSettings, srcSettings);
-		obs_data_release(srcSettings);
-	}
 }
 
 static QString getLoadingString(const char *source_id)
@@ -230,6 +254,8 @@ void PLSBasicProperties::AsyncLoadTextmotionProperties()
 					if (propertiesView) {
 						pls_get_text_motion_template_helper_instance()->initTemplateButtons();
 						propertiesView->RefreshProperties();
+						OBSDataAutoRelease currentSettings = obs_source_get_settings(source);
+						obs_source_update(source, currentSettings);
 					}
 					if (ui->preview)
 						ui->preview->show();
@@ -275,71 +301,21 @@ void PLSBasicProperties::asyncLoadChatWidgetproperties()
 	}
 }
 
-void PLSBasicProperties::ShowMobileNotice()
-{
-	const char *id = obs_source_get_id(source);
-	if (!id || 0 != strcmp(PRISM_LENS_MOBILE_SOURCE_ID, id)) {
-		return;
-	}
-
-	bool checked = config_get_bool(App()->GetUserConfig(), "General", "NotRemindScanQRcode");
-	if (checked) {
-		return;
-	}
-
-	OBSDataAutoRelease data = obs_source_get_private_settings(source);
-	bool show = obs_data_get_bool(data, "showMobileNotice");
-	if (!show) {
-
-#ifdef Q_OS_MACOS
-		//Installing the Mac version of the lens app did not run once
-		bool lensHasRun = pls_libutil_api_mac::pls_is_lens_has_run();
-		if (!lensHasRun) {
-			return;
-		}
-#endif // Q_OS_MACOS
-
-		QPointer guard(this);
-		std::optional<int> timeout = std::optional<int>();
-		PLSAlertView::Result res = PLSAlertView::information(this, QTStr("Confirm"), QTStr("main.property.mobile.scan.QRcode.tips"), QTStr("main.property.prism.dont.show.again"),
-								     {{PLSAlertView::Button::Open, QTStr("main.property.prism.mobile.open")}, {PLSAlertView::Button::No, QTStr("Close")}},
-								     PLSAlertView::Button::No, timeout, QMap<QString, QVariant>());
-		if (!guard)
-			return;
-
-		if (res.isChecked) {
-			config_set_bool(App()->GetUserConfig(), "General", "NotRemindScanQRcode", true);
-			config_save_safe(App()->GetUserConfig(), "tmp", nullptr);
-		}
-		if (res.button == PLSAlertView::Button::Open) {
-			QStringList arguments{"--display_control=top", "--active_tab=mobile", "--tip_key=mobile_connect_tip", "--select_mobile_cam=2"};
-			int outputCamIndex = view->getPrismLensOutputIndex();
-			if (outputCamIndex != -1) {
-				arguments << QString("--output_cam=%1").arg(outputCamIndex);
-			}
-			pls_open_cam_studio(arguments, this);
-#if defined(Q_OS_MACOS)
-			pls_set_current_lens(outputCamIndex);
-#endif
-		}
-		obs_data_set_bool(data, "showMobileNotice", true);
-	}
-}
-
 void PLSBasicProperties::ShowPrismLensNaverRunNotice(bool isMobileSource)
 {
-	QString content = QTStr("main.property.lens.launch");
+	PLSErrorHandler::ExtraData extraData(QString::fromUtf8(__FUNCTION__));
+	PLSErrorHandler::RetData ret;
 	if (isMobileSource) {
-		content = QTStr("main.property.mobile.launch");
+		ret = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LAUNCH_MOBILE, PLSErrKeyAllAlert, {}, extraData, this);
+	} else {
+		ret = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LAUNCH_LENS, PLSErrKeyAllAlert, {}, extraData, this);
 	}
 
-	PLSAlertView::Button button =
-		PLSAlertView::information(this, QTStr("Confirm"), content, {{PLSAlertView::Button::Open, QTStr("main.property.prism.mobile.open")}, {PLSAlertView::Button::No, QTStr("Close")}});
-	if (button == PLSAlertView::Button::Open) {
+	if (PLSAlertView::Button::Open == ret.clickedBtn) {
 		QStringList arguments{"--display_control=top"};
 		int outputCam = isMobileSource ? 2 : 0;
 		arguments << QString("--output_cam=%1").arg(outputCam);
-		pls_open_cam_studio(arguments, this);
+		pls_open_cam_studio(arguments, view, isMobileSource);
 #if defined(Q_OS_MACOS)
 		pls_set_current_lens(outputCam);
 #endif
@@ -403,7 +379,24 @@ void PLSBasicProperties::dialogClosedToSendNoti()
 		}
 	}
 
+	const char *id = obs_source_get_id(source);
+	if (pls_is_equal(PRISM_STICKER_SOURCE_ID, id)) {
+
+		if ((m_lastClickedButton == ButtonClickType::PropertyCancel || m_lastClickedButton == ButtonClickType::None) && !pls_sticker_source_cancel_update_sticker(source)) {
+			m_lastClickedButton = ButtonClickType::None;
+			return;
+		}
+
+		if (m_lastClickedButton == ButtonClickType::PromptSave || m_lastClickedButton == ButtonClickType::PropertyOk) {
+			pls_sticker_source_apply_update_sticker(source);
+		} else if (m_lastClickedButton == ButtonClickType::PromptDiscard) {
+			pls_sticker_source_defaults_update_sticker(source);
+		}
+		m_lastClickedButton = ButtonClickType::None;
+	}
+
 	//RenJinbo/add is save button clicked
+	m_isSendCloseNotify = true;
 	pls_source_properties_edit_end(source, m_isSaveClick);
 
 	pls_notify_close_modal_views_with_parent(this);
@@ -422,6 +415,18 @@ void PLSBasicProperties::cancelSavePropertyData()
 {
 	ui->buttonBox->button(QDialogButtonBox::Cancel)->clicked();
 }
+
+//PRISM/FanZirong/20251103/PRISM_PC-3577/source capture failed guidance--start
+void PLSBasicProperties::setFailedCode(obs_source_failed_status_sub_code code)
+{
+	failedCode = code;
+}
+
+obs_source_failed_status_sub_code PLSBasicProperties::getFailedCode()
+{
+	return failedCode;
+}
+//PRISM/FanZirong/20251103/PRISM_PC-3577/source capture failed guidance--end
 
 // MARK: - preview
 
@@ -518,6 +523,12 @@ void PLSBasicProperties::hideGuideText()
 		ui->preview->hideGuideText();
 }
 
+void PLSBasicProperties::setFailureState(const QString &failedText, bool needLoading)
+{
+	if (ui && ui->preview)
+		ui->preview->setFailedText(failedText, needLoading);
+}
+
 void PLSBasicProperties::updateToastGeometry()
 {
 	pls_flush_style_recursive(toast);
@@ -567,11 +578,17 @@ void PLSBasicProperties::moveEvent(QMoveEvent *event)
 void PLSBasicProperties::showEvent(QShowEvent *event)
 {
 	OBSBasicProperties::showEvent(event);
+
 	auto id = obs_source_get_id(source);
+	if (id) {
+		PLS_UI_ACTION("%s show property window", id);
+	}
+
 #if defined(Q_OS_WIN)
 	bool isDshow = pls_is_equal(id, OBS_DSHOW_SOURCE_ID);
 #elif defined(Q_OS_MACOS)
-	bool isDshow = pls_is_equal(id, OBS_DSHOW_SOURCE_ID_V2) || pls_is_equal(id, OBS_DSHOW_SOURCE_ID);
+	bool isDshow = pls_is_equal(id, OBS_DSHOW_SOURCE_ID_V2) || pls_is_equal(id, OBS_DSHOW_SOURCE_ID) || pls_is_equal(id, OBS_MACOS_VIDEO_CAPTURE_SOURCE_ID) ||
+		       pls_is_equal(id, OBS_MACOS_CAPTURE_CARD_SOURCE_ID);
 #endif
 	if (isDshow) {
 		int outputCamIndex = view->getPrismLensOutputIndex();
@@ -580,7 +597,7 @@ void PLSBasicProperties::showEvent(QShowEvent *event)
 		}
 		if (PLSBasic *basic = PLSBasic::instance(); basic) {
 			QString program;
-			bool installed = basic->CheckCamStudioInstalled(program);
+			bool installed = pls_is_app_installed(pls_product_type_t::Lens, &program);
 			if (!installed) {
 				return;
 			}
@@ -588,7 +605,7 @@ void PLSBasicProperties::showEvent(QShowEvent *event)
 		QStringList arguments;
 		arguments << "--display_control=keep";
 		arguments << QString("--output_cam=%1").arg(outputCamIndex);
-		pls_open_cam_studio(arguments, this);
+		pls_open_cam_studio(arguments, this, false);
 #if defined(Q_OS_MACOS)
 		pls_set_current_lens(outputCamIndex);
 #endif
@@ -601,9 +618,9 @@ void PLSBasicProperties::showEvent(QShowEvent *event)
 	QTimer::singleShot(0, this, [this, id]() {
 		if (PLSBasic *basic = PLSBasic::instance(); basic) {
 			QString program;
-			bool installed = basic->CheckCamStudioInstalled(program);
+			bool installed = pls_is_app_installed(pls_product_type_t::Lens, &program);
 			if (!installed) {
-				QString content = QTStr("main.property.lens.install");
+				QString content = QTStr("main.property.lens.install2");
 				if (pls_is_equal(id, PRISM_LENS_MOBILE_SOURCE_ID)) {
 					content = QTStr("main.property.mobile.install");
 				}
@@ -611,13 +628,15 @@ void PLSBasicProperties::showEvent(QShowEvent *event)
 				return;
 			}
 		}
-		//Installing the Mac version of the lens app did not run once
+
+		bool isMobile = pls_is_equal(id, PRISM_LENS_MOBILE_SOURCE_ID);
 #ifdef Q_OS_MACOS
+		//Installing the Mac version of the lens app did not run once
 		OBSDataAutoRelease data = obs_source_get_private_settings(source);
 		bool show = obs_data_get_bool(data, "showLensRunNotice");
 		bool lensHasRun = pls_libutil_api_mac::pls_is_lens_has_run();
 		if (!lensHasRun && !show) {
-			ShowPrismLensNaverRunNotice(pls_is_equal(id, PRISM_LENS_MOBILE_SOURCE_ID));
+			ShowPrismLensNaverRunNotice(isMobile);
 			obs_data_set_bool(data, "showLensRunNotice", true);
 			return;
 		}
@@ -631,11 +650,22 @@ void PLSBasicProperties::showEvent(QShowEvent *event)
 			arguments << QString("--output_cam=%1").arg(outputCamIndex);
 		}
 
-		pls_open_cam_studio(arguments, this);
+		pls_open_cam_studio(arguments, view, isMobile);
 #if defined(Q_OS_MACOS)
 		pls_set_current_lens(outputCamIndex);
 #endif
-
-		ShowMobileNotice();
 	});
+}
+
+bool PLSBasicProperties::eventFilter(QObject *obj, QEvent *event)
+{
+#ifdef Q_OS_WIN
+	if (obj == ui->previewFrame && event->type() == QEvent::Resize) {
+		QSize newSize = static_cast<QResizeEvent *>(event)->size();
+		uint32_t sourceCX, sourceCY;
+		QRect renderRect = getRenderSize(this, newSize.width(), newSize.height(), sourceCX, sourceCY);
+		ui->previewFrame->setPreviewRect(renderRect);
+	}
+#endif
+	return OBSBasicProperties::eventFilter(obj, event);
 }

@@ -46,7 +46,7 @@ void PLSAPIAfreecaTV::requestUsersInfoAndChannel(const QObject *receiver, const 
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
 	PLSAPIAfreecaTV::configDefaultRequest(_request, receiver, onSucceed, onFailed);
 
-	_request.method(pls::http::Method::Get).url(g_plsAfreecaTVChannelInfo);
+	_request.method(pls::http::Method::Get).url(g_plsAfreecaTVChannelInfo).withLog();
 
 	pls::http::request(_request);
 }
@@ -70,7 +70,7 @@ void PLSAPIAfreecaTV::requestDashboradData(const QObject *receiver, const PLSAPI
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
 	PLSAPIAfreecaTV::configDefaultRequest(_request, receiver, onSucceed, onFailed, true);
 
-	_request.method(pls::http::Method::Get).url(g_plsAfreecaTVDashboard);
+	_request.method(pls::http::Method::Get).url(g_plsAfreecaTVDashboard).withLog();
 
 	pls::http::request(_request);
 }
@@ -83,7 +83,7 @@ void PLSAPIAfreecaTV::requestCategoryList(const QObject *receiver, const PLSAPIC
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
 	PLSAPIAfreecaTV::configDefaultRequest(_request, receiver, onSucceed, onFailed);
 
-	_request.method(pls::http::Method::Get).url(url);
+	_request.method(pls::http::Method::Get).url(url).withLog();
 
 	pls::http::request(_request);
 }
@@ -94,14 +94,13 @@ void PLSAPIAfreecaTV::requestMainHtml(const QObject *receiver, const PLSAPICommo
 
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
 	PLSAPIAfreecaTV::configDefaultRequest(_request, receiver, onSucceed, onFailed);
-	_request.method(pls::http::Method::Get).url(QUrl());
+	_request.method(pls::http::Method::Get).url(g_plsAfreecaTVMainHtml).withLog();
 	pls::http::request(_request);
 }
 
 void PLSAPIAfreecaTV::updateLiveInfo(const QObject *receiver, const QString &title, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed)
 {
-	/*
-work		live_update
+/*
 frmCategory	00020010
 is_wait		Y
 waiting_time	5
@@ -114,7 +113,6 @@ encode_type	normal
 frmStreamKey	abby0816-2146523166
 	 
 ----- new data
- work			setDashboardInfo
  broad_pwd_chk			0
  access_code
  category			00360030
@@ -126,24 +124,27 @@ frmStreamKey	abby0816-2146523166
  paid_promotion			0
 */
 
-	PLS_INFO(MODULE_PLATFORM_AFREECATV, "updateLiveInfo start");
 	const auto &data = PLS_PLATFORM_AFREECATV->getSelectData();
 	QHash<QString, QString> object;
-	object["work"] = "setDashboardInfo";
 	object["broad_pwd_chk"] = data.broad_pwd_chk ? "1" : "0";
 	object["access_code"] = data.access_code;
-	object["category"] = data.categoryID;
+	object["category_no"] = data.categoryID;
 	object["title"] = title;
 	object["hashtags"] = data.hashtags;
 	object["broad_grade"] = data.broad_grade;
 	object["broad_hidden"] = data.broad_hidden;
 	object["broad_tune_out"] = data.broad_tune_out;
 	object["paid_promotion"] = data.paid_promotion;
+	object["is_wait"] = data.is_wait;
+	object["waiting_time"] = data.waiting_time;
+	object["water_mark"] = data.water_mark;
+	object["ending_msg"] = data.ending_msg;
+	object["strm_lang_type"] = data.strm_lang_type;
 
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
 	PLSAPIAfreecaTV::configDefaultRequest(_request, receiver, onSucceed, onFailed);
 
-	_request.method(pls::http::Method::Post).url(g_plsAfreecaTVUpdate).form(object);
+	_request.method(pls::http::Method::Post).url(g_plsAfreecaTVUpdate).contentType(common::HTTP_CONTENT_TYPE_URL_ENCODED_VALUE).form(object);
 
 	pls::http::request(_request);
 }

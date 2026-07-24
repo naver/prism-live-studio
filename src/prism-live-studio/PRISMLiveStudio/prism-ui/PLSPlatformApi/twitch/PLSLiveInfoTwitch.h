@@ -1,7 +1,6 @@
 /*
 * @file		PLSLiveInfoTwitch.h
 * @brief	To show twitch liveinfo dialog
-* @author	wu.longyue@navercorp.com
 * @date		2020-01-06
 */
 

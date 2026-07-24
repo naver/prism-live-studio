@@ -43,7 +43,7 @@ const static QString THIRD_PARTY_CRASH_FILE = "PRISMLiveStudio\\crashDump\\third
 const static QString PROCESS_CRASH_FILE = "PRISMLiveStudio/crashDump/process.json";
 const static QString THIRD_PARTY_CRASH_FILE = "PRISMLiveStudio/crashDump/third_party_crash.json";
 #endif
-const static QString MODULES_FILE = "\\PRISMLiveStudio\\crashDump\\modules.json";
+const static QString MODULES_FILE = "\\crashDump\\modules.json";
 const static QString GPOP_FILE = "\\user\\gpop.json";
 
 const static QString EVENT_CRASH = "crash";
@@ -63,7 +63,7 @@ const static QString EVENT_CRASH_THIRD_PROGRAM = "third_program";
 const static QString EVENT_CRASH_CUSTOM = "custom";
 
 const static std::string PROCESS_CAM_SESSION = "cam-session.exe";
-const static std::string PROCESS_PRISM = "PRISMLiveStudio.exe";
+const static std::string PROCESS_PRISM = "obs64.exe";
 
 struct StaticValue {
 	static uint64_t thread_id;
@@ -227,14 +227,7 @@ static void check_fasoo(const std::string &crash_type)
 static QJsonArray get_modules_by_record(const std::string &prism_session)
 {
 	QJsonArray modules;
-	QString moudles_file = pls_get_app_data_dir_pn("");
-	if (moudles_file.contains("PRISMLogger")) {
-		QDir dir(moudles_file);
-		dir.cdUp();
-		moudles_file = dir.path().append(MODULES_FILE);
-	} else {
-		moudles_file.append(MODULES_FILE);
-	}
+	QString moudles_file = pls_get_app_user_data_file_path_pn(MODULES_FILE);
 	auto data = pls_read_data(moudles_file);
 	if (data.isEmpty())
 		return modules;
@@ -308,103 +301,8 @@ static bool find_module(const std::vector<ModuleInfo> &modules, const QJsonArray
 
 static bool send_data(const std::string &post_bodfy)
 {
-	bool send_ok = false;
-
-	WSADATA wd;
-	int ret = ::WSAStartup(MAKEWORD(2, 2), &wd);
-	if (ret != NO_ERROR) {
-		return false;
-	}
-
-	RUN_WHEN_SECTION_END([&]() { WSACleanup(); });
-
-	SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (s == INVALID_SOCKET) {
-		WSACleanup();
-		return false;
-	}
-
-	RUN_WHEN_SECTION_END([&]() { closesocket(s); });
-
-	addrinfo hints;
-	addrinfo *result = nullptr;
-
-	ZeroMemory(&hints, sizeof(hints));
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
-
-	DWORD dwRetval = getaddrinfo("nelo2-col.navercorp.com", nullptr, &hints, &result);
-	if (dwRetval != 0) {
-		return false;
-	}
-
-	std::array<char, INET_ADDRSTRLEN> ip4;
-	for (struct addrinfo *ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
-		if (ptr->ai_family == AF_INET) {
-			auto addr = (sockaddr_in const *)ptr->ai_addr;
-			inet_ntop(AF_INET, &addr->sin_addr, ip4.data(), INET_ADDRSTRLEN);
-			break;
-		}
-	}
-
-	struct sockaddr_in sd = {0};
-	inet_pton(AF_INET, ip4.data(), &sd.sin_addr.s_addr);
-	sd.sin_port = htons(80);
-	sd.sin_family = AF_INET;
-
-	freeaddrinfo(result);
-
-	ret = connect(s, (sockaddr *)&sd, sizeof(sd));
-	if (ret == SOCKET_ERROR) {
-		return false;
-	}
-
-	std::array<char, 20> content_length{0};
-	snprintf(content_length.data(), content_length.size(), "%u", (unsigned)post_bodfy.length());
-
-	std::string send_data = "POST /_store HTTP/1.1\n"
-				"Connection: close\n"
-				"Content-Type: application/x-www-form-urlencoded\n"
-				"Host: nelo2-col.navercorp.com:80\n"
-				"Content-Length:";
-
-	send_data += content_length.data();
-	send_data += "\n\n";
-	send_data += post_bodfy;
-
-	int sended_len = 0;
-	while (true) {
-		if (sended_len >= send_data.length()) {
-			break; // send completed
-		}
-		int res = send(s, &send_data.c_str()[sended_len], int(send_data.length() - sended_len), 0);
-		if (res > 0) {
-			sended_len += res;
-		} else {
-			break;
-		}
-	}
-
-	if (sended_len > 0) {
-		std::string response = "";
-
-		std::array<char, 4096> buf{0};
-
-		while (true) {
-			int res = recv(s, buf.data(), buf.size(), 0);
-			if (res > 0) {
-				buf[res] = 0;
-				response += buf.data();
-			} else {
-				break;
-			}
-		}
-
-		send_ok = (response.find("\"Success\"") != std::string::npos);
-		assert(send_ok);
-	}
-	return send_ok;
+	pls_unused(post_bodfy);
+	return false;
 }
 #endif
 
@@ -1013,7 +911,17 @@ static bool send_dump(ProcessInfo const &info, std::string &crash_value, std::st
 		return res;
 	}
 
-	QString base64Dump = dump_data.toBase64();
+	QString base64Dump;
+	try {
+		QByteArray base64Data = dump_data.toBase64();
+		dump_data.clear();
+		base64Dump = QString::fromLatin1(base64Data);
+	} catch (const std::bad_alloc &) {
+		if (StaticValue::do_log)
+			StaticValue::do_log(log_ctx("Out of memory while encoding dump file"));
+		return false;
+	}
+
 	std::string platform = get_os_version();
 
 	QJsonObject nelo_info;
@@ -1037,7 +945,7 @@ static bool send_dump(ProcessInfo const &info, std::string &crash_value, std::st
 	nelo_info.insert("logSource", "CrashDump");
 	nelo_info.insert("Platform", platform.c_str());
 	nelo_info.insert("logType", "nelo2-app");
-	nelo_info.insert("DmpData", base64Dump);
+	nelo_info.insert("DmpData", std::move(base64Dump));
 	nelo_info.insert("DmpFormat", "bin");
 	nelo_info.insert("DmpSymbol", "Required");
 
@@ -1102,6 +1010,7 @@ static bool send_dump(ProcessInfo const &info, std::string &crash_value, std::st
 #else
 	// TODO: - mac next >>> maybe not neccessary
 #endif
+
 	return res;
 }
 
@@ -1123,7 +1032,7 @@ static bool parse_stacktrace_and_check_repeat(ProcessInfo &info, std::string &cr
 	if (blacklist.empty() && StaticValue::do_log)
 		StaticValue::do_log(log_ctx("Blacklist is null."));
 
-	QString local = (pls_prism_get_locale() == "ko-KR") ? "ko-KR" : "en-US";
+	QString local = (pls_get_locale() == "ko-KR") ? "ko-KR" : "en-US";
 	if (!blacklist.empty()) {
 		auto defaultUrls = blacklist["DefaultUrl"].toVariant().toMap();
 		if (!defaultUrls.isEmpty()) {
@@ -1153,11 +1062,18 @@ static bool parse_stacktrace_and_check_repeat(ProcessInfo &info, std::string &cr
 			stack_hash.append(offset_s.data());
 		}
 
-		std::string module_name = success ? pls_unicode_to_utf8(module_info.ModuleName.data()) : "unkown";
-		std::filesystem::path pathObj(std::filesystem::u8path(module_name));
+		std::string module_name = success ? pls_unicode_to_utf8(module_info.ModuleName.data()) : "unknown";
+		std::string pluginpath;
 
-		module_name = pathObj.filename().u8string();
-		std::string pluginpath = pathObj.u8string();
+		if (!module_name.empty() && module_name != "unknown") {
+			try {
+				std::filesystem::path pathObj(std::filesystem::u8path(module_name));
+				module_name = pathObj.filename().u8string();
+				pluginpath = pathObj.u8string();
+			} catch (...) {
+				module_name = "unknown";
+			}
+		}
 
 		std::string prefix = "\n " + std::to_string(i) + " ";
 		std::string frame = module_name + " + " + offset_s.data();
@@ -1193,7 +1109,7 @@ static bool parse_stacktrace_and_check_repeat(ProcessInfo &info, std::string &cr
 			}
 		}
 
-		if (success && pls::is_third_party_plugin(pluginpath)) {
+		if (success && !pluginpath.empty() && pls::is_third_party_plugin(pluginpath)) {
 			location = frame;
 			third_module_name = module_name;
 			third_module_path = pluginpath;
@@ -1282,7 +1198,7 @@ bool analysis_stack_and_send_dump(ProcessInfo info, bool analysis_stack)
 #if _WIN32
 		info.is_main = std::strcmp(info.process_name.c_str(), PROCESS_PRISM.c_str()) == 0;
 #elif __APPLE__
-		info.is_main = std::strcmp(info.process_name.c_str(), pls_get_app_pn().toStdString().c_str());
+		info.is_main = (std::strcmp(info.process_name.c_str(), pls_get_app_pn().toUtf8().constData()) == 0);
 #endif
 
 #if _WIN32

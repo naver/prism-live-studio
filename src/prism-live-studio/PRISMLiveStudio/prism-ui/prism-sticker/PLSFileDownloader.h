@@ -65,7 +65,8 @@ private:
 	~PLSFileDownloader() override;
 
 	QMap<QUrl, DownloadTaskData> taskDownloads;
-	QQueue<DownloadTaskData> tasksRetry;
+	QMap<QUrl, DownloadTaskData> tasksRetry;
+
 	QMutex mutex;
 	void *callbackParam = nullptr;
 	bool running{false};

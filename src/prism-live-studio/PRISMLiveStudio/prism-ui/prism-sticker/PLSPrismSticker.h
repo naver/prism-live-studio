@@ -9,7 +9,7 @@
 #include "giphy/PLSGiphyStickerView.h"
 #include "PLSThumbnailLabel.hpp"
 #include "PLSStickerDataHandler.h"
-#include "common/PLSToastMsgFrame.h"
+#include "PLSStickerToastFrame.h"
 #include "obs-frontend-api.h"
 #include <QMutex>
 #include <QPainter>
@@ -19,6 +19,8 @@
 #include <QSvgRenderer>
 #include "PLSPushButton.h"
 #include "PrismStickerResourceMgr.h"
+#include "PLSUpdateStickerGuideView.h"
+#include <QPointer>
 
 #ifdef Q_OS_WIN
 #include <Windows.h>
@@ -28,9 +30,26 @@ namespace Ui {
 class PLSPrismSticker;
 }
 
+struct UpdateStickerData {
+	obs_source_t *source;
+	vec2 last_source_size;
+};
+
+struct RestoreUpdateStickerData {
+	QString landscapeVideo;
+	QString landscapeImage;
+	QString portraitVideo;
+	QString portraitImage;
+	QString resourceId;
+	QString resourceUrl;
+	QString category;
+	qint64 version;
+	vec2 source_size;
+};
+
 class ScrollAreaWithNoDataTip;
 class FlowLayout;
-class PLSToastMsgFrame;
+class PLSStickerToastFrame;
 class QStackedWidget;
 
 class PLSPrismSticker : public PLSSideBarDialogView {
@@ -50,6 +69,13 @@ public:
 		PLSFileDownloader::instance()->Stop();
 	};
 
+	void EnterUpdateStickerMode(obs_source_t *source, bool isChangedSticker, const QString &resourceId);
+	void LeaveUpdateStickerMode();
+
+	bool isUpdateStickerMode();
+	void setCloseEventCallback(const std::function<bool(obs_source_t *update_source)> &closeEventCallback);
+	void requestCloseStickerView();
+
 private:
 	void InitScrollView();
 	void InitCategory();
@@ -60,6 +86,8 @@ private:
 	void ShowToast(const QString &tips);
 	void HideToast();
 	void UpdateToastPos();
+	void ShowUpdateStickerGuideView();
+	void UpdateGuideViewPosSize();
 	void DownloadResource(const StickerData &data, StickerPointer loadingLabel);
 	bool UpdateRecentList(const pls::rsm::Item &item);
 
@@ -87,6 +115,7 @@ protected:
 	void resizeEvent(QResizeEvent *event) override;
 	void closeEvent(QCloseEvent *event) override;
 	bool eventFilter(QObject *watcher, QEvent *event) override;
+	void reject() override;
 
 public slots:
 	void OnDownloadItemResult(const pls::rsm::Item &item, bool ok, bool timeout);
@@ -106,8 +135,12 @@ private slots:
 	void HideLoading();
 	void LoadStickerAsync(const StickerData &data, QWidget *parent, QLayout *layout);
 
+	void setOutlineVisible(const QString &itemId, bool visible);
+
 signals:
-	void StickerApplied(const StickerHandleResult &data);
+	void StickerAddedApplied(const StickerHandleResult &data);
+	void StickerUpdatedResource(const StickerHandleResult &data, obs_source_t *update_source);
+	void StickerUpdatedApplied(obs_source_t *source);
 	void HandleStickerResult(const StickerData &data, bool success);
 
 private:
@@ -115,9 +148,10 @@ private:
 	QButtonGroup *categoryBtn = nullptr;
 	QPushButton *btnMore = nullptr;
 	ScrollAreaWithNoDataTip *contentView = nullptr;
-	PLSToastMsgFrame *toastTip = nullptr;
+	QPointer<PLSStickerToastFrame> toastTip = nullptr;
 	QStackedWidget *stackedWidget = nullptr;
-	QPointer<PLSThumbnailLabel> lastClicked = nullptr;
+	QString m_lastOutlineLabelItemID;
+	QMap<QString, QList<QPointer<PLSThumbnailLabel>>> m_itemLabels;
 	QMap<QString, QPointer<PLSThumbnailLabel>> requestDownloadLabels;
 	std::map<QString, QWidget *> categoryViews;
 	QString categoryTabId = "";
@@ -134,6 +168,17 @@ private:
 	PLSLoadingEvent m_loadingEvent;
 	QWidget *m_pWidgetLoadingBG = nullptr;
 	QPointer<NoDataPage> m_pNodataPage;
+
+	bool m_updateStickerMode{false};
+
+	obs_source_t *update_sticker_source{nullptr};
+
+	PLSUpdateStickerGuideView *m_updateStickerGuideView{nullptr};
+
+	bool m_isChangedSticker{false};
+
+	QString m_updateStickerId;
+	std::function<bool(obs_source_t *update_source)> m_closeEventCallback{nullptr};
 };
 
 #endif // PLSPRISMSTICKER_H

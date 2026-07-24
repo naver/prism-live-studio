@@ -71,8 +71,11 @@ void ComplexHeaderIcon::delayDraw()
 	mPaintObj.height = this->height() * scaleFactor;
 	mPaintObj.dpi = scaleFactor;
 
-	auto fun = [this]() {
-		if (m_destroying || m_using > 1) {
+	auto fun = [this, widPtr]() {
+		pls_check_app_exiting();
+		if (!widPtr) {
+			return;
+		} else if (m_destroying || m_using > 1) {
 			--m_using;
 			return;
 		}

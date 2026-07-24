@@ -3,6 +3,8 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QDesktopServices>
+#include <QPointer>
+#include <utility>
 #include "log/log.h"
 #include "ui_PLSLiveInfoFacebook.h"
 #include "PLSPlatformApi.h"
@@ -33,6 +35,14 @@ void PLSLiveInfoFacebook::handleRequestFunctionType(PLSErrorHandler::RetData ret
 	}
 }
 
+int PLSLiveInfoFacebook::loadingMaskHeight() const
+{
+	if (!m_isFromGoLive) {
+		return -1;
+	}
+	return ui->horizontalLayout_5->geometry().y();
+}
+
 void PLSLiveInfoFacebook::handleFacebookIncalidAccessToken(PLSErrorHandler::RetData retData)
 {
 	if (m_showTokenAlert) {
@@ -41,7 +51,7 @@ void PLSLiveInfoFacebook::handleFacebookIncalidAccessToken(PLSErrorHandler::RetD
 	m_showTokenAlert = true;
 	PLSAlertView::Button button = PLSAlertView::Button::NoButton;
 	if (!retData.alertMsg.isEmpty()) {
-		showLoading(content());
+		showLoading(content(), loadingMaskHeight());
 		button = PLSErrorHandler::directShowAlert(retData, nullptr);
 		hideLoading();
 	}
@@ -52,7 +62,8 @@ void PLSLiveInfoFacebook::handleFacebookIncalidAccessToken(PLSErrorHandler::RetD
 	m_showTokenAlert = false;
 }
 
-PLSLiveInfoFacebook::PLSLiveInfoFacebook(PLSPlatformBase *pPlatformBase, QWidget *parent) : PLSLiveInfoBase(pPlatformBase, parent), platform(dynamic_cast<PLSPlatformFacebook *>(pPlatformBase))
+PLSLiveInfoFacebook::PLSLiveInfoFacebook(PLSPlatformBase *pPlatformBase, QWidget *parent, bool isFromGoLive)
+	: PLSLiveInfoBase(pPlatformBase, parent), platform(dynamic_cast<PLSPlatformFacebook *>(pPlatformBase)), m_isFromGoLive(isFromGoLive)
 {
 	ui = pls_new<Ui::PLSLiveInfoFacebook>();
 	PLS_INFO(liveInfoMoudule, "Facebook liveinfo Will show");
@@ -114,7 +125,7 @@ PLSLiveInfoFacebook::PLSLiveInfoFacebook(PLSPlatformBase *pPlatformBase, QWidget
 				output.truncate(truncateAt);
 				QSignalBlocker signalBlocker(ui->titleField);
 				ui->titleField->setText(QString::fromUtf8(output));
-				pls_alert_error_message(PLSBasic::Get(), QTStr("Alert.Title"), QTStr("facebook.liveinfo.title.max.length"));
+				PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_FACEBOOK_TITLE_MAX_LENGTH, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("PLSLiveInfoFacebook"));
 				return;
 			}
 			doUpdateOkState();
@@ -153,6 +164,13 @@ PLSLiveInfoFacebook::PLSLiveInfoFacebook(PLSPlatformBase *pPlatformBase, QWidget
 
 	//update ok state logic
 	doUpdateOkState();
+
+	pls_uistep_v2_set_title(this, QStringLiteral("Live Information: %1").arg(platform->getNameForChannelType()));
+	pls_uistep_v2_set_name(ui->shareFirstObject, QStringLiteral("Public1st"));
+	pls_uistep_v2_set_value(ui->shareFirstObject, [=] { return ui->shareFirstObject->getComboBoxTitle(); });
+	pls_uistep_v2_set_name(ui->shareSecondObject, QStringLiteral("Public2nd"));
+	pls_uistep_v2_set_value(ui->shareSecondObject, [=] { return ui->shareSecondObject->getComboBoxTitle(); });
+	pls_uistep_v2_auto_bind(this);
 }
 
 void PLSLiveInfoFacebook::initComboBoxList()
@@ -162,12 +180,26 @@ void PLSLiveInfoFacebook::initComboBoxList()
 	PLSAPIFacebook::FacebookPrepareLiveInfo prepareInfo = platform->getPrepareInfo();
 	ui->shareFirstObject->setComboBoxTitleData(prepareInfo.firstObjectName);
 	ui->shareSecondObject->setComboBoxTitleData(prepareInfo.secondObjectName, prepareInfo.secondObjectId);
-	connect(ui->shareFirstObject, &PLSLoadingCombox::pressed, this, [this] { ui->shareFirstObject->showTitlesView(platform->getShareObjectList()); });
+	connect(ui->shareFirstObject, &PLSLoadingCombox::pressed, this, [this] {
+		PLS_UI_ACTION("Public shareFirst pressed");
+		ui->shareFirstObject->showTitlesView(platform->getShareObjectList());
+	});
 	connect(ui->shareFirstObject, &PLSLoadingCombox::clickItemIndex, this, [this](int showIndex) {
 		QString title = platform->getShareObjectList().at(showIndex);
 		if (title == ui->shareFirstObject->getComboBoxTitle()) {
 			return;
 		}
+		// Switching away from whichever Timeline/Group/Page is currently selected interrupts any
+		// permission check still in flight for it, instead of leaving it to finish in the
+		// background: cancelInFlightPermissionRequest() must run before setComboBoxTitleData()
+		// below, since IsTimelineObject/IsGroupObjectFlags/IsPageObjectFlags (and thus which
+		// completion callback is holding the shared browser-consent slot) are keyed off the
+		// combo's title text.
+		cancelInFlightPermissionRequest();
+		// Invalidate any in-flight request keyed off the previous selection (e.g.
+		// onClickPageComboBox()'s page-list fetch) that isn't covered by
+		// cancelInFlightPermissionRequest() above, so its completion can recognize itself as stale.
+		++m_shareFirstObjectGeneration;
 		ui->shareFirstObject->setComboBoxTitleData(title);
 		if (IsTimelineObject) {
 			ui->shareSecondObject->setComboBoxTitleData(TimelinePublicName, TimelinePublicId);
@@ -177,19 +209,40 @@ void PLSLiveInfoFacebook::initComboBoxList()
 			ui->shareSecondObject->setComboBoxTitleData(PAGE_COMBOX_DEFAULT_TEXT);
 		}
 		QString log = QString("Facebook liveinfo shareFirstObject title is %1,update shareSecondObject title is %2").arg(title).arg(ui->shareSecondObject->getComboBoxTitle());
-		PLS_UI_STEP(liveInfoMoudule, log.toStdString().c_str(), ACTION_CLICK);
+		PLS_UI_STEP(liveInfoMoudule, log.toUtf8().constData(), ACTION_CLICK);
 		doUpdateOkState();
 	});
 
 	//the second ComboBox
 	connect(ui->shareSecondObject, &PLSLoadingCombox::pressed, this, [this] {
+		PLS_UI_ACTION("Public shareSecond pressed");
 		if (IsTimelineObject) {
+			// Fire the same permission check the OK button runs later, as early as possible, so
+			// Facebook's consent screen (if needed) appears now instead of at go-live time. The
+			// alert/UI outcome is still handled solely by the OK-button path, so this can't race
+			// or duplicate that alert. checkTimelineLivingPermission() itself joins an
+			// already-in-flight check instead of starting a competing one, so repeatedly opening
+			// this dropdown is safe. Started before showTitlesView() (like onClickPageComboBox()'s
+			// equivalent fix): showTitlesView() -> showMenuView() -> QMenu::exec() blocks in its
+			// own event loop until the popup closes, so starting the check after it would delay
+			// "as early as possible" until the user has already dismissed the dropdown, defeating
+			// the point of this early trigger.
+			// doUpdateOkState() is safe to call unconditionally here even if the OK button joined
+			// this request while it was in flight: m_okButtonDisabledForAction (set by
+			// checkTimelineLivingPermission()'s onRequestingPermission hook if the consent browser
+			// actually opens) keeps doUpdateOkState() forcing okButton disabled until
+			// checkLivePermissionFinished (running right after this callback, as the pending
+			// callback) resolves the session and clears it.
+			checkTimelineLivingPermission([this](const PLSErrorHandler::RetData &) {
+				// This early trigger never itself leads to going live (that only happens through
+				// on_okButton_clicked()'s own flow) - whether the consent browser ended up granted
+				// or declined, this session is over and must not leave okButton stuck disabled.
+				m_okButtonDisabledForAction = false;
+				doUpdateOkState();
+			});
 			ui->shareSecondObject->showTitlesView(platform->getItemNameList(FacebookPrivacyItemType));
 		} else if (IsGroupObjectFlags) {
-			QString link = "<a href=\"https://developers.facebook.com/blog/post/2024/01/23/introducing-facebook-graph-and-marketing-api-v19/\">";
-			link += QString("%1</a>").arg(tr("Facebook.Group.Disabled.Link"));
-			QString content = QTStr("Facebook.Group.Disabled.Text").arg(link);
-			PLSAlertView::warning(this, QTStr("Alert.Title"), content);
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_FACEBOOK_GROUP_DISABLED, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("PLSLiveInfoFacebook"));
 		} else if (IsPageObjectFlags) {
 			onClickPageComboBox();
 		}
@@ -208,7 +261,7 @@ void PLSLiveInfoFacebook::initComboBoxList()
 		platform->getItemInfo(itemType, showIndex, name, idString);
 		ui->shareSecondObject->setComboBoxTitleData(name, idString);
 		QString log = QString("Facebook liveinfo shareSecondObject type is %1 and title is %2").arg(itemType).arg(name);
-		PLS_UI_STEP(liveInfoMoudule, log.toStdString().c_str(), ACTION_CLICK);
+		PLS_UI_STEP(liveInfoMoudule, log.toUtf8().constData(), ACTION_CLICK);
 		doUpdateOkState();
 	});
 
@@ -222,6 +275,7 @@ void PLSLiveInfoFacebook::on_cancelButton_clicked()
 {
 	string log = "Facebook liveinfo cancel button";
 	PLS_UI_STEP(liveInfoMoudule, log.c_str(), ACTION_CLICK);
+	cancelInFlightPermissionRequest();
 	for (const QString &expiredId : m_expiredObjectList) {
 		QString dashboardItemId = platform->getPrepareInfo().secondObjectId;
 		if (dashboardItemId == expiredId) {
@@ -233,6 +287,14 @@ void PLSLiveInfoFacebook::on_cancelButton_clicked()
 
 void PLSLiveInfoFacebook::on_okButton_clicked()
 {
+	// okButton is no longer force-disabled the instant a go-live/update-live permission check
+	// starts (see below): it only gets disabled once a permission check actually needs to open
+	// Facebook's consent browser. This guard replaces that disabling as the re-entrancy check, so a
+	// second click landing while the (now still-enabled) button is mid fast permission check can't
+	// re-enter this function and start a second go-live/update-live session.
+	if (m_liveActionCheckInFlight) {
+		return;
+	}
 
 	// Before the live broadcast, click the OK button to save the LiveInfo information to memory.
 	saveLiveInfo(m_oldPrepareInfo);
@@ -256,11 +318,49 @@ void PLSLiveInfoFacebook::on_okButton_clicked()
 	QStringList permissionList;
 	PLSAPIFacebook::PLSAPI apiType;
 	if (isPrepareLive || isLivingProcess) {
+		// Marks the whole go-live/update-live session as active, purely to block a second click of
+		// okButton from re-entering this function (see the guard at the top) while this session is
+		// still running - it does NOT by itself keep okButton visually disabled; that's
+		// m_okButtonDisabledForAction's job (see below and doUpdateOkState()).
+		m_liveActionCheckInFlight = true;
 
 		auto checkLivePermissionFinished = [this, isPrepareLive, isLivingProcess](const PLSErrorHandler::RetData &retData) {
 			hideLoading();
+			// Restore, not force-enable: initComboBoxList() permanently disables this control for
+			// Group/Page while already living, and this shared callback must not override that.
+			ui->shareSecondObject->setEnabled(!(IsLiving && (IsGroupObjectFlags || IsPageObjectFlags)));
+			ui->shareFirstObject->setDisabled(IsLiving);
 
-			if (retData.prismCode == PLSErrorHandler::SUCCESS) {
+			bool willStartOrUpdateLiving = retData.prismCode == PLSErrorHandler::SUCCESS && (isPrepareLive || isLivingProcess);
+			if (!willStartOrUpdateLiving) {
+				// The session ends here (cancelled, declined, or failed permission check): let
+				// doUpdateOkState() evaluate the real enabled state again. Clears
+				// m_okButtonDisabledForAction too, in case this permission check did open the
+				// consent browser (declined/failed) - otherwise okButton would stay stuck disabled.
+				m_liveActionCheckInFlight = false;
+				m_okButtonDisabledForAction = false;
+				// doUpdateOkState() uses repaint() (immediate, synchronous), not update(): calling it
+				// here unconditionally - including when willStartOrUpdateLiving is true and permission
+				// was already granted (fast path, m_okButtonDisabledForAction still false at this
+				// point) - would flash okButton visibly enabled for one frame before
+				// startLivingRequest()/updateLivingRequest() force it disabled again a few lines below.
+				// Only call it for the "session really ends here" case; the going-live branch leaves
+				// okButton exactly as doUpdateOkState() already left it after checkPermission's own
+				// onRequestingPermission hook (still true) or never disabled it at all (fast path),
+				// and startLivingRequest()/updateLivingRequest() take care of disabling it themselves.
+				doUpdateOkState();
+			}
+
+			if (m_permissionCancelledByUser) {
+				// This completion was synthesized by our own cancelInFlightPermissionRequest()
+				// call (Cancel button, or switching Timeline/Group/Page away mid-request), not a
+				// real declined response; the user's action already explains what happened, so
+				// skip the generic declined-alert path here.
+				m_permissionCancelledByUser = false;
+				return;
+			}
+
+			if (willStartOrUpdateLiving) {
 				if (isPrepareLive) {
 					startLivingRequest();
 				} else if (isLivingProcess) {
@@ -293,28 +393,58 @@ void PLSLiveInfoFacebook::on_okButton_clicked()
 			handleRequestFunctionType(retData);
 		};
 
-		showLoading(content());
+		showLoading(content(), loadingMaskHeight());
+		// showLoading()'s overlay blocks mouse input but not a keyboard-focused button's Space/Enter
+		// activation; shareSecondObject is disabled explicitly so a repeat activation can't re-enter
+		// the dropdown's early-trigger branch while this check is in flight and race with it over the
+		// shared PLSAPICheckTimelineLivingPermission request slot. shareFirstObject is intentionally
+		// left enabled: switching Timeline/Group/Page away mid-request now interrupts the in-flight
+		// permission check (see clickItemIndex's cancelInFlightPermissionRequest() call) instead of
+		// being blocked. okButton is NOT disabled here: it only gets disabled once a permission check
+		// below actually needs to open the Facebook consent browser (missing-permission path), not for
+		// the fast common-case round trip where everything is already granted; the top-of-function
+		// m_liveActionCheckInFlight guard covers re-entrancy in the meantime.
+		ui->shareSecondObject->setEnabled(false);
 
 		if (IsTimelineObject) {
-			permissionList << timeline_living_permission;
-			apiType = PLSAPIFacebook::PLSAPICheckTimelineLivingPermission;
+			// If the dropdown's prefetch is still in flight, checkTimelineLivingPermission() joins
+			// it (registers checkLivePermissionFinished as the pending callback) instead of issuing
+			// a second goFacebookRequestPermission call: PLSAPIFacebook's browser-consent channel
+			// is a single shared slot, not keyed by request type, so a second concurrent call would
+			// open a second browser tab and silently orphan whichever one the user doesn't finish.
+			checkTimelineLivingPermission(checkLivePermissionFinished);
+			return;
 		} else if (IsGroupObjectFlags) {
 			permissionList << timeline_living_permission;
 			permissionList << group_living_permission;
 			apiType = PLSAPIFacebook::PLSAPICheckGroupLivingPermission;
+			PLSFaceBookRquest->checkPermission(apiType, permissionList, checkLivePermissionFinished, this, [this] {
+				m_okButtonDisabledForAction = true;
+				doUpdateOkState();
+			});
 		} else if (IsPageObjectFlags) {
-			permissionList << pages_manage_posts_permission;
-			permissionList << pages_read_engagement_permission;
-			permissionList << business_management_permission;
-			permissionList << pages_read_user_content_permission;
-			apiType = PLSAPIFacebook::PLSAPICheckPageLivingPermission;
+			// Routed through the same in-flight/join mechanism as onClickPageComboBox()'s own
+			// permission check: both call sites can otherwise trigger PLSAPIFacebook's shared
+			// browser-consent slot independently (different PLSAPI request types, so nothing else
+			// would coordinate them), letting one tear the other down and synthesize a spurious
+			// "declined" result for whichever request actually held the slot.
+			checkPageLivingPermission(checkLivePermissionFinished);
+			return;
 		}
-		PLSFaceBookRquest->checkPermission(apiType, permissionList, checkLivePermissionFinished, this);
 
 	} else if (IsPageObjectFlags || IsGroupObjectFlags) {
 
 		auto pageGetInfoPermissionFinished = [this](const PLSErrorHandler::RetData &retData) {
 			hideLoading();
+
+			if (m_permissionCancelledByUser) {
+				// This completion was synthesized by our own cancelInFlightPermissionRequest()
+				// call (Cancel button, or switching Timeline/Group/Page away mid-request), not a
+				// real declined response; the user's action already explains what happened, so
+				// skip the generic declined-alert path here.
+				m_permissionCancelledByUser = false;
+				return;
+			}
 
 			if (retData.prismCode == PLSErrorHandler::SUCCESS) {
 				getTimelineOrGroupOrPageInfoRequest();
@@ -324,7 +454,7 @@ void PLSLiveInfoFacebook::on_okButton_clicked()
 			handleRequestFunctionType(retData);
 		};
 
-		showLoading(content());
+		showLoading(content(), loadingMaskHeight());
 
 		if (IsPageObjectFlags) {
 			permissionList << pages_read_engagement_permission;
@@ -335,6 +465,29 @@ void PLSLiveInfoFacebook::on_okButton_clicked()
 		}
 		PLSFaceBookRquest->checkPermission(apiType, permissionList, pageGetInfoPermissionFinished, this);
 	}
+}
+
+void PLSLiveInfoFacebook::cancelInFlightPermissionRequest()
+{
+	// cancelFacebookRequestPermission() synchronously re-enters whichever completion callback
+	// currently holds PLSAPIFacebook's shared browser-consent slot (checkLivePermissionFinished,
+	// pageGetInfoPermissionFinished, or onClickPageComboBox()'s dropdown-prefetch callback) with a
+	// synthesized declined result; the flag suppresses that callback's generic declined-alert path
+	// since a user-initiated cancel/switch isn't an error. It's a no-op (flag stays false) when no
+	// request is currently in flight.
+	m_permissionCancelledByUser = true;
+	// Also clear the forced-disable state before tearing down the request: if the consent browser
+	// was actually open (onRequestingPermission already fired), the dropdown early-trigger's own
+	// completion callback is just doUpdateOkState() - with nothing else to clear this flag, okButton
+	// would otherwise stay stuck disabled after switching away from Timeline/Group/Page. The
+	// OK-button-initiated flow's checkLivePermissionFinished also clears it on this same declined
+	// completion, making this redundant-but-harmless for that path.
+	m_okButtonDisabledForAction = false;
+	PLSFaceBookRquest->cancelFacebookRequestPermission();
+	// Not dead code: if a real callback already consumed the pending request a moment before this
+	// call, cancelFacebookRequestPermission() is a no-op and the guard above never runs, so this
+	// reset is what prevents the flag from staying stuck true.
+	m_permissionCancelledByUser = false;
 }
 
 void PLSLiveInfoFacebook::initLineEdit()
@@ -352,6 +505,7 @@ void PLSLiveInfoFacebook::onClickGroupComboBox()
 	PLS_UI_STEP(liveInfoMoudule, "Facebook group comboBox", ACTION_CLICK);
 
 	auto onFinish = [this](const PLSErrorHandler::RetData &retData) {
+		ui->shareFirstObject->setDisabled(IsLiving);
 		if (retData.prismCode != PLSErrorHandler::SUCCESS) {
 			handleRequestFunctionType(retData);
 			return;
@@ -383,15 +537,64 @@ void PLSLiveInfoFacebook::getMyGroupListRequestSuccess()
 void PLSLiveInfoFacebook::onClickPageComboBox()
 {
 	PLS_UI_STEP(liveInfoMoudule, "Facebook page comboBox", ACTION_CLICK);
-	auto onFinish = [this](const PLSErrorHandler::RetData &retData) {
+	// Run the same permission check the OK button's Page branch runs, through the shared
+	// checkPageLivingPermission() join mechanism, before fetching the page list: without this,
+	// this dropdown's own permission check and the OK button's PLSAPICheckPageLivingPermission
+	// check are two independent PLSAPIFacebook::checkPermission() calls (different PLSAPI request
+	// types, so nothing else coordinates them) that can each open a browser consent tab and tear
+	// the other down via the shared browser-consent slot, synthesizing a spurious "declined"
+	// result for whichever one actually held it. Started before showLoadingView() (like
+	// onClickGroupComboBox() and the pre-existing Page code both do): showLoadingView() ->
+	// showMenuView() -> QMenu::exec() blocks in its own event loop until the popup closes, so
+	// starting the async chain first lets its eventual completion still live-update the open
+	// menu via updateTitleIdsView(); starting it after exec() would delay it until the popup
+	// is already dismissed.
+	// Captured before the permission-check/list-fetch chain starts: if the user switches
+	// shareFirstObject away from Page before the chain below completes, this call's result is no
+	// longer relevant and must not overwrite shareSecondObject's now-unrelated Timeline/Group data.
+	const int requestGeneration = m_shareFirstObjectGeneration;
+	checkPageLivingPermission([this, requestGeneration](const PLSErrorHandler::RetData &retData) {
+		if (m_permissionCancelledByUser) {
+			// This completion was synthesized by cancelInFlightPermissionRequest() (Cancel
+			// button, or switching Timeline/Group/Page away mid-request), which means
+			// checkLivePermissionFinished() is also part of this same completion chain (either
+			// as the request it joined, or joined onto this one) and is responsible for
+			// resetting the flag; don't reset it here too, and skip this callback's alert path
+			// since the user's own action already explains what happened.
+			return;
+		}
+		// This early trigger never itself leads to going live (that only happens through
+		// on_okButton_clicked()'s own flow) - whether the consent browser (if
+		// checkPageLivingPermission()'s onRequestingPermission hook opened one) ended up granted or
+		// declined, this session is over and must not leave okButton stuck disabled.
+		m_okButtonDisabledForAction = false;
 		if (retData.prismCode != PLSErrorHandler::SUCCESS) {
+			doUpdateOkState();
 			handleRequestFunctionType(retData);
 			return;
 		}
-		getMyPageListRequestSuccess();
-		doUpdateOkState();
-	};
-	platform->getMyPageListRequestAndCheckPermission(onFinish, this);
+		// Permission is already confirmed at this point; getMyPageListRequestAndCheckPermission()'s
+		// own me/permissions pre-check will see everything granted and short-circuit straight to
+		// fetching the page list, with no second consent popup.
+		auto onFinish = [this, requestGeneration](const PLSErrorHandler::RetData &retData2) {
+			if (requestGeneration != m_shareFirstObjectGeneration) {
+				// shareFirstObject switched away from Page while this page-list fetch was in
+				// flight (not covered by cancelInFlightPermissionRequest(), which only tears down
+				// the permission-check channel above). This response is stale; applying it now
+				// would overwrite shareSecondObject with Page data while shareFirstObject already
+				// shows Timeline/Group.
+				return;
+			}
+			if (retData2.prismCode != PLSErrorHandler::SUCCESS) {
+				doUpdateOkState();
+				handleRequestFunctionType(retData2);
+				return;
+			}
+			getMyPageListRequestSuccess();
+			doUpdateOkState();
+		};
+		platform->getMyPageListRequestAndCheckPermission(onFinish, this);
+	});
 	ui->shareSecondObject->showLoadingView();
 }
 
@@ -410,6 +613,102 @@ void PLSLiveInfoFacebook::getMyPageListRequestSuccess()
 		ui->shareSecondObject->setComboBoxTitleData(PAGE_COMBOX_DEFAULT_TEXT);
 		ui->shareSecondObject->refreshGuideView(tr("facebook.empty.pagelist.tip"));
 	}
+}
+
+void PLSLiveInfoFacebook::checkTimelineLivingPermission(const MyRequestTypeFunction &onFinished)
+{
+	// okButton is intentionally NOT disabled here: this fast me/permissions round trip is the
+	// common case (permission already granted), and PRISM_PC-6431 wants GoLive clickable during it.
+	// It only gets disabled below, via onRequestingPermission, if this check actually needs to open
+	// Facebook's consent browser - whether this call starts that request or joins one already
+	// running (here), the dropdown's early prefetch (see shareSecondObject's pressed handler) can
+	// start it before OK is even clicked.
+	if (m_timelinePermissionCheckInFlight) {
+		// Join the request already in flight instead of starting a second
+		// goFacebookRequestPermission call for the same permission set: PLSAPIFacebook keeps its
+		// browser-consent state (m_permissionCallback/m_permissionServer) in a single shared slot,
+		// not one per request type, so a second concurrent call would open a second browser tab and
+		// silently orphan whichever tab the user doesn't finish, potentially losing a real grant.
+		m_timelinePermissionPendingCallback = onFinished;
+		return;
+	}
+	m_timelinePermissionCheckInFlight = true;
+	QPointer<PLSLiveInfoFacebook> guard(this);
+	// Timeline permission stays isolated from Page permission except for Public visibility:
+	// Facebook only needs pages_read_user_content_permission/pages_read_engagement_permission
+	// granted to allow EVERYONE-visibility on a Timeline live; Friends-only Timeline doesn't
+	// need them, so they're only requested when Public is the current selection.
+	QStringList permissionList;
+	permissionList << timeline_living_permission;
+	if (ui->shareSecondObject->getComboBoxId() == TimelinePublicId) {
+		permissionList << pages_read_user_content_permission;
+		permissionList << pages_read_engagement_permission;
+	}
+	PLSFaceBookRquest->checkPermission(
+		PLSAPIFacebook::PLSAPICheckTimelineLivingPermission, permissionList,
+		[guard, onFinished](const PLSErrorHandler::RetData &retData) {
+			if (!guard)
+				return;
+			guard->m_timelinePermissionCheckInFlight = false;
+			// Restore, not force-enable: initComboBoxList() permanently disables this control
+			// while already living, regardless of object type, and this must not override that.
+			guard->ui->shareFirstObject->setDisabled(IsLiving);
+			onFinished(retData);
+			if (auto pending = std::exchange(guard->m_timelinePermissionPendingCallback, nullptr)) {
+				pending(retData);
+			}
+		},
+		this, [guard] {
+			if (guard) {
+				guard->m_okButtonDisabledForAction = true;
+				guard->doUpdateOkState();
+			}
+		});
+}
+
+void PLSLiveInfoFacebook::checkPageLivingPermission(const MyRequestTypeFunction &onFinished)
+{
+	// Mirrors checkTimelineLivingPermission(): onClickPageComboBox()'s own permission check and
+	// the OK button's Page branch are otherwise two independent PLSAPIFacebook::checkPermission()
+	// calls (different PLSAPI request types) that can each open a browser consent tab and tear
+	// the other down via the shared browser-consent slot. Joining is valid here because this
+	// permission list is a strict superset of what PLSAPICheckPageLivingPermission alone needs
+	// (see getMyPageListRequestAndCheckPermission()'s comment for the same union rationale): a
+	// SUCCESS/decline result for this list is a correct answer for the narrower request too.
+	// See checkTimelineLivingPermission(): okButton is intentionally NOT disabled here, only via
+	// onRequestingPermission below if this check actually needs to open Facebook's consent
+	// browser, whether started here or joined below (onClickPageComboBox() can start this before OK
+	// is clicked).
+	if (m_pagePermissionCheckInFlight) {
+		m_pagePermissionPendingCallback = onFinished;
+		return;
+	}
+	m_pagePermissionCheckInFlight = true;
+	QPointer<PLSLiveInfoFacebook> guard(this);
+	QStringList permissionList;
+	permissionList << page_show_list_permission;
+	permissionList << business_management_permission;
+	permissionList << pages_manage_posts_permission;
+	permissionList << pages_read_engagement_permission;
+	permissionList << pages_read_user_content_permission;
+	PLSFaceBookRquest->checkPermission(
+		PLSAPIFacebook::PLSAPICheckPageLivingPermission, permissionList,
+		[guard, onFinished](const PLSErrorHandler::RetData &retData) {
+			if (!guard)
+				return;
+			guard->m_pagePermissionCheckInFlight = false;
+			guard->ui->shareFirstObject->setDisabled(IsLiving);
+			onFinished(retData);
+			if (auto pending = std::exchange(guard->m_pagePermissionPendingCallback, nullptr)) {
+				pending(retData);
+			}
+		},
+		this, [guard] {
+			if (guard) {
+				guard->m_okButtonDisabledForAction = true;
+				guard->doUpdateOkState();
+			}
+		});
 }
 
 PLSLiveInfoFacebook::~PLSLiveInfoFacebook()
@@ -515,6 +814,17 @@ void PLSLiveInfoFacebook::showSearchGameList()
 
 void PLSLiveInfoFacebook::doUpdateOkState()
 {
+	if (m_okButtonDisabledForAction) {
+		// Facebook consent browser is open, or the actual go-live/update-live request is running;
+		// okButton must stay disabled regardless of what triggered this call (title/description/game
+		// text changing, combo selection changing, etc.) until that session itself resolves and
+		// clears the flag. A plain in-flight permission check (m_timelinePermissionCheckInFlight /
+		// m_pagePermissionCheckInFlight) does NOT set this flag, so it falls through to the normal
+		// evaluation below instead of forcing a disable.
+		ui->okButton->setEnabled(false);
+		ui->okButton->parentWidget()->repaint();
+		return;
+	}
 	QString newPrivacy = ui->shareSecondObject->getComboBoxTitle();
 	if (newPrivacy == GROUP_COMBOX_DEFAULT_TEXT || newPrivacy == PAGE_COMBOX_DEFAULT_TEXT) {
 		ui->okButton->setEnabled(false);
@@ -551,7 +861,13 @@ void PLSLiveInfoFacebook::startLivingRequest()
 {
 	m_expiredObjectList.clear();
 
-	showLoading(content());
+	// Unlike the permission check before it, actually creating the live video is not a fast/common
+	// no-op round trip - it's the real go-live action, so okButton is force-disabled here
+	// unconditionally (permission may have been already-granted, in which case it was never
+	// disabled up to this point).
+	m_okButtonDisabledForAction = true;
+	doUpdateOkState();
+	showLoading(content(), loadingMaskHeight());
 
 	auto startLivingFinished = [this](const PLSErrorHandler::RetData &retData) {
 		hideLoading();
@@ -572,6 +888,9 @@ void PLSLiveInfoFacebook::startLivingRequest()
 			   {"startLiveFailed", qUtf8Printable(QString("facebook call create live api failed, prismCode=%1").arg(retData.prismCode))}},
 			  "facebook start live failed");
 
+		m_liveActionCheckInFlight = false;
+		m_okButtonDisabledForAction = false;
+		doUpdateOkState();
 		handleRequestFunctionType(retData);
 	};
 
@@ -580,7 +899,10 @@ void PLSLiveInfoFacebook::startLivingRequest()
 
 void PLSLiveInfoFacebook::updateLivingRequest()
 {
-	showLoading(content());
+	// See startLivingRequest(): force-disabled here unconditionally for the same reason.
+	m_okButtonDisabledForAction = true;
+	doUpdateOkState();
+	showLoading(content(), loadingMaskHeight());
 
 	auto updateLivingFinished = [this](const PLSErrorHandler::RetData &retData) {
 		hideLoading();
@@ -590,6 +912,9 @@ void PLSLiveInfoFacebook::updateLivingRequest()
 			return;
 		}
 
+		m_liveActionCheckInFlight = false;
+		m_okButtonDisabledForAction = false;
+		doUpdateOkState();
 		handleRequestFunctionType(retData);
 	};
 	platform->updateLiving(updateLivingFinished);
@@ -689,7 +1014,7 @@ void PLSLiveInfoFacebook::showNetworkErrorAlert(PLSLiveInfoFacebookErrorType err
 
 void PLSLiveInfoFacebook::getLivingTitleDescRequest()
 {
-	showLoading(content());
+	showLoading(content(), loadingMaskHeight());
 	auto onFinished = [this](const PLSErrorHandler::RetData &retData) {
 		hideLoading();
 		if (retData.prismCode != PLSErrorHandler::SUCCESS) {
@@ -708,7 +1033,7 @@ void PLSLiveInfoFacebook::getLivingTimelinePrivacy()
 	if (QString shareObjectName = platform->getPrepareInfo().firstObjectName; shareObjectName != TimelineObjectFlags) {
 		return;
 	}
-	showLoading(content());
+	showLoading(content(), loadingMaskHeight());
 	auto onFinished = [this](const PLSErrorHandler::RetData &retData, QString) {
 		hideLoading();
 		if (retData.prismCode != PLSErrorHandler::SUCCESS) {

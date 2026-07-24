@@ -2,10 +2,12 @@
 
 #include <QObject>
 #include <map>
+#include <mutex>
 #include <QPixmap>
 #include "frontend-api.h"
 #include "PLSDrawPenInterface.h"
 #include "PLSDrawPenDefine.h"
+#include "pls/pls-action-util.h"
 #if defined(_WIN32)
 #include "windows/PLSDrawPenWin.h"
 #include "windows/PLSDrawPenCore.h"
@@ -41,30 +43,30 @@ public:
 	bool MousePosInPreview(vec2 pos) const;
 	bool MouseOutAreaPressed() const { return outAreaPressed; };
 	void MousePressd(PointF point);
-	void MouseMoved(PointF point) const;
-	void MouseReleased(PointF point) const;
+	void MouseMoved(PointF point);
+	void MouseReleased(PointF point);
 	void SetColor(uint32_t color);
 	void SetColorIndex(int index);
-	void SetLineWidth(int width);
 	void SetLineWidthIndex(int index);
 	void SetCurrentDrawType(DrawType type);
 	void SetCurrentShapeType(ShapeType type);
-	void UndoStroke() const;
-	void RedoStroke() const;
-	void ClearStrokes() const;
-	void ClearAllStrokes() const;
+	void UndoStroke();
+	void RedoStroke();
+	void ClearStrokes();
+	void ClearAllStrokes();
 
 	void OnDrawVisible(bool visible);
 
 #if defined(_WIN32)
-	void RemoveStroke(std::string const &id) const;
-	std::vector<PointF> GetPoints() const;
-	std::vector<Stroke> GetStrokes() const;
+	void RemoveStroke(std::string const &id);
+	std::vector<PointF> GetPoints();
+	std::vector<Stroke> GetStrokes();
+	void RemoveCaches(const std::vector<Stroke> &strokeList, const std::vector<Stroke> &redoList);
 #endif
 
 	uint32_t GetColor() const;
 	int GetColorIndex() const;
-	int GetLineWidth() const;
+	int GetLineWidth(DrawType type = DrawType::DT_INVALID) const;
 	int GetLineWidthIndex() const;
 	DrawType GetCurrentDrawType() const;
 	ShapeType GetCurrentShapeType() const;
@@ -75,15 +77,17 @@ public:
 	HANDLE GetMouseReleaseEvent() { return releasedEvent; }
 	HANDLE GetStrokeChangedEvent() { return strokeChangedEvent; }
 	HANDLE GetRubberEvent() { return rubberEvent; }
-	HANDLE GetVisibleEvent() { return visibleEvent; }
 #endif
 
 	QPixmap GetCurrentCursorPixmap() const;
-	bool UndoEmpty() const;
-	bool RedoEmpty() const;
-	bool DrawVisible() const;
+	bool UndoEmpty();
+	bool RedoEmpty();
+	bool DrawVisible();
 	bool NeedUpdateStrokesToTarget();
+	OBSScene GetCurrentScene();
 	gs_texture_t *GetSceneCanvasTexture();
+	std::shared_ptr<PLSDrawPenInterface> GetCurrentInterface();
+	const char *GetPenActionName();
 
 signals:
 	void UndoDisabled(bool disabled);
@@ -92,6 +96,8 @@ signals:
 private:
 	bool outAreaPressed = true;
 	std::atomic<bool> needUpdateStrokes = false;
+
+	std::recursive_mutex lockInterfaces;
 	std::shared_ptr<PLSDrawPenInterface> drawPenInterface = nullptr;
 	std::map<QString, std::shared_ptr<PLSDrawPenInterface>> sceneDrawPen; // key:scene name  value:scene drawpen data
 
@@ -101,7 +107,6 @@ private:
 	HANDLE strokeChangedEvent;
 	HANDLE releasedEvent;
 	HANDLE rubberEvent;
-	HANDLE visibleEvent;
 #endif
 	QPixmap cursorPixmap;
 	uint32_t width = 0;
@@ -109,8 +114,7 @@ private:
 	uint32_t linewidth = 0;
 	uint32_t rgba = C_SOLID_COLOR_0;
 	int colorIndex = 0;
-	int lineIndex = 1;
-	int curLineWidth = LINE_1;
+	int lineIndex = DEFAULT_LINE_WITDH_INDEX;
 	DrawType curDrawType = DrawType::DT_PEN;
 	ShapeType curShapeType = ShapeType::ST_STRAIGHT_ARROW;
 };

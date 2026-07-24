@@ -696,9 +696,22 @@ static void viewer_count_source_clear_texture(gs_texture_t *tex)
 static void viewer_count_source_video_render(void *data, gs_effect_t *effect)
 {
 	auto context = (viewer_count_source *)(data);
-	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), context->m_source_texture);
+
+	const bool nonlinear_fade = gs_get_color_space() == GS_CS_SRGB;
+	const bool previous = gs_framebuffer_srgb_enabled();
+	gs_enable_framebuffer_srgb(!nonlinear_fade);
+
+	auto param = gs_effect_get_param_by_name(effect, "image");
+	if (nonlinear_fade) {
+		gs_effect_set_texture(param, context->m_source_texture);
+	} else {
+		gs_effect_set_texture_srgb(param, context->m_source_texture);
+	}
+
 	gs_draw_sprite(context->m_source_texture, 0, 0, 0);
 	pls_used(effect);
+
+	gs_enable_framebuffer_srgb(previous);
 }
 
 static void viewer_count_source_render(void *data, obs_source_t *source)

@@ -144,6 +144,8 @@ static blocked_module_t blocked_modules[] = {
 	// Fasso DRM, crashes D3D
 	{L"\\f_sps.dll", 0, 0, TS_IGNORE},
 
+	{L"\\pmls64.dll", 0, 0, TS_IGNORE},
+
 	// Korean banking "security" software, crashes randomly
 	{L"\\t_prevent64.dll", 0, 0, TS_IGNORE},
 
@@ -191,6 +193,20 @@ static blocked_module_t blocked_modules[] = {
 	// Different versions seem to be installed in different places, so we have to match on DLL only.
 	// Reference: https://www.hanselman.com/blog/webcam-randomly-pausing-in-obs-discord-and-websites-lsvcam-and-tiktok-studio
 	{L"\\lsvcam.dll", 0, 0, TS_IGNORE},
+
+	// PRISM_PC-3391 PRISM should not load dll of lens vcam
+	{L"\\virtual-device-win.dll", 0, 0, TS_IGNORE},
+
+	// PRISM_PC-4680 PRISM should not load 3rd hook dll
+	{L"\\ProcessHideDLLx64.dll", 0, 0, TS_IGNORE},
+	{L"\\ProcessHideHookx64.dll", 0, 0, TS_IGNORE},
+
+	// Baidu Input DLL, causes crash
+	{L"\\baiducntsf.dll", 0, 0, TS_IGNORE},
+
+	// PRISM_PC-4251 PRISM should not load dll of Prism Live Studio
+	{L"\\prismlivestudio\\data\\obs-plugins\\win-dshow\\obs-virtualcam-module64.dll", 0, 0, TS_IGNORE},
+	{L"\\prismlivestudio\\data\\obs-plugins\\win-dshow\\obs-virtualcam-module32.dll", 0, 0, TS_IGNORE},
 
 	// npggNT64, an Anti-cheat program. inject our program and cause crash
 	{L"\\npggNT64.des", 0, 0, TS_IGNORE},

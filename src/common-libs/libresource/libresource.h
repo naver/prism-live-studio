@@ -9,6 +9,7 @@
 #include <libutils-api.h>
 
 #include <qglobal.h>
+#include <qmetatype.h>
 
 #if defined(LIRESOURCE_LIB)
 #define LIRESOURCE_API Q_DECL_EXPORT
@@ -24,7 +25,7 @@ enum class FileName {
 	FromUrl,
 	Spec
 };
-enum class State { Initialized, Downloading, Ok, Failed };
+enum class State { Initialized, Downloading, Ok, Failed, PartialFailed };
 enum class PathFrom { Invalid, Downloaded, UseCache, UseDefault };
 
 struct UrlAndHowSave;
@@ -49,21 +50,33 @@ using FnCheck = std::function<bool(const UrlAndHowSave &urlAndHowSave, const QSt
 using FnDecompress = std::function<bool(const UrlAndHowSave &urlAndHowSave, const QString &filePath)>;
 using FnDone = std::function<void(const UrlAndHowSave &urlAndHowSave, bool ok, const QString &filePath, PathFrom pathFrom, bool decompressOk)>;
 
+using FnLessGroup = std::function<std::optional<bool>(Group groupa, Group groupb)>;
+using FnLessItem = std::function<std::optional<bool>(Item itema, Item itemb)>;
+
 // clang-format off
 #define PLS_RSM_CATEGORY(Category) \
 	static Category *instance() \
 	{ return &pls::Initializer<pls::rsm::ICategoryImplRegister<Category>>::s_initializer.m_impl; }
 
-#define PLS_RSM_CID_LIBRARY			QStringLiteral("library")
-#define PLS_RSM_CID_MUSIC			QStringLiteral("music")
-#define PLS_RSM_CID_REACTION		QStringLiteral("reaction")
-#define PLS_RSM_CID_SCENE_TEMPLATES QStringLiteral("scene_templates")
-#define PLS_RSM_CID_TEXT_TEMPLATE	QStringLiteral("textTemplatePC")
-#define PLS_RSM_CID_VIRTUAL_BG		QStringLiteral("virtual_bg")
-#define PLS_RSM_CID_CHAT_BG			QStringLiteral("chatBackground")
-#define PLS_RSM_UID_LIBRARY_POLICY_PC pls::rsm::UniqueId(QStringLiteral("library_Policy_PC"))
+#define PLS_RSM_CID_LIBRARY				QStringLiteral("library")
+#define PLS_RSM_CID_MUSIC				QStringLiteral("music")
+#define PLS_RSM_CID_REACTION			QStringLiteral("reaction")
+#define PLS_RSM_CID_SCENE_TEMPLATES		QStringLiteral("scene_templates")
+#define PLS_RSM_CID_TEXT_TEMPLATE		QStringLiteral("textTemplatePC")
+#define PLS_RSM_CID_VIRTUAL_BG			QStringLiteral("virtual_bg")
+#define PLS_RSM_CID_CHAT_BG				QStringLiteral("chatBackground")
+#define PLS_RSM_CID_COLOR_FILTER		QStringLiteral("color")
+#define PLS_RSM_CID_BYTE_DANCE			QStringLiteral("bytedance_beauty")
+#define PLS_RSM_UID_LIBRARY_POLICY_PC	pls::rsm::UniqueId(QStringLiteral("library_Policy_PC"))
+#define PLS_RSM_UID_LIBRARY_POLICY_LENS	pls::rsm::UniqueId(QStringLiteral("library_Lens"))
+#define PLS_RSM_UID_LIBRARY_LICENSE		pls::rsm::UniqueId(QStringLiteral("Library_Bytedance_PC"))
 
-#define PLS_RSM_getLibraryPolicyPC_Path(subpath) pls::rsm::getItemPath(PLS_RSM_CID_LIBRARY, PLS_RSM_UID_LIBRARY_POLICY_PC, subpath)
+#if defined(PRODUCT_LENS)
+#define PLS_RSM_getLibraryPolicy_Path(subpath) pls::rsm::getItemPath(PLS_RSM_CID_LIBRARY, PLS_RSM_UID_LIBRARY_POLICY_LENS, subpath)
+#elif defined(PRODUCT_PRISM)
+#define PLS_RSM_getLibraryPolicy_Path(subpath) pls::rsm::getItemPath(PLS_RSM_CID_LIBRARY, PLS_RSM_UID_LIBRARY_POLICY_PC, subpath)
+#endif
+#define PLS_RSM_getLibraryLicense_Path(subpath)		pls::rsm::getItemPath(PLS_RSM_CID_LIBRARY, PLS_RSM_UID_LIBRARY_LICENSE, subpath)
 // clang-format on
 
 struct UniqueId {
@@ -145,8 +158,8 @@ struct LIRESOURCE_API UrlAndHowSave {
 struct LIRESOURCE_API Category {
 	CategoryImplPtr m_impl;
 
-	Category();
-	Category(std::nullptr_t);
+	Category() {}
+	Category(std::nullptr_t) {}
 	Category(CategoryImplPtr categoryImpl);
 
 	explicit operator bool() const;
@@ -169,8 +182,8 @@ struct LIRESOURCE_API Category {
 struct LIRESOURCE_API Group {
 	GroupImplPtr m_impl;
 
-	Group();
-	Group(std::nullptr_t);
+	Group() {}
+	Group(std::nullptr_t) {}
 	Group(GroupImplPtr groupImpl);
 
 	explicit operator bool() const;
@@ -194,6 +207,9 @@ struct LIRESOURCE_API Group {
 	QVariant attr(const QString &name, const QVariant &defval = QVariant()) const;
 	QVariant attr(const QStringList &names, const QVariant &defval = QVariant()) const;
 
+	std::optional<QVariant> getAttr(const QString &name) const;
+	std::optional<QVariant> getAttr(const QStringList &names) const;
+
 	bool isUniqueId(const UniqueId &uniqueId) const;
 	UniqueId uniqueId() const;
 	void setUniqueId(const QString &uniqueId);
@@ -212,8 +228,8 @@ struct LIRESOURCE_API Group {
 struct LIRESOURCE_API Item {
 	ItemImplPtr m_impl;
 
-	Item();
-	Item(std::nullptr_t);
+	Item() {}
+	Item(std::nullptr_t) {}
 	Item(ItemImplPtr itemImpl);
 
 	explicit operator bool() const;
@@ -236,6 +252,9 @@ struct LIRESOURCE_API Item {
 
 	QVariant attr(const QString &name, const QVariant &defval = QVariant()) const;
 	QVariant attr(const QStringList &names, const QVariant &defval = QVariant()) const;
+
+	std::optional<QVariant> getAttr(const QString &name) const;
+	std::optional<QVariant> getAttr(const QStringList &names) const;
 
 	bool isUniqueId(const UniqueId &uniqueId) const;
 	UniqueId uniqueId() const;
@@ -387,6 +406,7 @@ public:
 	virtual QString defaultJsonPath(IResourceManager *mgr) const;
 
 	virtual size_t useMaxCount(IResourceManager *mgr) const;
+	virtual bool needSaveUsedItems(IResourceManager *mgr) const;
 
 	// json downloaded
 	virtual void jsonDownloaded(IResourceManager *mgr, const DownloadResult &result);
@@ -394,6 +414,7 @@ public:
 	// check
 	virtual bool groupNeedLoad(IResourceManager *mgr, Group group) const;
 	virtual bool itemNeedLoad(IResourceManager *mgr, Item item) const;
+	virtual bool itemFilterServiceList(IResourceManager *mgr, Item item) const;
 
 	// download ok, load json
 	// download failed, load default json
@@ -409,7 +430,9 @@ public:
 	virtual QString getGroupHomeDir(IResourceManager *mgr, Group group) const;
 	virtual void getGroupDownloadUrlAndHowSaves(IResourceManager *mgr, std::list<UrlAndHowSave> &urlAndHowSaves, Group group) const;
 	virtual void groupDownloaded(IResourceManager *mgr, Group group, bool ok, const std::list<DownloadResult> &results) const;
+	virtual void groupDownloaded(IResourceManager *mgr, Group group, State state, const std::list<DownloadResult> &results) const;
 	virtual void getCustomGroupExtras(qsizetype &pos, bool &archive, IResourceManager *mgr, Group group) const;
+	virtual FnLessGroup getLessGroup(IResourceManager *mgr) const;
 
 	virtual bool itemNeedDownload(IResourceManager *mgr, Item item) const;
 	virtual bool checkItem(IResourceManager *mgr, Item item) const;
@@ -417,9 +440,14 @@ public:
 	virtual QString getItemHomeDir(IResourceManager *mgr, Item item) const;
 	virtual void getItemDownloadUrlAndHowSaves(IResourceManager *mgr, std::list<UrlAndHowSave> &urlAndHowSaves, Item item) const;
 	virtual void itemDownloaded(IResourceManager *mgr, Item item, bool ok, const std::list<DownloadResult> &results) const;
+	virtual void itemDownloaded(IResourceManager *mgr, Item item, State state, const std::list<DownloadResult> &results) const;
 	virtual void getCustomItemExtras(qsizetype &pos, bool &archive, IResourceManager *mgr, Item item) const;
+	virtual FnLessItem getLessItem(IResourceManager *mgr) const;
+
+	virtual bool resumeNetworkAutoRetry(IResourceManager *mgr, bool defaultValue) const;
 
 	virtual void allDownload(IResourceManager *mgr, bool ok);
+	virtual void allDownload(IResourceManager *mgr, State state);
 };
 struct LIRESOURCE_API IResourceManager {
 	IResourceManager() = default;
@@ -438,6 +466,8 @@ struct LIRESOURCE_API IResourceManager {
 	virtual State getCategoryState(const QString &categoryId) const = 0;
 	virtual State getGroupState(const QString &categoryId, const QString &groupId) const = 0;
 	virtual State getItemState(const QString &categoryId, const QString &itemId) const = 0;
+
+	virtual Category getDefaultCategory(const QString &categoryId) const = 0;
 
 	virtual Category getCategory(const QString &categoryId) const = 0;
 	virtual void getCategory(const QString &categoryId, std::function<void(Category category)> &&result) const = 0;
@@ -518,7 +548,7 @@ struct LIRESOURCE_API IResourceManager {
 
 LIRESOURCE_API IDownloader *getDownloader();
 LIRESOURCE_API IResourceManager *getResourceManager();
-LIRESOURCE_API void downloadAll(const std::function<void()> &complete = nullptr);
+LIRESOURCE_API void downloadAll(const std::function<void()> &complete = nullptr, bool resumeNetworkAutoRetry = false);
 // base dir data/prism-studio/resources/
 LIRESOURCE_API QString getDataPath(const QString &subpath = QString());
 // base dir PRISMLiveStudio/resources/
@@ -548,5 +578,7 @@ template<typename ICategoryImpl> struct ICategoryImplRegister {
 };
 }
 }
+
+Q_DECLARE_METATYPE(pls::rsm::State)
 
 #endif // _PRISM_COMMON_LIBRESOURCE_LIBRESOURCE_H

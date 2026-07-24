@@ -4,13 +4,13 @@
 #include <QWidgetAction>
 #include "ChannelCommonFunctions.h"
 #include "LogPredefine.h"
-#include "PLSAlertView.h"
 #include "PLSBasic.h"
 #include "PLSChannelDataAPI.h"
 #include "PLSChannelsVirualAPI.h"
 #include "frontend-api.h"
 #include "pls-channel-const.h"
 #include "pls-net-url.hpp"
+#include "pls-performance.h"
 #include "pls/pls-dual-output.h"
 #include "ui_ChannelConfigPannel.h"
 #include "window-basic-main.hpp"
@@ -29,14 +29,10 @@ public:
 };
 ChannelConfigPannel::ChannelConfigPannel(QWidget *parent) : QFrame(parent), ui(new Ui::ChannelConfigPannel)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	ui->setupUi(this);
 	pls_add_css(this, {"ChannelConfigPannel"});
 	auto btns = this->findChildren<QPushButton *>();
-	std::for_each(btns.begin(), btns.end(), [](QPushButton *btn) {
-		if (!btn->toolTip().isEmpty()) {
-			btn->setAttribute(Qt::WA_AlwaysShowToolTips);
-		}
-	});
 	setNoSetDirectionUI();
 
 	m_dualMenu.setObjectName("dualMenu");
@@ -66,8 +62,11 @@ ChannelConfigPannel::ChannelConfigPannel(QWidget *parent) : QFrame(parent), ui(n
 		auto action = m_dualMenu.addAction(QIcon(pls_load_svg(QString(resourcePath).arg(name).arg("off"), 4 * QSize(28, 28))),
 						   tr(QString("Channels.dualoutput.%1").arg(name).toUtf8().constData()), lickedSlot);
 		action->setCheckable(true);
+		action->setParent(this);
 	}
 	connect(ui->dualOutputBtn, &QPushButton::clicked, this, &ChannelConfigPannel::onShowDualoutputMenu);
+	ui->dualOutputBtn->installEventFilter(this);
+	pls_uistep_v2_set_title(this, QStringLiteral("Channel Config Pannel"));
 }
 ChannelConfigPannel::~ChannelConfigPannel()
 {
@@ -78,6 +77,18 @@ void ChannelConfigPannel::setChannelID(const QString &channelID)
 {
 	mChannelID = channelID;
 	updateUI();
+	auto channelName = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelName, QString(""));
+	int myType = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_data_type, NoType);
+	if (myType >= CustomType) {
+		channelName.append("(R)");
+	}
+	pls_uistep_v2_custom(ui->EnableSwitch, PLS_UI_STEPS_V2_SIGNAL_CLICKED, PLS_UI_STEPS_V2_ACTION_SWITCH, channelName,
+			     [this]() -> QString { return ui->EnableSwitch->isChecked() ? "On" : "Off"; });
+	pls_uistep_v2_set_info(ui->ShareBtn, channelName, QStringLiteral("Share Channel Button"));
+	pls_uistep_v2_set_info(ui->showInfoBtn, channelName, QStringLiteral("Show Live Info Button"));
+	pls_uistep_v2_set_info(ui->ConfigBtn, channelName, QStringLiteral("More Config Button"));
+	pls_uistep_v2_set_info(ui->dualOutputBtn, channelName, QStringLiteral("Dual Output Button"));
+	pls_uistep_v2_set_custom_show_hide_name(this, QString("%1 Config Pannel").arg(channelName).toUtf8());
 }
 
 void ChannelConfigPannel::changeEvent(QEvent *e)
@@ -92,24 +103,37 @@ void ChannelConfigPannel::changeEvent(QEvent *e)
 	}
 }
 
-bool ChannelConfigPannel::eventFilter(QObject *, QEvent *event)
+bool ChannelConfigPannel::eventFilter(QObject *obj, QEvent *event)
 {
-	switch (event->type()) {
-	case QEvent::HoverEnter:
-
-		break;
-	case QEvent::HoverLeave:
-
-		break;
-	default:
-		break;
+	if (obj == ui->dualOutputBtn) {
+		switch (event->type()) {
+		case QEvent::HoverEnter:
+			ui->arrowIconLabel->setProperty("state", "hover");
+			pls_flush_style(ui->arrowIconLabel);
+			break;
+		case QEvent::HoverLeave:
+			ui->arrowIconLabel->setProperty("state", "normal");
+			pls_flush_style(ui->arrowIconLabel);
+			break;
+		case QEvent::MouseButtonPress:
+			ui->arrowIconLabel->setProperty("state", "pressed");
+			pls_flush_style(ui->arrowIconLabel);
+			break;
+		default:
+			break;
+		}
 	}
-	return false;
+	return QFrame::eventFilter(obj, event);
 }
 
 void ChannelConfigPannel::on_showInfoBtn_clicked()
 {
-	PRE_LOG_UI_MSG_STRING("Show Live Info", "Clicked")
+#if defined(PLS_PERFORMANCE_STATS)
+	auto channelName = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelName, QString(""));
+	auto id = channelName.append("_ShowLiveInfoAllTime").toUtf8();
+	PLS_PERFORMANCE_GLOBAL_START(id.constData());
+	PLS_PERFORMANCE_GLOBAL_START("LiveInfoShow_Before", id.constData());
+#endif
 	this->hide();
 	showChannelInfo(mChannelID);
 }
@@ -117,7 +141,6 @@ void ChannelConfigPannel::on_showInfoBtn_clicked()
 void ChannelConfigPannel::on_ShareBtn_clicked()
 {
 	this->hide();
-	PRE_LOG_UI_MSG_STRING(" Share Button ", "Clicked")
 	showShareView(mChannelID);
 }
 
@@ -125,10 +148,8 @@ void ChannelConfigPannel::askDeleteChannel()
 {
 
 	if (mIsAsking) {
-		PRE_LOG_UI_MSG_STRING(" Remove Channel again ", "Clicked")
 		return;
 	}
-	PRE_LOG_UI_MSG_STRING(" Remove Channel ", "Clicked")
 	mIsAsking = true;
 	QSignalBlocker blocker(this);
 	int myType = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_data_type, NoType);
@@ -140,9 +161,10 @@ void ChannelConfigPannel::askDeleteChannel()
 	}
 	typeStr = translatePlatformName(typeStr);
 
-	if (auto ret = PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(DisconnectWarning).arg(typeStr),
-					      {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
-	    ret != PLSAlertView::Button::Yes) {
+	PLSErrorHandler::ExtraData extraData("Click Disconnect Button");
+	extraData.defaultArg = {typeStr};
+	PLSErrorHandler::RetData retData = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_DISCONNECT_WARNING, PLSErrKeyAllAlert, {}, extraData);
+	if (retData.clickedBtn != QDialogButtonBox::Yes) {
 		mIsAsking = false;
 		return;
 	}
@@ -188,25 +210,31 @@ void ChannelConfigPannel::on_ConfigBtn_clicked()
 	auto menu = createWidgetWidthDeleter<QMenu>(this);
 	menu->setWindowFlag(Qt::NoDropShadowWindowHint);
 	auto deleteAction = menu->addAction(CHANNELS_TR(Disconnect));
+	deleteAction->setParent(this);
+	auto platform = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_channelName, QString());
+	pls_uistep_v2_set_info(deleteAction, platform, QStringLiteral("Disconnect Menu"));
 	if (PLSCHANNELS_API->isLiving()) {
 		deleteAction->setDisabled(true);
 	}
 	connect(deleteAction, &QAction::triggered, this, &ChannelConfigPannel::askDeleteChannel, Qt::QueuedConnection);
-	auto platform = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_channelName, QString());
+	pls_uistep_v2_set_custom_show_hide_name(menu.data(), QString("%1 More Menu").arg(platform).toUtf8());
 	if (PLSCHANNELS_API->getChannelStatus(mChannelID) == UnInitialized) {
-		menu->addAction(CHANNELS_TR(GoTo), this, gotoYoutube);
+		auto goYoutube = menu->addAction(CHANNELS_TR(GoTo), this, gotoYoutube);
+		goYoutube->setParent(this);
 	}
 	auto channelT = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_data_type, ChannelData::NoType);
 	if (platform.contains(YOUTUBE, Qt::CaseInsensitive) && channelT == ChannelData::ChannelType) {
 		auto subChannelID = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_subChannelId, QString());
 		auto gotoYoutubeControlPage = [subChannelID]() { QDesktopServices::openUrl(QUrl(g_yoububeStudioManagePage.arg(subChannelID))); };
-		menu->addAction(CHANNELS_TR(GotoYoutubeOk), this, gotoYoutubeControlPage);
+		auto goYoutubeControlPage = menu->addAction(CHANNELS_TR(GotoYoutubeOk), this, gotoYoutubeControlPage);
+		goYoutubeControlPage->setParent(this);
 	}
 
 	if (platform.contains(TWITCH, Qt::CaseInsensitive) && channelT == ChannelData::ChannelType) {
 		auto nickName = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_userName, QString());
 		auto gotoTwitch = [nickName]() { QDesktopServices::openUrl(QUrl(g_twitchHomePage.arg(nickName))); };
-		menu->addAction(CHANNELS_TR(GotoTwitchOk), this, gotoTwitch);
+		auto goTwitchAction = menu->addAction(CHANNELS_TR(GotoTwitchOk), this, gotoTwitch);
+		goTwitchAction->setParent(this);
 	}
 	m_bMenuShow = true;
 	QPointer<ChannelConfigPannel> tmp(this);
@@ -224,9 +252,10 @@ void ChannelConfigPannel::doChildrenExclusive(bool &retflag)
 	if (auto myPlatform = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelName, QString()); !PLSCHANNELS_API->getCurrentSelectedPlatformChannels(myPlatform, ChannelType).isEmpty()) {
 
 		//do not want to disable other child
-		if (auto typeStr = translatePlatformName(myPlatform); PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(ChildDisableWaring).arg(typeStr),
-											     {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}},
-											     PLSAlertView::Button::Cancel) != PLSAlertView::Button::Yes) {
+		auto typeStr = translatePlatformName(myPlatform);
+		PLSErrorHandler::ExtraData extraData("Channel enable child exclusive confirm");
+		extraData.defaultArg = {typeStr};
+		if (PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHANNEL_CHILD_EXCLUSIVE_CONFIRM, PLSErrKeyAllAlert, {}, extraData).clickedBtn != QDialogButtonBox::Yes) {
 			QSignalBlocker blocker(ui->EnableSwitch);
 			ui->EnableSwitch->setChecked(false);
 			PLSCHANNELS_API->setChannelUserStatus(mChannelID, Disabled);
@@ -257,9 +286,9 @@ void ChannelConfigPannel::checkExclusiveChannel(bool &retflag)
 		}
 
 		//do not want to disable now
-		if (auto ret = PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(NowDisableWarning).arg(typeStr),
-						      {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
-		    ret != PLSAlertView::Button::Yes) {
+		PLSErrorHandler::ExtraData extraData("Channel exclusive disable other confirm");
+		extraData.defaultArg = {typeStr};
+		if (PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHANNEL_EXCLUSIVE_DISABLE_OTHER_CONFIRM, PLSErrKeyAllAlert, {}, extraData).clickedBtn != QDialogButtonBox::Yes) {
 			QSignalBlocker blocker(ui->EnableSwitch);
 			ui->EnableSwitch->setChecked(false);
 			PLSCHANNELS_API->setChannelUserStatus(mChannelID, Disabled);
@@ -284,9 +313,9 @@ void ChannelConfigPannel::on_EnableSwitch_toggled(bool checked)
 	if (!checked && isLiving) {
 
 		//reject disable
-		if (auto ret = PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(DisableWarnig).arg(typeStr),
-						      {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
-		    ret != PLSAlertView::Button::Yes) {
+		PLSErrorHandler::ExtraData extraData("Channel disable while living confirm");
+		extraData.defaultArg = {typeStr};
+		if (PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHANNEL_DISABLE_WHILE_LIVING_CONFIRM, PLSErrKeyAllAlert, {}, extraData).clickedBtn != QDialogButtonBox::Yes) {
 			QSignalBlocker blocker(ui->EnableSwitch);
 			ui->EnableSwitch->setChecked(true);
 			PLSCHANNELS_API->setChannelUserStatus(mChannelID, Enabled);
@@ -304,11 +333,10 @@ void ChannelConfigPannel::on_EnableSwitch_toggled(bool checked)
 	}
 	/************************to  checked******************************/
 	if (pls_is_dual_output_on()) {
-		QString message;
-		auto parent = pls_get_main_view();
 		if (isExclusiveChannel(mChannelID)) {
-			message = CHANNELS_TR(Dont.Use.DualOutput).arg(typeStr);
-			PLSAlertView::warning(parent, tr("Alert.Title"), message);
+			PLSErrorHandler::ExtraData extraData("Channel dual output exclusive warning");
+			extraData.defaultArg = {typeStr};
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHANNEL_DUAL_OUTPUT_EXCLUSIVE_WARNING, PLSErrKeyAllAlert, {}, extraData);
 			QSignalBlocker blocker(ui->EnableSwitch);
 			ui->EnableSwitch->setChecked(false);
 			return;
@@ -398,6 +426,9 @@ void ChannelConfigPannel::shiftState(const QVariantMap &info)
 	bool isEnabled = checkIsEnabled();
 
 	ui->EnableSwitch->setEnabled(isEnabled);
+#if defined(Q_OS_MACOS)
+	ui->EnableSwitch->setAttribute(Qt::WA_TransparentForMouseEvents, !isEnabled);
+#endif
 	auto platform = getInfo(info, g_channelName);
 	if (dataType >= CustomType) {
 		ui->showInfoBtn->setProperty("shape", "pen");
@@ -426,20 +457,32 @@ void ChannelConfigPannel::toRTMPTypeState(bool isLiving)
 
 	ui->showInfoBtn->setToolTip(CHANNELS_TR(EditRTMPTips));
 	ui->showInfoBtn->setEnabled(!isLiving);
+#if defined(Q_OS_MACOS)
+	ui->showInfoBtn->setAttribute(Qt::WA_TransparentForMouseEvents, isLiving);
+#endif
 	ui->ShareBtn->setEnabled(false);
+#if defined(Q_OS_MACOS)
+	ui->ShareBtn->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+#endif
 }
 
 void ChannelConfigPannel::toChannelTypeState(int dataState, const QVariantMap &info)
 {
-
+	bool showInfoEnabled = (dataState == Valid);
 	ui->showInfoBtn->setToolTip(QObject::tr("LiveInfo.liveinformation"));
-	ui->showInfoBtn->setEnabled(dataState == Valid);
+	ui->showInfoBtn->setEnabled(showInfoEnabled);
+#if defined(Q_OS_MACOS)
+	ui->showInfoBtn->setAttribute(Qt::WA_TransparentForMouseEvents, !showInfoEnabled);
+#endif
 	bool isNeedShare = (info.contains(g_shareUrl) || info.contains(g_shareUrlTemp));
+	bool shareEnabled = false;
 	if (isNeedShare) {
-		ui->ShareBtn->setEnabled(dataState == Valid || dataState == Expired);
-	} else {
-		ui->ShareBtn->setEnabled(false);
+		shareEnabled = (dataState == Valid || dataState == Expired);
 	}
+	ui->ShareBtn->setEnabled(shareEnabled);
+#if defined(Q_OS_MACOS)
+	ui->ShareBtn->setAttribute(Qt::WA_TransparentForMouseEvents, !shareEnabled);
+#endif
 }
 
 void ChannelConfigPannel::updateUI()
@@ -605,24 +648,15 @@ void ChannelConfigPannel::updateUISpacing(bool isDualOutput)
 	}
 }
 
-void ChannelConfigPannel::showOpenPlusAlert(const QString &message)
-{
-	PLSBasic::instance()->showsTipAndPrismPlusIntroWindow(message, "Channel Dashboard");
-}
-
 bool ChannelConfigPannel::showSelectedLimitedAlert(const QString &objectName)
 {
 	auto allowCount = PLSCHANNELS_API->getUserAllowedEnabledChannelsCount();
 	bool bShowAlert = false;
 
 	if (objectName == "EnableSwitch" && PLSCHANNELS_API->currentSelectedCount() >= allowCount) {
-		if (allowCount == g_maxActiveChannelsForFreeNormal) {
-			showOpenPlusAlert(CHANNELS_TR(Free.User.Number.limit));
-			bShowAlert = true;
-		} else if (allowCount == g_maxActiveChannelsForPlusNormal || allowCount == g_maxActiveChannelsForPlusDualOutput) {
-			pls_alert_error_message(pls_get_main_view(), QObject::tr("Alert.Title"), CHANNELS_TR(info.selectedLimited));
-			bShowAlert = true;
-		}
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHANNEL_SELECTED_LIMITED, PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData("Channel selected limited EnableSwitch"));
+		bShowAlert = true;
 		return bShowAlert;
 	}
 
@@ -632,16 +666,9 @@ bool ChannelConfigPannel::showSelectedLimitedAlert(const QString &objectName)
 		int horOutputCount = horOutputList.count();
 		int verOutputCount = verOutputList.count();
 
-		if (allowCount == g_maxActiveChannelsForFreeDualOutput) {
-			if (horOutputCount == allowCount / 2 && objectName == "Houtput") {
-				showOpenPlusAlert(CHANNELS_TR(Output.Horizontal.Number.limit));
-				bShowAlert = true;
-			} else if (verOutputCount == allowCount / 2 && objectName == "Voutput") {
-				showOpenPlusAlert(CHANNELS_TR(Output.Vertical.Number.limit));
-				bShowAlert = true;
-			}
-		} else if (horOutputCount + verOutputCount >= allowCount && PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelDualOutput, NoSet) == NoSet) {
-			pls_alert_error_message(pls_get_main_view(), QObject::tr("Alert.Title"), CHANNELS_TR(info.selectedLimited));
+		if (horOutputCount + verOutputCount >= allowCount && PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelDualOutput, NoSet) == NoSet) {
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHANNEL_SELECTED_LIMITED, PLSErrKeyAllAlert, {},
+							      PLSErrorHandler::ExtraData("Channel selected limited dual output direction"));
 			bShowAlert = true;
 		}
 	}

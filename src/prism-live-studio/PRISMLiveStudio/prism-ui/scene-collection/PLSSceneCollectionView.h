@@ -154,6 +154,7 @@ public:
 	QVector<PLSSceneCollectionData> GetDatas() const;
 	void UpdateDeleteButtonState() const;
 	void UpdateTimeStampLabel() const;
+	void UpdateMouseLeaveStyle();
 	void SetCurrentItem(const QString &name, const QString &path);
 	void SetCurrentText(const QString &name, const QString &path);
 	void AddCollectionUserLocalPath(const QString &name, const QString &userLocalPath) const;

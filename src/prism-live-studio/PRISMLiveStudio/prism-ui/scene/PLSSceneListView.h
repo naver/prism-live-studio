@@ -18,9 +18,8 @@ public:
 	PLSSceneListView(const PLSSceneListView &) = delete;
 	PLSSceneListView &operator=(const PLSSceneListView &) = delete;
 
-	void SetSceneDisplayMethod(int method);
+	void SetSceneDisplayMethod(DisplayMethod method);
 	int GetSceneOrder(const char *name) const;
-	const char *getSceneDisplayMethodStr(DisplayMethod method);
 
 	void AddScene(const QString &name, OBSScene scene, const SignalContainer<OBSScene> &handler, bool loadingScene = false);
 	void DeleteScene(const QString &name);
@@ -57,7 +56,6 @@ public:
 	void OnPreviewSceneChanged();
 
 	void SetDpi(float dpi);
-
 public slots:
 	PLSSceneItemView *GetCurrentItem();
 	int GetCurrentRow();
@@ -67,8 +65,6 @@ public slots:
 	void OnSceneSwitchEffectBtnClicked();
 	void OnDragFinished();
 	void OnDeleteSceneButtonClicked(const PLSSceneItemView *item) const;
-	void StartRefreshThumbnailTimer();
-	void StopRefreshThumbnailTimer();
 	void RefreshSceneThumbnail() const;
 	void OnScrollBarVisibleChanged(bool);
 
@@ -76,7 +72,7 @@ protected:
 	void showEvent(QShowEvent *event) override;
 
 private slots:
-	void OnMouseButtonClicked(const PLSSceneItemView *item) const;
+	void OnMouseButtonClicked(const PLSSceneItemView *item);
 	void OnModifySceneButtonClicked(const PLSSceneItemView *item) const;
 	void OnFinishingEditName(const QString &text, PLSSceneItemView *item);
 	void contextMenuEvent(QContextMenuEvent *event) override;
@@ -86,6 +82,7 @@ private slots:
 private:
 	void RenameSceneItem(PLSSceneItemView *item, obs_source_t *source, const QString &name);
 	void CreateSceneTransitionsView();
+
 signals:
 	void SceneRenameFinished();
 
@@ -97,7 +94,6 @@ private:
 	QString loadCurrentTransition;
 
 	DisplayMethod displayMethod{DisplayMethod::TextView};
-	QTimer *thumbnailTimer;
 };
 
 #endif // PLSSCENELISTVIEW_H

@@ -1,6 +1,7 @@
 #include "PLSAudioMixer.h"
 #include "pls/pls-properties.h"
 #include "liblog.h"
+#include "pls-performance.h"
 
 static const char *module_name()
 {
@@ -21,6 +22,7 @@ PLSMixerOrderHelper::~PLSMixerOrderHelper() {}
 
 void PLSMixerOrderHelper::Load(obs_data_t *data)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (!data)
 		return;
 

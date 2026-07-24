@@ -22,6 +22,8 @@
 #include "frontend-api.h"
 #include "libutils-api.h"
 #include "log/log.h"
+#include "login-user-info.hpp"
+#include "pls-performance.h"
 #include "signal.h"
 #include "window-basic-main.hpp"
 
@@ -88,6 +90,7 @@ void onUserLoginStateChanged(pls_frontend_event event, const QVariantList &, voi
 //init channel ui
 bool initChannelUI()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	auto window = PLSMainView::instance()->channelsArea();
 	if (window) {
 
@@ -123,6 +126,15 @@ void initChannelsData()
 	};
 	PLS_IPC_HANDLER->subscribe(int(pls::ipc::Event::MsgReceived), handleChannelMessage);
 	PLSCHANNELS_API->reloadData();
+
+	if (!GlobalVars::isLogined) {
+		auto isSupportAutoChannels = PLSLOGINDATAHANDLER->isSupportAutoChannelLogins();
+		if (isSupportAutoChannels) {
+			auto currentLoginName = PLSLoginUserInfo::getInstance()->getLoginPlatformName();
+			PLSCHANNELS_API->getPlatformHandler(currentLoginName)->initChannelDataFromPrismLogin(currentLoginName);
+		}
+	}
+
 	PLSCHANNELS_API->resetInitializeState(false);
 	PLSCHANNELS_API->updatePlatformsStates();
 	PLSCHANNELS_API->sigRefreshAllChannels();

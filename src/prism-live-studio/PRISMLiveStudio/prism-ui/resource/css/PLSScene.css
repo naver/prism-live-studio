@@ -148,20 +148,22 @@ PLSSceneItemView #nameLineEdit{
 	padding-right:/*hdpi*/ 5px;
 }
 
+/* Hover state driven by enter property for modifyBtn only (MouseMove swallowed to prevent drag) */
 PLSSceneItemView #modifyBtn[enter=true]{
-	background-color: #272727;
+	background: transparent;
+	image:url(":/resource/images/ic-scene-rename-over.svg");
 }
 
 PLSSceneItemView #modifyBtn[enter=false]{
-	background-color: #272727;
+	background: transparent;
 }
 
 PLSSceneItemView #modifyBtn, PLSSceneItemView #renameBtn{
 	background: transparent;
-	min-width: /*hdpi*/ 20px;
-	max-width: /*hdpi*/ 20px;
-	min-height: /*hdpi*/ 20px;
-	max-height: /*hdpi*/ 20px;
+	min-width: 16px;
+	max-width: 16px;
+	min-height: 16px;
+	max-height: 16px;
 	border-style: none;
 	margin: 0;
 	padding: 0;
@@ -231,4 +233,27 @@ PLSSceneItemView #label_badge[badge_type="rehearsal"]{
 
 PLSSceneItemView #label_badge[badge_type="normal"]{
 	image:url(":/resource/images/scene/ic-badge-live-off.svg");
+}
+
+PLSSceneItemView #deleteSceneBtn {
+	min-width: 22px;
+	max-width: 22px;
+	min-height: 22px;
+	max-height: 22px;
+	background: transparent;
+	padding: 0;
+	margin: 0;
+	image: url(":/resource/images/dualOutput/sources/ic_source_delete_normal.svg");
+}
+
+PLSSceneItemView #deleteSceneBtn:hover {
+	image: url(":/resource/images/dualOutput/sources/ic_source_delete_over.svg");
+}
+
+PLSSceneItemView #deleteSceneBtn:pressed {
+    image: url(":/resource/images/dualOutput/sources/ic_source_delete_click.svg");
+}
+
+PLSSceneItemView #deleteSceneBtn:disabled {
+    image: url(":/resource/images/dualOutput/sources/ic_source_delete_disable.svg");
 }

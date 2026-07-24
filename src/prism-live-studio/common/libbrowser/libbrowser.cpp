@@ -27,6 +27,7 @@
 #include <obs.h>
 #include <pls/pls-obs-api.h>
 #include <pls/pls-base.h>
+#include "libui.h"
 
 namespace pls {
 namespace browser {
@@ -39,7 +40,6 @@ constexpr auto LIBBROWSER_MODULE = "libbrowser";
 #define QCSTR_path QStringLiteral("path")
 #define QCSTR_isOnlyHttp QStringLiteral("isOnlyHttp")
 
-#define g_obs_startup Main::s_obs_startup
 #define g_cef Main::s_cef
 #define g_cookieManagers Main::s_cookieManagers
 
@@ -142,8 +142,17 @@ public:
 	void getAllCookie(QObject *receiver, const OkResult<const QList<Cookie> &> &result) const override
 	{
 		PLS_DEBUG(LIBBROWSER_MODULE, "get all browser cookies");
-		m_cefCookieManager->ReadAllCookies([receiver, result](const std::list<PLSQCefCookieManager::Cookie> &cefCookies) {
+		if (!m_cefCookieManager) {
+			PLS_ERROR(LIBBROWSER_MODULE, "failed read browser cookies because cookiemanager is null");
+			pls_async_call_mt(receiver, [result]() { pls_invoke_safe(result, QList<Cookie>()); });
+			return;
+		}
+
+		m_cefCookieManager->ReadAllCookies([receiver = pls::QObjectPtr<QObject>(receiver), result](const std::list<PLSQCefCookieManager::Cookie> &cefCookies) {
 			PLS_INFO(LIBBROWSER_MODULE, "complete read browser cookies");
+			if (!receiver.valid())
+				return;
+
 			QList<Cookie> cookies;
 			std::for_each(cefCookies.begin(), cefCookies.end(), [&cookies](const PLSQCefCookieManager::Cookie &c) {
 				Cookie cookie;
@@ -163,10 +172,18 @@ public:
 	void getCookie(const QString &url, bool isOnlyHttp, QObject *receiver, const OkResult<const QList<Cookie> &> &result) const override
 	{
 		PLS_DEBUG(LIBBROWSER_MODULE, "get browser cookies");
+		if (!m_cefCookieManager) {
+			PLS_ERROR(LIBBROWSER_MODULE, "failed read browser cookies because cookiemanager is null");
+			pls_async_call_mt(receiver, [result]() { pls_invoke_safe(result, QList<Cookie>()); });
+			return;
+		}
 		m_cefCookieManager->ReadCookies(
 			url.toStdString(),
-			[receiver, result](const std::list<PLSQCefCookieManager::Cookie> &cefCookies) {
+			[receiver = pls::QObjectPtr<QObject>(receiver), result](const std::list<PLSQCefCookieManager::Cookie> &cefCookies) {
 				PLS_INFO(LIBBROWSER_MODULE, "complete read browser cookies");
+				if (!receiver.valid())
+					return;
+
 				QList<Cookie> cookies;
 				std::for_each(cefCookies.begin(), cefCookies.end(), [&cookies](const PLSQCefCookieManager::Cookie &c) {
 					Cookie cookie;
@@ -186,10 +203,25 @@ public:
 	}
 	void setCookie(const QString &url, const Cookie &cookie) const override
 	{
+		if (!m_cefCookieManager) {
+			return;
+		}
 		m_cefCookieManager->SetCookie(url.toStdString(), cookie.name.toStdString(), cookie.value.toStdString(), cookie.domain.toStdString(), cookie.path.toStdString(), cookie.isOnlyHttp);
 	}
-	void deleteCookie(const QString &url, const QString &name) const override { m_cefCookieManager->DeleteCookies(url.toStdString(), name.toStdString()); }
-	void flush() const override { m_cefCookieManager->FlushStore(); }
+	void deleteCookie(const QString &url, const QString &name) const override
+	{
+		if (!m_cefCookieManager) {
+			return;
+		}
+		m_cefCookieManager->DeleteCookies(url.toStdString(), name.toStdString());
+	}
+	void flush() const override
+	{
+		if (!m_cefCookieManager) {
+			return;
+		}
+		m_cefCookieManager->FlushStore();
+	}
 
 	void send(const QString &type, const QJsonObject &msg) const override
 	{
@@ -227,8 +259,15 @@ private slots:
 	void onCefWidgetUrlChanged(const QString &url)
 	{
 		PLS_INFO(LIBBROWSER_MODULE, "begin read browser cookies");
-		m_cefCookieManager->ReadAllCookies([url, this](const std::list<PLSQCefCookieManager::Cookie> &cefCookies) {
+		if (!m_cefCookieManager) {
+			return;
+		}
+
+		m_cefCookieManager->ReadAllCookies([url, pthis = pls::QObjectPtr<BrowserWidgetImpl>(this), this](const std::list<PLSQCefCookieManager::Cookie> &cefCookies) {
 			PLS_INFO(LIBBROWSER_MODULE, "complete read browser cookies");
+			if (!pthis.valid())
+				return;
+
 			QList<Cookie> cookies;
 			std::for_each(cefCookies.begin(), cefCookies.end(), [&cookies](const PLSQCefCookieManager::Cookie &c) {
 				Cookie cookie;
@@ -240,7 +279,7 @@ private slots:
 				cookies.append(cookie);
 			});
 
-			pls_async_call_mt(this, [this, url, cookies]() {
+			pls_async_call_mt(pthis, [this, url, cookies]() {
 				pls_invoke_safe(m_paramsImpl->m_urlChanged, this, url, cookies); //
 			});
 		});
@@ -374,7 +413,9 @@ QCefCookieManager *newCookieManager(const QString &cookieStoragePath)
 	}
 
 	QCefCookieManager *cookieManager = g_cef->create_cookie_manager(storagePath.toStdString());
-	g_cookieManagers.insert(storagePath, cookieManager);
+	if (cookieManager) {
+		g_cookieManagers.insert(storagePath, cookieManager);
+	}
 	return cookieManager;
 }
 BrowserWidgetImpl *newBrowserWidgetImpl(const Params &params, const BrowserDone &browserDone)
@@ -624,6 +665,11 @@ BrowserWidget::BrowserWidget(QWidget *parent) : QWidget(parent)
 BrowserDialog::BrowserDialog(QWidget *parent) : PLSWidgetCloseHookQt<QDialog>(parent)
 {
 	setAttribute(Qt::WA_NativeWindow, true);
+	pls_uistep_v2_set_title(this, [this]() {
+		auto parent = parentWidget();
+		return parent ? pls_uistep_v2_get_title(parent) : QString();
+	});
+	pls_uistep_v2_set_custom_show_hide_name(this, [this]() { return objectName().toUtf8(); });
 }
 
 static void defObsLogHandler(bool kr, int log_level, const char *format, va_list args, const char *fields[][2], int field_count, void *)
@@ -671,7 +717,7 @@ static bool findObsBrowser(CreateQCef &createCef)
 	}
 	return false;
 }
-static bool loadObsBrwoser(CreateQCef &create_qcef, const QString &locale)
+static bool loadObsBrwoser(CreateQCef &create_qcef)
 {
 #if defined(Q_OS_WIN)
 	QString binDir = pls_get_dll_dir("libbrowser");
@@ -681,26 +727,21 @@ static bool loadObsBrwoser(CreateQCef &create_qcef, const QString &locale)
 	base_set_log_handler(defObsLogHandler, nullptr);
 	base_set_log_handler_ex(defObsLogHandler, nullptr);
 
-	QString pluginConfigDir = pls_get_app_data_dir("PRISMLiveStudio/plugin_config");
-	if (!obs_startup(locale.toUtf8().constData(), pluginConfigDir.toUtf8().constData(), nullptr)) {
-		return false;
-	}
-
-	g_obs_startup = true;
-
 #if defined(Q_OS_WIN)
 	obs_add_module_path("../../prism-plugins/", "../../data/prism-plugins/%module%");
 #elif defined(Q_OS_MACOS)
 	QString pluginDir = pls_get_app_plugin_dir();
 	obs_add_module_path((pluginDir + "/%module%.plugin/Contents/MacOS").toUtf8().constData(), (pluginDir + "/%module%.plugin/Contents/Resources").toUtf8().constData());
 #endif
-	pls_load_all_modules([](const char *binPath) {
+	pls_load_all_modules(
+		[](const char *binPath) {
 #if defined(Q_OS_WIN)
-		return _stricmp(binPath, "../../obs-plugins/64bit/obs-browser.dll") == 0;
+			return _stricmp(binPath, "../../obs-plugins/64bit/obs-browser.dll") == 0;
 #elif defined(Q_OS_MACOS)
-		return strstr(binPath, "obs-browser.plugin") != nullptr;
+			return strstr(binPath, "obs-browser.plugin") != nullptr;
 #endif
-	});
+		},
+		nullptr);
 
 	if (!findObsBrowser(create_qcef)) {
 		PLS_ERROR(LIBBROWSER_MODULE, "load obs-browser library failed");
@@ -709,10 +750,10 @@ static bool loadObsBrwoser(CreateQCef &create_qcef, const QString &locale)
 	return true;
 }
 
-LIBBROWSER_API bool init(const QString &locale)
+LIBBROWSER_API bool init()
 {
 	CreateQCef create_qcef = nullptr;
-	if (!findObsBrowser(create_qcef) && !loadObsBrwoser(create_qcef, locale)) {
+	if (!findObsBrowser(create_qcef) && !loadObsBrwoser(create_qcef)) {
 		return false;
 	}
 
@@ -743,13 +784,6 @@ LIBBROWSER_API void cleanup()
 	}
 	g_cookieManagers.clear();
 	pls_delete(g_cef, nullptr);
-
-	if (g_obs_startup) {
-		g_obs_startup = false;
-		PLS_INFO(LIBBROWSER_MODULE, "Start invoking obs_shutdown");
-		obs_shutdown();
-		PLS_INFO(LIBBROWSER_MODULE, "End invoking obs_shutdown");
-	}
 }
 
 LIBBROWSER_API QJsonArray toJsonArray(const QList<Cookie> &cookies)

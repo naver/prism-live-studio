@@ -12,8 +12,6 @@ class PLSSelectImageButton : public QLabel {
 	Q_PROPERTY(QString lang READ getLanguage)
 
 public:
-	using ImageChecker = std::function<QPair<bool, QString>(const QPixmap &image, const QString &imagePath)>;
-
 	explicit PLSSelectImageButton(QWidget *parent = nullptr);
 	~PLSSelectImageButton() override;
 
@@ -27,7 +25,7 @@ public:
 	void setButtonEnabled(bool enabled);
 
 	void setImageSize(const QSize &imageSize);
-	void setImageChecker(const ImageChecker &imageChecker);
+	void setJPGImageMaxKB(int maxKB) { m_jpgMaxKB = maxKB; };
 
 	void mouseEnter();
 	void mouseLeave();
@@ -53,10 +51,10 @@ protected:
 	bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 
 private:
-	static QPair<bool, QString> defaultImageChecker(const QPixmap &, const QString &);
 	void moveIconToCenter(const QSize &containerSize);
 	void setRemoveRetainSizeWhenHidden(QWidget *widget) const;
 	void setMaskBgWidgetVisible(bool isVisible);
+	void dealCropedImage(QPixmap &cropedImage, QString &cropedImageFile);
 
 	static const int MIN_PHOTO_WIDTH = 440;
 	static const int MIN_PHOTO_HEIGHT = 245;
@@ -69,11 +67,11 @@ private:
 	bool mouseHover = false;
 	QString imagePath;
 	QSize imageSize{MIN_PHOTO_WIDTH, MIN_PHOTO_HEIGHT};
-	ImageChecker imageChecker{defaultImageChecker};
 	QPixmap originPixmap;
 	bool m_isIgoreMinSize = false;
 	bool m_isShowTipLabel = false;
 	bool m_isShowDeleteBtn = false;
+	int m_jpgMaxKB = -1;
 };
 
 #endif // PLSSELECTIMAGEBUTTON_H

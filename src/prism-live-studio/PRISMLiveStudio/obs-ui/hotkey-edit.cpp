@@ -168,6 +168,7 @@ void OBSHotkeyEdit::ResetKey()
 	emit KeyChanged(key);
 
 	RenderKey();
+	PLS_UI_ACTION("revert cliked finish");
 }
 
 void OBSHotkeyEdit::ClearKey()
@@ -178,6 +179,7 @@ void OBSHotkeyEdit::ClearKey()
 	emit KeyChanged(key);
 
 	RenderKey();
+	PLS_UI_ACTION("clear cliked finish");
 }
 
 void OBSHotkeyEdit::UpdateDuplicationState()
@@ -292,12 +294,13 @@ void OBSHotkeyWidget::AddEdit(obs_key_combination combo, int idx)
 	revert->setProperty("themeID", "revertIcon");
 	revert->setToolTip(QTStr("Revert"));
 	revert->setEnabled(false);
+	pls_uistep_v2_set_custom_enter_leave_name(revert, "Revert Button");
 
 	auto clear = new QPushButton;
 	clear->setProperty("themeID", "clearIconSmall");
 	clear->setToolTip(QTStr("Clear"));
 	clear->setEnabled(!obs_key_combination_is_empty(combo));
-
+	pls_uistep_v2_set_custom_enter_leave_name(clear, "Clear Button");
 	QObject::connect(edit, &OBSHotkeyEdit::KeyChanged, [=](obs_key_combination_t new_combo) {
 		clear->setEnabled(!obs_key_combination_is_empty(new_combo));
 		revert->setEnabled(edit->original != new_combo);
@@ -306,21 +309,26 @@ void OBSHotkeyWidget::AddEdit(obs_key_combination combo, int idx)
 	auto add = new QPushButton;
 	add->setProperty("themeID", "newAddIconSmall");
 	add->setToolTip(QTStr("Add"));
-
+	pls_uistep_v2_set_custom_enter_leave_name(add, "Add Button");
 	auto remove = new QPushButton;
 	remove->setProperty("themeID", "newRemoveIconSmall");
 	remove->setToolTip(QTStr("Remove"));
 	remove->setEnabled(removeButtons.size() > 0);
-
+	pls_uistep_v2_set_custom_enter_leave_name(remove, "Remove Button");
 	auto CurrentIndex = [&, remove] {
 		auto res = std::find(begin(removeButtons), end(removeButtons), remove);
 		return std::distance(begin(removeButtons), res);
 	};
 
-	QObject::connect(add, &QPushButton::clicked,
-			 [&, CurrentIndex] { AddEdit({0, OBS_KEY_NONE}, CurrentIndex() + 1); });
+	QObject::connect(add, &QPushButton::clicked, [&, CurrentIndex] {
+		AddEdit({0, OBS_KEY_NONE}, CurrentIndex() + 1);
+		PLS_UI_ACTION("add cliked finish");
+	});
 
-	QObject::connect(remove, &QPushButton::clicked, [&, CurrentIndex] { RemoveEdit(CurrentIndex()); });
+	QObject::connect(remove, &QPushButton::clicked, [&, CurrentIndex] {
+		RemoveEdit(CurrentIndex());
+		PLS_UI_ACTION("remove cliked finish");
+	});
 
 	QHBoxLayout *subLayout = new QHBoxLayout;
 	subLayout->setContentsMargins(0, 0, 0, 0);

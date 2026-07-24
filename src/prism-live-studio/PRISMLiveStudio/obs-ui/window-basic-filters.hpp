@@ -20,6 +20,9 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <memory>
+#include <map>
+#include <mutex>
+#include <QPointer>
 #include <obs.hpp>
 #include <properties-view.hpp>
 
@@ -44,6 +47,11 @@ private:
 	//PRISM/FanZirong/20240326/4824/Create copy and past Action in advance
 	QAction *copyAction;
 	QAction *pasteAction;
+
+	//PRISM/wangshaohui/20251203/PRISM_PC-4257/fix cursor issue
+	std::recursive_mutex lockMap;
+	std::map<QListWidgetItem *, QPointer<PLSFiltersItemView>> mapItems;
+	OBSSource GetItemSource(QListWidgetItem *item);
 
 	OBSSignal addSignal;
 	OBSSignal removeSignal;
@@ -70,7 +78,7 @@ private:
 
 	QMenu *CreateAddFilterPopupMenu(bool async);
 
-	void AddNewFilter(const char *id);
+	void AddNewFilter(const char *id, bool need_confirm_name = true);
 	void ReorderFilter(QListWidget *list, obs_source_t *filter, size_t idx);
 
 	void CustomContextMenu(const QPoint &pos, bool async);
@@ -82,6 +90,17 @@ private:
 	void delete_filter(OBSSource filter);
 
 	void PLSSetupVisibilityItem(QListWidget *list, QListWidgetItem *item, obs_source_t *source);
+
+	// PRISM/wangshaohui/20250815/PRISM_PC-3594/disable button if no item is selected
+	// It should be called when selected item is changed
+	void CheckEnableButtons(bool async, bool enabled);
+
+	// PRISM/wangshaohui/20250815/PRISM_PC-3597/ensure only one list has selection effect
+	// It should be called after updating {isAsync}
+	void CheckInvertList();
+
+	//PRISM/wangshaohui/20260104/4931/fix list flash
+	void InitEmptyWidget();
 
 	bool isAsync = false;
 
@@ -136,6 +155,12 @@ public:
 	{
 		if (source == target)
 			UpdateFilters();
+	}
+
+	void AutoAddNewFilter(const char *id)
+	{
+		if (id)
+			AddNewFilter(id, false);
 	}
 
 protected:

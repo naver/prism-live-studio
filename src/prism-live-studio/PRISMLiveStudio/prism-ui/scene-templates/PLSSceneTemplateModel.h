@@ -46,11 +46,12 @@ public:
 	int width() const { return item ? item.attr({"properties", "width"}).toInt() : 0; }
 	int height() const { return item ? item.attr({"properties", "height"}).toInt() : 0; }
 	bool isAI() const { return item ? item.attr({"properties", "ai"}).toBool() : false; }
-	bool isPaid() const { return item ? item.attr("paidFlag").toBool() : false; }
+	bool isPaid() const { return false; }
 	QString title() const { return item ? item.attr({"properties", "title"}).toString() : QString(); }
 	QString resourceUrl() const { return item ? item.attr("resourceUrl").toString() : QString(); }
 	QString versionLimit() const { return item ? item.attr({"properties", "versionLimit"}).toString() : QString(); }
 	QString resourcePath() const { return item ? item.dir() : QString(); }
+	pls::rsm::State status() const { return item ? item.state() : pls::rsm::State::Initialized; }
 
 	SceneTemplateResource resource;
 

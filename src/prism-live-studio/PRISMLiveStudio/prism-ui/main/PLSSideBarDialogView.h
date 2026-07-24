@@ -6,7 +6,7 @@
 
 class PLSSideBarDialogView : public PLSDialogView {
 public:
-	explicit PLSSideBarDialogView(DialogInfo info, QWidget *parent = nullptr);
+	explicit PLSSideBarDialogView(DialogInfo info, QWidget *parent = nullptr, CreateWinId createWinId = CreateWinId::DontCreate);
 	~PLSSideBarDialogView();
 
 	const char *getConfigId() const;
@@ -19,5 +19,6 @@ protected:
 
 private:
 	DialogInfo defaultInfo;
+	bool m_firstShow = true;
 };
 #endif // PLSSIDEBARDIALOGVIEW_H

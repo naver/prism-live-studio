@@ -1,6 +1,6 @@
 
 QTabWidget::pane {
-	border-top:/*hdpi*/ 1px solid rgb(31,30,31);
+	border-top:1px solid rgb(31,30,31);
 }
 
 QTabWidget::tab-bar {
@@ -9,25 +9,25 @@ QTabWidget::tab-bar {
 
 QTabBar::tab {
     background-color: rgb(76,76,76);
-	border:/*hdpi*/ none;
+	border:none;
     padding:/*hdpi*/5px;
-	min-width:/*hdpi*/ 50px;
+	min-width:50px;
     margin:/*hdpi*/1px;
 }
 
 QTabBar::tab:top {
-	border-bottom:/*hdpi*/ 1px transparent;
-	border-top-left-radius:/*hdpi*/ 3px;
-	border-top-right-radius:/*hdpi*/ 3px;
+	border-bottom:1px transparent;
+	border-top-left-radius:3px;
+	border-top-right-radius:3px;
 
 }
 
 QTabBar::tab:bottom {
-	padding-top:/*hdpi*/ 1px;
-	margin-bottom:/*hdpi*/ 4px;
-	border-bottom-left-radius:/*hdpi*/ 3px;
-	border-bottom-right-radius:/*hdpi*/ 3px;
-	height:/*hdpi*/ 14px;
+	padding-top:1px;
+	margin-bottom:4px;
+	border-bottom-left-radius:3px;
+	border-bottom-right-radius:3px;
+	height:14px;
 }
 
 QTabBar::tab:selected {

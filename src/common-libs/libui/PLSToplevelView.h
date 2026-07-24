@@ -14,7 +14,18 @@
 #include "PLSCustomMacWindow.h"
 #endif
 
+/**
+ * 34 is windows title bar height
+ * 32 is macos title bar height
+ * windows dialog heigth = content + title height(34)
+ * windows dialog heigth = content height
+ **/
+
+//all is windows dialog size
+#define PLS_TITLE_BAR_HEIGHT 34
+
 class PLSToplevelWidget;
+class PLSResizeTracker;
 
 namespace pls {
 namespace ui {
@@ -40,7 +51,8 @@ protected:
 #endif
 
 protected:
-	void init(QWidget *widget);
+	enum CreateWinId { DontCreate, Create };
+	void init(QWidget *widget, CreateWinId createWinId);
 
 public:
 	bool resizeEnabled() const;
@@ -49,9 +61,6 @@ public:
 	void setWidthResizeEnabled(bool widthResizeEnabled);
 	bool heightResizeEnabled() const;
 	void setHeightResizeEnabled(bool heightResizeEnabled);
-
-	bool moveInContent() const;
-	void setMoveInContent(bool moveInContent);
 
 	bool hasTitleBar() const;
 #if defined(Q_OS_MACOS)
@@ -64,6 +73,12 @@ public:
 	void disableWinSystemBorder() const;
 	static void disableWinSystemBorder(const QWidget *widget);
 
+	bool isAfterWin10() const;
+	PLSResizeTracker *resizeTracker() const;
+
+	bool isFirstPainting() const { return m_firstPainting; }
+	void setFirstPainting(bool isFirstPainting) { m_firstPainting = isFirstPainting; }
+
 public:
 	virtual QWidget *self() const = 0;
 	virtual int titleBarHeight() const;
@@ -74,16 +89,45 @@ public:
 	virtual void restoreGeometry(const QByteArray &geometry) = 0;
 
 	virtual void windowStateChanged(QWindowStateChangeEvent *event) {}
+	virtual void winIdChanged(WId winId) {}
 
 protected:
-	virtual bool moveInContentIncludeChild(QWidget *parentWidget, QWidget *childWidget) const;
-	virtual bool moveInContentExcludeChild(QWidget *parentWidget, QWidget *childWidget) const;
+	virtual bool moveExcludeChild(QWidget *child) const;
 
 	virtual void onRestoreGeometry();
 
 	virtual void nativeResizeEvent(const QSize &size, const QSize &nativeSize);
 
 	QSize calcSize(const QSize &size) const;
+	bool stabilizeFixedSizeOnResize()
+	{
+		auto widget = self();
+		if (!widget || m_adjustingFixedSize) {
+			return false;
+		}
+
+		const bool fixedWidth = widget->minimumWidth() == widget->maximumWidth();
+		const bool fixedHeight = widget->minimumHeight() == widget->maximumHeight();
+		if (!fixedWidth && !fixedHeight) {
+			return false;
+		}
+
+		QSize expectedSize = widget->size();
+		if (fixedWidth && expectedSize.width() != widget->minimumWidth()) {
+			expectedSize.setWidth(widget->minimumWidth());
+		}
+		if (fixedHeight && expectedSize.height() != widget->minimumHeight()) {
+			expectedSize.setHeight(widget->minimumHeight());
+		}
+		if (expectedSize == widget->size()) {
+			return false;
+		}
+
+		m_adjustingFixedSize = true;
+		widget->resize(expectedSize);
+		m_adjustingFixedSize = false;
+		return true;
+	}
 
 #if defined(Q_OS_MACOS)
 public:
@@ -94,9 +138,11 @@ private:
 	QSize m_initSize;
 	bool m_widthResizeEnabled = true;
 	bool m_heightResizeEnabled = true;
-	bool m_moveInContent = false;
 	bool m_firstShow = true;
+	bool m_firstPainting = true;
+	bool m_adjustingFixedSize = false;
 	int m_titleBarHeight = -1; // <0: auto, =0: no title bar, >0: manual
+	PLSResizeTracker *m_resizeTracker{nullptr};
 	friend class PLSToplevelWidgetAccess;
 #if defined(Q_OS_MACOS)
 	PLSCustomMacWindow *m_customMacWindow{nullptr};
@@ -107,7 +153,7 @@ template<typename QtType> class PLSToplevelView : public PLSWidgetCloseHookQt<Qt
 	using QtBase = PLSWidgetCloseHookQt<QtType>;
 
 protected:
-	template<typename... Args> explicit PLSToplevelView(Args &&...args) : QtBase(std::forward<Args>(args)...) { PLSToplevelWidget::init(this); }
+	template<typename... Args> explicit PLSToplevelView(CreateWinId createWinId, Args &&...args) : QtBase(std::forward<Args>(args)...) { PLSToplevelWidget::init(this, createWinId); }
 	virtual ~PLSToplevelView() override = default;
 
 public:
@@ -135,16 +181,9 @@ public:
 	QByteArray saveGeometry() const final { return pls::ui::toplevelView_saveGeometry(this); }
 	void restoreGeometry(const QByteArray &geometry) final { pls::ui::toplevelView_restoreGeometry(this, geometry); }
 
-	template<typename Widget> void setCustomChecker(PLSTransparentForMouseEvents<Widget> *widget)
+	template<typename Widget> void setMoveExcludeChecker(PLSTransparentForMouseEvents<Widget> *widget)
 	{
-		widget->setCustomChecker([this](QWidget *parentWidget, QWidget *childWidget) {
-			if (moveInContentExcludeChild(parentWidget, childWidget)) {
-				return pls::ui::CheckResult::Exclude;
-			} else if (moveInContentIncludeChild(parentWidget, childWidget)) {
-				return pls::ui::CheckResult::Include;
-			}
-			return pls::ui::CheckResult::Unknown;
-		});
+		widget->setMoveExcludeChecker([this](QWidget *child) { return moveExcludeChild(child); });
 	}
 
 protected:

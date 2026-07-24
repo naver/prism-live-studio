@@ -283,7 +283,7 @@ private:
 	static void MonitorChange(pls_frontend_event event, const QVariantList &params, void *context);
 
 	void LogVolumeChanged();
-
+	bool isStyleStable(QWidget *widget);
 public slots:
 	void SetMuted(bool checked);
 
@@ -296,6 +296,7 @@ private slots:
 	void updateText();
 
 	void MonitorStateChange(int state);
+	void MuteStateChanged(int state);
 
 signals:
 	void ConfigClicked();

@@ -9,6 +9,7 @@ class AbsoluteSlider : public SliderIgnoreScroll {
 public:
 	AbsoluteSlider(QWidget *parent = nullptr);
 	AbsoluteSlider(Qt::Orientation orientation, QWidget *parent = nullptr);
+	void setWheelEventEnabled(bool enabled);
 
 signals:
 	void absoluteSliderHovered(int value);
@@ -30,4 +31,5 @@ protected:
 
 private:
 	bool dragging = false;
+	bool m_enableWheelEvent{false};
 };

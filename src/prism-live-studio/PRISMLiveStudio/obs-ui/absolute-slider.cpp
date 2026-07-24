@@ -1,4 +1,5 @@
 #include "moc_absolute-slider.cpp"
+#include "absolute-slider.hpp"
 
 AbsoluteSlider::AbsoluteSlider(QWidget *parent) : SliderIgnoreScroll(parent)
 {
@@ -10,6 +11,11 @@ AbsoluteSlider::AbsoluteSlider(Qt::Orientation orientation, QWidget *parent) : S
 {
 	installEventFilter(this);
 	setMouseTracking(true);
+}
+
+void AbsoluteSlider::setWheelEventEnabled(bool enabled)
+{
+	m_enableWheelEvent = enabled;
 }
 
 void AbsoluteSlider::mousePressEvent(QMouseEvent *event)
@@ -60,7 +66,7 @@ bool AbsoluteSlider::eventFilter(QObject *obj, QEvent *event)
 		if (keyEvent->key() == Qt::Key_Up || keyEvent->key() == Qt::Key_Down) {
 			return true;
 		}
-	} else if (event->type() == QEvent::Wheel) {
+	} else if (!m_enableWheelEvent && event->type() == QEvent::Wheel) {
 		return true;
 	}
 

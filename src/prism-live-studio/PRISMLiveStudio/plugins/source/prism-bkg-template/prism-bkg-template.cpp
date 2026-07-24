@@ -46,6 +46,8 @@ struct background_template_source {
 	gs_texture_t *source_texture = nullptr;
 
 	bool source_texture_clear = false;
+	bool first_video_frame_ready = false;
+	bool render_video = false;
 
 	std::string current_item_id;
 	pthread_mutex_t src_mutex;
@@ -236,7 +238,7 @@ static void background_template_source_init(background_template_source *context,
 {
 	auto image_type = static_cast<image_type_t>(obs_data_get_int(settings, "item_type"));
 	context->is_motion_image = image_type == image_type_t::MOTION;
-	context->motion_enabled = obs_data_get_bool(settings, "motion_enabled") || !obs_data_get_bool(settings, "prism_resource");
+	context->motion_enabled = obs_data_get_bool(settings, "motion_enabled");
 
 	switch (image_type) {
 	case image_type_t::MOTION:
@@ -383,6 +385,7 @@ static void init_image_source(struct background_template_source *context)
 	obs_data_t *image_settings = obs_data_create();
 	obs_data_set_string(image_settings, "file", context->get_image_file_path());
 	context->image = obs_source_create_private("image_source", "prism_virtual_background_image_source", image_settings);
+	pls_set_action_parent(context->image, context->source);
 	obs_data_release(image_settings);
 }
 
@@ -402,6 +405,7 @@ static void init_video_source(struct background_template_source *context)
 	obs_data_set_string(video_settings, "local_file", context->get_video_file_path());
 	obs_data_set_bool(video_settings, "restart_on_activate", false);
 	context->video = obs_source_create_private("ffmpeg_source", "prism_virtual_background_video_source", video_settings);
+	pls_set_action_parent(context->video, context->source);
 	//obs_source_set_audio_output_flag(context->video, false);
 	signal_handler_connect_ref(obs_source_get_signal_handler(context->video), "media_state_changed", media_state_changed_callback, context);
 	obs_data_release(video_settings);
@@ -425,15 +429,16 @@ static void background_template_source_update(void *data, obs_data_t *settings)
 	}
 
 	background_template_source_init(context, settings);
-
+	context->first_video_frame_ready = false;
+	context->render_video = false;
 	context->update_source_file_path(force_auto_restore, force_auto_restore);
 
 	if (context->resource_is_image()) {
 		context->set_video_active(false);
 		context->set_image_active(true);
 	} else if (context->resource_is_video()) {
-		context->set_image_active(false);
-		context->set_video_active(true);
+		context->set_image_active(!context->first_video_frame_ready);
+		context->set_video_active(context->first_video_frame_ready);
 	} else {
 		context->set_image_active(false);
 		context->set_video_active(false);
@@ -466,6 +471,19 @@ static void source_notified(void *data, calldata_t *calldata)
 	}
 }
 
+static void source_got_first_video_frame(void *data, calldata_t *calldata)
+{
+	auto context = static_cast<struct background_template_source *>(data);
+	if (!context) {
+		return;
+	}
+
+	obs_source_t *source = (obs_source_t *)calldata_ptr(calldata, "source");
+	if (source == context->video) {
+		context->first_video_frame_ready = true;
+	}
+}
+
 static void background_template_source_destroy(void *data);
 
 static void *background_template_source_create(obs_data_t *settings, obs_source_t *source)
@@ -476,6 +494,7 @@ static void *background_template_source_create(obs_data_t *settings, obs_source_
 		return nullptr;
 	}
 	signal_handler_connect_ref(obs_get_signal_handler(), "source_create_finished", source_notified, context);
+	signal_handler_connect_ref(obs_get_signal_handler(), "source_got_first_video_frame", source_got_first_video_frame, context);
 
 	context->source = source;
 	background_template_source_init(context, settings);
@@ -493,6 +512,7 @@ static void background_template_source_destroy(void *data)
 {
 	auto context = (background_template_source *)(data);
 	signal_handler_disconnect(obs_get_signal_handler(), "source_create_finished", source_notified, context);
+	signal_handler_disconnect(obs_get_signal_handler(), "source_got_first_video_frame", source_got_first_video_frame, context);
 
 	if (context->file_path) {
 		pls_free(context->file_path);
@@ -678,7 +698,16 @@ static void background_template_source_video_tick(void *data, float /*seconds*/)
 	if (context->resource_is_image()) {
 		background_template_source_render(data, context->image);
 	} else if (context->resource_is_video()) {
-		background_template_source_render(data, context->video);
+		context->set_image_active(!context->first_video_frame_ready);
+		context->set_video_active(context->first_video_frame_ready);
+
+		if (context->render_video) {
+			background_template_source_render(data, context->video);
+		} else {
+			background_template_source_render(data, context->image);
+		}
+		context->render_video = context->first_video_frame_ready;
+
 	} else if (context->source_texture_clear) {
 		background_template_source_clear_texture(context->source_texture);
 		context->source_texture_clear = false;

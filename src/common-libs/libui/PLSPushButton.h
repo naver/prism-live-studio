@@ -34,9 +34,11 @@ public:
 	explicit PLSPushButton(const QString &text_, QWidget *parent = nullptr) : QPushButton(parent), text(text_) {}
 
 	void setText(const QString &text);
+	QString getOriginalText();
 
 protected:
-	void resizeEvent(QResizeEvent *event) override;
+	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
 
 private:
 	QString GetNameElideString() const;

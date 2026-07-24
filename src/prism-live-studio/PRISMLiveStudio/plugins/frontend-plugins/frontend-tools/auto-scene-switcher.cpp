@@ -77,7 +77,7 @@ static inline QString MakeSwitchName(const QString &scene, const QString &window
 
 SceneSwitcher::SceneSwitcher(QWidget *parent) : PLSDialogView(parent), ui(new Ui_SceneSwitcher)
 {
-
+	PLS_DISABLE_UISTEP_V2(this);
 	this->setupUi(ui);
 	pls_add_css(this, {"SceneSwitcher"});
 	initSize(720, 700);
@@ -131,6 +131,13 @@ SceneSwitcher::SceneSwitcher(QWidget *parent) : PLSDialogView(parent), ui(new Ui
 	loading = false;
 	connect(ui->closeBtn, &QPushButton::clicked, this, &SceneSwitcher::on_close_clicked);
 	connect(this, &QDialog::finished, this, &SceneSwitcher::finished);
+	pls_uistep_v2_set_name(ui->windows, "Windows Combobox");
+	pls_uistep_v2_set_name(ui->scenes, "Scenes Combobox");
+	pls_uistep_v2_set_name(ui->noMatchSwitchScene, "No Match Switch Scene Combobox");
+	pls_uistep_v2_set_value(ui->add, "Add");
+	pls_uistep_v2_set_value(ui->remove, "Remove");
+	pls_uistep_v2_bind(ui->checkInterval, ui->label_2);
+	pls_uistep_v2_auto_bind(this);
 }
 
 void SceneSwitcher::finished()
@@ -176,6 +183,7 @@ void SceneSwitcher::on_switches_currentRowChanged(int idx)
 			break;
 		}
 	}
+	PLS_UI_ACTION("In Scene Switcher Select Item Finished");
 }
 
 void SceneSwitcher::on_close_clicked()
@@ -188,9 +196,10 @@ void SceneSwitcher::on_add_clicked()
 	QString sceneName = ui->scenes->currentText();
 	QString windowName = ui->windows->currentText();
 
-	if (windowName.isEmpty())
+	if (windowName.isEmpty()) {
+		PLS_UI_ACTION("In Scene Switcher Add Finished");
 		return;
-
+	}
 	OBSWeakSource source = GetWeakSourceByQString(sceneName);
 	QVariant v = QVariant::fromValue(windowName);
 
@@ -226,14 +235,16 @@ void SceneSwitcher::on_add_clicked()
 
 		ui->switches->sortItems();
 	}
+	PLS_UI_ACTION("In Scene Switcher Add Finished");
 }
 
 void SceneSwitcher::on_remove_clicked()
 {
 	QListWidgetItem *item = ui->switches->currentItem();
-	if (!item)
+	if (!item) {
+		PLS_UI_ACTION("In Scene Switcher Remove Finished");
 		return;
-
+	}
 	string window = item->data(Qt::UserRole).toString().toUtf8().constData();
 
 	{
@@ -251,6 +262,7 @@ void SceneSwitcher::on_remove_clicked()
 	}
 
 	delete item;
+	PLS_UI_ACTION("In Scene Switcher Remove Finished");
 }
 
 void SceneSwitcher::UpdateNonMatchingScene(const QString &name)
@@ -315,9 +327,11 @@ void SceneSwitcher::on_toggleStartButton_clicked()
 	if (switcher->th.joinable()) {
 		switcher->Stop();
 		SetStopped();
+		PLS_UI_ACTION("In Scene Switcher Click Stop Button Finished");
 	} else {
 		switcher->Start();
 		SetStarted();
+		PLS_UI_ACTION("In Scene Switcher Click Start Button Finished");
 	}
 }
 

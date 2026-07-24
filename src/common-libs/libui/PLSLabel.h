@@ -94,6 +94,9 @@ public:
 	PLSHelpIcon(QWidget *parent = nullptr, bool handleTooltip = true);
 	void setHandleTooltip(bool handleTooltip);
 
+	//for tooltip show text
+	void setReleateText(const QString &text);
+
 protected:
 	bool eventFilter(QObject *watched, QEvent *event) override;
 
@@ -109,6 +112,17 @@ public:
 
 public Q_SLOTS:
 	void setText(const QString &);
+
+protected:
+	void resizeEvent(QResizeEvent *event) override;
+};
+
+class LIBUI_API PLSHeightFromWidthLabel : public QLabel {
+	Q_OBJECT
+
+public:
+	explicit PLSHeightFromWidthLabel(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
+	explicit PLSHeightFromWidthLabel(const QString &text, QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
 
 protected:
 	void resizeEvent(QResizeEvent *event) override;

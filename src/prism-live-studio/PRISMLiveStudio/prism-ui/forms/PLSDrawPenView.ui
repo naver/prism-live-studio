@@ -296,7 +296,20 @@
               </property>
              </widget>
             </item>
+            <item>
+             <widget class="QPushButton" name="pushButton_Exit">
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
            </layout>
+           <zorder>label_separate_2</zorder>
+           <zorder>label_separate_4</zorder>
+           <zorder>label_separate_3</zorder>
+           <zorder>pushButton_Exit</zorder>
+           <zorder>pushButton_Visible</zorder>
+           <zorder>label_separate_5</zorder>
           </widget>
          </item>
         </layout>

@@ -5,10 +5,12 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QHash>
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QSvgRenderer>
 #include <QTemporaryDir>
+#include <QThread>
 #include <QUrl>
 #include <QVersionNumber>
 #include "PLSChannelDataAPI.h"
@@ -17,7 +19,7 @@
 #include "libhttp-client.h"
 
 #include <qapplication.h>
-#include "PLSLoginDataHandler.h"
+#include "PLSBasic.h"
 #include "PLSSyncServerManager.hpp"
 #include "login-user-info.hpp"
 #include "obs-app.hpp"
@@ -33,8 +35,15 @@ IMPL_ENUM_SERIALIZATION(ChannelData::LiveState);
 IMPL_ENUM_SERIALIZATION(ChannelData::RecordState);
 IMPL_ENUM_SERIALIZATION(ChannelData::ChannelDualOutput);
 
+static QHash<QPair<QString, QString>, QString> s_resourceFileCache;
+
 QString findFileInResources(const QString &dirPath, const QString &key)
 {
+	Q_ASSERT(QThread::currentThread() == qApp->thread());
+
+	const auto cacheKey = qMakePair(dirPath, key);
+	if (auto it = s_resourceFileCache.constFind(cacheKey); it != s_resourceFileCache.constEnd())
+		return *it;
 	QDir dir(dirPath);
 	QRegularExpression rex(key, QRegularExpression::CaseInsensitiveOption);
 	auto filesList = dir.entryInfoList();
@@ -42,11 +51,14 @@ QString findFileInResources(const QString &dirPath, const QString &key)
 		QString filename = file.fileName();
 
 		if (auto match = rex.match(filename); match.hasMatch()) {
-			return file.absoluteFilePath();
+			const QString path = file.absoluteFilePath();
+			s_resourceFileCache.insert(cacheKey, path);
+			return path;
 		}
 		if (file.isDir()) {
-			auto retStr = findFileInResources(file.absoluteFilePath(), key);
+			const QString retStr = findFileInResources(file.absoluteFilePath(), key);
 			if (!retStr.isEmpty()) {
+				s_resourceFileCache.insert(cacheKey, retStr);
 				return retStr;
 			}
 		}
@@ -306,7 +318,7 @@ void loadPixmap(QPixmap &pix, const QString &pixmapPath, const QSize &pixSize)
 	} else {
 		if (!pix.load(pixmapPath)) {
 			pix.load(pixmapPath, "PNG");
-			PRE_LOG_MSG(QString("error when load image: " + QFileInfo(pixmapPath).fileName() + " , may be the image suffix is not right").toStdString().c_str(), INFO)
+			PRE_LOG_MSG(QString("error when load image: " + QFileInfo(pixmapPath).fileName() + " , may be the image suffix is not right").toUtf8().constData(), INFO)
 		}
 	}
 }
@@ -344,7 +356,7 @@ QString getChannelCacheFilePath()
 
 QString getChannelCacheDir()
 {
-	QString ret = pls_get_user_path(QCoreApplication::applicationName() + QDir::separator() + "Cache");
+	QString ret = pls_get_app_user_data_dir_path_pn(QStringLiteral("/Cache"));
 
 	if (QDir dir(ret); !dir.exists(ret)) {
 		dir.mkpath(ret);
@@ -358,8 +370,7 @@ QString getChannelCacheDir()
 
 QString getTmpCacheDir()
 {
-	static QTemporaryDir dir;
-	return dir.path();
+	return pls_get_temp_dir("PRISMLiveStudio");
 }
 
 const QStringList getDefaultPlatforms()
@@ -465,7 +476,7 @@ QString guessPlatformFromRTMP(const QString &rtmpUrl)
 	if (auto retIte = std::find_if(rtmpInfos.constBegin(), rtmpInfos.constEnd(), isUrlMatched); retIte != rtmpInfos.constEnd()) {
 		return retIte.key();
 	}
-	auto apiTwitchServers = PLSLoginDataHandler::instance()->getTwitchServer();
+	auto apiTwitchServers = PLSInitApiFlow::instance()->getTwitchServer();
 	for (auto pair : apiTwitchServers) {
 		if (rtmpUrl.contains(pair.second)) {
 			return TWITCH;
@@ -487,6 +498,51 @@ QString guessPlatformFromRTMP(const QString &rtmpUrl)
 	}
 
 	return QString(CUSTOM_RTMP);
+}
+
+bool checkRtmpUrlIsValid(const QString &channelName, QString &rtmpUrl)
+{
+	if (channelName == CUSTOM_RTMP || channelName == CUSTOM_SRT || channelName == CUSTOM_RIST) {
+		return true;
+	}
+
+	auto syncChannelName = channelName;
+	if (0 == channelName.compare(QStringLiteral("naver shopping live"), Qt::CaseInsensitive))
+		syncChannelName = QStringLiteral("NAVER Shopping LIVE"); // same as sync config
+
+	auto configUrl = PLSCHANNELS_API->getRTMPInfos().value(syncChannelName);
+	if (configUrl.endsWith('/')) {
+		configUrl = configUrl.chopped(1);
+	}
+	if (rtmpUrl.endsWith('/')) {
+		rtmpUrl = rtmpUrl.chopped(1);
+	}
+	auto containsInServers = [rtmpUrl](const QList<QPair<QString, QString>> &servers) {
+		for (const auto &pair : servers) {
+			if (rtmpUrl.contains(pair.second)) {
+				return true;
+			}
+		}
+		return false;
+	};
+	if (rtmpUrl.compare(configUrl) == 0) {
+		return true;
+	} else if (channelName == TWITCH) {
+		auto apiTwitchServers = PLSInitApiFlow::instance()->getTwitchServer();
+		if (containsInServers(apiTwitchServers)) {
+			return true;
+		}
+		auto obsTwitchServers = getObsServer(TWITCH_SERVICE);
+		if (containsInServers(obsTwitchServers)) {
+			return true;
+		}
+	} else if (channelName == YOUTUBE) {
+		auto obsYoutubeServers = getObsServer(YOUTUBE_RTMP);
+		if (containsInServers(obsYoutubeServers)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool isPlatformOrderLessThan(const QString &left, const QString &right)
@@ -605,7 +661,7 @@ QString toPlatformCodeID(const QString &srcName, bool toKeepSRC)
 
 QList<QPair<QString, QString>> initTwitchServer()
 {
-	auto apiTwitchServerList = PLSLoginDataHandler::instance()->getTwitchServer();
+	auto apiTwitchServerList = PLSInitApiFlow::instance()->getTwitchServer();
 	if (apiTwitchServerList.size() > 0) {
 		GlobalVars::g_bUseAPIServer = true;
 		return apiTwitchServerList;
@@ -655,9 +711,8 @@ void ChannelsNetWorkPretestWithAlerts(const pls::http::Reply &reply, bool notify
 
 	auto errorValue = reply.error();
 	auto statusCode = reply.statusCode();
-	PLSErrorHandler::ExtraData exData;
 	QString method = reply.request().method().constData();
-	exData.urlEn = method + reply.request().originalUrl().path();
+	PLSErrorHandler::ExtraData exData(method + reply.request().originalUrl().path());
 
 	auto retData = PLSErrorHandler::getAlertString({statusCode, errorValue, reply.data()}, CUSTOM_RTMP, "", exData);
 	if (retData.prismCode == PLSErrorHandler::CHANNEL_CUSTOM_RTMP_TOKEN_EXPIRED) {

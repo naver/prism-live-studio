@@ -10,6 +10,7 @@
         <file>resource/css/PLSAudioMixer.css</file>
         <file>resource/css/MixerDock.css</file>
         <file>resource/css/PLSAddSourceView.css</file>
+        <file>resource/css/PLSAddSourceGuideView.css</file>
         <file>resource/css/PLSQTDisplay.css</file>
         <file>resource/css/HelpMenu.css</file>
         <file>resource/css/PLSContactView.css</file>
@@ -26,7 +27,6 @@
         <file>resource/css/ScrollAreaWithNoDataTip.css</file>
         <file>resource/css/PLSAboutView.css</file>
         <file>resource/css/PLSUpdateView.css</file>
-        <file>resource/css/PLSNoticeView.css</file>
         <file>resource/css/PLSDrawPenView.css</file>
         <file>resource/css/PLSPropertiesView.css</file>
         <file>resource/css/PLSBasicProperties.css</file>
@@ -126,6 +126,11 @@
         <file>resource/css/PLSDualOutputTitle.css</file>
         <file>resource/css/PLSBubbleTips.css</file>
         <file>resource/css/PLSBasicUsageGuideDlg.css</file>
-        <file>resource/css/PLSPaidToastPopup.css</file>
+        <file>resource/css/PLSNCB2bBrowserDockContent.css</file>
+        <file>resource/css/PLSOnBoardingDlg.css</file>
+        <file>resource/css/PLSUpdateStickerGuideView.css</file>
+        <file>resource/css/PLSStickerToastFrame.css</file>        
+        <file>resource/css/PLSNoticePopupDialog.css</file>        
+        <file>resource/css/PLSNoticeUpdateCenterDialog.css</file>
     </qresource>
 </RCC>

@@ -1,6 +1,8 @@
 #include "PLSNCB2bBroSettingsItem.h"
 #include "libui.h"
 #include "liblog.h"
+#include "login-user-info.hpp"
+#include "libutils-api.h"
 #include <QDesktopServices>
 
 #include "ui_PLSNCB2bBroSettingsItem.h"
@@ -27,18 +29,14 @@ const PLSNCB2bBrowserSettingData &PLSNCB2bBroSettingsItem::getData()
 void PLSNCB2bBroSettingsItem::setChecked(bool checked)
 {
 	ui->selectedBtn->setChecked(checked);
-	pls_flush_style(ui->selectedBtn, "checked", checked);
 }
 
 void PLSNCB2bBroSettingsItem::initUI()
 {
 	ui->selectedBtn->setCheckable(true);
 	ui->selectedBtn->setChecked(data.selected);
-	connect(ui->selectedBtn, &QPushButton::toggled, this, [this](bool checked) {
-		pls_flush_style(ui->selectedBtn, "checked", checked);
-		emit itemSelected(checked);
-	});
-	connect(ui->linkBtn, &QPushButton::clicked, this, [this](bool) { QDesktopServices::openUrl(data.url); });
+	connect(ui->selectedBtn, &QPushButton::toggled, this, [this](bool checked) { emit itemSelected(checked); });
+	connect(ui->linkBtn, &QPushButton::clicked, this, [this](bool) { pls_async_invoke([this]() { QDesktopServices::openUrl(QUrl(data.url, QUrl::TolerantMode)); }); });
 
 	ui->realNameLabel->SetText(data.title);
 	QFontMetrics font(ui->realUrlLabel->font());
@@ -111,5 +109,27 @@ bool PLSNCB2bBroSettingsManager::getSelected(const PLSNCB2bBrowserSettingData &d
 	if (iter != datas.end()) {
 		return (*iter).selected;
 	}
-	return false;
+	return true;
+}
+
+QList<PLSNCB2bBrowserSettingData> PLSNCB2bBroSettingsManager::parseSupportUrls(const QJsonObject &obj)
+{
+	QList<PLSNCB2bBrowserSettingData> datas;
+	for (auto key : obj.keys()) {
+		PLSNCB2bBrowserSettingData data;
+		data.title = getDisplayTitle(key);
+		auto value = obj.value(key);
+		if (value.isDouble()) {
+			data.url = QString::number(value.toInteger());
+		} else {
+			data.url = value.toString();
+		}
+		datas.push_back(data);
+	}
+	return datas;
+}
+
+QString PLSNCB2bBroSettingsManager::getDisplayTitle(const QString &title)
+{
+	return PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName() + "_" + title;
 }

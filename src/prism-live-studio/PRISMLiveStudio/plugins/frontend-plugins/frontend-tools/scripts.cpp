@@ -87,6 +87,7 @@ static OBSPlainTextEdit *scriptLogWidget = nullptr;
 
 ScriptLogWindow::ScriptLogWindow() : PLSDialogView(nullptr)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	pls_add_css(this, {"ScriptLogWindow"});
 	OBSPlainTextEdit *edit = new OBSPlainTextEdit();
 	edit->setReadOnly(true);
@@ -123,6 +124,7 @@ ScriptLogWindow::ScriptLogWindow() : PLSDialogView(nullptr)
 	setWindowTitle(obs_module_text("ScriptLogWindow"));
 
 	connect(edit->verticalScrollBar(), &QAbstractSlider::sliderMoved, this, &ScriptLogWindow::ScrollChanged);
+	pls_uistep_v2_auto_bind(this);
 }
 
 ScriptLogWindow::~ScriptLogWindow()
@@ -180,6 +182,7 @@ void ScriptLogWindow::Clear()
 
 ScriptsTool::ScriptsTool(QWidget *parent) : PLSDialogView(parent), ui(new Ui_ScriptsTool)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	this->setupUi(ui);
 	pls_add_css(this, {"ScriptsTool"});
 	initSize(970, 700);
@@ -209,6 +212,12 @@ ScriptsTool::ScriptsTool(QWidget *parent) : PLSDialogView(parent), ui(new Ui_Scr
 	ui->scripts->setCurrentRow(row);
 
 	connect(ui->closebtn, &QPushButton::clicked, this, &ScriptsTool::close);
+	pls_uistep_v2_set_custom_enter_leave_name(ui->addScripts, "Add Scripts");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->removeScripts, "Remove Scripts");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->reloadScripts, "Reload Scripts");
+	pls_uistep_v2_set_custom_show_hide_name(ui->scriptsTab, "Scripts Page");
+	pls_uistep_v2_set_custom_show_hide_name(ui->pythonSettingsTab, "Python Settings Page");
+	pls_uistep_v2_auto_bind(this);
 }
 
 void ScriptsTool::showEvent(QShowEvent *event)
@@ -380,6 +389,7 @@ void ScriptsTool::on_removeScripts_clicked()
 	for (QListWidgetItem *item : items)
 		RemoveScript(item->data(Qt::UserRole).toString().toUtf8().constData());
 	RefreshLists();
+	PLS_UI_ACTION("Remove Script Finished");
 }
 
 void ScriptsTool::on_reloadScripts_clicked()
@@ -389,6 +399,7 @@ void ScriptsTool::on_reloadScripts_clicked()
 		ReloadScript(item->data(Qt::UserRole).toString().toUtf8().constData());
 
 	on_scripts_currentRowChanged(ui->scripts->currentRow());
+	PLS_UI_ACTION("Reload Script Finished");
 }
 
 void ScriptsTool::OpenScriptParentDirectory()
@@ -399,6 +410,7 @@ void ScriptsTool::OpenScriptParentDirectory()
 		dir.cdUp();
 		QDesktopServices::openUrl(QUrl::fromLocalFile(dir.absolutePath()));
 	}
+	PLS_UI_ACTION("Open Location File Finished");
 }
 
 void ScriptsTool::on_scripts_customContextMenuRequested(const QPoint &pos)
@@ -419,6 +431,7 @@ void ScriptsTool::on_scripts_customContextMenuRequested(const QPoint &pos)
 		popup.addSeparator();
 		popup.addAction(tr("Remove"), this, &ScriptsTool::on_removeScripts_clicked);
 	}
+	pls_uistep_v2_set_custom_show_hide_name(&popup, "Scripts Context Menu");
 	obs_frontend_pop_ui_translation();
 
 	popup.exec(QCursor::pos());
@@ -427,10 +440,13 @@ void ScriptsTool::on_scripts_customContextMenuRequested(const QPoint &pos)
 void ScriptsTool::on_editScript_clicked()
 {
 	int row = ui->scripts->currentRow();
-	if (row == -1)
+	if (row == -1) {
+		PLS_UI_ACTION("Edit Script Finished");
 		return;
+	}
 	QUrl url = QUrl::fromLocalFile(ui->scripts->item(row)->data(Qt::UserRole).toString());
 	QDesktopServices::openUrl(url);
+	PLS_UI_ACTION("Edit Script Finished");
 }
 
 void ScriptsTool::on_scriptLog_clicked()
@@ -492,6 +508,7 @@ void ScriptsTool::on_scripts_currentRowChanged(int row)
 		propertiesView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 		ui->propertiesLayout->addWidget(propertiesView);
 		ui->description->setText(QString());
+		PLS_UI_ACTION("Select Script List Item Finish");
 		return;
 	}
 
@@ -501,6 +518,7 @@ void ScriptsTool::on_scripts_currentRowChanged(int row)
 	obs_script_t *script = scriptData->FindScript(path);
 	if (!script) {
 		propertiesView = nullptr;
+		PLS_UI_ACTION("Select Script List Item Finish");
 		return;
 	}
 
@@ -511,15 +529,18 @@ void ScriptsTool::on_scripts_currentRowChanged(int row)
 	propertiesView = _propertiesView;
 	ui->propertiesLayout->addWidget(propertiesView);
 	ui->description->setText(obs_script_get_description(script));
+	PLS_UI_ACTION("Select Script List Item Finish");
 }
 
 void ScriptsTool::on_defaults_clicked()
 {
 	QListWidgetItem *item = ui->scripts->currentItem();
-	if (!item)
+	if (!item) {
+		PLS_UI_ACTION("Set Script Defaults Finished");
 		return;
-
+	}
 	SetScriptDefaults(item->data(Qt::UserRole).toString().toUtf8().constData());
+	PLS_UI_ACTION("Set Script Defaults Finished");
 }
 
 void ScriptsTool::on_description_linkActivated(const QString &link)

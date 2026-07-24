@@ -15,6 +15,7 @@ public:
 	~PLSErrorCodeTransformTool();
 private slots:
 	void startTransform();
+	void testPrismCodeAlert();
 
 private:
 	Ui::PLSErrorCodeTransformTool *ui;

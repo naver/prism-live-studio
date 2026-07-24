@@ -106,6 +106,7 @@ ChatTemplate::ChatTemplate(QButtonGroup *buttonGroup, int id, const QString text
 	vlayout->setAlignment(Qt::AlignHCenter);
 	m_icon->setAlignment(Qt::AlignHCenter);
 	this->setLayout(vlayout);
+	pls_uistep_v2_custom(this, PLS_UI_STEPS_V2_SIGNAL_CLICKED, PLS_UI_STEPS_V2_ACTION_CHOOSE, QStringLiteral("template"), m_editName.c_str());
 }
 
 void ChatTemplate::updateTemplateRes(const QString &iconPath)
@@ -148,9 +149,13 @@ void ChatTemplate::createFrame(bool isEdit)
 	btn1->setObjectName("chatTemplateRemoveBtn");
 	auto btn2 = pls_new<QPushButton>();
 	btn2->setObjectName("chatTemplateEditBtn");
+	pls_uistep_v2_custom(btn1, QStringLiteral("clicked"), QStringLiteral("clicked"), m_editName.c_str(), QStringLiteral("Remove"));
+	pls_uistep_v2_custom(btn2, QStringLiteral("clicked"), QStringLiteral("clicked"), m_editName.c_str(), QStringLiteral("Edit"));
+
 	connect(btn1, &QPushButton::clicked, [this]() {
-		if (PLSAlertView::Button::Ok == PLSAlertView::information(this, tr("Alert.Title"), QString(tr("Ct.Remove.Custom.Template")).arg(m_editName.c_str()),
-									  PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel, PLSAlertView::Button::Ok)) {
+		PLSErrorHandler::ExtraData extraData("ChatTemplate");
+		extraData.defaultArg = {m_editName.c_str()};
+		if (PLSAlertView::Button::Ok == PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_SOURCE_REMOVE_TEMPLATE, PLSErrKeyAllAlert, {}, extraData).clickedBtn) {
 			emit resetSourceProperties(property("ID").toInt());
 			pls_get_chat_template_helper_instance()->removeCustomTemplate(property("ID").toInt());
 		}
@@ -176,7 +181,7 @@ void ChatTemplate::createFrame(bool isEdit)
 	layout2->addWidget(btn2);
 	layout->addLayout(layout2);
 
-	connect(btn2, &QPushButton::clicked, [this]() {
+	connect(btn2, &QPushButton::clicked, [this, btn1, btn2]() {
 		auto tmpEditName = m_editName;
 		for (;;) {
 			bool accepted = PLSNameDialog::AskForName(this, QObject::tr("ChatTemplate.Rename.Title"), QObject::tr("ChatTemplate.Rename.Content"), m_editName, QT_UTF8(m_editName.c_str()));
@@ -185,20 +190,21 @@ void ChatTemplate::createFrame(bool isEdit)
 			}
 
 			if (m_editName.empty()) {
-				OBSMessageBox::warning(this, QObject::tr("Alert.Title"), QObject::tr("NoNameEntered.Text"));
+				PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHATSOURCE_NO_NAME, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("ChatTemplate"));
 				continue;
 			}
 			bool isExist = isChatTemplateNameExist(m_editName.c_str());
 
 			if (isExist) {
-				OBSMessageBox::warning(this, QObject::tr("Alert.Title"), QObject::tr("ChatTemplate.Rename.Exist"));
+				PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHATSOURCE_RENAME_EXIST, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("ChatTemplate"));
 				continue;
 			}
 			if (!pls_get_chat_template_helper_instance())
 				return;
 			pls_get_chat_template_helper_instance()->updateCustomTemplateName(m_editName.c_str(), property("ID").toInt());
 			QString elidedText = this->fontMetrics().elidedText(m_editName.c_str(), Qt::ElideRight, CTTEMPLATETEXTWIDTH);
-
+			pls_uistep_v2_set_name(btn1, QStringLiteral("clicked"), m_editName.c_str());
+			pls_uistep_v2_set_name(btn2, QStringLiteral("clicked"), m_editName.c_str());
 			m_textLabel->setText(elidedText);
 			return;
 		}
@@ -234,7 +240,7 @@ void ChatTemplate::showEvent(QShowEvent *event)
 	}
 	if (m_paidIcon) {
 		m_paidIcon->move(6, 6);
-		m_paidIcon->setVisible(!m_iconPath.isEmpty());
+		m_paidIcon->setVisible(false);
 		m_paidIcon->raise();
 	}
 	if (m_enableLabel) {
@@ -332,17 +338,21 @@ bool TMTextAlignBtn::event(QEvent *e)
 	return QPushButton::event(e);
 }
 
-ImageButton::ImageButton(QButtonGroup *buttonGroup, pls_image_style_type type, QString pixpath, int id, bool checked)
+ImageButton::ImageButton(pls_image_style_type type, QString pixpath, int id, bool checked)
 {
 	setObjectName(common::OBJECT_NAME_IMAGE_GROUP);
 	setProperty("type", type);
 	setProperty("id", id);
 	setCheckable(true);
-	setChecked(checked);
-	pls_flush_style_recursive(this, "checked", checked);
-	buttonGroup->addButton(this, id);
+	updateCheckedState(checked);
 	if (!pixpath.isEmpty())
 		this->bgPixmap.load(pixpath);
+}
+
+void ImageButton::updateCheckedState(bool checked)
+{
+	setChecked(checked);
+	pls_flush_style_recursive(this, "checked", checked);
 }
 
 void ImageButton::paintEvent(QPaintEvent *event)
@@ -365,7 +375,7 @@ void ImageButton::paintEvent(QPaintEvent *event)
 	QPushButton::paintEvent(event);
 }
 
-BorderImageButton::BorderImageButton(QButtonGroup *buttonGroup, pls_image_style_type type, QString extraStr, int id, bool checked, bool isBgImg) : m_isBgImg(isBgImg)
+BorderImageButton::BorderImageButton(pls_image_style_type type, QString extraStr, int id, bool checked, bool isBgImg) : m_isBgImg(isBgImg)
 {
 	auto horizontalLayout = pls_new<QHBoxLayout>();
 	horizontalLayout->setContentsMargins(0, 0, 0, 0);
@@ -388,10 +398,14 @@ BorderImageButton::BorderImageButton(QButtonGroup *buttonGroup, pls_image_style_
 	setProperty("type", type);
 	setProperty("id", id);
 	setCheckable(true);
-	setChecked(checked);
 	setAutoExclusive(true);
+	updateCheckedState(checked);
+}
+
+void BorderImageButton::updateCheckedState(bool checked)
+{
+	setChecked(checked);
 	pls_flush_style_recursive(this, "checked", checked);
-	buttonGroup->addButton(this, id);
 }
 
 QString BorderImageButton::getTabButtonCss(const QString &objectName, int idx, QString url) const
@@ -446,7 +460,7 @@ void BorderImageButton::paintEvent(QPaintEvent *event)
 	painter.restore();
 }
 
-ImageAPNGButton::ImageAPNGButton(QButtonGroup *buttonGroup, pls_image_style_type type, QString url, int id, bool checked, QSize scaleSize)
+ImageAPNGButton::ImageAPNGButton(pls_image_style_type type, QString url, int id, bool checked, QSize scaleSize)
 {
 	auto horizontalLayout = pls_new<QHBoxLayout>();
 	horizontalLayout->setContentsMargins(0, 0, 0, 0);
@@ -476,10 +490,14 @@ ImageAPNGButton::ImageAPNGButton(QButtonGroup *buttonGroup, pls_image_style_type
 	setProperty("type", type);
 	setProperty("id", id);
 	setCheckable(true);
-	setChecked(checked);
 	setAutoExclusive(true);
+	updateCheckedState(checked);
+}
+
+void ImageAPNGButton::updateCheckedState(bool checked)
+{
+	setChecked(checked);
 	pls_flush_style_recursive(this, "checked", checked);
-	buttonGroup->addButton(this, id);
 }
 
 CameraVirtualBackgroundStateButton::CameraVirtualBackgroundStateButton(const QString &buttonText, QWidget *parent, const std::function<void()> &clicked) : QFrame(parent)
@@ -621,7 +639,7 @@ FontSelectionWindow::FontSelectionWindow(const QList<ITextMotionTemplateHelper::
 	auto flowLayout = pls_new<FlowLayout>(0, 5, 10);
 	moreFrame->setLayout(flowLayout);
 	moreFrame->hide();
-
+	pls_uistep_v2_set_custom_show_hide_name(moreFrame, "Font more Frame");
 	auto btnGroup = pls_new<QButtonGroup>(this);
 	connect(btnGroup, &QButtonGroup::idClicked, this, [btnGroup, this](int id) { clickFontBtn(btnGroup->button(id)); });
 
@@ -631,6 +649,7 @@ FontSelectionWindow::FontSelectionWindow(const QList<ITextMotionTemplateHelper::
 	for (int i = 0; i < count; i++) {
 		auto family = families[i];
 		auto btn = pls_new<FontButton>(family.buttonResourceStr, family.buttonWidth);
+		pls_uistep_v2_set_value(btn, QStringLiteral("*"), family.qtFamilyText);
 		btn->setProperty("qtFamily", family.qtFamilyText);
 		btn->setCheckable(true);
 		btn->setChecked(selectFamily == family.qtFamilyText);
@@ -644,6 +663,7 @@ FontSelectionWindow::FontSelectionWindow(const QList<ITextMotionTemplateHelper::
 	flowLayout->showLayoutItemWidget();
 
 	auto moreBtn = pls_new<QPushButton>();
+	pls_uistep_v2_set_value(moreBtn, QStringLiteral("*"), QStringLiteral("More Fonts"));
 	hLayout->addWidget(moreBtn);
 	hLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Fixed));
 
@@ -720,7 +740,14 @@ NewFlagButton::NewFlagButton(bool isNew, QWidget *parent) : m_isNewFlag(isNew)
 		m_newLabel = pls_new<QLabel>(this);
 		setObjectName("newFlagButton");
 		m_newLabel->setObjectName("newLabel");
+		m_newLabel->setFixedSize(34, 16);
 	}
+	setupConnections();
+}
+
+void NewFlagButton::setupConnections()
+{
+	disconnect(this, &QPushButton::clicked, this, nullptr);
 	connect(this, &QPushButton::clicked, this, [this]() {
 		if (!m_newLabel)
 			return;
@@ -730,12 +757,28 @@ NewFlagButton::NewFlagButton(bool isNew, QWidget *parent) : m_isNewFlag(isNew)
 	});
 }
 
-void NewFlagButton::showEvent(QShowEvent *event)
+QSize NewFlagButton::sizeHint() const
 {
-	QPushButton::showEvent(event);
+	return minimumSizeHint();
+}
+
+QSize NewFlagButton::minimumSizeHint() const
+{
+	QFont f = font();
+	f.setBold(true);
+	QFontMetrics fm(f);
+	auto s = fm.size(Qt::TextSingleLine, text());
+	auto langShort = pls_get_current_language_short_str();
+	auto spacing = pls_is_equal(langShort, "ko") || pls_is_equal(langShort, "ja") ? 4 : 0;
+
+	return QSize(s.width() + (m_newLabel ? (m_newLabel->width() + spacing) : 0), s.height());
+}
+
+void NewFlagButton::resizeEvent(QResizeEvent *event)
+{
+	QPushButton::resizeEvent(event);
 	if (m_newLabel) {
 		m_newLabelShowed = true;
-		m_newLabel->setFixedSize(34, 16);
 		m_newLabel->move(width() - m_newLabel->width(), (height() - m_newLabel->height()) / 2);
 		m_newLabel->raise();
 		m_newLabel->show();

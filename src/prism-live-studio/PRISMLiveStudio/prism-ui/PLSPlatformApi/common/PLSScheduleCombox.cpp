@@ -10,6 +10,8 @@ using namespace std;
 
 PLSScheduleCombox::PLSScheduleCombox(QWidget *parent) : QPushButton(parent)
 {
+	PLS_PERFORMANCE_GLOBAL_START("PLSScheduleCombox::constructor", "PLSLiveInfoNaverShoppingLIVE::setupUi");
+
 	pls_add_css(this, {"PLSScheduleCombox"});
 	auto buttonLayout = pls_new<QHBoxLayout>(this);
 	buttonLayout->setContentsMargins(0, 0, 0, 0);
@@ -58,6 +60,10 @@ PLSScheduleCombox::PLSScheduleCombox(QWidget *parent) : QPushButton(parent)
 
 	connect(m_scheduleMenu, &PLSScheduleComboxMenu::aboutToHide, [this]() { updateStyle(PLSScheduleComboxType::Ty_Normal); });
 	connect(m_scheduleMenu, &PLSScheduleComboxMenu::aboutToShow, [this]() { updateStyle(PLSScheduleComboxType::Ty_On); });
+	pls_uistep_v2_custom(this, QStringLiteral("menuItemClicked"), PLS_UI_STEPS_V2_ACTION_CHOOSE, "Schedule Menu", [this]() -> QString { return m_scheduleMenu->getSelectedType(); });
+
+	pls_uistep_v2_custom(this, QStringLiteral("pressed"), PLS_UI_STEPS_V2_ACTION_CLICK, "Schedule", [this]() -> QString { return "Button"; });
+	PLS_PERFORMANCE_GLOBAL_END("PLSScheduleCombox::constructor");
 }
 
 void PLSScheduleCombox::setupTimer()
@@ -113,6 +119,7 @@ void PLSScheduleCombox::showScheduleMenu(const vector<PLSScheComboxItemData> &da
 	if (m_scheduleMenu->isHidden()) {
 		updateStyle(PLSScheduleComboxType::Ty_On);
 		m_scheduleMenu->show();
+		PLS_UI_ACTION("Schedule menu was displayed.");
 		m_scheduleMenu->setHeightAfterShow(this->width());
 		QPoint p = this->mapToGlobal(QPoint(0, this->height()));
 		m_scheduleMenu->move(p);

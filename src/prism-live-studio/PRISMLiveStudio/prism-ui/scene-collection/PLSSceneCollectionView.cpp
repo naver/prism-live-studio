@@ -43,25 +43,31 @@ PLSSceneCollectionListView::PLSSceneCollectionListView(QWidget *parent) : QListV
 
 PLSSceneCollectionView::PLSSceneCollectionView(QWidget *parent) : PLSDialogView(parent)
 {
+	PLS_DISABLE_UISTEP_V2(this);
+
 	ui = pls_new<Ui::PLSSceneCollectionView>();
 	setupUi(ui);
+	pls_uistep_v2_set_title(this, QStringLiteral("Scene Set Management"));
 
 	this->setWindowTitle(QTStr("Scene.Collection.View.Management"));
 	ui->stackedWidget->setCurrentWidget(ui->itemPage);
 	ui->searchListView->SetEnableDrops(false);
 	ui->listView->SetEnableDrops(true);
+	ui->winHelpLabel->setProperty("ignoreHideToolTip", true);
 
 #if defined(Q_OS_MACOS)
-	setFixedSize(QSize(870, 630));
+	setFixedSize(QSize(870, 670 - PLS_TITLE_BAR_HEIGHT));
 #elif defined(Q_OS_WIN)
 	setFixedSize(QSize(870, 670));
 #endif
-
+	setResizeEnabled(false);
+	pls_uistep_v2_set_value(ui->sceneTemplateButton, QStringLiteral("Select Scene Template"));
 	ui->newButton->setDisplayText(QTStr("Scene.Collection.View.Add"));
 	ui->importButton->setDisplayText(QTStr("Scene.Collection.View.Import"));
 	ui->importButton->setShowOverlay(true);
 	ui->winHelpLabel->installEventFilter(this);
 	ui->winHelpLabel->setHandleTooltip(false);
+	pls_uistep_v2_set_custom_enter_leave_name(ui->winHelpLabel, "Scene set help icon");
 	ui->tipLabel->setText(QTStr("Scene.Collection.View.Management").append(" Tip"));
 	connect(ui->newButton, &PLSClickButton::newBtnClicked, this, [this]() { emit newButtonClicked(); });
 	connect(ui->importButton, &PLSClickButton::importFromLocalBtnClicked, this, &PLSSceneCollectionView::OnImportFromLocalButtonClicked);
@@ -70,9 +76,6 @@ PLSSceneCollectionView::PLSSceneCollectionView(QWidget *parent) : PLSDialogView(
 
 	pls_flush_style(ui->searchLineEdit, "usedFor", "collection");
 	pls_add_css(this, {"PLSSceneCollectionView"});
-
-	setAttribute(Qt::WA_AlwaysShowToolTips, true);
-
 	connect(ui->closeBtn, &QPushButton::clicked, this, [this]() { close(); });
 	connect(ui->searchLineEdit, &PLSSearchLineEdit::SearchTrigger, this, &PLSSceneCollectionView::OnSearchTriggerd, Qt::QueuedConnection);
 	connect(ui->searchLineEdit, &PLSSearchLineEdit::textChanged, this, &PLSSceneCollectionView::OnSearchTriggerd, Qt::QueuedConnection);
@@ -143,6 +146,14 @@ void PLSSceneCollectionView::UpdateTimeStampLabel() const
 	if (ui->stackedWidget->currentWidget() == ui->searchPage) {
 		ui->searchListView->UpdateCurrentTimeStampLabel();
 	}
+}
+
+void PLSSceneCollectionView::UpdateMouseLeaveStyle()
+{
+	for (int i = 0; i < ui->listView->Count(); i++) {
+		ui->listView->SetData(i, false, SceneCollectionCustomRole::EnterRole);
+	}
+	ui->listView->UpdateWidgets();
 }
 
 void PLSSceneCollectionView::SetCurrentItem(const QString &name, const QString &path)
@@ -378,7 +389,10 @@ void PLSSceneCollectionListView::mouseMoveEvent(QMouseEvent *event)
 			auto drag = pls_new<QDrag>(this);
 			auto mimeData = pls_new<QMimeData>();
 			startDragIndex = startDragModelIdx.row();
-			mimeData->setData(SCENE_COLLECTION_DRAG_MIME_TYPE, QByteArray(QString::number(startDragIndex).toStdString().c_str()));
+			mimeData->setData(SCENE_COLLECTION_DRAG_MIME_TYPE, QByteArray(QString::number(startDragIndex).toUtf8().constData()));
+#ifdef Q_OS_WIN
+			drag->setDragCursor(pls_get_win_custom_drag_pixmap(this), Qt::MoveAction);
+#endif //  Q_OS_WIN
 
 			QRect currentRect = visualRect(this->indexAt(event->pos()));
 			QPixmap pixmap = viewport()->grab(currentRect);
@@ -466,6 +480,9 @@ void PLSSceneCollectionListView::dropEvent(QDropEvent *event)
 void PLSSceneCollectionListView::dragLeaveEvent(QDragLeaveEvent *event)
 {
 	isDraging = false;
+	if (LocalGlobal::dropLineItem) {
+		LocalGlobal::dropLineItem->ClearDropLine();
+	}
 	QListView::dragLeaveEvent(event);
 }
 
@@ -482,6 +499,7 @@ void PLSSceneCollectionView::OnSearchTriggerd(const QString &text) const
 {
 	QSignalBlocker blocker(ui->searchLineEdit);
 	if (text.isEmpty()) {
+		PLS_UI_ACTION("In scene set management window, the search has been triggered and completed.");
 		ui->searchLineEdit->SetDeleteBtnVisible(false);
 		ui->stackedWidget->setCurrentWidget(ui->itemPage);
 		return;
@@ -505,6 +523,7 @@ void PLSSceneCollectionView::OnSearchTriggerd(const QString &text) const
 		ui->stackedWidget->setCurrentWidget(ui->searchPage);
 		UpdateDeleteButtonState();
 	}
+	PLS_UI_ACTION("In scene set management window, the search has been triggered and completed.");
 }
 
 int PLSSceneCollectionView::FindExistedCollectionData(const QVector<PLSSceneCollectionData> &datas, const QString &name, const QString &path) const
@@ -990,10 +1009,12 @@ PLSClickButton::PLSClickButton(QWidget *parent) : QWidget(parent)
 	QPushButton *importFromLocalBtn = pls_new<QPushButton>();
 	importFromLocalBtn->setText(QTStr("Scene.Collection.Import.From.Local.Win"));
 	importFromLocalBtn->setObjectName("importFromLocalBtn");
+	pls_uistep_v2_set_custom_show_hide_name(importFromLocalBtn, "importFromLocalButton");
 	connect(importFromLocalBtn, &QPushButton::clicked, this, [this]() { emit importFromLocalBtnClicked(); });
 	QPushButton *importFromOtherBtn = pls_new<QPushButton>();
 	importFromOtherBtn->setText(QTStr("Scene.Collection.Import.From.Other.Win").replace("PRISM", "OBS"));
 	importFromOtherBtn->setObjectName("importFromOtherBtn");
+	pls_uistep_v2_set_custom_show_hide_name(importFromOtherBtn, "importFromOtherBtn");
 	connect(importFromOtherBtn, &QPushButton::clicked, this, [this]() { emit importFromOtherBtnClicked(); });
 	vLayout1->addWidget(importFromLocalBtn);
 	vLayout1->addWidget(importFromOtherBtn);
@@ -1015,17 +1036,17 @@ void PLSClickButton::setShowOverlay(bool show)
 
 void PLSClickButton::enterEvent(QEnterEvent *event)
 {
+	PLS_UI_ACTION("In scene set management window, the %s button enter event triggered.", textLabel->text().toUtf8().constData());
 	baseContent->setVisible(!showOverlay);
 	overlay->setVisible(showOverlay);
-
 	QWidget::enterEvent(event);
 }
 
 void PLSClickButton::leaveEvent(QEvent *event)
 {
+	PLS_UI_ACTION("In scene set management window, the %s button leave event triggered.", textLabel->text().toUtf8().constData());
 	baseContent->setVisible(true);
 	overlay->setVisible(false);
-
 	QWidget::leaveEvent(event);
 }
 

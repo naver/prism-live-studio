@@ -18,7 +18,7 @@ void CopyFileWorker::doCopyFile(const QString &src, const QString &dest)
 {
 	QString error;
 	if (!pls_copy_file(src, dest, &error)) {
-		PLS_DEBUG(nodeMgrModuleName, "copy %s to %s failed : %s.", src.toStdString().c_str(), dest.toStdString().c_str(), error.toStdString().c_str());
+		PLS_DEBUG(nodeMgrModuleName, "copy %s to %s failed : %s.", src.toUtf8().constData(), dest.toUtf8().constData(), error.toUtf8().constData());
 	}
 	emit copyFinished();
 }
@@ -29,7 +29,7 @@ void CopyFileWorker::doCopyDir(const QString &src, const QString &dest)
 	if (pls_copy_dir(src, dest)) {
 		pls_remove_dir(src);
 	} else {
-		PLS_DEBUG(nodeMgrModuleName, "copy %s to %s failed : %s.", src.toStdString().c_str(), dest.toStdString().c_str(), error.toStdString().c_str());
+		PLS_DEBUG(nodeMgrModuleName, "copy %s to %s failed : %s.", src.toUtf8().constData(), dest.toUtf8().constData(), error.toUtf8().constData());
 	}
 
 	emit copyFinished();
@@ -46,7 +46,7 @@ void CopyFileWorker::doZip(const QString &exportDir, const QString &curName)
 	QString error;
 	bool res = pls::rsm::zip(exportPath, zipPath, &error);
 	if (!res) {
-		PLS_WARN(nodeMgrModuleName, "zip failed : %s.", error.toStdString().c_str());
+		PLS_WARN(nodeMgrModuleName, "zip failed : %s.", error.toUtf8().constData());
 	}
 
 	QDir tempDir(exportPath);
@@ -101,13 +101,13 @@ NodeErrorType PLSNodeManager::loadConfig(const QString &templateName, const QStr
 {
 	auto file = QDir(path).filePath("config.json");
 	if (!QFile::exists(file)) {
-		PLS_WARN(nodeMgrModuleName, "%s/config.json was not existed.", templateName.toStdString().c_str());
+		PLS_WARN(nodeMgrModuleName, "%s/config.json was not existed.", templateName.toUtf8().constData());
 		return NodeErrorType::FileNotExisted;
 	}
 
 	QJsonObject rootObject;
 	if (!pls_read_json(rootObject, file)) {
-		PLS_WARN(nodeMgrModuleName, "get content from %s/config.json failed.", templateName.toStdString().c_str());
+		PLS_WARN(nodeMgrModuleName, "get content from %s/config.json failed.", templateName.toUtf8().constData());
 		return NodeErrorType::FileContentError;
 	}
 
@@ -129,13 +129,12 @@ NodeErrorType PLSNodeManager::loadConfig(const QString &templateName, const QStr
 		return errType;
 	}
 	outputObject["name"] = templateName;
-	outputObject[SCENE_PAID_KEY_NAME] = isPaidSceneTemplate;
 	outputPath = QDir(path).filePath("output.json");
 	QString error;
 	if (pls_write_json(outputPath, outputObject, &error)) {
 		return NodeErrorType::Ok;
 	}
-	PLS_WARN(nodeMgrModuleName, "save json error : %s.", error.toStdString().c_str());
+	PLS_WARN(nodeMgrModuleName, "save json error : %s.", error.toUtf8().constData());
 	return NodeErrorType::SaveFileError;
 }
 
@@ -190,11 +189,11 @@ void PLSNodeManager::initSourceUpgradeInfo()
 	sourceUpdateMap.insert(PRISM_CHAT_SOURCE_ID, PRISM_CHATV2_SOURCE_ID);
 }
 
-void PLSNodeManager::updateSourcePath(bool isPaidSceneTemplate, const QString &originalPath)
+void PLSNodeManager::updateSourcePath(bool /*isPaidSceneTemplate*/, const QString &originalPath)
 {
-	auto trialPath = originalPath;
-	trialPath.replace("\\", "/");
-	PLSNodeManagerPtr->setTemplatesPath(trialPath);
+	auto path = originalPath;
+	path.replace("\\", "/");
+	PLSNodeManagerPtr->setTemplatesPath(path);
 }
 
 NodeErrorType PLSNodeManager::loadNodeInfo(const QString &nodeType, const QJsonObject &content, QJsonObject &output)
@@ -203,24 +202,24 @@ NodeErrorType PLSNodeManager::loadNodeInfo(const QString &nodeType, const QJsonO
 
 	auto iter = nodeMap.find(type);
 	if (iter == nodeMap.end()) {
-		PLS_WARN(nodeMgrModuleName, "node type : %s has not reigstered.", nodeType.toStdString().c_str());
+		PLS_WARN(nodeMgrModuleName, "node type : %s has not reigstered.", nodeType.toUtf8().constData());
 		return NodeErrorType::UnregisterNode;
 	}
 
 	PLSBaseNode *nodeParser = iter.value();
 	if (!nodeParser) {
-		PLS_WARN(nodeMgrModuleName, "node type : %s has not reigstered.", nodeType.toStdString().c_str());
+		PLS_WARN(nodeMgrModuleName, "node type : %s has not reigstered.", nodeType.toUtf8().constData());
 		return NodeErrorType::UnregisterNode;
 	}
 
 	if (!nodeParser->checkSourceRegistered()) {
-		PLS_WARN(nodeMgrModuleName, "id : %s has not found.", nodeParser->getSourceId().toStdString().c_str());
+		PLS_WARN(nodeMgrModuleName, "id : %s has not found.", nodeParser->getSourceId().toUtf8().constData());
 		return NodeErrorType::SourceNotRegistered;
 	}
 
 	if (nodeParser->checkHasUpdate()) {
 		nodeParser->setForceUpdateSource(true);
-		PLS_WARN(nodeMgrModuleName, "id : %s has updated.", nodeParser->getSourceId().toStdString().c_str());
+		PLS_WARN(nodeMgrModuleName, "id : %s has updated.", nodeParser->getSourceId().toUtf8().constData());
 	}
 
 	auto res = nodeParser->load(content);
@@ -276,7 +275,7 @@ SNodeType PLSNodeManager::getNodeTypeById(const QString &sourceId)
 
 SNodeType PLSNodeManager::nodeTypeKeyToValue(const QString &nodeType)
 {
-	return static_cast<NodeType>(QMetaEnum::fromType<NodeType>().keyToValue(nodeType.toStdString().c_str()));
+	return static_cast<NodeType>(QMetaEnum::fromType<NodeType>().keyToValue(nodeType.toUtf8().constData()));
 }
 
 QString PLSNodeManager::nodeTypeValueToKey(NodeType nodeType)
@@ -286,7 +285,7 @@ QString PLSNodeManager::nodeTypeValueToKey(NodeType nodeType)
 
 PLSNodeManager::SceneNodeType PLSNodeManager::sceneNodeTypeKeyToValue(const QString &nodeType)
 {
-	return static_cast<SceneNodeType>(QMetaEnum::fromType<SceneNodeType>().keyToValue(nodeType.toStdString().c_str()));
+	return static_cast<SceneNodeType>(QMetaEnum::fromType<SceneNodeType>().keyToValue(nodeType.toUtf8().constData()));
 }
 
 QString PLSNodeManager::sceneNodeTypeValueToKey(SceneNodeType nodeType)
@@ -449,7 +448,7 @@ bool PLSNodeManager::checkSourceHasUpgrade(const QString &id)
 	if (iter == sourceUpdateMap.end()) {
 		return false;
 	}
-	return (nullptr != obs_source_get_display_name(iter.value().toStdString().c_str()));
+	return (nullptr != obs_source_get_display_name(iter.value().toUtf8().constData()));
 }
 
 SourceUpgradeDefaultInfo PLSNodeManager::getSourceUpgradeDefaultInfo(const QString &id)

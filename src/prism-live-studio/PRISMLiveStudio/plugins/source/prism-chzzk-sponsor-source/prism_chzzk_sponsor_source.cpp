@@ -331,6 +331,10 @@ static void chzzk_sponsor_source_video_render(void *data, gs_effect_t *effect)
 {
 	auto context = (chzzk_sponsor_source *)(data);
 
+	const bool nonlinear_fade = gs_get_color_space() == GS_CS_SRGB;
+	const bool previous = gs_framebuffer_srgb_enabled();
+	gs_enable_framebuffer_srgb(!nonlinear_fade);
+
 	gs_blend_state_push();
 	gs_reset_blend_state();
 
@@ -339,13 +343,21 @@ static void chzzk_sponsor_source_video_render(void *data, gs_effect_t *effect)
 
 	gs_technique_begin(tech);
 	gs_technique_begin_pass(tech, 0);
-	gs_effect_set_texture(gs_effect_get_param_by_name(def_effect, "image"), context->m_source_texture);
+
+	auto param = gs_effect_get_param_by_name(def_effect, "image");
+	if (nonlinear_fade) {
+		gs_effect_set_texture(param, context->m_source_texture);
+	} else {
+		gs_effect_set_texture_srgb(param, context->m_source_texture);
+	}
+
 	gs_draw_sprite(context->m_source_texture, 0, 0, 0);
 
 	gs_technique_end_pass(tech);
 	gs_technique_end(tech);
 
 	gs_blend_state_pop();
+	gs_enable_framebuffer_srgb(previous);
 }
 
 static void chzzk_sponsor_source_render(void *data, obs_source_t *source)

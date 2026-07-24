@@ -3,6 +3,8 @@
 #include "window-basic-main.hpp"
 #include "libui.h"
 #include "pls/pls-dual-output.h"
+#include "pls/pls-action-util.h"
+
 
 Q_DECLARE_METATYPE(OBSScene);
 Q_DECLARE_METATYPE(OBSSceneItem);
@@ -43,6 +45,7 @@ OBSBasicTransform::OBSBasicTransform(OBSSceneItem item, OBSBasic *parent)
 {
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 	setupUi(ui);
+	setWidthResizeEnabled(false);
 	pls_add_css(this, {"OBSBasicTransform"});
 	HookWidget(ui->positionX, DSCROLL_CHANGED, &OBSBasicTransform::OnControlChanged);
 	HookWidget(ui->positionY, DSCROLL_CHANGED, &OBSBasicTransform::OnControlChanged);
@@ -59,9 +62,9 @@ OBSBasicTransform::OBSBasicTransform(OBSSceneItem item, OBSBasic *parent)
 	HookWidget(ui->cropTop, ISCROLL_CHANGED, &OBSBasicTransform::OnCropChanged);
 	HookWidget(ui->cropBottom, ISCROLL_CHANGED, &OBSBasicTransform::OnCropChanged);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
-	HookWidget(ui->cropToBounds, &QCheckBox::checkStateChanged, &OBSBasicTransform::OnControlChanged);
+	HookWidget(ui->cropToBounds, &PLSCheckBox::checkStateChanged, &OBSBasicTransform::OnControlChanged);
 #else
-	HookWidget(ui->cropToBounds, &QCheckBox::stateChanged, &OBSBasicTransform::OnControlChanged);
+	HookWidget(ui->cropToBounds, &PLSCheckBox::stateChanged, &OBSBasicTransform::OnControlChanged);
 #endif
 
 	ui->buttonBox->button(QDialogButtonBox::Close)->setDefault(true);
@@ -72,6 +75,22 @@ OBSBasicTransform::OBSBasicTransform(OBSSceneItem item, OBSBasic *parent)
 	connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &PLSDialogView::reject);
 
 	installEventFilter(CreateShortcutFilter(parent));
+
+	pls_uistep_v2_set_name(ui->positionX, "positionX");
+	pls_uistep_v2_set_name(ui->positionY, "positionY");
+	pls_uistep_v2_set_name(ui->rotation, "rotation");
+	pls_uistep_v2_set_name(ui->sizeX, "sizeX");
+	pls_uistep_v2_set_name(ui->sizeY, "sizeY");
+	pls_uistep_v2_set_name(ui->boundsWidth, "boundsWidth");
+	pls_uistep_v2_set_name(ui->boundsHeight, "boundsHeight");
+	pls_uistep_v2_set_name(ui->cropTop, "cropTop");
+	pls_uistep_v2_set_name(ui->cropBottom, "cropBottom");
+	pls_uistep_v2_set_name(ui->cropLeft, "cropLeft");
+	pls_uistep_v2_set_name(ui->cropRight, "cropRight");
+	pls_uistep_v2_set_name(ui->cropToBounds, "cropToBounds");
+	pls_uistep_v2_set_name(ui->align, "Positional Alignment");
+	pls_uistep_v2_set_name(ui->boundsType, "Bounding Box Type");
+	pls_uistep_v2_set_name(ui->boundsAlign, "Alignment in Bounding Box");
 
 	OBSScene scene = obs_sceneitem_get_scene(item);
 	SetScene(scene);
@@ -193,7 +212,9 @@ void OBSBasicTransform::OBSSceneItemDeselect(void *param, calldata_t *data)
 	obs_sceneitem_t *item = (obs_sceneitem_t *)calldata_ptr(data, "item");
 
 	if (item == window->item) {
-		window->setWindowTitle(QTStr("Basic.TransformWindow.NoSelectedSource"));
+		pls_async_call_mt(window, [window] {
+			window->setWindowTitle(QTStr("Basic.TransformWindow.NoSelectedSource"));
+		});
 		window->SetItem(FindASelectedItem(scene));
 	}
 }
@@ -299,6 +320,7 @@ void OBSBasicTransform::OnBoundsType(int index)
 			ui->boundsWidth->setValue(width);
 			ui->boundsHeight->setValue(height);
 		}
+		PLS_UI_ACTION("Preview Transform Bouding Box Type Changed");
 	}
 
 	OnControlChanged();
@@ -336,7 +358,10 @@ void OBSBasicTransform::OnControlChanged()
 	oti.crop_to_bounds = ui->cropToBounds->isChecked();
 
 	ignoreTransformSignal = true;
+	PLS_UI_ACTION("Preview Transform Other Changed");
+	pls_on_item_attribute_changed(item, EDIT_TRANSFORM, PROPERTY_UI_CHANGED);
 	obs_sceneitem_set_info2(item, &oti);
+	pls_on_item_attribute_changed(item, EDIT_TRANSFORM, PROPERTY_UPDATED); 
 	ignoreTransformSignal = false;
 }
 
@@ -352,7 +377,10 @@ void OBSBasicTransform::OnCropChanged()
 	crop.bottom = uint32_t(ui->cropBottom->value());
 
 	ignoreTransformSignal = true;
+	PLS_UI_ACTION("Preview Transform Crop Changed");
+	pls_on_item_attribute_changed(item, CROP_ITEM, PROPERTY_UI_CHANGED);
 	obs_sceneitem_set_crop(item, &crop);
+	pls_on_item_attribute_changed(item, CROP_ITEM, PROPERTY_UPDATED);  
 	ignoreTransformSignal = false;
 }
 

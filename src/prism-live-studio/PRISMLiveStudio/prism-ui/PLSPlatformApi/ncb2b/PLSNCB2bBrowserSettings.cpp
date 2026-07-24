@@ -17,17 +17,16 @@ PLSNCB2bBrowserSettings::PLSNCB2bBrowserSettings(DialogInfo info, QWidget *paren
 #if defined(Q_OS_WIN)
 	setFixedSize(848, 570);
 #elif defined(Q_OS_MACOS)
-	setFixedSize(848, 542);
+	setFixedSize(848, 570 - PLS_TITLE_BAR_HEIGHT);
 #endif
 
 	setupUi(ui);
 	setResizeEnabled(false);
-	serviceName = PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName();
+	auto serviceName = PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName();
 	setWindowTitle(QTStr("Ncpb2b.Browser.Settings.Title").arg(serviceName));
 	ui->descriptionLabel->setText(QTStr("Ncpb2b.Browser.Settings.Description").arg(serviceName));
 	ui->selectLabel->setVisible(false);
 	ui->stackedWidget->setCurrentWidget(ui->noContentPage);
-	ui->refreshBtn->setAttribute(Qt::WA_AlwaysShowToolTips);
 	ui->refreshBtn->setToolTip(QTStr("Ncpb2b.Browser.Settings.Refresh.Tooltip"));
 	ui->listWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	ui->listWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -41,9 +40,6 @@ PLSNCB2bBrowserSettings::PLSNCB2bBrowserSettings(DialogInfo info, QWidget *paren
 	connect(ui->stackedWidget, &QStackedWidget::currentChanged, this, [this](int index) {
 		updateLogo();
 		updateSelected();
-		if (ui->stackedWidget->currentWidget() == ui->listPage) {
-			updateChecked();
-		}
 	});
 	updateLogo();
 }
@@ -55,7 +51,13 @@ PLSNCB2bBrowserSettings::~PLSNCB2bBrowserSettings()
 
 void PLSNCB2bBrowserSettings::refreshUI()
 {
+	m_needRefreshDock = true;
 	onRefreshButtonClicked();
+}
+
+PLSErrorHandler::ErrCode PLSNCB2bBrowserSettings::getErrorCode()
+{
+	return m_errorCode;
 }
 
 void PLSNCB2bBrowserSettings::closeEvent(QCloseEvent *event)
@@ -66,7 +68,6 @@ void PLSNCB2bBrowserSettings::closeEvent(QCloseEvent *event)
 
 void PLSNCB2bBrowserSettings::showEvent(QShowEvent *event)
 {
-	updateChecked();
 	PLSSideBarDialogView::showEvent(event);
 	App()->getMainView()->updateSideBarButtonStyle(ConfigId::Ncb2bBrowserSettings, true);
 }
@@ -79,29 +80,10 @@ void PLSNCB2bBrowserSettings::hideEvent(QHideEvent *event)
 
 void PLSNCB2bBrowserSettings::onOkButtonClicked()
 {
-	auto basic = OBSBasic::Get();
-	auto docks = basic->getNcb2bCustomDocks();
-
 	PLSNCB2bBroSettingsManager::instance()->setSelected(cacheSelectedDatas);
 	cacheSelectedDatas.clear();
 
-	auto datas = PLSNCB2bBroSettingsManager::instance()->getDatas();
-	if (datas.count() != docks.count()) {
-		PLS_WARN(ncb2bBrowserSettingsModuleName, "ncb2b browser settings item was not Synchronize with docks.");
-		return;
-	}
-	for (int i = 0; i < docks.count(); i++) {
-		auto dock = docks[i].get();
-		if (!dock) {
-			continue;
-		}
-		auto selected = datas[i].selected;
-		dock->blockSignals(true);
-		dock->toggleViewAction()->setChecked(selected);
-		dock->setVisible(selected);
-		dock->setProperty("vis", selected);
-		dock->blockSignals(false);
-	}
+	updateDocks();
 }
 
 void PLSNCB2bBrowserSettings::createItems(const QList<PLSNCB2bBrowserSettingData> &datas)
@@ -122,101 +104,18 @@ void PLSNCB2bBrowserSettings::updateDocks()
 	if (!basic) {
 		return;
 	}
-	auto names = basic->getNcb2bCustomDocksNames();
-	auto docks = basic->getNcb2bCustomDocks();
-	QMap<QString, QByteArray> geometrys;
-	for (int i = 0; i < names.size(); i++) {
-		auto dock = docks[i].get();
-		if (dock) {
-			geometrys.insert(names[i], dock->saveGeometry());
-		}
-	}
 
-	auto selectedDatas = PLSNCB2bBroSettingsManager::instance()->getDatas();
-	if (selectedDatas.count() >= docks.count()) {
-		for (int i = 0; i < docks.count(); i++) {
-			updateDock(selectedDatas[i], i, geometrys.value(selectedDatas[i].title));
-		}
-
-		for (int j = docks.count(); j < selectedDatas.count(); j++) {
-			auto data = selectedDatas[j];
-			auto dock = basic->addNcb2bCustomDock(data.title, data.url, QUuid::createUuid().toString(), true, geometrys.value(data.title));
-			dock->setVisible(data.selected);
-		}
-
-	} else {
-		for (int i = 0; i < selectedDatas.count(); i++) {
-			updateDock(selectedDatas[i], i, geometrys.value(selectedDatas[i].title));
-		}
-		QList<QString> delNames;
-		for (int j = selectedDatas.count(); j < docks.count(); j++) {
-			delNames.push_back(names[j]);
-		}
-		for (auto name : delNames) {
-			basic->RemoveDockWidget(name);
-		}
+	if (auto docks = basic->getNcb2bDock(); docks) {
+		docks->refreshUI(m_errorCode);
 	}
 }
 
-void PLSNCB2bBrowserSettings::updateDock(const PLSNCB2bBrowserSettingData &data, int index, QByteArray geometry)
+void PLSNCB2bBrowserSettings::checkNeedUpdateDocks()
 {
-	auto basic = OBSBasic::Get();
-	if (!basic) {
-		return;
+	if (m_needRefreshDock) {
+		updateDocks();
+		m_needRefreshDock = false;
 	}
-
-	auto docks = basic->getNcb2bCustomDocks();
-	BrowserDock *dock = reinterpret_cast<BrowserDock *>(docks[index].get());
-	if (!dock) {
-		return;
-	}
-	auto names = basic->getNcb2bCustomDocksNames();
-	auto urls = basic->getNcb2bCustomDocksUrls();
-	if (names[index] == data.title && urls[index] == data.url && data.selected == dock->toggleViewAction()->isChecked()) {
-		return;
-	}
-
-	dock->setTitle(data.title);
-	dock->setWindowTitle(data.title);
-	if (!geometry.isEmpty()) {
-		dock->restoreGeometry(geometry);
-	} else {
-		dock->setFloating(true);
-		dock->resize(460, 600);
-
-		QPoint curPos = pos();
-		QSize wSizeD2 = size() / 2;
-		QSize dSizeD2 = dock->size() / 2;
-
-		curPos.setX(curPos.x() + qAbs(wSizeD2.width() - dSizeD2.width()));
-		curPos.setY(curPos.y() + qAbs(wSizeD2.height() - dSizeD2.height()));
-
-		dock->move(curPos);
-	}
-	dock->setVisible(data.selected);
-	dock->setProperty("vis", data.selected);
-	if (names[index] != data.title) {
-		basic->updateNcb2bDockName(index, data.title);
-		dock->toggleViewAction()->setText(data.title);
-		dock->setTitle(data.title);
-		dock->setWindowTitle(data.title);
-	}
-	if (urls[index] != data.url) {
-		dock->cefWidget->setURL(QT_TO_UTF8(data.url));
-		basic->updateNcb2bDockUrl(index, data.url);
-	}
-}
-
-bool PLSNCB2bBrowserSettings::getDockChecked(const QString &title)
-{
-	auto basic = OBSBasic::Get();
-	auto names = basic->getNcb2bCustomDocksNames();
-	auto docks = basic->getNcb2bCustomDocks();
-	if (names.contains(title)) {
-		auto index = names.indexOf(title);
-		return docks[index].get()->toggleViewAction()->isChecked();
-	}
-	return true;
 }
 
 void PLSNCB2bBrowserSettings::updateSelected()
@@ -227,53 +126,13 @@ void PLSNCB2bBrowserSettings::updateSelected()
 	ui->selectLabel->setText(QTStr("Ncpb2b.Browser.Settings.Selected").arg(seletedNumbers));
 }
 
-void PLSNCB2bBrowserSettings::updateChecked()
-{
-	auto count = ui->listWidget->count();
-	for (int i = 0; i < count; i++) {
-		PLSNCB2bBroSettingsItem *item = static_cast<PLSNCB2bBroSettingsItem *>(ui->listWidget->itemWidget(ui->listWidget->item(i)));
-		if (!item) {
-			continue;
-		}
-		auto data = item->getData();
-		bool checked = getDockChecked(data.title);
-		item->setChecked(checked);
-		PLSNCB2bBroSettingsManager::instance()->setSelected(data, checked);
-	}
-
-	cacheSelectedDatas = PLSNCB2bBroSettingsManager::instance()->getDatas(true);
-	seletedNumbers = cacheSelectedDatas.count();
-	updateSelected();
-}
-
-QList<PLSNCB2bBrowserSettingData> PLSNCB2bBrowserSettings::parseSupportUrls(const QJsonObject &obj)
-{
-	QList<PLSNCB2bBrowserSettingData> datas;
-	for (auto key : obj.keys()) {
-		PLSNCB2bBrowserSettingData data;
-		data.title = getDisplayTitle(key);
-		auto value = obj.value(key);
-		if (value.isDouble()) {
-			data.url = QString::number(value.toInt());
-		} else {
-			data.url = value.toString();
-		}
-		data.selected = getDockChecked(data.title);
-		datas.push_back(data);
-	}
-	return datas;
-}
-
-QString PLSNCB2bBrowserSettings::getDisplayTitle(const QString &title)
-{
-	return serviceName + "_" + title;
-}
-
 void PLSNCB2bBrowserSettings::onRefreshButtonClicked()
 {
 	if (!pls_get_network_state()) {
+		m_errorCode = PLSErrorHandler::COMMON_NETWORK_ERROR;
 		ui->noNetworkLabel->setText(QTStr("Ncpb2b.Browser.Settings.No.Network.Desc"));
 		ui->stackedWidget->setCurrentWidget(ui->noNetworkPage);
+		checkNeedUpdateDocks();
 		return;
 	}
 	if (requestExisted) {
@@ -283,14 +142,16 @@ void PLSNCB2bBrowserSettings::onRefreshButtonClicked()
 
 	auto okCallback = [this](const QJsonObject &data) {
 		pls_check_app_exiting();
+		m_errorCode = PLSErrorHandler::SUCCESS;
 		QJsonObject supportUrl = data.value("serviceSupportUrlPc").toObject();
 		if (supportUrl.isEmpty()) {
 			PLS_INFO(ncb2bBrowserSettingsModuleName, "There was no serviceSupportUrlPc field value was retrieved from the api.");
 			updateUI({});
 		} else {
-			QList<PLSNCB2bBrowserSettingData> datas = parseSupportUrls(supportUrl);
+			QList<PLSNCB2bBrowserSettingData> datas = PLSNCB2bBroSettingsManager::instance()->parseSupportUrls(supportUrl);
 			updateUI(datas);
 		}
+		checkNeedUpdateDocks();
 		requestExisted = false;
 	};
 
@@ -298,12 +159,15 @@ void PLSNCB2bBrowserSettings::onRefreshButtonClicked()
 		pls_check_app_exiting();
 		PLS_INFO(ncb2bBrowserSettingsModuleName, "There was some errors was retrieved from the api.");
 		if (retData.prismCode == PLSErrorHandler::CHANNEL_NCP_B2B_1101_SERVICE_DISABLED) {
+			m_errorCode = PLSErrorHandler::CHANNEL_NCP_B2B_1101_SERVICE_DISABLED;
 			ui->noNetworkLabel->setText(QTStr("Ncb2b.Service.Disable.Status"));
 		} else {
+			m_errorCode = PLSErrorHandler::COMMON_NETWORK_ERROR;
 			ui->noNetworkLabel->setText(QTStr("Ncpb2b.Browser.Settings.No.Network.Desc"));
 		}
 
 		ui->stackedWidget->setCurrentWidget(ui->noNetworkPage);
+		checkNeedUpdateDocks();
 		requestExisted = false;
 	};
 	requestExisted = true;
@@ -339,18 +203,19 @@ void PLSNCB2bBrowserSettings::createItem(const PLSNCB2bBrowserSettingData &data)
 
 void PLSNCB2bBrowserSettings::updateUI(const QList<PLSNCB2bBrowserSettingData> &datas)
 {
+	auto oldDatas = PLSNCB2bBroSettingsManager::instance()->getDatas();
 	PLSNCB2bBroSettingsManager::instance()->initDatas(datas);
+	PLSNCB2bBroSettingsManager::instance()->setSelected(oldDatas);
 
 	removeAll();
-	createItems(datas);
+	createItems(PLSNCB2bBroSettingsManager::instance()->getDatas());
 
 	cacheSelectedDatas = PLSNCB2bBroSettingsManager::instance()->getDatas(true);
 	seletedNumbers = cacheSelectedDatas.count();
 
-	updateDocks();
 	updateSelected();
 	updateLogo();
-	if (datas.isEmpty()) {
+	if (PLSNCB2bBroSettingsManager::instance()->getDatas().isEmpty()) {
 		ui->stackedWidget->setCurrentWidget(ui->noContentPage);
 	} else {
 		ui->stackedWidget->setCurrentWidget(ui->listPage);

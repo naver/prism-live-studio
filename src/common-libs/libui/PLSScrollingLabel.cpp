@@ -14,7 +14,7 @@ void PLSScrollingLabel::SetText(const QString &_text)
 {
 	text = _text;
 	UpateRollingStatus();
-	repaint();
+	update();
 }
 
 void PLSScrollingLabel::paintEvent(QPaintEvent *)
@@ -94,5 +94,5 @@ void PLSScrollingLabel::handleScorllingText()
 	if ((txtWidth + spaceWidth) < left)
 		left = 0;
 
-	repaint();
+	update();
 }

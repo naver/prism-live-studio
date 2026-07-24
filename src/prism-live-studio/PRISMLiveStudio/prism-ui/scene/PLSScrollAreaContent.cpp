@@ -16,6 +16,7 @@ PLSScrollAreaContent::PLSScrollAreaContent(QWidget *parent) : QWidget(parent)
 {
 	this->setAcceptDrops(true);
 	setAttribute(Qt::WA_NativeWindow);
+	pls_scroll_area_clips_to_bounds(this);
 
 	timerAutoScroll.setInterval(50);
 	connect(&timerAutoScroll, &QTimer::timeout, this, [this]() { emit DragMoving(0, autoScrollStepValue); });
@@ -28,7 +29,7 @@ PLSScrollAreaContent::~PLSScrollAreaContent()
 
 int PLSScrollAreaContent::Refresh(DisplayMethod displayMethod, bool scrollBarVisible)
 {
-	bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
+	bool gridMode = (displayMethod == DisplayMethod::ThumbnailView);
 	//Calculate how many columns you can put in this view
 	int leftSpacing = gridMode ? SCENE_LEFT_SPACING : SCENE_LIST_MODE_LEFT_SPACING;
 	int minWidth = SCENE_ITEM_FIX_WIDTH + SCENE_ITEM_HSPACING;
@@ -60,11 +61,7 @@ int PLSScrollAreaContent::Refresh(DisplayMethod displayMethod, bool scrollBarVis
 		item->setFixedHeight(realHeight);
 		item->RepaintDisplay();
 		item->show();
-		if (i >= SCENE_RENDER_NUMBER && displayMethod == DisplayMethod::DynamicRealtimeView) {
-			item->SetRenderFlag(false);
-		} else {
-			item->SetRenderFlag(gridMode);
-		}
+		item->SetRenderFlag(gridMode);
 
 		if (item->GetCurrentFlag()) {
 			currentY = (rows + 1) * realHeight;
@@ -120,9 +117,9 @@ void PLSScrollAreaContent::dragMoveEvent(QDragMoveEvent *event)
 	if (event->mimeData()->hasFormat(SCENE_DRAG_MIME_TYPE)) {
 		event->accept();
 		isDrag = true;
-		QString data = event->mimeData()->data(SCENE_DRAG_MIME_TYPE).toStdString().c_str();
-		auto displayMethod = static_cast<DisplayMethod>(atoi(event->mimeData()->data(SCENE_DRAG_GRID_MODE).toStdString().c_str()));
-		bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
+		QString data = event->mimeData()->data(SCENE_DRAG_MIME_TYPE).constData();
+		auto displayMethod = static_cast<DisplayMethod>(atoi(event->mimeData()->data(SCENE_DRAG_GRID_MODE).constData()));
+		bool gridMode = (displayMethod == DisplayMethod::ThumbnailView);
 		int width = data.split(":")[0].toInt();
 		int height = data.split(":")[1].toInt();
 		int row = 0;
@@ -158,9 +155,9 @@ void PLSScrollAreaContent::dropEvent(QDropEvent *event)
 	if (event->mimeData()->hasFormat(SCENE_DRAG_MIME_TYPE)) {
 		event->setDropAction(Qt::MoveAction);
 		event->accept();
-		QString data = event->mimeData()->data(SCENE_DRAG_MIME_TYPE).toStdString().c_str();
-		auto displayMethod = static_cast<DisplayMethod>(atoi(event->mimeData()->data(SCENE_DRAG_GRID_MODE).toStdString().c_str()));
-		bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
+		QString data = event->mimeData()->data(SCENE_DRAG_MIME_TYPE).constData();
+		auto displayMethod = static_cast<DisplayMethod>(atoi(event->mimeData()->data(SCENE_DRAG_GRID_MODE).constData()));
+		bool gridMode = (displayMethod == DisplayMethod::ThumbnailView);
 		int width = data.split(":")[0].toInt();
 		int height = data.split(":")[1].toInt();
 		int x = data.split(":")[2].toInt();
@@ -183,13 +180,28 @@ void PLSScrollAreaContent::dropEvent(QDropEvent *event)
 			columnCount = 1;
 		}
 
-		this->update();
-		gridMode ? PLSSceneDataMgr::Instance()->SwapData(removeRow, removeCol, appendRow, appendCol, columnCount) : PLSSceneDataMgr::Instance()->SwapDataInListMode(removeRow, appendRow);
-		emit DragFinished();
+		// DragFinished is connected with a direct slot to RefreshScene. If isDrag is still true,
+		// that repaint path can paint the insertion line with the drag (yellow) pen, then nothing
+		// schedules another paint after isDrag is cleared, so the yellow line sticks.
 		isDrag = false;
 		timerAutoScroll.stop();
+
+		QString scenesName;
+		if (gridMode) {
+			scenesName = PLSSceneDataMgr::Instance()->SwapData(removeRow, removeCol, appendRow, appendCol, columnCount);
+		} else {
+			scenesName = PLSSceneDataMgr::Instance()->SwapDataInListMode(removeRow, appendRow);
+		}
+		if (!scenesName.isEmpty()) {
+			pls_uistep_v2(this, "Drag", "scene", scenesName);
+		}
+		emit DragFinished();
+		update();
 	} else {
 		event->ignore();
+		isDrag = false;
+		timerAutoScroll.stop();
+		update();
 	}
 }
 

@@ -12,17 +12,18 @@
 #include "libutils-api.h"
 #include "util/platform.h"
 #include "PLSApp.h"
+#include "PLSBlockRecorder.hpp"
 
 #pragma comment(lib, "WinMM.lib")
 #pragma comment(lib, "Shlwapi.lib")
 
-const auto HEARTBEAT_INTERVAL = 500;   // in milliseconds
 const auto SAVE_DUMP_INTERVAL = 10000; // in milliseconds
 const auto MAX_BLOCK_DUMP_COUNT = 3;
 
 #define info(module, format, ...) PLS_INFO(module, "[PLSBlockDump] " format, ##__VA_ARGS__)
 #define warn(module, format, ...) PLS_WARN(module, "[PLSBlockDump] " format, ##__VA_ARGS__)
-#define plslogex(level, module, fields, count, format, ...) PLS_LOGEX(level, module, fields, count, "[PLSBlockDump] " format, ##__VA_ARGS__)
+
+extern std::atomic<bool> exception_happened;
 
 unsigned __stdcall PLSBlockDump::CheckThread(void *pParam)
 {
@@ -58,13 +59,6 @@ void PLSBlockDump::StartMonitor()
 	if (!heartbeatTimer) {
 		heartbeatTimer = this->startTimer(HEARTBEAT_INTERVAL);
 		assert(heartbeatTimer > 0);
-
-		auto app = static_cast<PLSApp *>(QCoreApplication::instance());
-		connect(app, &PLSApp::AppNotify, this, [this](void *obj, void *evt) {
-			preEventTime = GetTickCount();
-			preObject = (DWORD64)obj;
-			preEvent = (DWORD64)evt;
-		});
 	}
 
 	if (!checkBlockThread) {
@@ -103,6 +97,40 @@ void PLSBlockDump::SignExitEvent()
 	::SetEvent(threadExitEvent);
 }
 
+void PLSBlockDump::UpdateNotifyEvent(QObject *obj, QEvent *)
+{
+	preEventTime = GetTickCount64();
+
+	if (!obj)
+		return;
+
+	std::lock_guard<std::recursive_mutex> lock(lockPreName);
+	preObjectName = obj->objectName();
+	preClassName = obj->metaObject()->className();
+}
+
+std::string PLSBlockDump::GetPreviousObject()
+{
+	QString preObject;
+	QString preClass;
+
+	{
+		std::lock_guard<std::recursive_mutex> lock(lockPreName);
+		preObject = preObjectName;
+		preClass = preClassName;
+	}
+
+	if (!preObject.isEmpty() && !preClass.isEmpty()) {
+		auto text = QString("%1::%2").arg(preClass).arg(preObject);
+		return text.toStdString();
+	} else if (!preObject.isEmpty())
+		return preObject.toStdString();
+	else if (!preClass.isEmpty())
+		return preClass.toStdString();
+	else
+		return "unknown";
+}
+
 void PLSBlockDump::InitSavePath()
 {
 	QString temp = pls_get_user_path("PRISMLiveStudio/blockDump/");
@@ -114,14 +142,28 @@ void PLSBlockDump::InitSavePath()
 	}
 }
 
+#define RESET_CHECK                                                                                                                                                                 \
+	{                                                                                                                                                                           \
+		preEventTime = GetTickCount64();                                                                                                                                    \
+		preDumpTime = 0;                                                                                                                                                    \
+		dumpCount = 0;                                                                                                                                                      \
+		recorder.Reset();                                                                                                                                                   \
+		if (isBlocked) {                                                                                                                                                    \
+			isBlocked = false;                                                                                                                                          \
+			pls_add_global_field("blockDumpPath", "", PLS_SET_TAG_CN);                                                                                                  \
+			PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE, {{"UIRecover", GlobalVars::prismSession.c_str()}}, "[PLSBlockDump] %s UI thread recovered and PC may have slept", \
+				  debug_mode ? "[Debug Mode]" : "");                                                                                                                \
+		}                                                                                                                                                                   \
+	}
+
 void PLSBlockDump::CheckThreadInner()
 {
-	preEventTime = GetTickCount();
+	preEventTime = GetTickCount64();
 
 	bool isBlocked = false;
 	int fileIndex = 1;
 	int dumpCount = 0;
-	DWORD preDumpTime = 0;
+	DWORD64 preDumpTime = 0;
 
 #ifdef _DEBUG
 	bool debug_mode = true;
@@ -129,22 +171,45 @@ void PLSBlockDump::CheckThreadInner()
 	bool debug_mode = false;
 #endif
 
-	QString timeoutStr = QString::number(PLSGpopData::instance()->getUIBlockingTimeS());
-	pls_add_global_field("blockTimeoutS", timeoutStr.toStdString().c_str(), PLS_SET_TAG_CN);
+	auto timeoutSec = PLSGpopData::instance()->getUIBlockingTimeS();
+	QString timeoutStr = QString::number(timeoutSec);
+	pls_add_global_field("blockTimeoutS", timeoutStr.toUtf8().constData(), PLS_SET_TAG_CN);
 
 	long previous_state = 0;
 
-	while (!IsHandleSigned(threadExitEvent, HEARTBEAT_INTERVAL)) {
+	PLSBlockRecorder recorder;
+	DWORD64 preLoopTime = GetTickCount64();
 
-		bool blocked = IsBlockState(preEventTime, GetTickCount());
+	while (!exception_happened && !IsHandleSigned(threadExitEvent, HEARTBEAT_INTERVAL)) {
+		if (pls_ignore_render_drop()) {
+			RESET_CHECK;
+			continue;
+		}
+
+		auto crtTime = GetTickCount64();
+		if (crtTime - preLoopTime > (10 * 1000)) {
+			RESET_CHECK;
+		}
+
+		preLoopTime = crtTime;
+
+		bool sreBlocked = IsBlockState(preEventTime.load(std::memory_order_relaxed), crtTime, SRE_BLOCK_TIMEOUT);
+		recorder.UpdateBlockState(sreBlocked, sreBlocked ? GetPreviousObject() : std::string());
+
+		bool blocked = IsBlockState(preEventTime.load(std::memory_order_relaxed), crtTime, timeoutSec * 1000);
 		if (blocked != isBlocked) {
 			isBlocked = blocked;
 			if (blocked) {
-
-				plslogex(PLS_LOG_WARN, MAINFRAME_MODULE, {{"UIBlock", GlobalVars::prismSession.c_str()}}, "%s UI thread is blocked", debug_mode ? "[Debug Mode]" : "");
+				std::string preObj = GetPreviousObject();
+				PLS_LOGEX(PLS_LOG_WARN, MAINFRAME_MODULE,
+					  {
+						  {"UIBlock", GlobalVars::prismSession.c_str()},
+						  {"Position", preObj.c_str()},
+					  },
+					  "[PLSBlockDump] %s UI thread is blocked at %s", debug_mode ? "[Debug Mode]" : "", preObj.c_str());
 			} else {
 				pls_add_global_field("blockDumpPath", "", PLS_SET_TAG_CN);
-				plslogex(PLS_LOG_INFO, MAINFRAME_MODULE, {{"UIRecover", GlobalVars::prismSession.c_str()}}, "%s UI thread recovered", debug_mode ? "[Debug Mode]" : "");
+				PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE, {{"UIRecover", GlobalVars::prismSession.c_str()}}, "[PLSBlockDump] %s UI thread recovered", debug_mode ? "[Debug Mode]" : "");
 			}
 		}
 
@@ -156,13 +221,18 @@ void PLSBlockDump::CheckThreadInner()
 
 		if (dumpCount < MAX_BLOCK_DUMP_COUNT) {
 			DWORD dumpInterval = dumpCount * SAVE_DUMP_INTERVAL;
-			if (GetTickCount() - preDumpTime < dumpInterval) {
+			if (crtTime - preDumpTime < dumpInterval) {
 				continue;
 			}
 
 			std::string path = SaveDumpFile(fileIndex);
 
-			if (IsHandleSigned(threadExitEvent, 0)) {
+			if (pls_ignore_render_drop()) {
+				RESET_CHECK;
+				continue;
+			}
+
+			if (exception_happened || IsHandleSigned(threadExitEvent, 0)) {
 				info(MAINFRAME_MODULE, "Ignore the saved block dump because to exit thread");
 				break;
 			}
@@ -172,7 +242,7 @@ void PLSBlockDump::CheckThreadInner()
 				info(MAINFRAME_MODULE, "blocked dump is sent to log process");
 			}
 
-			preDumpTime = GetTickCount();
+			preDumpTime = GetTickCount64(); // here need to get real current time
 			++fileIndex;
 			++dumpCount;
 		}
@@ -180,7 +250,8 @@ void PLSBlockDump::CheckThreadInner()
 
 	if (isBlocked) {
 		pls_add_global_field("blockDumpPath", "", PLS_SET_TAG_CN);
-		plslogex(PLS_LOG_INFO, MAINFRAME_MODULE, {{"UIRecover", GlobalVars::prismSession.c_str()}}, "%s PRISM is exiting, so we think UI thread recovered", debug_mode ? "[Debug Mode]" : "");
+		PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE, {{"UIRecover", GlobalVars::prismSession.c_str()}}, "[PLSBlockDump] %s PRISM is exiting, so we think UI thread recovered",
+			  debug_mode ? "[Debug Mode]" : "");
 	}
 }
 
@@ -193,14 +264,14 @@ bool PLSBlockDump::IsHandleSigned(const HANDLE &hEvent, DWORD dwMilliSecond) con
 	return (res == WAIT_OBJECT_0);
 }
 
-bool PLSBlockDump::IsBlockState(DWORD preHeartbeat, DWORD currentTime) const
+bool PLSBlockDump::IsBlockState(ULONGLONG preHeartbeat, ULONGLONG currentTime, int timeoutMs) const
 {
 	if (currentTime <= preHeartbeat) {
 		return false; // normal state
 	}
 
-	DWORD heartbeatSpaceS = (currentTime - preHeartbeat) / 1000; // in seconds
-	if (heartbeatSpaceS < (DWORD)PLSGpopData::instance()->getUIBlockingTimeS()) {
+	ULONGLONG heartbeatSpace = (currentTime - preHeartbeat);
+	if (heartbeatSpace < (ULONGLONG)timeoutMs) {
 		return false; // normal state
 	}
 
@@ -235,11 +306,12 @@ std::string PLSBlockDump::SaveDumpFile(int index)
 		bfree(utf8_path);
 	}
 
-	info(MAINFRAME_MODULE, "Call MiniDumpWriteDump() to save block dump. PreObject: %X PreEvent: %X", preObject.load(), preEvent.load());
+	info(MAINFRAME_MODULE, "Call MiniDumpWriteDump() to save block dump");
 	DWORD tm = timeGetTime();
 	bool bOK = RunCaptureProcess(processPath.c_str(), dumpPath.data());
 	tm = timeGetTime() - tm;
-	info(MAINFRAME_MODULE, "Finish MiniDumpWriteDump(). %ums is taken. success:%s dump: %s", tm, bOK ? "yes" : "no", bOK ? pls_get_path_file_name(full_path.c_str()) : "no dump");
+	info(MAINFRAME_MODULE, "Finish MiniDumpWriteDump(). %ums is taken. success:%s dump: %s ignoreDrop:%d", tm, bOK ? "yes" : "no", bOK ? pls_get_path_file_name(full_path.c_str()) : "no dump",
+	     pls_ignore_render_drop());
 
 	if (bOK) {
 		return full_path;

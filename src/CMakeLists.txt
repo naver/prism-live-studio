@@ -17,6 +17,21 @@ set(PRISM_VERSION_TWEAK ${CMAKE_PROJECT_VERSION_TWEAK})
 set(PRISM_COMMENTS $ENV{PRISM_COMMENTS})
 message(STATUS "build type: ${CMAKE_BUILD_TYPE}")
 
+set(PRODUCT_TYPE PRISM) # PRISM or LENS or INSTALLER
+add_definitions(-DPRODUCT_PRISM) # PRODUCT_PRISM or PRODUCT_LENS or PRODUCT_INSTALLER
+if(PERFORMANCE_STATS)
+  message(STATUS "performance stats enabled")
+  add_definitions(-DPLS_PERFORMANCE_STATS) # performance stats
+else()
+  message(STATUS "performance stats disabled")
+endif()
+if(UI_ACTION_STATS)
+  message(STATUS "ui action stats enabled")
+  add_definitions(-DPLS_UI_ACTION_STATS) # ui action stats
+else()
+  message(STATUS "ui action stats disabled")
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set(OS_WINDOWS OFF)
   set(OS_MACOS ON)
@@ -114,6 +129,7 @@ function(deploy_qt target)
       "-DTARGET=${target}"
       "-DOS_WINDOWS=${OS_WINDOWS}"
       "-DOS_MACOS=${OS_MACOS}"
+      "-DVS_WINDOWS_TARGET_PLATFORM_VERSION=${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}"
       -P "$ENV{PRISM_SRC_DIR}/cmake/deploy_qt.cmake"
     VERBATIM)
 endfunction()
@@ -197,6 +213,10 @@ endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_compile_definitions(PRISM_BUILD_TYPE_DEBUG)
+  if(OS_MACOS)
+    # Avoid timestamp requirement for Debug codesign.
+    set(CMAKE_XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "--timestamp=none")
+  endif()
 endif()
 
 if(OS_WINDOWS)
@@ -212,4 +232,5 @@ add_subdirectory(prism-live-studio)
 
 if(ENABLE_TEST)
     enable_testing(true)
+    add_subdirectory(test)
 endif()

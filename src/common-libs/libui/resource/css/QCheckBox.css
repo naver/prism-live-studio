@@ -1,12 +1,12 @@
 QCheckBox {
 	outline: none;
-	font-size: /*hdpi*/ 14px;
+	font-size: 14px;
 	font-weight: normal;
-	spacing: /*hdpi*/ 10px;
+	spacing: 10px;
 }
 QCheckBox::indicator {
-	width: /*hdpi*/15px;
-	height:/*hdpi*/ 15px;
+	width:15px;
+	height:15px;
 
 }
 QCheckBox::indicator:checked {

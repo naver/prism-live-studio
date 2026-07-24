@@ -141,6 +141,7 @@ OBSAdvAudioCtrl::OBSAdvAudioCtrl(QGridLayout *, obs_source_t *source_) : source(
 	forceMono->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 	forceMono->setChecked((flags & OBS_SOURCE_FLAG_FORCE_MONO) != 0);
 	forceMono->setAccessibleName(QTStr("Basic.AdvAudio.MonoSource").arg(sourceName));
+	pls_uistep_v2_set_name(forceMono, "*", QString("%1 Mono CheckBox").arg(sourceName));
 
 	balance->setOrientation(Qt::Horizontal);
 	balance->setMinimum(0);
@@ -158,6 +159,7 @@ OBSAdvAudioCtrl::OBSAdvAudioCtrl(QGridLayout *, obs_source_t *source_) : source(
 
 	float bal = obs_source_get_balance_value(source) * 100.0f;
 	balance->setValue((int)bal);
+	pls_uistep_v2_set_name(balance, "*", QString("%1 Balance Slider").arg(sourceName));
 
 	int64_t cur_sync = obs_source_get_sync_offset(source);
 	syncOffset->setMinimum(-950);
@@ -166,6 +168,7 @@ OBSAdvAudioCtrl::OBSAdvAudioCtrl(QGridLayout *, obs_source_t *source_) : source(
 	syncOffset->setValue(int(cur_sync / _NSEC_PER_MSEC));
 	syncOffset->setFixedWidth(100);
 	syncOffset->setAccessibleName(QTStr("Basic.AdvAudio.SyncOffsetSource").arg(sourceName));
+	pls_uistep_v2_set_name(syncOffset, "*", QString("%1 Sync Offset").arg(sourceName));
 
 	int idx;
 	if (obs_audio_monitoring_available()) {
@@ -180,25 +183,37 @@ OBSAdvAudioCtrl::OBSAdvAudioCtrl(QGridLayout *, obs_source_t *source_) : source(
 		monitoringType->setAccessibleName(QTStr("Basic.AdvAudio.MonitoringSource").arg(sourceName));
 		monitoringType->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
 	}
+	pls_uistep_v2_set_name(monitoringType, "*", QString("%1 Audio Monitoring ComboBox").arg(sourceName));
 
 	mixer1->setText("1");
 	mixer1->setChecked(mixers & (1 << 0));
 	mixer1->setAccessibleName(QTStr("Basic.Settings.Output.Adv.Audio.Track1"));
+	pls_uistep_v2_set_name(mixer1, "*", QString("%1 Tracks ChechBox").arg(sourceName));
+
 	mixer2->setText("2");
 	mixer2->setChecked(mixers & (1 << 1));
 	mixer2->setAccessibleName(QTStr("Basic.Settings.Output.Adv.Audio.Track2"));
+	pls_uistep_v2_set_name(mixer2, "*", QString("%1 Tracks ChechBox").arg(sourceName));
+
 	mixer3->setText("3");
 	mixer3->setChecked(mixers & (1 << 2));
 	mixer3->setAccessibleName(QTStr("Basic.Settings.Output.Adv.Audio.Track3"));
+	pls_uistep_v2_set_name(mixer3, "*", QString("%1 Tracks ChechBox").arg(sourceName));
+
 	mixer4->setText("4");
 	mixer4->setChecked(mixers & (1 << 3));
 	mixer4->setAccessibleName(QTStr("Basic.Settings.Output.Adv.Audio.Track4"));
+	pls_uistep_v2_set_name(mixer4, "*", QString("%1 Tracks ChechBox").arg(sourceName));
+
 	mixer5->setText("5");
 	mixer5->setChecked(mixers & (1 << 4));
 	mixer5->setAccessibleName(QTStr("Basic.Settings.Output.Adv.Audio.Track5"));
+	pls_uistep_v2_set_name(mixer5, "*", QString("%1 Tracks ChechBox").arg(sourceName));
+
 	mixer6->setText("6");
 	mixer6->setChecked(mixers & (1 << 5));
 	mixer6->setAccessibleName(QTStr("Basic.Settings.Output.Adv.Audio.Track6"));
+	pls_uistep_v2_set_name(mixer6, "*", QString("%1 Tracks ChechBox").arg(sourceName));
 
 	balanceContainer->layout()->addWidget(labelL);
 	balanceContainer->layout()->addWidget(balance);

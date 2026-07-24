@@ -78,7 +78,6 @@ void PLSPlatformAfreecaTV::saveSettings(const function<void(bool)> &onNext, cons
 		}
 
 		if (isNeedUpdate) {
-			//update must get password api first.
 			updateLiveinfo(_onNext, this, title);
 		} else {
 			_onNext(true);
@@ -87,12 +86,11 @@ void PLSPlatformAfreecaTV::saveSettings(const function<void(bool)> &onNext, cons
 
 	if (PLS_PLATFORM_API->isPrepareLive()) {
 		setIsChatDisabled(false);
-		requestStreamKeyAndPassword(_onUpdateNext, this);
+		_onUpdateNext(true);
 		return;
 	}
 	if (isNeedUpdate) {
-		//update need get password
-		requestStreamKeyAndPassword(_onUpdateNext, this);
+		_onUpdateNext(true);
 		return;
 	}
 
@@ -158,9 +156,9 @@ void PLSPlatformAfreecaTV::requestChannelInfo(const QVariantMap &srcInfo, const 
 
 	auto _onFail = [this, srcInfo, finishedCall](int code, QByteArray data, QNetworkReply::NetworkError error) {
 		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "requestChannelInfo failed");
-		PLSErrorHandler::ExtraData exData;
-		exData.urlEn = g_plsAfreecaTVChannelInfo;
+		PLSErrorHandler::ExtraData exData(g_plsAfreecaTVChannelInfo);
 		exData.errPhase = PLSErrPhaseLogin;
+		exData.defaultArg = {SOOP};
 		auto retData = PLSErrorHandler::getAlertString({code, error, data}, AFREECATV, "", exData);
 		QVariantMap info = srcInfo;
 		info[ChannelData::g_channelSreLoginFailed] = QString("Get Channel List Failed, code:%1").arg(code);
@@ -231,9 +229,9 @@ void PLSPlatformAfreecaTV::requestUserNickName(const QVariantMap &srcInfo, const
 
 	auto _onFail = [this, srcInfo, finishedCall](int code, QByteArray data, QNetworkReply::NetworkError error) {
 		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "requestUserNickName failed");
-		PLSErrorHandler::ExtraData exData;
-		exData.urlEn = g_plsAfreecaTVUserNick.arg("userNick");
+		PLSErrorHandler::ExtraData exData(g_plsAfreecaTVUserNick.arg("userNick"));
 		exData.errPhase = PLSErrPhaseLogin;
+		exData.defaultArg = {SOOP};
 		auto retData = PLSErrorHandler::getAlertString({code, error, data}, AFREECATV, "", exData);
 		QVariantMap info = srcInfo;
 		info[ChannelData::g_channelStatus] = retData.prismCode == PLSErrorHandler::CHANNEL_AFREECATV_LOGIN_EXPIRED ? ChannelData::ChannelStatus::Expired : ChannelData::ChannelStatus::Error;
@@ -278,7 +276,7 @@ void PLSPlatformAfreecaTV::requestDashborad(const function<void(bool)> &onNext, 
 
 	auto _onFail = [this, onNext, isForUpdate](int code, QByteArray data, QNetworkReply::NetworkError error) {
 		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "requestDashborad failed");
-		auto customName = isForUpdate ? PLSErrCustomKey_UpdateLiveInfoFailed : PLSErrCustomKey_LoadLiveInfoFailed;
+		auto customName = isForUpdate ? PLSErrCustomKey_SOOPUpdateLiveInfoFailed : PLSErrCustomKey_SOOPLoadLiveInfoFailed;
 		showApiError(g_plsAfreecaTVDashboard, "requestDashborad", customName, code, data, error);
 		if (nullptr != onNext) {
 			onNext(false);
@@ -290,20 +288,16 @@ void PLSPlatformAfreecaTV::requestDashborad(const function<void(bool)> &onNext, 
 
 void PLSPlatformAfreecaTV::dealRequestDashborad(const QByteArray &data, const std::function<void(bool)> &onNext, const QObject *receiver, bool isForUpdate)
 {
+	QJsonObject root;
 	QJsonObject retData;
-	auto dealJson = [data, &retData]() {
+	auto dealJson = [data, &root, &retData]() {
 		auto doc = QJsonDocument::fromJson(data);
 		if (!doc.isObject()) {
 			PLS_ERROR(MODULE_PLATFORM_AFREECATV, "%s failed, doc is not object", "dealRequestDashborad");
 			return false;
 		}
-		auto root = doc.object();
-		auto resultInt = root["result"].toInt();
-		if (resultInt != 1) {
-			PLS_ERROR(MODULE_PLATFORM_AFREECATV, "%s failed, result is %i", "dealRequestDashborad", resultInt);
-			return false;
-		}
-		retData = root["data"].toObject();
+		root = doc.object();
+		retData = root["broad_info"].toObject();
 		if (retData.isEmpty()) {
 			PLS_ERROR(MODULE_PLATFORM_AFREECATV, "%s failed, data is empty", "dealRequestDashborad");
 			return false;
@@ -312,9 +306,7 @@ void PLSPlatformAfreecaTV::dealRequestDashborad(const QByteArray &data, const st
 	};
 
 	if (!dealJson()) {
-		PLSErrorHandler::ExtraData exData;
-		exData.urlEn = g_plsAfreecaTVDashboard;
-		auto customName = isForUpdate ? PLSErrCustomKey_UpdateLiveInfoFailed : PLSErrCustomKey_LoadLiveInfoFailed;
+		auto customName = isForUpdate ? PLSErrCustomKey_SOOPUpdateLiveInfoFailed : PLSErrCustomKey_SOOPLoadLiveInfoFailed;
 		showApiError(g_plsAfreecaTVDashboard, "requestDashborad", customName, 200, data, QNetworkReply::NetworkError::NoError);
 		if (nullptr != onNext) {
 			onNext(false);
@@ -324,15 +316,24 @@ void PLSPlatformAfreecaTV::dealRequestDashborad(const QByteArray &data, const st
 
 	m_selectData.user_id = retData["user_id"].toString();
 	m_selectData.categoryID = retData["category"].toString();
-	m_selectData.rtmp_server = retData["rtmp_server"].toString();
+	m_selectData.rtmp_server = root["server_url"].toString();
+	m_selectData.stremKey = root["stream_key"].toString();
+	m_selectData.broad_pwd_chk = (root["is_password"].toInt() != 0);
+	m_selectData.access_code = retData["broad_pwd"].toString();
 	m_selectData.hashtags = retData["hashtags"].toString();
-	m_selectData.broad_grade = retData["broad_grade"].toString();
-	m_selectData.broad_hidden = retData["broad_hidden"].toString();
-	m_selectData.broad_tune_out = retData["broad_tune_out"].toString();
-	m_selectData.paid_promotion = retData["paid_promotion"].toString();
+	m_selectData.broad_grade = QString::number(retData["broad_grade"].toInt());
+	m_selectData.broad_hidden = QString::number(retData["broad_hidden"].toInt());
+	m_selectData.broad_tune_out = QString::number(retData["broad_tune_out"].toInt());
+	m_selectData.paid_promotion = QString::number(retData["paid_promotion"].toInt());
+
+	m_selectData.is_wait = retData["is_wait"].toString();
+	m_selectData.waiting_time = QString::number(retData["waiting_time"].toInt());
+	m_selectData.water_mark = QString::number(retData["water_mark"].toInt());
+	m_selectData.ending_msg = retData["broad_ending_msg"].toString();
+	m_selectData.strm_lang_type = retData["strm_lang_type"].toString();
 
 	if (!isForUpdate) {
-		//is For update， can't set title, because title need update by liveinfo user set.
+		//is For update,can't set title, because title need update by liveinfo user set.
 		m_selectData.title = retData["title"].toString();
 	}
 	requestCategories(onNext, receiver);
@@ -340,13 +341,13 @@ void PLSPlatformAfreecaTV::dealRequestDashborad(const QByteArray &data, const st
 
 void PLSPlatformAfreecaTV::requestCategories(const function<void(bool)> &onNext, const QObject *receiver)
 {
-	PLSErrorHandler::ExtraData exData;
-	exData.urlEn = g_plsAfreecaTVCategories.arg("Categories");
-	auto _onSucceed = [this, onNext, exData](QByteArray data) {
-		PLS_INFO(MODULE_PLATFORM_AFREECATV, "requestCategories succeed");
 
+	auto _onSucceed = [this, onNext](QByteArray data) {
+		PLS_INFO(MODULE_PLATFORM_AFREECATV, "requestCategories succeed");
+		PLSErrorHandler::ExtraData exData(g_plsAfreecaTVCategories.arg("Categories"));
+		exData.defaultArg = {SOOP};
 		if (data.isEmpty()) {
-			PLSErrorHandler::showAlertByCustomErrName(PLSErrCustomKey_LoadLiveInfoFailed, AFREECATV, exData);
+			PLSErrorHandler::showAlertByCustomErrName(PLSErrCustomKey_SOOPLoadLiveInfoFailed, AFREECATV, exData);
 			if (nullptr != onNext) {
 				onNext(false);
 			}
@@ -360,13 +361,9 @@ void PLSPlatformAfreecaTV::requestCategories(const function<void(bool)> &onNext,
 		}
 	};
 
-	auto _onFail = [this, onNext, exData](int code, QByteArray data, QNetworkReply::NetworkError error) {
+	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
 		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "requestCategories failed");
-		auto retData = PLSErrorHandler::showAlert({code, error, data}, AFREECATV, PLSErrCustomKey_LoadLiveInfoFailed, exData);
-		if (retData.prismCode == PLSErrorHandler::CHANNEL_AFREECATV_API_EXPIRED && retData.clickedBtn == QDialogButtonBox::Ok) {
-			emit closeDialogByExpired();
-			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
-		}
+		showApiError(g_plsAfreecaTVCategories, "requestCategories", PLSErrCustomKey_SOOPLoadLiveInfoFailed, code, data, error);
 		if (nullptr != onNext) {
 			onNext(false);
 		}
@@ -391,7 +388,7 @@ void PLSPlatformAfreecaTV::updateLiveinfo(const function<void(bool)> &onNext, co
 
 	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
 		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "updateLiveinfo failed");
-		showApiError(g_plsAfreecaTVUpdate, "updateAPI", PLSErrCustomKey_UpdateLiveInfoFailedNoService, code, data, error);
+		showApiError(g_plsAfreecaTVUpdate, "updateAPI", PLSErrCustomKey_SOOPUpdateLiveInfoFailed, code, data, error);
 		if (nullptr != onNext) {
 			onNext(false);
 		}
@@ -413,16 +410,16 @@ void PLSPlatformAfreecaTV::updateLiveinfo(const function<void(bool)> &onNext, co
 void PLSPlatformAfreecaTV::dealUpdateLiveinfoSucceed(const QByteArray &data, const std::function<void(bool)> &onNext)
 {
 	if (data.isEmpty() || !QJsonDocument::fromJson(data).isObject()) {
-		showApiError(g_plsAfreecaTVUpdate, "updateAPI", PLSErrCustomKey_UpdateLiveInfoFailedNoService, 200, data, QNetworkReply::NetworkError::NoError);
+		showApiError(g_plsAfreecaTVUpdate, "updateAPI", PLSErrCustomKey_SOOPUpdateLiveInfoFailed, 200, data, QNetworkReply::NetworkError::NoError);
 		if (nullptr != onNext) {
 			onNext(false);
 		}
 		return;
 	}
 	auto doc = QJsonDocument::fromJson(data);
-	auto toInt = doc["result"].toInt();
+	auto toInt = doc.object()["result"].toInt();
 	if (toInt != 1) {
-		showApiError(g_plsAfreecaTVUpdate, "updateAPI", PLSErrCustomKey_UpdateLiveInfoFailedNoService, 200, data, QNetworkReply::NetworkError::NoError);
+		showApiError(g_plsAfreecaTVUpdate, "updateAPI", PLSErrCustomKey_SOOPUpdateLiveInfoFailed, 200, data, QNetworkReply::NetworkError::NoError);
 		if (nullptr != onNext) {
 			onNext(false);
 		}
@@ -438,8 +435,8 @@ void PLSPlatformAfreecaTV::showApiError(const QString &url, const QString &apiNa
 {
 	QString failedReason = "unknown";
 	PLSErrorHandler::RetData retData;
-	PLSErrorHandler::ExtraData exData;
-	exData.urlEn = url;
+	PLSErrorHandler::ExtraData exData(url);
+	exData.defaultArg = {SOOP};
 	if (isShowExpired) {
 		retData = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::COMMON_TOKEN_EXPIRED_ERROR, AFREECATV, customErrName, exData);
 	} else {
@@ -448,7 +445,7 @@ void PLSPlatformAfreecaTV::showApiError(const QString &url, const QString &apiNa
 
 	if (retData.prismCode == PLSErrorHandler::CHANNEL_AFREECATV_API_EXPIRED) {
 		failedReason = "token expired";
-		if (retData.clickedBtn == QDialogButtonBox::Ok) {
+		if (retData.clickedBtn != QDialogButtonBox::NoButton) {
 			emit closeDialogByExpired();
 			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
 		}
@@ -465,9 +462,7 @@ void PLSPlatformAfreecaTV::showApiError(const QString &url, const QString &apiNa
 
 void PLSPlatformAfreecaTV::requestStreamKeyAndPassword(const std::function<void(bool)> &onNext, const QObject *receiver)
 {
-	PLSErrorHandler::ExtraData exData;
-	exData.urlEn = g_plsAfreecaTVCategories.arg("Categories");
-	auto _onSucceed = [this, onNext, exData](QByteArray data) {
+	auto _onSucceed = [this, onNext](QByteArray data) {
 		QString streamKey;
 		QString pw;
 		PLSAPIAfreecaTV::getStreamKeyAndPassword(data, streamKey, pw);
@@ -476,14 +471,14 @@ void PLSPlatformAfreecaTV::requestStreamKeyAndPassword(const std::function<void(
 
 		if (streamKey.isEmpty()) {
 			bool isToeknExpired = false;
-			if (data.startsWith("<script>location.href='https://login.sooplive.co.kr/afreeca/login.php") ||
-			    data.startsWith("<script>location.href='http://login.sooplive.co.kr/afreeca/login.php")) {
+			if (data.startsWith("<script>location.href='https://login.sooplive.com/afreeca/login.php") ||
+			    data.startsWith("<script>location.href='http://login.sooplive.com/afreeca/login.php")) {
 				PLS_ERROR(MODULE_PLATFORM_AFREECATV, "requestStreamKeyAndPassword failed, data is startwith login page");
 				isToeknExpired = true;
 			} else {
 				PLS_ERROR(MODULE_PLATFORM_AFREECATV, "requestStreamKeyAndPassword failed, streamkey is empty");
 			}
-			showApiError("", "requestStreamKeyAndPassword", PLSErrCustomKey_UpdateLiveInfoFailedNoService, 200, data, QNetworkReply::NetworkError::NoError,
+			showApiError(g_plsAfreecaTVMainHtml, "requestStreamKeyAndPassword", PLSErrCustomKey_SOOPLoadLiveInfoFailed, 200, data, QNetworkReply::NetworkError::NoError,
 				     isToeknExpired);
 			if (nullptr != onNext) {
 				onNext(false);
@@ -497,9 +492,9 @@ void PLSPlatformAfreecaTV::requestStreamKeyAndPassword(const std::function<void(
 		}
 	};
 
-	auto _onFail = [this, onNext, exData](int code, QByteArray data, QNetworkReply::NetworkError error) {
+	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
 		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "requestStreamKeyAndPassword failed");
-		showApiError("", "requestStreamKeyAndPassword", PLSErrCustomKey_UpdateLiveInfoFailedNoService, code, data, error);
+		showApiError(g_plsAfreecaTVMainHtml, "requestStreamKeyAndPassword", PLSErrCustomKey_SOOPLoadLiveInfoFailed, code, data, error);
 		if (nullptr != onNext) {
 			onNext(false);
 		}
@@ -557,7 +552,7 @@ QJsonObject PLSPlatformAfreecaTV::getWebChatParams()
 bool PLSPlatformAfreecaTV::getIsChatDisabled() const
 {
 	QString logStr = QString("%1 m_IsChatDisabled:%2 b_containFrmAccess:%3").arg(__FUNCTION__).arg(BOOL2STR(m_IsChatDisabled)).arg(BOOL2STR(m_selectData.broad_pwd_chk));
-	PLS_INFO(MODULE_PLATFORM_AFREECATV, logStr.toStdString().c_str());
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, logStr.toUtf8().constData());
 	return m_IsChatDisabled || m_selectData.broad_pwd_chk;
 }
 

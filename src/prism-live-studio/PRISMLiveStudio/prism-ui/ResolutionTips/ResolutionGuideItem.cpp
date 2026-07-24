@@ -2,6 +2,7 @@
 #include "ui_ResolutionGuideItem.h"
 #include "ChannelCommonFunctions.h"
 #include "ResolutionConst.h"
+#include "libutils-api.h"
 
 ResolutionGuideItem::ResolutionGuideItem(QWidget *parent) : QFrame(parent), ui(new Ui::ResolutionGuideItem)
 {
@@ -35,7 +36,7 @@ void ResolutionGuideItem::initialize(const QVariantMap &data)
 	auto prefer = getInfo(data, resolution_const_space::g_PreferResolution);
 	ui->ResolutionLabel->setText(prefer);
 	ui->ResolutionApplyBtn->setProperty("link", platform + ":" + prefer);
-
+	pls_uistep_v2_set_value(ui->ResolutionApplyBtn, QStringLiteral("*"), platform + QStringLiteral(" Apply Now"));
 	connect(ui->ResolutionApplyBtn, &QAbstractButton::clicked, this, &ResolutionGuideItem::onLinkSelected);
 	auto descriptionMap = getInfo(data, resolution_const_space::g_AllResolutionDecription, QVariantMap());
 	auto langStr = pls_get_current_language_short_str();
@@ -82,7 +83,11 @@ void ResolutionGuideItem::checkBitrateData(const QVariantMap &data)
 		templateStr = templateStr.arg(linkHtml);
 		srcTxt.append(templateStr);
 		blockLabel->setText(srcTxt);
-		blockLabel->setOpenExternalLinks(true);
+		pls_connect(blockLabel, &QLabel::linkActivated, [](const QString &link) {
+			pls_async_invoke([link]() { QDesktopServices::openUrl(QUrl(link, QUrl::TolerantMode)); });
+			PLS_UI_ACTION("In Resolution Guide View Open Url Done");
+		});
+		pls_uistep_v2_custom(blockLabel, QStringLiteral("linkActivated"), QStringLiteral("Click"), QStringLiteral("button"), tr("Bitrate.Guide"));
 	}
 }
 

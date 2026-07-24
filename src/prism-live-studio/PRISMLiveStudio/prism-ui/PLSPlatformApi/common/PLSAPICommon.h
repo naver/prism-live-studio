@@ -8,6 +8,7 @@
 #include <QLabel>
 #include "PLSLabel.h"
 #include <QTextLayout>
+class PLSDialogView;
 
 enum class PLSPlatformApiResult;
 class PLSAPICommon : public QObject {
@@ -26,7 +27,6 @@ public:
 	using uploadImageCallback = std::function<void(bool isOK, const QString &imageUrl)>;
 	using privacyVec = std::vector<std::pair<QString /*english*/, QString /*localized*/>>;
 
-	static QPair<bool, QString> downloadImageSync(const QObject *receive, const QString &url);
 	static void downloadImageAsync(const QObject *receiver, const QString &imageUrl, const imageCallback &callback, bool ignoreCache = false, const QString &savePath = {});
 	static void maskingUrlKeys(const pls::http::Request &_request, const QStringList &keys);
 	static void maskingAfterUrlKeys(const pls::http::Request &_request, const QStringList &keys);
@@ -92,55 +92,7 @@ public:
 		return true;
 	};
 
-	static int findLabelPosition(QLabel *targetLabel, QFormLayout *layout);
-
-	static int calculateWrappedLabelWidth(QLabel *label);
-
-	template<typename T, typename Cls> static void createHelpIconWidget(QLabel *originalLabel, const QString &tooltip, QFormLayout *formLayout, T *sender, void (Cls::*signalFunc)())
-	{
-		auto idx = findLabelPosition(originalLabel, formLayout);
-		if (idx == -1) {
-			return;
-		}
-		auto oldParent = originalLabel->parentWidget();
-		originalLabel->setParent(nullptr);
-
-		QWidget *formLeftWidget = new QWidget(oldParent);
-		formLeftWidget->setObjectName("formLeftWidget");
-		QHBoxLayout *horizontalLayout = new QHBoxLayout(formLeftWidget);
-		horizontalLayout->setSpacing(0);
-		horizontalLayout->setContentsMargins(0, 0, 23, 0);
-
-		originalLabel->setIndent(-1);
-		originalLabel->setWordWrap(true);
-		originalLabel->setObjectName("formLeftWidget_title");
-
-		QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-		sizePolicy.setHorizontalStretch(0);
-		sizePolicy.setVerticalStretch(0);
-		sizePolicy.setHeightForWidth(originalLabel->sizePolicy().hasHeightForWidth());
-		originalLabel->setSizePolicy(sizePolicy);
-
-		horizontalLayout->addWidget(originalLabel);
-
-		PLSHelpIcon *help = new PLSHelpIcon(formLeftWidget);
-		help->setObjectName("formLeftWidget_icon");
-		help->setToolTip(tooltip);
-
-		formLayout->setWidget(idx, QFormLayout::LabelRole, formLeftWidget);
-
-		QObject::connect(
-			sender, signalFunc, sender,
-			[left = QPointer<QLabel>(originalLabel), rigth = QPointer<QLabel>(help)]() {
-				if (!left || !rigth) {
-					return;
-				}
-				int actualWidth = calculateWrappedLabelWidth(left);
-				auto x = qMin(actualWidth + 5, left->parentWidget()->width() + left->parentWidget()->x() - rigth->width());
-				rigth->move(x, (left->height() - rigth->height()) * 0.5);
-			},
-			Qt::SingleShotConnection);
-	}
+	static void createHelpIconWidget(QLabel *originalLabel, const QString &tooltip, QFormLayout *formLayout, PLSDialogView *sender);
 
 private:
 	enum class PLSNetMehod {

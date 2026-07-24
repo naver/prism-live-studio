@@ -32,6 +32,7 @@
 #include "importers/importers.hpp"
 #include "PLSImporterItem.h"
 #include "PLSAlertView.h"
+#include "PLSErrorHandler.h"
 #include "liblog.h"
 
 /**
@@ -43,13 +44,12 @@ PLSImporter::PLSImporter(QWidget *parent) : PLSDialogView(parent)
 	ui.reset(pls_new<Ui::PLSImporter>());
 	setupUi(ui);
 	setAcceptDrops(true);
-	setAttribute(Qt::WA_AlwaysShowToolTips, true);
 
 	pls_add_css(this, {"PLSImporter"});
 	ui->buttonBox->setFixedWidth(266);
 
 #if defined(Q_OS_MACOS)
-	initSize(QSize(710, 530));
+	initSize(QSize(710, 570 - PLS_TITLE_BAR_HEIGHT));
 	ui->buttonBox->setContentsMargins(0, 0, 0, 0);
 #elif defined(Q_OS_WIN)
 	initSize(QSize(710, 570));
@@ -180,11 +180,13 @@ void PLSImporter::importCollections()
 	}
 
 	if (importNotExisted) {
-		PLSAlertView::warning(nullptr, QTStr("Alert.title"), QTStr("Scene.Collection.Import.NotFound"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_SCENE_COLLECTION_IMPORT_NOTFOUND, PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral("PLSImporter::importCollections")), nullptr);
 	}
 
 	if (importError) {
-		PLSAlertView::warning(nullptr, QTStr("Alert.title"), QTStr("Scene.Collection.Import.Error"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_SCENE_COLLECTION_IMPORT_ERROR, PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral("PLSImporter::importCollections")), nullptr);
 	}
 
 	accept();

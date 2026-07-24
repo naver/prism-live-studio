@@ -26,11 +26,11 @@ private:
 	bool initSupportedResolutionFPS(const QJsonObject &policyPublishJsonObject);
 	void initRtmpDestination(const QJsonObject &policyPublishJsonObject);
 	void initMultiplePlatformMaxBitrate(const QJsonObject &policyPublishJsonObject);
+	void initPrismLiveStartRequestTimeout(const QJsonObject &policyPublishJsonObject);
 	void initNaverPlatformWhiteList(const QJsonObject &policyPublishJsonObject);
 	void initStreamServiceList(const QJsonObject &policyPublishJsonObject);
 	void initPlatformLiveTimeLimit(const QJsonObject &policyPublishJsonObject);
 	void initPlatformVersionInfo(const QJsonObject &policyPublishJsonObject);
-	void initRemoteControlInfo(const QJsonObject &policyPublishJsonObject);
 	void initNaverShoppingInfo(const QJsonObject &policyPlatformJsonObject);
 	void initOpenSourceInfo();
 	void initTwitchWhipServer(const QJsonObject &policyPlatformJsonObject);
@@ -39,6 +39,7 @@ private:
 	void initOutroPolicy(const QJsonObject &outroDefaultValueObject);
 	void initDiscordInfo(const QJsonObject &policyPublishJsonObject);
 	void initPlusUrl(const QJsonObject &policyPublishJsonObject);
+	QString channelNameToLivePlatformKey(const QString &channelName) const;
 
 public:
 	const QVariantList &getResolutionsList();
@@ -48,10 +49,10 @@ public:
 	const QVariantMap &getRtmpPlatformFPSMap();
 	QMap<int, RtmpDestination> getRtmpDestination();
 	int getMultiplePlatformMaxBitrate();
+	int getPrismLiveStartRequestTimeoutMs();
 	QStringList getNaverPlatformWhiteList();
 	const QVariantMap &getStreamService();
 	PlatformLiveTime getPlatformLiveTime(bool isDirect, const QString &platformName);
-	QString getRemoteControlMobilePlatform(const QString &platformName);
 	const QVariantMap &getPlatformVersionInfo();
 	bool isPresetRTMP(const QString &url);
 	const QString &getNaverShoppingTermOfUse();
@@ -66,6 +67,7 @@ public:
 	const QStringList &getSupportedPlatformsList();
 	const QVariantMap &getSupportedPlatformsMap();
 	const QVariantList &getNewResolutionGuide();
+	QString getMaxResolutionByName(const QString &name, bool isRtmp);
 	const QJsonObject &getLoginObject();
 	const QJsonObject &getWaterMarkConfigObject();
 	const QJsonObject &getOutroPolicyConfigObject();
@@ -74,10 +76,10 @@ public:
 
 	const QString &getWaterMarkResLocalPath(const QString &platformName);
 	const QVariantMap &getOutroResLocalPathAndText(const QString &platformName);
-	int compareVersion(const QString &v1, const QString &v2) const;
 
 signals:
 	void libraryNeedUpdate(bool isSuccess);
+	void libraryUpdateDone();
 
 private slots:
 	void onReceiveLibraryNeedUpdate(bool isSucceed);
@@ -92,10 +94,12 @@ private:
 	QMap<QString, QVariantList> m_reaction;
 	QJsonArray m_productCategoryJsonArray;
 	std::optional<int> m_iMultiplePlatformMaxBitrate;
+	QMap<QString, QString> m_multiplePlatformMaxResolutionByChannel;
+	QMap<QString, QString> m_multiplePlatformMaxResolutionByRtmp;
+	std::optional<int> m_prismLiveStartRequestTimeoutMs;
 	QStringList m_naverPlatformWhiteList;
 	QVariantMap m_streamService;
 	QVariantMap m_platformLiveTimeLimit;
-	QVariantMap m_remoteControlPlatformsInfo;
 	QVariantMap m_platformVersionInfo;
 	QMap<int, RtmpDestination> m_destinations;
 	QVariantMap m_rtmpFPSMap;

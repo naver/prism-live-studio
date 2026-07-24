@@ -6,6 +6,7 @@
 #import <KSCrashInstallation.h>
 #import <KSCrashReportFilterAppleFmt.h>
 #import <KSJSONCodecObjC.h>
+#include <signal.h>
 
 // MARK: Private
 
@@ -246,6 +247,13 @@ void mac_install_crash_reporter(ProcessInfo const &info)
 	[reporter install];
 }
 
+bool mac_has_crash_dump(ProcessInfo const &info)
+{
+	NSDictionary *report = nil;
+	get_latest_report(&info, &report);
+	return report != nil;
+}
+
 void mac_get_latest_dump_data(ProcessInfo const &info, std::string &dump_data, std::string &location, std::string &stack_hash, std::set<std::map<std::string, std::string>> &module_names)
 {
 	if (info.dump_file.empty() == false) {
@@ -276,38 +284,8 @@ void mac_get_latest_dump_data(ProcessInfo const &info, std::string &dump_data, s
 
 bool mac_send_data(std::string post_body)
 {
-	NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
-	NSURLSession *session = [NSURLSession sessionWithConfiguration:config];
-
-	NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"https://nelo2-col.navercorp.com/_store"]];
-	request.HTTPMethod = @"POST";
-	[request setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
-
-	NSString *bodyString = [NSString stringWithUTF8String:post_body.c_str()];
-	NSData *postData = [bodyString dataUsingEncoding:NSUTF8StringEncoding];
-	request.HTTPBody = postData;
-
-	dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
-
-	__block bool res = false;
-
-	NSURLSessionTask *task = [session dataTaskWithRequest:request
-					    completionHandler:^(NSData *_Nullable data, NSURLResponse *_Nullable response, NSError *_Nullable error) {
-						    if (data) {
-							    NSString *result = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-							    if ([result containsString:@"Success"]) {
-								    res = true;
-							    }
-						    }
-
-						    dispatch_semaphore_signal(semaphore);
-					    }];
-
-	[task resume];
-
-	dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
-
-	return res;
+	(void)post_body;
+	return false;
 }
 
 bool mac_remove_crash_logs(ProcessInfo const &info)
@@ -327,4 +305,65 @@ bool mac_remove_crash_logs(ProcessInfo const &info)
 	removed = error == nil;
 
 	return removed;
+}
+
+// Store original signal handlers to chain after our handler
+static struct sigaction s_original_sigaction_segv;
+static struct sigaction s_original_sigaction_abrt;
+static struct sigaction s_original_sigaction_bus;
+static struct sigaction s_original_sigaction_fpe;
+static struct sigaction s_original_sigaction_ill;
+
+static void fallback_crash_signal_handler(int sig, siginfo_t *info, void *context)
+{
+	// Notify KSCrash that a crash has occurred
+	// This is async-signal-safe as per KSCrash documentation
+	kscrash_notifyAppCrash();
+	
+	// Restore the original handler and re-raise the signal
+	// This allows KSCrash or the system to handle the crash properly
+	struct sigaction *original = nullptr;
+	switch (sig) {
+		case SIGSEGV:
+			original = &s_original_sigaction_segv;
+			break;
+		case SIGABRT:
+			original = &s_original_sigaction_abrt;
+			break;
+		case SIGBUS:
+			original = &s_original_sigaction_bus;
+			break;
+		case SIGFPE:
+			original = &s_original_sigaction_fpe;
+			break;
+		case SIGILL:
+			original = &s_original_sigaction_ill;
+			break;
+		default:
+			break;
+	}
+	
+	if (original) {
+		// Restore the original handler
+		sigaction(sig, original, nullptr);
+	}
+	
+	// Re-raise the signal to let KSCrash or system handle it
+	raise(sig);
+}
+
+void mac_install_fallback_crash_handlers()
+{
+	struct sigaction action;
+	memset(&action, 0, sizeof(action));
+	action.sa_sigaction = fallback_crash_signal_handler;
+	action.sa_flags = SA_SIGINFO;
+	sigemptyset(&action.sa_mask);
+	
+	// Install handlers and save original handlers for chaining
+	sigaction(SIGSEGV, &action, &s_original_sigaction_segv);
+	sigaction(SIGABRT, &action, &s_original_sigaction_abrt);
+	sigaction(SIGBUS, &action, &s_original_sigaction_bus);
+	sigaction(SIGFPE, &action, &s_original_sigaction_fpe);
+	sigaction(SIGILL, &action, &s_original_sigaction_ill);
 }

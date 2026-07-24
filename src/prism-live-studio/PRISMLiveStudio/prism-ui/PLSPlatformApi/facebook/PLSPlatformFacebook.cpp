@@ -206,7 +206,7 @@ void PLSPlatformFacebook::onPrepareLive(bool value)
 	}
 
 	PLS_INFO(facebookMoudule, "%s %s show liveinfo value(%s)", PrepareInfoPrefix, __FUNCTION__, BOOL2STR(value));
-	value = pls_exec_live_Info_facebook(getChannelUUID(), getInitData()) == QDialog::Accepted;
+	value = pls_exec_live_Info_facebook(getChannelUUID(), getInitData(), PLSBasic::instance(), true) == QDialog::Accepted;
 	PLS_INFO(facebookMoudule, "%s %s liveinfo closed value(%s)", PrepareInfoPrefix, __FUNCTION__, BOOL2STR(value));
 
 	prepareLiveCallback(value);
@@ -253,7 +253,7 @@ void PLSPlatformFacebook::getLongLivedUserAccessToken(const MyRequestTypeFunctio
 		m_srcInfo[ChannelData::g_errorString] = retData.alertMsg;
 		onFinished(retData);
 	};
-	PLSFaceBookRquest->getLongLiveUserAccessToken(callBack);
+	PLSFaceBookRquest->getLongLiveUserAccessToken(getAccessToken(), callBack);
 }
 
 void PLSPlatformFacebook::getUserInfo(const MyRequestTypeFunction &onFinished)
@@ -277,7 +277,7 @@ void PLSPlatformFacebook::getUserInfo(const MyRequestTypeFunction &onFinished)
 		m_srcInfo[ChannelData::g_errorString] = retData.alertMsg;
 		onFinished(retData);
 	};
-	PLSFaceBookRquest->getUserInfo(callBack);
+	PLSFaceBookRquest->getUserInfo(getAccessToken(), getChannelUUID(), callBack);
 }
 
 void PLSPlatformFacebook::getUserInfoSuccess(const QString &userId, const QString &username, const QString &imagePath)
@@ -298,6 +298,11 @@ void PLSPlatformFacebook::getUserInfoSuccess(const QString &userId, const QStrin
 	insertSrcInfo(ChannelData::g_likes, "0");
 	insertSrcInfo(ChannelData::g_viewers, "0");
 	insertSrcInfo(ChannelData::g_comments, "0");
+}
+
+QString PLSPlatformFacebook::getUserId() const
+{
+	return m_userId;
 }
 
 void PLSPlatformFacebook::getMyGroupListRequestAndCheckPermission(const MyRequestTypeFunction &onFinished, QWidget *parent)
@@ -426,6 +431,12 @@ void PLSPlatformFacebook::getFacebookItemUserInfoFinished(const PLSErrorHandler:
 		map.insert(ChannelData::g_userIconCachePath, profilePath.length() > 0 ? profilePath : REMOVE_DASHBOARD_KEY);
 		if (shareObjectName == TimelineObjectFlags) {
 			m_timelineNickname = nickname;
+			if (!profilePath.isEmpty()) {
+				m_timelineProfilePath = profilePath;
+			}
+		} else if (!profilePath.isEmpty() && m_timelineProfilePath.isEmpty()) {
+			// profilePath here is the cached user timeline icon (g_userIconCachePath read before
+			// the group/page download runs); save it so resetLiveInfo can restore the avatar.
 			m_timelineProfilePath = profilePath;
 		}
 	}
@@ -480,6 +491,9 @@ const PLSAPIFacebook::FacebookPrepareLiveInfo &PLSPlatformFacebook::getPrepareIn
 void PLSPlatformFacebook::resetLiveInfo()
 {
 	clearInfoData();
+	if (m_timelineProfilePath.isEmpty()) {
+		m_timelineProfilePath = PLSCHANNELS_API->getValueOfChannel(getChannelUUID(), ChannelData::g_userIconCachePath, QString());
+	}
 	QVariantMap updateInfoMap;
 	updateInfoMap.insert(ChannelData::g_nickName, m_timelineNickname);
 	updateInfoMap.insert(ChannelData::g_displayLine1, m_timelineNickname);
@@ -589,9 +603,8 @@ void PLSPlatformFacebook::getTimelinePrivacyRequest(const MyRequestTypeFunction 
 	auto privacyFinished = [onFinished, this](const PLSErrorHandler::RetData &retData, QString privacyId) {
 		QString shareObjectName = m_prepareInfo.firstObjectName;
 		if (shareObjectName != TimelineObjectFlags) {
-			PLSErrorHandler::ExtraData extraData = {};
-			extraData.urlEn = "TimelinePrivacy";
-			onFinished(PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE, FACEBOOK, QString(), extraData));
+			onFinished(PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE, FACEBOOK, QString(),
+									      PLSErrorHandler::ExtraData("TimelinePrivacy")));
 			return;
 		}
 		if (retData.prismCode == PLSErrorHandler::SUCCESS) {
@@ -609,7 +622,7 @@ void PLSPlatformFacebook::getTimelinePrivacyRequest(const MyRequestTypeFunction 
 void PLSPlatformFacebook::getLivingTimelinePrivacyRequest(const TimelinePrivacyFunction &onFinished)
 {
 	auto privacyFinished = [onFinished, this](const PLSErrorHandler::RetData &retData, QString privacyId) {
-		if (retData.prismCode != PLSErrorHandler::SUCCESS) {
+		if (retData.prismCode == PLSErrorHandler::SUCCESS) {
 			m_prepareInfo.secondObjectId = privacyId;
 			m_prepareInfo.secondObjectName = getItemName(privacyId, FacebookPrivacyItemType);
 			currentPrivacyInconsistentDisplay(privacyId);
@@ -651,6 +664,40 @@ void PLSPlatformFacebook::setPrivacyToTimeline()
 	updateInfoMap.insert(ChannelData::g_catogry, m_prepareInfo.secondObjectName);
 	updateInfoMap.insert(ChannelData::g_displayLine2, m_prepareInfo.secondObjectName);
 	updateChannelInfos(updateInfoMap, true);
+}
+
+void PLSPlatformFacebook::onResumeStreaming(const QMap<QString, QVariant> &params)
+{
+	auto scheduleId = params.value("liveId").toString();
+	if (scheduleId.isEmpty()) {
+		return;
+	}
+
+	m_prepareInfo.liveId = scheduleId;
+	m_prepareInfo.videoId = params.value("videoId").toString();
+	m_prepareInfo.secondObjectName = params.value("secondObjectName").toString();
+	m_prepareInfo.firstObjectName = params.value("firstObjectName").toString();
+	m_prepareInfo.secondObjectId = params.value("secondObjectId").toString();
+	m_prepareInfo.gameName = params.value("gameName").toString();
+	m_prepareInfo.gameId = params.value("gameId").toString();
+	m_prepareInfo.shareLink = params.value("shareLink").toString();
+	m_prepareInfo.streamURL = params.value("streamURL").toString();
+	currentPrivacyInconsistentDisplay(getTimelinePrivacy());
+}
+
+QMap<QString, QVariant> PLSPlatformFacebook::getResumeStreamingParams() const
+{
+	QMap<QString, QVariant> values;
+	values["liveId"] = m_prepareInfo.liveId;
+	values["videoId"] = m_prepareInfo.videoId;
+	values["secondObjectName"] = m_prepareInfo.secondObjectName;
+	values["firstObjectName"] = m_prepareInfo.firstObjectName;
+	values["secondObjectId"] = m_prepareInfo.secondObjectId;
+	values["gameName"] = m_prepareInfo.gameName;
+	values["gameId"] = m_prepareInfo.gameId;
+	values["shareLink"] = m_prepareInfo.shareLink;
+	values["streamURL"] = m_prepareInfo.streamURL;
+	return values;
 }
 
 void PLSPlatformFacebook::clearInfoData()

@@ -109,6 +109,9 @@ PLSLiveInfoNaverTV::PLSLiveInfoNaverTV(PLSPlatformBase *pPlatformBase, const QVa
 		ui->horizontalLayout->addWidget(ui->cancelButton);
 	}
 #endif
+
+	pls_uistep_v2_set_title(this, QStringLiteral("Live Information: %1").arg(platform->getNameForChannelType()));
+	pls_uistep_v2_auto_bind(this);
 }
 
 PLSLiveInfoNaverTV::~PLSLiveInfoNaverTV()
@@ -156,7 +159,7 @@ void PLSLiveInfoNaverTV::onOk(bool isRehearsal)
 
 			if (!ok || !valid) {
 				hideLoading();
-				pls_alert_error_message(this, tr("Alert.Title"), tr("broadcast.invalid.schedule"));
+				PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_BROADCAST_INVALID_SCHEDULE, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("PLSLiveInfoNaverTV"));
 			} else {
 				platform->updateLiveInfo(scheLiveList, selectedId, isRehearsal, ui->lineEditTitle->text(), ui->thumbnailButton->getImagePath(), _onNext, customErrName);
 			}
@@ -275,7 +278,9 @@ void PLSLiveInfoNaverTV::titleEdited()
 	doUpdateOkState();
 
 	if (isTooLong) {
-		PLSAlertView::warning(this, tr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TitleLengthLimit).arg(platform->getChannelName()));
+		PLSErrorHandler::ExtraData extraData("PLSLiveInfoNaverTV");
+		extraData.defaultArg = {QString::number(TitleLengthLimit), platform->getChannelName()};
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LIVEINFO_TITLE_LENGTH_CHECK_ARG_NAVERTV, PLSErrKeyAllAlert, {}, extraData);
 	}
 }
 
@@ -325,7 +330,7 @@ void PLSLiveInfoNaverTV::processGetScheLives(bool ok, int code, const QList<PLSP
 			ui->lineEditTitle->setText(liveInfo->title);
 			hideLoading();
 		} else {
-			pls_alert_error_message(this, tr("Alert.Title"), tr("broadcast.invalid.schedule"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_BROADCAST_INVALID_SCHEDULE, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("PLSLiveInfoNaverTV"));
 			hideLoading();
 
 			selectedId = -1;

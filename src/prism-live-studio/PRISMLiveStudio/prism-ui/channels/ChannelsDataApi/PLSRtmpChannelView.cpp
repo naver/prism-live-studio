@@ -1,4 +1,5 @@
 #include "PLSRtmpChannelView.h"
+#include <QClipboard>
 #include <QComboBox>
 #include <QListView>
 #include <QRegularExpression>
@@ -7,45 +8,53 @@
 #include <QValidator>
 #include "ChannelCommonFunctions.h"
 #include "LogPredefine.h"
-#include "pls-channel-const.h"
-
 #include "PLSChannelDataAPI.h"
-
+#include "frontend-api.h"
 #include "PLSComboBox.h"
 #include "ResolutionGuidePage.h"
-
-#include "PLSAlertView.h"
 #include "obs-app.hpp"
 #include "obs.h"
+#include "pls-channel-const.h"
 #include "pls-gpop-data.hpp"
 #include "pls-net-url.hpp"
 #include "ui_PLSRtmpChannelView.h"
 
 using namespace ChannelData;
 
-PLSRtmpChannelView::PLSRtmpChannelView(const QVariantMap &oldData, QWidget *parent) : PLSDialogView(parent), ui(new Ui::RtmpChannelView), mOldData(oldData)
+PLSRtmpChannelView::PLSRtmpChannelView(const QVariantMap &oldData, QWidget *parent) : PLSDialogView(parent, {}, CreateWinId::Create), ui(new Ui::RtmpChannelView), mOldData(oldData)
 {
-
+	PLS_PERFORMANCE_FUNCTION();
+	PLS_DISABLE_UISTEP_V2(this);
 	pls_add_css(this, {"PLSRTMPChannelView", "PLSLiveInfoBase"});
 	initUi();
+	PLS_PERFORMANCE_START(getServer);
 	mTwitchServer = initTwitchServer();
 	mYoutubeRtmpServer = getObsServer(YOUTUBE_RTMP);
+	PLS_PERFORMANCE_END(getServer);
 	loadFromData(oldData);
-	auto flushEdit = [this](bool firstShow) {
-		if (firstShow) {
-			QMetaObject::invokeMethod(
-				this,
-				[this] {
-					pls_flush_style(ui->UserIDEdit);
-					pls_flush_style(ui->UserPasswordEdit);
-				},
-				Qt::QueuedConnection);
-		}
-	};
-	flushEdit(true);
+	QMetaObject::invokeMethod(
+		this,
+		[this] {
+			pls_flush_style(ui->UserIDEdit);
+			pls_flush_style(ui->UserPasswordEdit);
+		},
+		Qt::QueuedConnection);
 	UpdateServerList(ui->PlatformCombbox->currentData().toString());
 	setServerUI(ui->PlatformCombbox->currentData().toString());
 	updateSaveBtnAvailable();
+	PLS_PERFORMANCE_START(pls_uistep);
+	pls_uistep_v2_set_title(this, QStringLiteral("Rtmp Channel View"));
+	pls_uistep_v2_bind(ui->RTMPUrlEdit, ui->PlatformLabel);
+	pls_uistep_v2_bind(ui->ServerComboBox, ui->ServerLabel);
+	pls_uistep_v2_bind(ui->PlatformCombbox, ui->PlatformLabel);
+	pls_uistep_v2_bind(ui->NameEdit, ui->NameLabel);
+	pls_uistep_v2_enable(ui->StreamKeyEdit, false);
+	pls_uistep_v2_enable(ui->UserIDEdit, false);
+	pls_uistep_v2_enable(ui->UserPasswordEdit, false);
+	pls_uistep_v2_enable(ui->PasswordVisible, PLS_UI_STEPS_V2_SIGNAL_CLICKED, false);
+	pls_uistep_v2_custom(ui->PasswordVisible, PLS_UI_STEPS_V2_SIGNAL_TOGGLED, PLS_UI_STEPS_V2_ACTION_CLICK, QStringLiteral("button"),
+			     [PasswordVisible = ui->PasswordVisible]() { return !PasswordVisible->isChecked() ? QStringLiteral("Show Password") : QStringLiteral("Hide Password"); });
+	PLS_PERFORMANCE_END(pls_uistep);
 }
 
 PLSRtmpChannelView::~PLSRtmpChannelView()
@@ -55,29 +64,44 @@ PLSRtmpChannelView::~PLSRtmpChannelView()
 
 void PLSRtmpChannelView::initUi()
 {
+	PLS_PERFORMANCE_FUNCTION();
+	PLS_PERFORMANCE_START(setupUi);
 	this->setupUi(ui);
+	PLS_PERFORMANCE_END(setupUi);
 	ui->MenuFrame->hide();
 	this->setHasCloseButton(false);
 	setFixedSize(720, 710);
+	setResizeEnabled(false);
+	PLS_PERFORMANCE_START(createResolutionButtonsFrame);
 	auto btnsWidget = ResolutionGuidePage::createResolutionButtonsFrame(this);
 	ui->horizontalLayout_8->addWidget(btnsWidget);
 	ui->horizontalLayout_8->setAlignment(btnsWidget, Qt::AlignRight);
+	PLS_PERFORMANCE_END(createResolutionButtonsFrame);
 
 	languageChange();
 	updateRtmpInfos();
 	initCommbox();
-
+	PLS_PERFORMANCE_START(setText);
+	ui->PlatformLabel->setText(QString(common::LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("setting.channel.rtmp.url")));
+	ui->ServerLabel->setText(QString(common::LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("Basic.AutoConfig.StreamPage.Server")));
+	ui->StreamKeyLabel->setText(QString(common::LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("setting.channel.rtmp.streamkey")));
+	ui->NameLabel->setText(QString(common::LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("setting.channel.rtmp.name")));
 	ui->UserPasswordEdit->installEventFilter(this);
 	ui->StreamKeyEdit->installEventFilter(this);
-
 #if defined(Q_OS_MACOS)
 	ui->horizontalLayout->addWidget(ui->SaveBtn);
 #endif
+	PLS_PERFORMANCE_END(setText);
+	PLS_PERFORMANCE_START(connect);
 	connect(ui->NameEdit, &QLineEdit::textEdited, this, &PLSRtmpChannelView::updateSaveBtnAvailable, Qt::QueuedConnection);
 	connect(ui->StreamKeyEdit, &QLineEdit::textEdited, this, &PLSRtmpChannelView::updateSaveBtnAvailable, Qt::QueuedConnection);
 	connect(ui->RTMPUrlEdit, &QLineEdit::textEdited, this, &PLSRtmpChannelView::updateSaveBtnAvailable, Qt::QueuedConnection);
 	connect(ui->UserIDEdit, &QLineEdit::textEdited, this, &PLSRtmpChannelView::updateSaveBtnAvailable, Qt::QueuedConnection);
 	connect(ui->UserPasswordEdit, &QLineEdit::textEdited, this, &PLSRtmpChannelView::updateSaveBtnAvailable, Qt::QueuedConnection);
+	PLS_PERFORMANCE_END(connect);
+	ui->onlyPasteKey->setSpac(6);
+	bool onlyPasteKeyEnabled = config_get_bool(App()->GetUserConfig(), common::CONFIG_SECTION_RTMP_CHANNEL, common::CONFIG_KEY_ONLY_PASTE_KEY);
+	ui->onlyPasteKey->setChecked(onlyPasteKeyEnabled);
 }
 
 QVariantMap PLSRtmpChannelView::SaveResult() const
@@ -162,6 +186,7 @@ void PLSRtmpChannelView::updatePlatform(const QVariantMap &oldData)
 
 void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	auto uuid = getInfo(oldData, g_channelUUID);
 	ui->CategoryLabel->setText(tr("Channels.RTMadd.Catogry"))->setUUID(uuid);
 	isEdit = getInfo(oldData, g_isUpdated, false);
@@ -227,16 +252,48 @@ bool PLSRtmpChannelView::eventFilter(QObject *watched, QEvent *event)
 		parent->setProperty("isFocus", false);
 		refreshStyle(parent);
 		break;
+	case QEvent::KeyPress:
+		if (ui->onlyPasteKey->isChecked() && (watched == ui->StreamKeyEdit) && static_cast<QKeyEvent *>(event)->matches(QKeySequence::Paste)) {
+			handlePasteOperation();
+			return true;
+		}
+		break;
+	case QEvent::ContextMenu:
+		if (ui->onlyPasteKey->isChecked() && (watched == ui->StreamKeyEdit)) {
+			handleContextMenu(static_cast<QContextMenuEvent *>(event));
+			return true;
+		}
+		break;
 	default:
 		break;
 	}
 	return false;
 }
+
+void PLSRtmpChannelView::handleContextMenu(QContextMenuEvent *event)
+{
+	QMenu *menu = ui->StreamKeyEdit->createStandardContextMenu();
+	for (QAction *action : menu->actions()) {
+		auto text = action->text();
+		QString pasteShortcut = QKeySequence(QKeySequence::Paste).toString(QKeySequence::NativeText);
+		if (text.contains("Paste") || text.contains(pasteShortcut)) {
+			action->disconnect(ui->StreamKeyEdit);
+			connect(action, &QAction::triggered, this, [this]() { handlePasteOperation(); });
+			break;
+		}
+	}
+	menu->exec(event->globalPos());
+	menu->deleteLater();
+}
+
 void PLSRtmpChannelView::on_SaveBtn_clicked()
 {
-	PRE_LOG_UI_MSG("save clicked", PLSRtmpChannelView)
 	QSignalBlocker blocker(ui->NameEdit);
 	if (!verifyRename()) {
+		return;
+	} else if (isUrlRight("^http[s]?://\\w+", ui->StreamKeyEdit->text())) {
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHANNEL_RTMP_STREAMKEY_ERROR, PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData("RTMP channel stream key https URL rejected"), this);
 		return;
 	}
 	if (checkIsModified()) {
@@ -248,18 +305,13 @@ void PLSRtmpChannelView::on_SaveBtn_clicked()
 
 void PLSRtmpChannelView::on_CancelBtn_clicked()
 {
-	PRE_LOG_UI_MSG("cancle clicked", PLSRtmpChannelView)
 	this->reject();
 }
-void PLSRtmpChannelView::on_StreamKeyVisible_toggled(bool isCheck)
-{
-	PRE_LOG_UI_MSG("StreamKeyVisible clicked", PLSRtmpChannelView)
-	ui->StreamKeyEdit->setEchoMode(isCheck ? QLineEdit::Password : QLineEdit::Normal);
-}
+
 void PLSRtmpChannelView::on_PasswordVisible_toggled(bool isCheck)
 {
-	PRE_LOG_UI_MSG("PasswordVisible clicked", PLSRtmpChannelView)
 	ui->UserPasswordEdit->setEchoMode(isCheck ? QLineEdit::Password : QLineEdit::Normal);
+	PLS_UI_ACTION("Click Password Visible Finished");
 }
 
 void PLSRtmpChannelView::on_RTMPUrlEdit_textChanged(const QString &rtmpUrl)
@@ -417,18 +469,37 @@ void PLSRtmpChannelView::on_ServerComboBox_currentTextChanged(const QString &tex
 
 void PLSRtmpChannelView::on_OpenLink_clicked() const
 {
-	PRE_LOG_UI_MSG("open link clicked", PLSRtmpChannelView)
-	QString urlStr;
-	QString lang = pls_get_current_country_short_str().toUpper();
-	if (lang == "KR") {
-		urlStr = g_streamKeyPrismHelperKr;
-	} else {
-		urlStr = g_streamKeyPrismHelperEn;
+	if (!QDesktopServices::openUrl(g_streamKeyPrismHelper)) {
+		PRE_LOG(" error open url " + g_streamKeyPrismHelper, ERROR)
 	}
+	PLS_UI_ACTION("In Rtmp Channel View Open Help Link Finished");
+}
 
-	if (!QDesktopServices::openUrl(urlStr)) {
-		PRE_LOG(" error open url " + urlStr, ERROR)
+void PLSRtmpChannelView::on_onlyPasteKey_toggled(bool checked)
+{
+	config_set_bool(App()->GetUserConfig(), common::CONFIG_SECTION_RTMP_CHANNEL, common::CONFIG_KEY_ONLY_PASTE_KEY, checked);
+	config_save_safe(App()->GetUserConfig(), "tmp", nullptr);
+	PLS_INFO("PLSRtmpChannelView", "onlyPasteKey setting saved: %s", checked ? "true" : "false");
+}
+
+void PLSRtmpChannelView::handlePasteOperation()
+{
+	auto key = QApplication::clipboard()->text().trimmed();
+	if (key.isEmpty()) {
+		PLS_WARN("PLSRtmpChannelView", "user clipboard is empty");
+		return;
 	}
+	PLS_INFO_KR("PLSRtmpChannelView", "the stream key of user clipboard is %s", key.toUtf8().constData());
+	if ((isUrlRight("^srt?://\\w+", key) || isUrlRight("^rist?://\\w+", key) || isUrlRight("^rtmp[s]?://\\w+", key))) {
+		int pos = key.lastIndexOf('/');
+		if (pos >= 0 && pos + 1 < key.size()) {
+			key = key.mid(pos + 1);
+			PLS_INFO_KR("PLSRtmpChannelView", "extracted stream key after truncation: %s", key.toUtf8().constData());
+		}
+	}
+	ui->StreamKeyEdit->setText(key);
+	ui->StreamKeyEdit->setFocus();
+	updateSaveBtnAvailable();
 }
 
 void PLSRtmpChannelView::updateSaveBtnAvailable()
@@ -443,6 +514,7 @@ void PLSRtmpChannelView::languageChange()
 
 void PLSRtmpChannelView::initCommbox()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	QStringList rtmpNames;
 	rtmpNames += TR_SELECT;
 	rtmpNames << mPlatforms << CHANNELS_TR(UserInputRTMP) << CHANNELS_TR(UserInputSRT) << CHANNELS_TR(UserInputRIST);
@@ -471,7 +543,7 @@ bool PLSRtmpChannelView::verifyRename()
 		return ret;
 	};
 	if (auto ite = std::find_if(infos.cbegin(), infos.cend(), isSameName); ite != infos.end()) {
-		PLSAlertView::warning(this, tr("Alert.Title"), tr("setting.channel.rtmp.existname"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHANNEL_RTMP_EXIST_NAME, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("RTMP channel duplicate stream name"), this);
 		return false;
 	}
 	return true;
@@ -494,15 +566,15 @@ void PLSRtmpChannelView::IsHideSomeFrame(bool bShow)
 {
 	if ((m_type == SRT || m_type == RIST) && bShow) {
 		ui->EditAreaFrame->show();
-		ui->MustBeLabelStreamKey->hide();
+		ui->StreamKeyLabel->setText(tr("setting.channel.rtmp.streamkey"));
 		ui->OpenLink->hide();
 	} else if (m_type == OTHER && !bShow) {
 		ui->EditAreaFrame->hide();
-		ui->MustBeLabelStreamKey->show();
+		ui->StreamKeyLabel->setText(QString(common::LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("setting.channel.rtmp.streamkey")));
 		ui->OpenLink->show();
 	} else {
 		ui->EditAreaFrame->show();
-		ui->MustBeLabelStreamKey->show();
+		ui->StreamKeyLabel->setText(QString(common::LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("setting.channel.rtmp.streamkey")));
 		ui->OpenLink->show();
 	}
 }
@@ -540,6 +612,7 @@ bool PLSRtmpChannelView::checkIsModified() const
 
 void PLSRtmpChannelView::updateRtmpInfos()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	mRtmps = PLSCHANNELS_API->getRTMPInfos();
 	mPlatforms = PLSCHANNELS_API->getRTMPsName();
 }
@@ -554,6 +627,7 @@ bool PLSRtmpChannelView::isUrlRight(const QString &regular, const QString &url) 
 
 void PLSRtmpChannelView::UpdateServerList(const QString &channelName)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	auto bTwitchChannel = channelName == TWITCH;
 	auto bYouTubeChannel = channelName == YOUTUBE;
 	if (!bTwitchChannel && !bYouTubeChannel) {

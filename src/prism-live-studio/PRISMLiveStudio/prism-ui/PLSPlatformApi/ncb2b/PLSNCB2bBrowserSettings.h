@@ -16,6 +16,7 @@ public:
 	~PLSNCB2bBrowserSettings() override;
 
 	void refreshUI();
+	PLSErrorHandler::ErrCode getErrorCode();
 
 protected:
 	void closeEvent(QCloseEvent *event) override;
@@ -33,19 +34,16 @@ private:
 	void updateLogo();
 	void removeAll();
 	void updateDocks();
-	void updateDock(const PLSNCB2bBrowserSettingData &data, int index, QByteArray geometry);
-	bool getDockChecked(const QString &title);
+	void checkNeedUpdateDocks();
 	void updateSelected();
-	void updateChecked();
-	QList<PLSNCB2bBrowserSettingData> parseSupportUrls(const QJsonObject &obj);
-	QString getDisplayTitle(const QString &title);
 
 private:
 	Ui::PLSNCB2bBrowserSettings *ui;
-	QString serviceName;
 	QList<PLSNCB2bBrowserSettingData> cacheSelectedDatas;
 	int seletedNumbers = 0;
 	bool requestExisted{false};
+	bool m_needRefreshDock = false;
+	PLSErrorHandler::ErrCode m_errorCode = PLSErrorHandler::INVALID;
 };
 
 #endif // PLSNCB2BBROWSERSETTINGS_H

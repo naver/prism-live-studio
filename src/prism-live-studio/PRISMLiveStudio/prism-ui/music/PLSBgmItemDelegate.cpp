@@ -1,25 +1,41 @@
 #include "PLSBgmItemDelegate.h"
 #include "PLSBgmDragView.h"
 #include "utils-api.h"
+#include "libui.h"
 #include <QPainter>
 #include <QStyleOptionViewItem>
 #include <QApplication>
 #include <QDateTime>
 #include <QMouseEvent>
 #include <QToolTip>
+#include <QHash>
+#include <QSharedPointer>
 
 float PLSBgmItemDelegate::dpi = 1.0f;
 int PLSBgmItemDelegate::iconIndex = 1;
 int PLSBgmItemDelegate::frameCount = 8;
 
 namespace {
+static QHash<QString, QSharedPointer<QSvgRenderer>> s_svgCache;
+
+static QSvgRenderer *getCachedSvg(const QString &path)
+{
+	auto it = s_svgCache.find(path);
+	if (it != s_svgCache.end()) {
+		return it.value().data();
+	}
+	auto renderer = QSharedPointer<QSvgRenderer>::create(path);
+	s_svgCache.insert(path, renderer);
+	return renderer.data();
+}
+
 struct LocalGlobalVars {
 	static QFont fontName;
 	static QFont fontProducer;
 };
 QFont LocalGlobalVars::fontName;
 QFont LocalGlobalVars::fontProducer;
-}
+} // namespace
 
 const static int nameFontSize = 14;
 const static int producerFontSize = 12;
@@ -27,11 +43,22 @@ const static QColor rowColorNormal = QColor("#1e1e1e");
 const static QColor rowColorOver = QColor("#272727");
 const static QColor nameClickColor = QColor("#effc35");
 const static QColor producerClickColor = QColor("#7a7f34");
-const static QColor nameColor = QColor("#bababa");
+const static QColor nameColor = QColor("#dfdfdf");
 const static QColor producerColor = QColor("#666666");
 const static QColor nameColorInvalid = QColor("#666666");
+const static QColor nameColorInvisible = QColor("#585858");
+const static QColor nameColorCurrentInvisible = QColor("#87881b");
 const static QColor producerColorInvalid = QColor("#666666");
+const static QColor producerColorInvisible = QColor("#333334");
+const static QColor producerColorCurrentInvisible = QColor("#767d37");
 const static QColor dropIndicatorColor = QColor("#effc35");
+
+namespace {
+const QString svgFlag = QString(":resource/images/bgm/img-free.svg");
+const QString svgFlagInvisible = QString(":resource/images/bgm/img-free-invisible.svg");
+const QString svgDot = QString(":resource/images/bgm/img-music-dot.svg");
+const QString svgDotInvisible = QString(":resource/images/bgm/img-music-dot-invisible.svg");
+}
 
 PLSBgmItemDelegate::PLSBgmItemDelegate(QAbstractItemView *view_, QFont font, QObject *parent)
 	: QItemDelegate(parent),
@@ -39,13 +66,18 @@ PLSBgmItemDelegate::PLSBgmItemDelegate(QAbstractItemView *view_, QFont font, QOb
 	  svgRendererDelBtn(pls_new<QSvgRenderer>(this)),
 	  svgRendererFlag(pls_new<QSvgRenderer>(this)),
 	  svgRendererDot(pls_new<QSvgRenderer>(this)),
+	  svgRendererDrag(pls_new<QSvgRenderer>(this)),
 	  view(view_)
 {
 	iconIndex = 1;
 	LocalGlobalVars::fontName = font;
 	LocalGlobalVars::fontProducer = font;
-	svgRendererFlag->load(QString(":resource/images/bgm/img-free.svg"));
-	svgRendererDot->load(QString(":resource/images/bgm/img-music-dot.svg"));
+	svgRendererFlag->load(svgFlag);
+	svgRendererDot->load(svgDot);
+	if (view) {
+		view->setProperty("posFollowCursor", true);
+		pls_uistep_v2_set_custom_enter_leave_name(view, "Music playlist item");
+	}
 }
 
 void PLSBgmItemDelegate::setDpi(float dpi_)
@@ -92,6 +124,7 @@ void PLSBgmItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
 		drawProducer(data, painter, option, index);
 		drawStateIcon(data, painter, option, index);
 		drawDropIndicator(data, painter, option, index);
+		m_currentStatus = index.model()->data(index, (int)CustomDataRole::MediaStatusRole).value<MediaStatus>();
 	}
 }
 
@@ -115,9 +148,6 @@ bool PLSBgmItemDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, c
 	case QEvent::MouseButtonRelease:
 		doMouseButtonRelease(event, option, index);
 		break;
-	case QEvent::MouseButtonDblClick:
-		doMouseButtonDblClick(event, option, index);
-		break;
 	default:
 		break;
 	}
@@ -134,6 +164,7 @@ void PLSBgmItemDelegate::drawBackground(const PLSBgmItemData &data, QPainter *pa
 		view_option.state = view_option.state ^ QStyle::State_MouseOver;
 		painter->fillRect(view_option.rect, rowColorOver);
 		drawDeleteIcon(data, painter, option, index);
+		drawDragIcon(data, painter, option, index);
 		auto dView = dynamic_cast<PLSBgmDragView *>(view);
 		if (dView) {
 			dView->UpdataData(index.row(), QVariant::fromValue(RowStatus::stateNormal), CustomDataRole::RowStatusRole);
@@ -168,6 +199,18 @@ void PLSBgmItemDelegate::drawProducer(const PLSBgmItemData &data, QPainter *pain
 		blod = false;
 		color = producerColorInvalid;
 		break;
+	case MediaStatus::stateInvisible:
+		blod = false;
+		color = producerColorInvisible;
+		break;
+	case MediaStatus::stateCurrentInvisible:
+		blod = false;
+		color = producerColorCurrentInvisible;
+		break;
+	case MediaStatus::stateSelected:
+		blod = true;
+		color = producerClickColor;
+		break;
 	default:
 		break;
 	}
@@ -195,9 +238,14 @@ void PLSBgmItemDelegate::drawProducer(const PLSBgmItemData &data, QPainter *pain
 	QRect rectText(option.rect.left() + qRound(52 * dpi), option.rect.top() + qRound(37 * dpi), painter->fontMetrics().horizontalAdvance(name), qRound(18 * dpi));
 	//draw producer
 	painter->drawText(rectText, name, textOption);
-	//draw dot
-	if (svgRendererDot)
+	// draw dot
+	if (svgRendererDot) {
+		if (m_currentStatus != state) {
+			const QString dotPath = (state == MediaStatus::stateInvisible) ? svgDotInvisible : svgDot;
+			svgRendererDot->load(dotPath);
+		}
 		svgRendererDot->render(painter, QRect(rectText.right() + qRound(5 * dpi), option.rect.top() + qRound(45 * dpi), qRound(3 * dpi), qRound(3 * dpi)));
+	}
 	//draw duration
 	rectText.setRect(rectText.right() + qRound(10 * dpi) + qRound(3 * dpi), option.rect.top() + qRound(37 * dpi), painter->fontMetrics().horizontalAdvance(durration), qRound(18 * dpi));
 	painter->drawText(rectText, durration, textOption);
@@ -227,6 +275,18 @@ void PLSBgmItemDelegate::drawName(const PLSBgmItemData &data, QPainter *painter,
 		color = nameColorInvalid;
 		bold = false;
 		break;
+	case MediaStatus::stateInvisible:
+		color = nameColorInvisible;
+		bold = false;
+		break;
+	case MediaStatus::stateCurrentInvisible:
+		color = nameColorCurrentInvisible;
+		bold = false;
+		break;
+	case MediaStatus::stateSelected:
+		color = nameClickColor;
+		bold = true;
+		break;
 	default:
 		break;
 	}
@@ -243,7 +303,7 @@ void PLSBgmItemDelegate::drawName(const PLSBgmItemData &data, QPainter *painter,
 
 	int originalWidth = option.rect.width();
 	if (option.state & QStyle::State_MouseOver) {
-		originalWidth = originalWidth - qRound(18 * dpi) - qRound(19 * dpi);
+		originalWidth = originalWidth - qRound(18 * dpi) - qRound(19 * 2 * dpi);
 	}
 	int maxTextSpacing = 0;
 	data.isLocalFile ? maxTextSpacing = originalWidth - qRound(dpi * 52) - qRound(20 * dpi)
@@ -255,8 +315,9 @@ void PLSBgmItemDelegate::drawName(const PLSBgmItemData &data, QPainter *painter,
 
 	QRect nameRect(option.rect.left() + qRound(52 * dpi), option.rect.top() + qRound(15 * dpi), painter->fontMetrics().horizontalAdvance(name), painter->fontMetrics().boundingRect(name).height());
 	painter->drawText(nameRect, name, textOption);
-	if (!data.isLocalFile && svgRendererFlag) {
-		svgRendererFlag->render(painter, QRect(nameRect.right() + qRound(8 * dpi), option.rect.top() + qRound(18 * dpi), qRound(27 * dpi), qRound(14 * dpi)));
+	if (!data.isLocalFile) {
+		const QString flagPath = (state == MediaStatus::stateInvisible || state == MediaStatus::stateCurrentInvisible) ? svgFlagInvisible : svgFlag;
+		getCachedSvg(flagPath)->render(painter, QRect(nameRect.right() + qRound(8 * dpi), option.rect.top() + qRound(18 * dpi), qRound(27 * dpi), qRound(14 * dpi)));
 	}
 	painter->restore();
 }
@@ -281,9 +342,31 @@ void PLSBgmItemDelegate::drawDeleteIcon(const PLSBgmItemData &, QPainter *painte
 		fileName.append(":resource/images/bgm/btn-playlist-delete-normal.svg");
 		break;
 	}
-	svgRendererDelBtn->load(fileName);
-	QRect buttonRect(option.rect.right() - qRound(19 * dpi) - qRound(20 * dpi), option.rect.top() + (option.rect.height() - qRound(19 * dpi)) / 2, qRound(19 * dpi), qRound(19 * dpi));
-	svgRendererDelBtn->render(painter, buttonRect);
+	getCachedSvg(fileName)->render(painter, getDelBtnRect(option));
+	painter->restore();
+}
+
+void PLSBgmItemDelegate::drawDragIcon(const PLSBgmItemData &data, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+	if (!svgRendererDrag)
+		return;
+	painter->save();
+	QString fileName;
+	switch (dragBtnState) {
+	case ButtonState::Normal:
+		fileName.append(":resource/images/bgm/ic_music_editlist_normal.svg");
+		break;
+	case ButtonState::Hover:
+		fileName.append(":resource/images/bgm/ic_music_editlist_hover.svg");
+		break;
+	case ButtonState::Pressed:
+		fileName.append(":resource/images/bgm/ic_music_editlist_click.svg");
+		break;
+	default:
+		fileName.append(":resource/images/bgm/ic_music_editlist_disable.svg");
+		break;
+	}
+	getCachedSvg(fileName)->render(painter, getDragBtnRect(option));
 	painter->restore();
 }
 
@@ -293,16 +376,21 @@ void PLSBgmItemDelegate::drawStateIcon(const PLSBgmItemData &, QPainter *painter
 	painter->save();
 	QRect loadingRect;
 	switch (state) {
-	case MediaStatus::statePause:
 	case MediaStatus::stateInvalid:
+	case MediaStatus::stateInvisible:
+	case MediaStatus::stateCurrentInvisible:
+		loadingRect.setRect(option.rect.left() + qRound(20 * dpi), option.rect.top() + (option.rect.height() - qRound(18 * dpi)) / 2, qRound(18 * dpi), qRound(18 * dpi));
+		getCachedSvg(QString(":resource/images/bgm/btn_music_disable.svg"))->render(painter, loadingRect);
+		break;
+	case MediaStatus::statePause:
 	case MediaStatus::stateNormal:
+	case MediaStatus::stateSelected:
 		if (!svgRendererLoading) {
 			painter->restore();
 			return;
 		}
 		loadingRect.setRect(option.rect.left() + qRound(20 * dpi), option.rect.top() + (option.rect.height() - qRound(18 * dpi)) / 2, qRound(18 * dpi), qRound(18 * dpi));
-		svgRendererLoading->load(QString(":resource/images/bgm/btn-template-musiclist-play.svg"));
-		svgRendererLoading->render(painter, loadingRect);
+		getCachedSvg(QString(":resource/images/bgm/btn-template-musiclist-play.svg"))->render(painter, loadingRect);
 		break;
 	case MediaStatus::stateLoading:
 		if (!svgRendererLoading) {
@@ -310,8 +398,7 @@ void PLSBgmItemDelegate::drawStateIcon(const PLSBgmItemData &, QPainter *painter
 			return;
 		}
 		loadingRect.setRect(option.rect.left() + qRound(20 * dpi), option.rect.top() + (option.rect.height() - qRound(18 * dpi)) / 2, qRound(18 * dpi), qRound(18 * dpi));
-		svgRendererLoading->load(QString::asprintf(":resource/images/loading-%d.svg", iconIndex));
-		svgRendererLoading->render(painter, loadingRect);
+		getCachedSvg(QString::asprintf(":resource/images/loading-%d.svg", iconIndex))->render(painter, loadingRect);
 		break;
 	case MediaStatus::statePlaying:
 		loadingRect.setRect(option.rect.left() + qRound(21 * dpi), option.rect.top() + (option.rect.height() - qRound(16 * dpi)) / 2, qRound(16 * dpi), qRound(16 * dpi));
@@ -371,43 +458,41 @@ void PLSBgmItemDelegate::doMouseMove(QEvent *event, const QAbstractItemModel *mo
 {
 	auto moveEvent = static_cast<QMouseEvent *>(event);
 	do {
-		QRect name(option.rect.left() + qRound(52 * dpi), option.rect.top() + qRound(15 * dpi), option.rect.width() - qRound(19 * dpi) - qRound(20 * dpi) - qRound(52 * dpi), qRound(18 * dpi));
+		QRect name(option.rect.left() + qRound(52 * dpi), option.rect.top() + qRound(15 * dpi), option.rect.width() - qRound(19 * 2 * dpi) - qRound(20 * dpi) - qRound(52 * dpi),
+			   qRound(18 * dpi));
 		if (name.contains(moveEvent->pos())) {
 			auto data = model->data(index, (int)CustomDataRole::DataRole).value<PLSBgmItemData>();
-			QToolTip::showText(QCursor::pos(), data.title, view);
+			view->setToolTip(data.title);
 			break;
 		}
-		QRect rectProducer(option.rect.left() + qRound(52 * dpi), option.rect.top() + qRound(37 * dpi), option.rect.width() - qRound(19 * dpi) - qRound(20 * dpi) - qRound(52 * dpi),
+		QRect rectProducer(option.rect.left() + qRound(52 * dpi), option.rect.top() + qRound(37 * dpi), option.rect.width() - qRound(19 * 2 * dpi) - qRound(20 * dpi) - qRound(52 * dpi),
 				   qRound(18 * dpi));
 		if (rectProducer.contains(moveEvent->pos())) {
 			auto data = model->data(index, (int)CustomDataRole::DataRole).value<PLSBgmItemData>();
-			QToolTip::showText(QCursor::pos(), data.producer, view);
+			view->setToolTip(data.producer);
 			break;
 		}
-		QToolTip::hideText();
+		view->setToolTip("");
 	} while (false);
 
-	QRect rectDelBtn(option.rect.right() - qRound(19 * dpi) - qRound(20 * dpi), option.rect.top() + (option.rect.height() - qRound(19 * dpi)) / 2, qRound(19 * dpi), qRound(19 * dpi));
-	if (rectDelBtn.contains(moveEvent->pos())) {
-		deleteBtnState = ButtonState::Hover;
-		entered = true;
-		UpdateIndex(index);
-	} else {
-		entered = false;
-		deleteBtnState = ButtonState::Normal;
-		UpdateIndex(index);
-	}
-	return;
+	setButtonState(option, index, getDelBtnRect(option), moveEvent->pos(), deleteBtnState);
+	setButtonState(option, index, getDragBtnRect(option), moveEvent->pos(), dragBtnState);
 }
 
 void PLSBgmItemDelegate::doMouseButtonPress(QEvent *event, const QStyleOptionViewItem &option, const QModelIndex &index)
 {
 	auto mouseEvent = static_cast<QMouseEvent *>(event);
 	QToolTip::hideText();
-	QRect rectDelBtn(option.rect.right() - qRound(19 * dpi) - qRound(20 * dpi), option.rect.top() + (option.rect.height() - qRound(19 * dpi)) / 2, qRound(19 * dpi), qRound(19 * dpi));
-	if (mouseEvent->button() == Qt::LeftButton && rectDelBtn.contains(mouseEvent->pos())) {
-		deleteBtnState = ButtonState::Pressed;
-		UpdateIndex(index);
+	if (mouseEvent->button() == Qt::LeftButton) {
+		if (getDelBtnRect(option).contains(mouseEvent->pos())) {
+			deleteBtnState = ButtonState::Pressed;
+			UpdateIndex(index);
+		} else if (getDragBtnRect(option).contains(mouseEvent->pos())) {
+			dragBtnState = ButtonState::Pressed;
+			UpdateIndex(index);
+		} else {
+			emit mouseClicked(index);
+		}
 	}
 	return;
 }
@@ -415,23 +500,39 @@ void PLSBgmItemDelegate::doMouseButtonPress(QEvent *event, const QStyleOptionVie
 void PLSBgmItemDelegate::doMouseButtonRelease(QEvent *event, const QStyleOptionViewItem &option, const QModelIndex &index)
 {
 	auto mouseEvent = static_cast<QMouseEvent *>(event);
-	QRect rectDelBtn(option.rect.right() - qRound(19 * dpi) - qRound(20 * dpi), option.rect.top() + (option.rect.height() - qRound(19 * dpi)) / 2, qRound(19 * dpi), qRound(19 * dpi));
 	if (mouseEvent->button() == Qt::LeftButton) {
 		deleteBtnState = entered ? ButtonState::Hover : ButtonState::Normal;
+		dragBtnState = entered ? ButtonState::Hover : ButtonState::Normal;
 		UpdateIndex(index);
-		if (rectDelBtn.contains(mouseEvent->pos())) {
+		if (getDelBtnRect(option).contains(mouseEvent->pos())) {
+			pls_uistep_v2(this, "Click", "Button", "Delete");
 			emit delBtnClicked(index);
+		} else if (getDragBtnRect(option).contains(mouseEvent->pos())) {
+			emit dragBtnClicked(index);
 		}
 	}
 	return;
 }
 
-void PLSBgmItemDelegate::doMouseButtonDblClick(QEvent *event, const QStyleOptionViewItem &option, const QModelIndex &index)
+void PLSBgmItemDelegate::setButtonState(const QStyleOptionViewItem &option, const QModelIndex &index, const QRect &btnRect, const QPoint &eventPos, ButtonState &state)
 {
-	auto mouseEvent = static_cast<QMouseEvent *>(event);
-	QRect rectDelBtn(option.rect.right() - qRound(19 * dpi) - qRound(20 * dpi), option.rect.top() + (option.rect.height() - qRound(19 * dpi)) / 2, qRound(19 * dpi), qRound(19 * dpi));
-	if (mouseEvent->button() == Qt::LeftButton && !rectDelBtn.contains(mouseEvent->pos())) {
-		emit doubleClicked(index);
+	if (btnRect.contains(eventPos)) {
+		state = ButtonState::Hover;
+		entered = true;
+		UpdateIndex(index);
+	} else {
+		entered = false;
+		state = ButtonState::Normal;
+		UpdateIndex(index);
 	}
-	return;
+}
+
+QRect PLSBgmItemDelegate::getDelBtnRect(const QStyleOptionViewItem &option) const
+{
+	return QRect(option.rect.right() - qRound(19 * dpi) - qRound(20 * dpi), option.rect.top() + (option.rect.height() - qRound(19 * dpi)) / 2, qRound(19 * dpi), qRound(19 * dpi));
+}
+
+QRect PLSBgmItemDelegate::getDragBtnRect(const QStyleOptionViewItem &option) const
+{
+	return QRect(option.rect.right() - qRound(19 * dpi) - qRound(49 * dpi), option.rect.top() + (option.rect.height() - qRound(19 * dpi)) / 2, qRound(19 * dpi), qRound(19 * dpi));
 }

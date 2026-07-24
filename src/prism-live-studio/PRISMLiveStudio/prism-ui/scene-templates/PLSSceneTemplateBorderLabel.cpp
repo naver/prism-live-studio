@@ -48,3 +48,17 @@ void PLSSceneTemplateBorderLabel::showAIBadge(const QPixmap &pixmap, bool bLongA
 		ui->horizontalLayout->setContentsMargins(6, 6, 20, 20);
 	}
 }
+
+void PLSSceneTemplateBorderLabel::showPlusBadge(const QPixmap &pixmap)
+{
+	if (pixmap.isNull()) {
+		ui->labelPlusBadge->hide();
+	} else {
+		if (ui->labelPlusBadge->pixmap().isNull()) {
+			ui->labelPlusBadge->setPixmap(pixmap);
+			ui->labelPlusBadge->setStyleSheet(
+				QString("background:transparent; min-width:%1px;max-width:%1px; min-height:%2px;max-height:%2px").arg(pixmap.width() / 4).arg(pixmap.height() / 4));
+		}
+		ui->labelPlusBadge->show();
+	}
+}

@@ -24,9 +24,9 @@ bool PLSAfreecaTVDataHandler::tryToUpdate(const QVariantMap &srcInfo, const Upda
 	auto platform = dynamic_cast<PLSPlatformAfreecaTV *>(PLS_PLATFORM_API->getPlatformById(channelUUID, srcInfo));
 	if (!platform) {
 		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "%s %s afreecatv refresh failed, platform not exists", PrepareInfoPrefix, __FUNCTION__);
-		PLSErrorHandler::ExtraData otherData;
+		PLSErrorHandler::ExtraData otherData("tryToUpdate SOOP");
 		otherData.errPhase = PLSErrPhaseLogin;
-		otherData.urlEn = "tryToUpdate SOOP";
+		otherData.defaultArg = {SOOP};
 		auto retData = PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::CHANNEL_AFREECATV_LOGIN_ERROR, AFREECATV, "", otherData);
 		QVariantMap info = srcInfo;
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
@@ -35,7 +35,7 @@ bool PLSAfreecaTVDataHandler::tryToUpdate(const QVariantMap &srcInfo, const Upda
 		finishedCall(QList<QVariantMap>{info});
 		return false;
 	}
-	PLS_INFO(MODULE_PLATFORM_AFREECATV, "%s %s channelUUID(%s) afreecatv platform(%p) refresh", PrepareInfoPrefix, __FUNCTION__, channelUUID.toStdString().c_str(), platform);
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, "%s %s channelUUID(%s) afreecatv platform(%p) refresh", PrepareInfoPrefix, __FUNCTION__, channelUUID.toUtf8().constData(), platform);
 	platform->setInitData(srcInfo);
 	QMetaObject::invokeMethod(platform, [platform, srcInfo, finishedCall]() {
 		platform->reInitLiveInfo(PLSCHANNELS_API->isResetNeed());

@@ -103,36 +103,37 @@ void PLSRemoteChatManage::sendWebSocketEvent(const QJsonObject &root) const
 
 void PLSRemoteChatManage::openRemoteChat()
 {
+	PLS_UI_ACTION("PLSRemoteChatManage openRemoteChat");
 	//First determine whether the current laboratory view is initialized
 	if (g_remoteChatDialog) {
 		printLog("duplicated open remote chat method");
 		g_remoteChatDialog->activateWindow();
 		return;
 	}
-
+	PLSErrorHandler::ExtraData extraData("PLSRemoteChatManage");
 	//Determine whether remoteChat is invalid
 	if (!LabManage->isValidForLabFunc(LABORATORY_REMOTECHAT_ID)) {
 		printLog("remote chat local dir invalid");
-		pls_alert_error_message(g_laboratoryDialog, tr("Alert.Title"), tr("laboratory.item.open.other.reason.failed.text"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LABORATORY_ITEM_OPEN_OTHER_REASON_FAILED_TEXT_0, PLSErrKeyAllAlert, QString(), extraData, g_laboratoryDialog);
 		pls_set_laboratory_status(LABORATORY_REMOTECHAT_ID, false);
 		return;
 	}
 
 	printLog("call open remote chat method");
 	if (!startWebsocketServer()) {
-		pls_alert_error_message(g_laboratoryDialog, tr("Alert.Title"), tr("laboratory.item.open.other.reason.failed.text"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LABORATORY_ITEM_OPEN_OTHER_REASON_FAILED_TEXT_0, PLSErrKeyAllAlert, QString(), extraData, g_laboratoryDialog);
 		closeRemoteChatView();
 		return;
 	}
 
 	if (!startWebServer()) {
-		pls_alert_error_message(g_laboratoryDialog, tr("Alert.Title"), tr("laboratory.item.open.other.reason.failed.text"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LABORATORY_ITEM_OPEN_OTHER_REASON_FAILED_TEXT_0, PLSErrKeyAllAlert, QString(), extraData, g_laboratoryDialog);
 		closeRemoteChatView();
 		return;
 	}
 
 	if (!showRemoteChatView()) {
-		pls_alert_error_message(g_laboratoryDialog, tr("Alert.Title"), tr("laboratory.item.open.other.reason.failed.text"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LABORATORY_ITEM_OPEN_OTHER_REASON_FAILED_TEXT_0, PLSErrKeyAllAlert, QString(), extraData, g_laboratoryDialog);
 		closeRemoteChatView();
 		return;
 	}

@@ -7,6 +7,7 @@
 #include "ChannelCommonFunctions.h"
 #include "ChannelDefines.h"
 #include "ui_ChannelsArea.h"
+class QCheckBox;
 class QPushButton;
 class PLSAddingFrame;
 class GoLivePannel;
@@ -119,6 +120,8 @@ private:
 
 	bool isNeedClearDualOutput();
 
+	void createB2BResolutionButton();
+
 	//private:
 	std::unique_ptr<Ui::ChannelsArea> ui = std::make_unique<Ui::ChannelsArea>();
 
@@ -143,6 +146,7 @@ private:
 	bool m_bFold = false;
 	ChannelsMap mDualoutputInfos;
 	bool m_bShowLoading = false;
+	QPointer<QCheckBox> mB2BResolutionButton;
 };
 
 #endif // CHANNELSAREA_H

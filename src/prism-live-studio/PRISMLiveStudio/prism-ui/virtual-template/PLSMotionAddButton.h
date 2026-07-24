@@ -2,6 +2,7 @@
 #define PLSMOTIONADDBUTTON_H
 
 #include <QPushButton>
+#include <QPixmap>
 
 namespace Ui {
 class PLSMotionAddButton;
@@ -17,6 +18,9 @@ public:
 
 private:
 	Ui::PLSMotionAddButton *ui;
+	QPixmap m_pixDefault;
+	QPixmap m_pixHover;
+	QPixmap m_pixClick;
 };
 
 #endif // PLSMOTIONADDBUTTON_H

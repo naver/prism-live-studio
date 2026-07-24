@@ -8,6 +8,7 @@ public:
 	~PLSGraphicsHandler();
 
 	bool CreateDevice();
+	bool NeedRebuild();
 	bool RebuildDevice();
 	void DestroyDevice();
 	bool InitedDevice() const { return inited; }

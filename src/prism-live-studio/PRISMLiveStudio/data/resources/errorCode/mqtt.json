@@ -1,0 +1,47 @@
+{
+    "data": [
+        {
+            "api": {
+                "platform": "NAVER Cloud B2B",
+                "code": "DUPLICATED"
+            },
+            "err": {
+                "prismCode": 12000,
+                "prismName": "MQTT_DUPLICATED",
+                "msgKey": "Ncpb2b.MQTT.Interrupt.Duplicated",
+                "msgText": "The current broadcast has stopped as a new live streaming started using the same channel."
+            }
+        },
+        {
+            "api": {
+                "platform": "NAVER Cloud B2B",
+                "code": "NOTICE_LONG_BROADCAST"
+            },
+            "err": {
+                "prismCode": 12001,
+                "prismName": "MQTT_NOTICE_LONG_BROADCAST",
+                "msgKey": "MQTT.Max.Live.Time.Band.NaverShopping.End.Live",
+                "msgText": "The broadcast automatically ended as it has exceeded the %1 time limit."
+            }
+        },
+        {
+            "api": {
+                "platform": "NAVER Cloud B2B",
+                "code": "PARTNER_SERVICE_DISABLED"
+            },
+            "err": {
+                "prismCode": 12002,
+                "prismName": "MQTT_PARTNER_SERVICE_DISABLED",
+                "msgKey": "Ncpb2b.MQTT.Interrupt.Service.Disabled",
+                "msgText": "Live streaming has been suspended by the service operator."
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "code": [
+                "code"
+            ]
+        }
+    }
+}

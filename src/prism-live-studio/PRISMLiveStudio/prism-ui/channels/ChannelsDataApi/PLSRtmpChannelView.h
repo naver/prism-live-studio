@@ -4,7 +4,7 @@
 #include <QDialog>
 #include <QVariantMap>
 #include "PLSDialogView.h"
-
+#include "pls-performance.h"
 namespace Ui {
 class RtmpChannelView;
 }
@@ -36,8 +36,6 @@ private slots:
 
 	void on_CancelBtn_clicked();
 
-	void on_StreamKeyVisible_toggled(bool);
-
 	void on_PasswordVisible_toggled(bool);
 
 	void on_RTMPUrlEdit_textChanged(const QString &);
@@ -47,6 +45,8 @@ private slots:
 	void on_ServerComboBox_currentTextChanged(const QString &text);
 
 	void on_OpenLink_clicked() const;
+
+	void on_onlyPasteKey_toggled(bool checked);
 
 private:
 	void languageChange();
@@ -66,6 +66,8 @@ private:
 
 	void setServerUI(const QString &channelName);
 
+	void handleContextMenu(QContextMenuEvent *event);
+	void handlePasteOperation();
 	//private:
 	Ui::RtmpChannelView *ui;
 	QVariantMap mOldData;

@@ -137,6 +137,9 @@ QList<MotionData> CategoryVirtualTemplate::getGroupList(const QString &groupId) 
 		std::list<pls::rsm::Item> items = group.items();
 		QList<MotionData> motionItems;
 		for (const auto &item : items) {
+			if (!item) {
+				continue;
+			}
 			MotionData data(item);
 			motionItems.push_back(data);
 		}
@@ -154,6 +157,18 @@ void CategoryVirtualTemplate::removeAllCustomGroups()
 		}
 		removeCustomItems(group.groupId());
 	}
+}
+
+bool CategoryVirtualTemplate::isPrismResource(const QString &itemId) const
+{
+	auto prismList = getPrismList();
+	auto iter = std::find_if(prismList.begin(), prismList.end(), [&itemId](const MotionData &data) { return data.itemId == itemId; });
+	return iter != prismList.end();
+}
+
+bool CategoryVirtualTemplate::isMotionEnabled(const QString &itemId, MotionType type) const
+{
+	return type == MotionType::MOTION && isPrismResource(itemId);
 }
 
 QList<MotionData> CategoryVirtualTemplate::getPrismList() const

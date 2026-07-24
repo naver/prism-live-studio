@@ -3,6 +3,7 @@
 #include "PLSChannelDataAPI.h"
 #include "PLSBasic.h"
 #include "liblog.h"
+#include "PLSPlatformApi.h"
 
 #include <QHBoxLayout>
 
@@ -85,8 +86,18 @@ void PLSTimerDisplay::OnStatus(bool isStarted)
 	}
 	OnTimerActivate(false);
 
-	time->setText("00:00:00");
-	startTime = (uint)QDateTime::currentDateTime().toSecsSinceEpoch();
+	// Resume (continue) logic only for Live/Rehearsal; Recording has no resume, always start from 0
+	bool useResumeTime = isStarted && (timerType == TimerType::TimerLive || timerType == TimerType::TimerRehearsal) && PLS_PLATFORM_API->getResumeStreamingFlag();
+	if (useResumeTime) {
+		auto lastStartTime = PLS_PLATFORM_API->getResumeStartTime();
+		startTime = lastStartTime;
+		auto duration = QDateTime::currentDateTime().toSecsSinceEpoch() - lastStartTime;
+		totalRecordSeconds += duration;
+		time->setText(FormatTimeString(duration));
+	} else {
+		time->setText("00:00:00");
+		startTime = (uint)QDateTime::currentDateTime().toSecsSinceEpoch();
+	}
 
 	if (isStarted) {
 		if (timerType == PLSTimerDisplay::TimerType::TimerLive || timerType == PLSTimerDisplay::TimerType::TimerRehearsal) {
@@ -541,6 +552,7 @@ void PLSPreviewLiveLabel::SetSceneNameVisible(bool visible)
 
 void PLSPreviewLiveLabel::SetLiveStatus(bool isStarted)
 {
+	PLS_INFO("PLSPreviewLiveLabel", "Receive live %s signal and ready to refresh live ui.", isStarted ? "started" : "end");
 	liveUI->SetTimerType(isStarted && PLSCHANNELS_API->isRehearsaling() ? PLSTimerDisplay::TimerType::TimerRehearsal : PLSTimerDisplay::TimerType::TimerLive);
 	liveUI->OnStatus(isStarted);
 	liveUI->OnEvents(PLSTimerDisplay::EventType::LiveStatusChanged, isStarted);

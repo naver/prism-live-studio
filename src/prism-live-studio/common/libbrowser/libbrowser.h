@@ -13,6 +13,7 @@
 
 #include "libutils-api.h"
 #include "PLSWidgetCloseHook.h"
+#include "liblog.h"
 
 #if defined(Q_OS_WIN)
 #ifdef LIBBROWSER_LIB
@@ -162,13 +163,12 @@ class LIBBROWSER_API BrowserDialog : public PLSWidgetCloseHookQt<QDialog>, publi
 
 protected:
 	explicit BrowserDialog(QWidget *parent = nullptr);
-
 signals:
 	void loadEnded();
 	void msgRecevied(const QString &type, const QJsonObject &msg);
 };
 
-LIBBROWSER_API bool init(const QString &locale);
+LIBBROWSER_API bool init();
 LIBBROWSER_API void cleanup();
 
 LIBBROWSER_API QJsonArray toJsonArray(const QList<Cookie> &cookies);

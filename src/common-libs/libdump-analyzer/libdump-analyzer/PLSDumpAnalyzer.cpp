@@ -13,6 +13,10 @@
 #include "PLSAnalysisStack.h"
 #include "libutils-api.h"
 
+#if defined(Q_OS_MACOS)
+#include "mac/PLSAnalysisStackInterface.h"
+#endif
+
 #if defined(Q_OS_WIN)
 
 static bool find_dump_file(std::string &dump_file_path, uint64_t &file_size, const std::string &dump_folder, const std::string &process_name, std::string process_pid)
@@ -165,6 +169,21 @@ LIBDUMPANALUZER_API bool pls_wait_send_dump(ProcessInfo info)
 #endif
 }
 
+LIBDUMPANALUZER_API bool pls_capture_force_exit_dump(const char *reason)
+{
+#if defined(Q_OS_MACOS)
+	if (!reason || !reason[0]) {
+		return false;
+	}
+	std::string message = std::string("Force exit timeout: ") + reason;
+	pls::generate_dump_file(reason, message);
+	return true;
+#else
+	Q_UNUSED(reason);
+	return false;
+#endif
+}
+
 #if defined(Q_OS_WIN)
 LIBDUMPANALUZER_API bool pls_send_block_dump(ProcessInfo info)
 {
@@ -177,7 +196,14 @@ LIBDUMPANALUZER_API std::vector<SoftInfo> pls_installed_software()
 }
 
 #elif defined(Q_OS_MACOS)
+LIBDUMPANALUZER_API void pls_install_fallback_crash_handlers()
+{
+	mac_install_fallback_crash_handlers();
+}
 
-// TODO: - mac next
+LIBDUMPANALUZER_API bool pls_has_crash_dump(const ProcessInfo &info)
+{
+	return mac_has_crash_dump(info);
+}
 
 #endif

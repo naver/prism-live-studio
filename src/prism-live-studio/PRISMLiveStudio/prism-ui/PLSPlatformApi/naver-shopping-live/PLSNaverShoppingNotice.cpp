@@ -17,12 +17,10 @@ PLSNaverShoppingNotice::PLSNaverShoppingNotice(QWidget *parent) : PLSDialogView(
 
 #ifdef Q_OS_MACOS
 	setHasCaption(true);
-	setMoveInContent(false);
 	setHasHLine(false);
 	setWindowTitle(tr("NaverShoppingLive.Service.Notice"));
 #else
 	setHasCaption(false);
-	setMoveInContent(true);
 	setHasHLine(true);
 #endif // Q_OS_MACOS
 

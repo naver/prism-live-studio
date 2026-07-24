@@ -67,7 +67,11 @@ PLSLiveInfoNCB2B::~PLSLiveInfoNCB2B()
 
 void PLSLiveInfoNCB2B::setupFirstUI()
 {
+	PLS_DISABLE_UISTEP_V2(this);
+
 	auto channelName = m_platform->getChannelName();
+	pls_uistep_v2_set_title(this, QStringLiteral("Live Information: %1").arg(channelName));
+
 	ui->dualWidget->setText(channelNameConvertMultiLang(channelName))->setUUID(m_platform->getChannelUUID());
 	ui->titleLabel_2->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("LiveInfo.base.Title")));
 
@@ -133,6 +137,7 @@ void PLSLiveInfoNCB2B::showEvent(QShowEvent *event)
 
 void PLSLiveInfoNCB2B::refreshUI()
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	refreshTitleDescri();
 	refreshSchedulePopButton();
 
@@ -336,7 +341,9 @@ void PLSLiveInfoNCB2B::titleEdited()
 	const auto channelName = m_platform->getInitData().value(ChannelData::g_channelName).toString();
 
 	if (isLargeToMax) {
-		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(titleLengthLimit).arg(channelName));
+		PLSErrorHandler::ExtraData extraData("PLSLiveInfoNCB2B");
+		extraData.defaultArg = {QString::number(titleLengthLimit), channelName};
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LIVEINFO_TITLE_OVER_LENGTH, PLSErrKeyAllAlert, {}, extraData);
 	}
 }
 
@@ -347,7 +354,9 @@ void PLSLiveInfoNCB2B::descriptionEdited()
 	if (ui->textEditDescribe->toPlainText().length() > describeLengthLimit) {
 		QSignalBlocker signalBlocker(ui->textEditDescribe);
 		ui->textEditDescribe->setText(ui->textEditDescribe->toPlainText().left(describeLengthLimit));
-		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.Youtube.Description.Length.Check.arg").arg(m_platform->getChannelName()));
+		PLSErrorHandler::ExtraData extraData("PLSLiveInfoNCB2B");
+		extraData.defaultArg = {m_platform->getChannelName()};
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LIVEINFO_YOUTUBE_DESCRIPTION_LENGTH, PLSErrKeyAllAlert, {}, extraData);
 	}
 
 	doUpdateOkState();

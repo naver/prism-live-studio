@@ -5,6 +5,7 @@
 #include <QFont>
 
 #include "libui-globals.h"
+#include <QPointer>
 
 class QSpacerItem;
 
@@ -14,15 +15,15 @@ class LIBUI_API PLSImageTextButton : public QPushButton {
 public:
 	explicit PLSImageTextButton(QWidget *parent = nullptr);
 
-	void setLabelText(const QString &str, bool isElidedText = false);
+	void setLabelText(const QString &str, bool isElidedText = false, bool isIconLeft = true);
 	void setFileButtonEnabled(bool enabled);
-
-	const QFont &getRightFont() const;
 
 	void setWordWrap(bool trap);
 	void seIsLeftAlign(bool isLeft);
 
 	void onlyHideContent(bool hide);
+
+	void modifyContentCenter();
 
 protected:
 	void enterEvent(QEnterEvent *event) override;
@@ -34,15 +35,19 @@ protected:
 private:
 	QLabel *m_labelLeft;
 	QLabel *m_labelRight;
+
+	QPointer<QLabel> m_imgLabel;
+	QPointer<QLabel> m_textLabel;
+
 	QSpacerItem *m_leftSpacer;
 
-	QString m_oriRightText{};
+	QString m_oriText{};
 	bool m_isElidedText{false};
 
 	void elidedLabelText();
 };
 
-class PLSBorderButton : public QPushButton {
+class LIBUI_API PLSBorderButton : public QPushButton {
 	Q_OBJECT
 
 public:

@@ -10,7 +10,10 @@
 #include <type_traits>
 #include <QStringList>
 #include <QSet>
+#include <QDir>
+#include <QFileInfo>
 #include "libutils-api.h"
+#include "libui.h"
 
 const QString PLSErrPhaseChannel = "channel";
 const QString PLSErrPhaseLogin = "login";
@@ -26,12 +29,17 @@ const QString PLSErrCustomKey_LoadLiveInfoExpired = "LoadLiveInfoExpired";
 const QString PLSErrCustomKey_UpdateLiveInfoFailedNoService = "UpdateLiveInfoFailedNoService";
 const QString PLSErrCustomKey_UploadImageFailed = "UploadImageFailed";
 const QString PLSErrCustomKey_OutputRecordFailed = "OutputRecordFailed";
+const QString PLSErrCustomKey_PRISMTempError = "PRISMTempError";
+
+const QString PLSErrCustomKey_SOOPUpdateLiveInfoFailed = "SOOPUpdateLiveInfoFailed";
+const QString PLSErrCustomKey_SOOPLoadLiveInfoFailed = "SOOPLoadLiveInfoFailed";
 
 const QString PLSErrApiKey_OutputRecord = "OutputRecord";
 const QString PLSErrApiKey_OutputStream = "OutputStream";
 
 constexpr auto PLSErrKeyCommon = "Common";
 constexpr auto PLSErrKeyDefault = "default";
+const QString PLSErrKeyAllAlert = "Alert";
 
 constexpr auto s_path_api_statusCode = "api.statusCode";
 constexpr auto s_api_statusCode = "$statusCode";
@@ -42,9 +50,13 @@ constexpr auto s_path_err_msgKey = "err.msgKey";
 constexpr auto s_path_err_errorType = "err.errorType";
 constexpr auto s_path_err_arg = "err.arg";
 constexpr auto s_path_err_buttons = "err.buttons"; //json array string.
+constexpr auto s_path_err_append = "err.append";
+constexpr auto s_path_err_append_join = "err.appendJoin";
+constexpr auto s_path_err_default_btn = "err.defaultBtn";
 constexpr auto s_path_err_prismCode = "err.prismCode";
 constexpr auto s_path_err_prismCodeName = "err.prismName";
 constexpr auto s_path_err_alertType = "err.alertType"; //"error" or empty : contact us. "normal" or other : normal
+constexpr auto s_path_err_stage = "err.stage";         // example: "goLiveFlow", "refreshChannelFlow"
 constexpr auto s_path_extra_path = "extra.path";
 constexpr auto s_path_extra_append = "extra.append";
 constexpr auto s_path_macro_prefix = "default.extra.macroPrefix";
@@ -130,7 +142,7 @@ static const char *dialogBtn2Str(QDialogButtonBox::StandardButton btn)
 	return metaEnum.valueToKey(btn);
 }
 
-static QString &transTrString(QString &trString, bool trAll = false)
+static QString &transTrString(QString &trString, bool trAll /*= false*/, bool isEnglish)
 {
 	QRegularExpression regExp("tr\\(\"(.*?)\"\\)");
 	QRegularExpressionMatchIterator iterator = regExp.globalMatch(trString);
@@ -138,11 +150,20 @@ static QString &transTrString(QString &trString, bool trAll = false)
 		QRegularExpressionMatch match = iterator.next();
 		QString innerContent = match.captured(1); //"ABC"
 		QString fullContent = match.captured(0);  //"tr(\"ABC\")"
-		QString trStr = QObject::tr(innerContent.toUtf8().constData());
+		QString trStr;
+		if (!isEnglish) {
+			trStr = QObject::tr(innerContent.toUtf8().constData());
+		} else {
+			trStr = pls_uistep_v2_get_english(innerContent.toUtf8());
+		}
 		trString.replace(fullContent, trStr);
 	}
 	if (trAll) {
-		trString = QObject::tr(trString.toUtf8().constData());
+		if (!isEnglish) {
+			trString = QObject::tr(trString.toUtf8().constData());
+		} else {
+			trString = pls_uistep_v2_get_english(trString.toUtf8());
+		}
 	}
 	return trString;
 }
@@ -198,6 +219,104 @@ static QString &replaceQtStringFormat(QString &trString, const QJsonObject &erro
 	return trString;
 }
 
+static QStringList getAppendList(const QJsonObject &errorObj)
+{
+	auto appendStr = getValue<QString>(errorObj, s_path_err_append);
+	if (!appendStr.isEmpty()) {
+		auto doc = QJsonDocument::fromJson(appendStr.toUtf8());
+		if (doc.isArray()) {
+			QStringList list;
+			auto arr = doc.array();
+			for (const auto &item : arr) {
+				auto val = forceJsonValue2String(item);
+				if (val.has_value()) {
+					list.append(val.value());
+				}
+			}
+			if (!list.isEmpty()) {
+				return list;
+			}
+		}
+	}
+	return getValue<QStringList>(errorObj, s_path_err_append);
+}
+
+static QJsonObject loadJsonFromSplitFiles()
+{
+	const QString downloadDirPath = pls_get_app_user_data_dir_path_pn(QStringLiteral("resources/library/Library_Policy_PC/errorCode"), false);
+	const QString appDirPath = pls_get_app_data_path_pn(QStringLiteral("resources/errorCode"));
+	auto getFolderVersion = [](const QString &folderPath) -> qint64 {
+		QJsonObject versionObj;
+		const QString versionPath = QDir::cleanPath(folderPath + QStringLiteral("/version.json"));
+		if (!pls_read_json(versionObj, versionPath)) {
+			return 0;
+		}
+		return getValue<qint64>(versionObj, QStringLiteral("version"));
+	};
+
+	const auto downloadDirVersion = getFolderVersion(downloadDirPath);
+	const auto appDirVersion = getFolderVersion(appDirPath);
+	const bool isUseDownloadDir = downloadDirVersion > appDirVersion;
+	const qint64 maxVersion = qMax(downloadDirVersion, appDirVersion);
+	const QString targetDir = isUseDownloadDir ? downloadDirPath : appDirPath;
+	PLS_INFO(s_log_moudule, "%s splitVersion downloadVersion:%lld appVersion:%lld jsonUse:%s", s_moudule_prefix, static_cast<long long>(downloadDirVersion), static_cast<long long>(appDirVersion),
+		 isUseDownloadDir ? "download" : "app");
+
+	QJsonObject versionObj;
+	if (maxVersion <= 0) {
+		PLS_WARN(s_log_moudule, "%s load split json failed, fallback single file.", s_moudule_prefix);
+		return {};
+	}
+
+	QJsonObject mergedObj;
+	mergedObj.insert(QStringLiteral("version"), maxVersion);
+	int jsonCount = 0;
+	const auto files = pls_enum_files(
+		targetDir,
+		[](const QString &, const QString &name) {
+			if (!name.endsWith(QStringLiteral(".json"), Qt::CaseInsensitive))
+				return true;
+			if (name.compare(QStringLiteral("version.json"), Qt::CaseInsensitive) == 0)
+				return true;
+			return false;
+		},
+		false, false);
+	for (const auto &filePath : files) {
+		QJsonObject sectionObj;
+		if (!pls_read_json(sectionObj, filePath)) {
+			PLS_ERROR(s_log_moudule, "%s splitVersion load json item failed:%s", s_moudule_prefix, qUtf8Printable(QFileInfo(filePath).fileName()));
+			break;
+		}
+		PLS_INFO(s_log_moudule, "%s splitVersion load json item succeed:%s", s_moudule_prefix, qUtf8Printable(QFileInfo(filePath).fileName()));
+		const QFileInfo fi(filePath);
+		mergedObj.insert(fi.completeBaseName(), sectionObj);
+		++jsonCount;
+	}
+	PLS_INFO(s_log_moudule, "%s splitVersion load json count: %d", s_moudule_prefix, jsonCount);
+	return mergedObj;
+}
+
+static QJsonObject loadJsonFromSingleFile()
+{
+	QString downloadPath = pls_get_app_user_data_dir_path_pn(QStringLiteral("resources/library/Library_Policy_PC/errorCode.json"), false);
+	QString qrcPath = pls_get_app_data_path_pn(QStringLiteral("/resources/errorCode.json"));
+	QJsonObject downloadObj;
+	QJsonObject qrcObj;
+	bool b_download = pls_read_json(downloadObj, downloadPath);
+	bool b_qrc = pls_read_json(qrcObj, qrcPath);
+	if (!b_download && !b_qrc) {
+		PLS_ERROR(s_log_moudule, "%s serialization of json failed", s_moudule_prefix);
+		return {};
+	}
+	auto downloadVersion = getValue<qint64>(downloadObj, QStringLiteral("version"));
+	auto qrcVersion = getValue<qint64>(qrcObj, QStringLiteral("version"));
+	bool isUseDownload = downloadVersion > qrcVersion;
+	PLS_INFO(s_log_moudule, "%s downloadVersion:%lld appVersion:%lld jsonUse:%s", s_moudule_prefix, static_cast<long long>(downloadVersion), static_cast<long long>(qrcVersion),
+		 isUseDownload ? "download" : "app");
+
+	return isUseDownload ? downloadObj : qrcObj;
+}
+
 PLSErrorHandler *PLSErrorHandler::instance()
 {
 	static PLSErrorHandler _instance;
@@ -212,24 +331,16 @@ PLSErrorHandler::PLSErrorHandler()
 }
 QJsonObject PLSErrorHandler::loadJson()
 {
-	QString downloadPath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/errorCode.json"));
-	QString qrcPath = ":/Configs/resource/DefaultResources/errorCode.json";
-	QJsonObject downloadObj;
-	QJsonObject qrcObj;
-	bool b_download = pls_read_json(downloadObj, downloadPath);
-	bool b_qrc = pls_read_json(qrcObj, qrcPath);
-	if (!b_download && !b_qrc) {
-		PLS_ERROR(s_log_moudule, "%s serialization of json failed", s_moudule_prefix);
+	auto tempRootJson = loadJsonFromSplitFiles();
+	if (tempRootJson.isEmpty())
+		tempRootJson = loadJsonFromSingleFile();
+	if (tempRootJson.isEmpty()) {
+		PLS_ERROR(s_log_moudule, "%s load all json failed", s_moudule_prefix);
 		return {};
 	}
-	auto downloadVersion = getValue<qint64>(downloadObj, QStringLiteral("version"));
-	auto qrcVersion = getValue<qint64>(qrcObj, QStringLiteral("version"));
-	bool isUseDownload = downloadVersion > qrcVersion;
-	PLS_INFO(s_log_moudule, "%s downloadVersion:%ld qrcVersion:%ld jsonUse:%s", s_moudule_prefix, downloadVersion, qrcVersion, isUseDownload ? "download" : "qrc");
-
-	auto tempRootJson = isUseDownload ? downloadObj : qrcObj;
 	auto iniArray = getValue<QJsonArray>(tempRootJson, "IniValue.data");
 	QMap<QString, QString> iniMap;
+	QMap<QString, QString> enIniMap;
 	for (auto &&v : iniArray) {
 		auto item = v.toObject();
 		auto key = item.value("key").toString().toUtf8();
@@ -237,17 +348,22 @@ QJsonObject PLSErrorHandler::loadJson()
 			continue;
 		}
 		auto curStr = item.value(pls_get_current_language()).toString();
+		auto enStr = item.value("en-US").toString();
 		if (curStr.isEmpty()) {
-			curStr = item.value("en-US").toString();
+			curStr = enStr;
 		}
 		if (!curStr.isEmpty()) {
 			iniMap[key] = curStr;
+		}
+		if (!enStr.isEmpty()) {
+			enIniMap[key] = enStr;
 		}
 	}
 
 	std::unique_lock<std::shared_mutex> lock(m_mutex);
 	m_rootJson = tempRootJson;
 	m_iniMap = iniMap;
+	m_enIniMap = enIniMap;
 
 	return m_rootJson;
 }
@@ -258,18 +374,33 @@ QJsonObject PLSErrorHandler::getRootObj() const
 	return m_rootJson;
 }
 
-bool PLSErrorHandler::getTranslateString(const QString &key, QString &transVal) const
+bool PLSErrorHandler::getTranslateString(const QString &key, QString &transVal, bool isSearchEnglish) const
 {
 	std::shared_lock<std::shared_mutex> lock(m_mutex);
 	if (key.isEmpty()) {
 		return false;
 	}
-	auto val = m_iniMap.value(key);
+	auto val = isSearchEnglish ? m_enIniMap.value(key) : m_iniMap.value(key);
 	if (val.isEmpty()) {
 		return false;
 	}
 	transVal = val;
 	return true;
+}
+bool PLSErrorHandler::getEnglishStrByOtherLang(const QString &otherLang, QString &engString) const
+{
+	std::shared_lock<std::shared_mutex> lock(m_mutex);
+
+	QString enKey;
+	QMap<QString, QString>::const_iterator i;
+	for (i = m_iniMap.constBegin(); i != m_iniMap.constEnd(); ++i) {
+		if (i.value() == otherLang) {
+			enKey = i.key();
+			break;
+		}
+	}
+
+	return getTranslateString(enKey, engString, true);
 }
 
 PLSErrorHandler::RetData PLSErrorHandler::getDataWithInheritList(const QJsonObject &rootObj, const QString &platformName, const NetworkData &netData, const QString &customErrName,
@@ -401,6 +532,7 @@ void PLSErrorHandler::fillUnknownDataIfEmpty(RetData &retData, ErrCode prismCode
 		retData.isMatched = true;
 		retData.alertMsgKey = "Common.Unknown.Error";
 		retData.alertMsg = QObject::tr(qUtf8Printable(retData.alertMsgKey));
+		retData.alertMsgEnglish = pls_uistep_v2_get_english(retData.alertMsgKey.toUtf8());
 		retData.prismCode = COMMON_UNKNOWN_ERROR;
 		retData.prismName = QVariant::fromValue(retData.prismCode).toString();
 		retData.isExactMatch = false;
@@ -493,7 +625,7 @@ QJsonObject PLSErrorHandler::getErrObj(const QJsonArray &jsonArray, const QStrin
 			bool isMatched = keys.empty() ? false : true;
 			for (auto subKey : keys) {
 				auto excelValue = getValue<QString>(apiData, subKey);
-				transTrString(excelValue);
+				transTrString(excelValue, false, false);
 				bool containValue = extraData.pathValueMap.contains(subKey);
 
 				QString pathValue = containValue ? extraData.pathValueMap.value(subKey) : "nullErr";
@@ -595,13 +727,24 @@ PLSErrorHandler::RetData PLSErrorHandler::fillRetDataWithMatchObj(const QJsonObj
 	extraData.pathValueMap["prismCode"] = QString::number(data.prismCode);
 	extraData.pathValueMap["prismName"] = data.prismName;
 
+	auto errAppendList = getAppendList(matchedObj);
+	if (!errAppendList.isEmpty()) {
+		extraData.appendList = errAppendList;
+	}
+	auto errAppendJoin = getValue<QString>(matchedObj, s_path_err_append_join);
+	if (!errAppendJoin.isEmpty()) {
+		extraData.appendJoin = errAppendJoin;
+	}
+	extraData.appendList.removeDuplicates();
+
 	auto msgPair = getOriginalAlertString(matchedObj, s_path_err_msgKey, "err.msgText");
-	auto finalStr = dealOriginalAlertString(msgPair.first, matchedObj, extraData);
-	data.alertMsg = finalStr;
+	data.alertMsg = dealOriginalAlertString(msgPair.first, matchedObj, extraData, false);
+	data.alertMsgEnglish = dealOriginalAlertString(pls_uistep_v2_get_english(msgPair.second.toUtf8()), matchedObj, extraData, true);
 	data.alertMsgKey = msgPair.second.replace("%", "%%");
 	data.matchedObj = matchedObj;
 	data.alertType = str2AlertType(getValue<QString>(matchedObj, s_path_err_alertType), PLSErrorHandler::AlertType::Error);
 	data.errorType = str2ErrorType(getValue<QString>(matchedObj, s_path_err_errorType));
+	data.alertStage = getValue<QString>(matchedObj, s_path_err_stage);
 	data.extraData = extraData;
 
 	auto macroPrefixes = getValue<QStringList>(PLSErrorHandler::instance()->getRootObj(), s_path_macro_prefix);
@@ -658,7 +801,7 @@ std::pair<QString /*trans*/, QString /*ini key*/> PLSErrorHandler::getOriginalAl
 	return {msgKey, msgKey};
 }
 
-QString PLSErrorHandler::dealOriginalAlertString(const QString &originalStr, const QJsonObject &errorObj, ExtraData &extraData)
+QString PLSErrorHandler::dealOriginalAlertString(const QString &originalStr, const QJsonObject &errorObj, const ExtraData &extraData, bool isEnglish)
 {
 	const static QString getValueRegStr("\\{\\{(.+?)\\}\\}");
 	auto getStrIfFound = [](const QString &dealStr, const QMap<QString, QString> &searchObj) -> std::optional<QString> {
@@ -683,10 +826,11 @@ QString PLSErrorHandler::dealOriginalAlertString(const QString &originalStr, con
 		return originalStr;
 	}
 	QString dealStr = originalStr;
-	extraData.appendList.removeDuplicates();
 	QStringList translatedList;
 	for (const auto &item : extraData.appendList) {
-		auto appendStrOpt = getStrIfFound(item, extraData.pathValueMap);
+		auto tmpItem = item;
+		transTrString(tmpItem, false, isEnglish);
+		auto appendStrOpt = getStrIfFound(tmpItem, extraData.pathValueMap);
 		if (appendStrOpt.has_value()) {
 			translatedList.append(appendStrOpt.value());
 		}
@@ -697,7 +841,7 @@ QString PLSErrorHandler::dealOriginalAlertString(const QString &originalStr, con
 		dealStr.append("\n").append(translatedList.join(joinStr));
 	}
 
-	return transAndDealValStr(dealStr, errorObj, extraData);
+	return transAndDealValStr(dealStr, errorObj, extraData, isEnglish);
 }
 
 QJsonArray PLSErrorHandler::getButtonsObj(const QJsonObject &errorObj)
@@ -758,11 +902,11 @@ QDialogButtonBox::StandardButton PLSErrorHandler::directShowAlert(RetData &data,
 	return data.clickedBtn;
 }
 
-QString getInheritValueString(const QString &alertKey, const QJsonObject &rootObj, const QStringList &inheritList, const PLSErrorHandler::RetData &data)
+static QPair<QString /*current*/, QString /*english*/> getInheritValueString(const QString &alertKey, const QJsonObject &rootObj, const QStringList &inheritList, const PLSErrorHandler::RetData &data)
 {
 
 	if (rootObj.isEmpty()) {
-		return "";
+		return {};
 	}
 
 	QString valueStr;
@@ -788,12 +932,16 @@ QString getInheritValueString(const QString &alertKey, const QJsonObject &rootOb
 				      .arg(alertKey);
 		PLS_WARN(s_log_moudule, qUtf8Printable(log));
 		assert(false && "not found");
-		return "";
+		return {};
 	}
-	return transTrString(replaceValString(valueStr, data.extraData.pathValueMap), true);
+	auto currentStr = replaceValString(valueStr, data.extraData.pathValueMap);
+	auto englishStr = currentStr;
+	transTrString(currentStr, true, false);
+	transTrString(englishStr, true, true);
+	return {currentStr, englishStr};
 }
 
-PLSErrorHandler::AlertType PLSErrorHandler::getButtonAndMsgDatas(QMap<PLSAlertView::Button, QString> &actionMap, QMap<PLSAlertView::Button, QString> &buttonsMap, RetData &data)
+PLSErrorHandler::AlertType PLSErrorHandler::getButtonAndMsgDatas(QMap<PLSAlertView::Button, QString> &actionMap, QMap<PLSAlertView::Button, pls_text_t> &buttonsMap, RetData &data)
 {
 	AlertType finalType = AlertType::Normal;
 
@@ -818,8 +966,8 @@ PLSErrorHandler::AlertType PLSErrorHandler::getButtonAndMsgDatas(QMap<PLSAlertVi
 			}
 		}
 	} else {
-		QString btnText;
-		QString btnLink;
+		QPair<QString /*current*/, QString /*english*/> btnText;
+		QPair<QString /*current*/, QString /*english*/> btnLink;
 		auto rootObj = PLSErrorHandler::instance()->getRootObj();
 		QStringList inheritList = getInheritList(rootObj, data.extraData.platformName);
 
@@ -834,7 +982,8 @@ PLSErrorHandler::AlertType PLSErrorHandler::getButtonAndMsgDatas(QMap<PLSAlertVi
 				btnText = getInheritValueString("alert.normal.thirdLinkText", rootObj, inheritList, data);
 				btnLink = getInheritValueString("alert.normal.thirdLink", rootObj, inheritList, data);
 			}
-			data.alertMsg.append(codeText);
+			data.alertMsg.append(codeText.first);
+			data.alertMsgEnglish.append(codeText.second);
 		} else if (data.alertType == AlertType::Error_Blog || data.alertType == AlertType::Error_Link || data.alertType == AlertType::Error_Blog_Link) {
 			finalType = AlertType::Error;
 
@@ -846,21 +995,33 @@ PLSErrorHandler::AlertType PLSErrorHandler::getButtonAndMsgDatas(QMap<PLSAlertVi
 			if (data.alertType == AlertType::Error_Link || data.alertType == AlertType::Error_Blog_Link) {
 				auto codeText = getInheritValueString("alert.error.thirdLinkText", rootObj, inheritList, data);
 				auto codeTextLink = getInheritValueString("alert.error.thirdLink", rootObj, inheritList, data);
-				if (!codeText.isEmpty() && !codeTextLink.isEmpty()) {
-					QString links = QString("<br><br><a href='%1' style='color:#effc35; text-decoration:none'>").arg(codeTextLink).append(codeText).append("</a>");
-					data.alertMsg.append(links);
-					if (!Qt::mightBeRichText(data.alertMsg)) {
-						data.alertMsg = QString("<qt>%1</qt>").arg(data.alertMsg);
+				if (!codeText.first.isEmpty() && !codeTextLink.first.isEmpty()) {
+					{
+						QString links =
+							QString("<br><br><a href='%1' style='color:#effc35; text-decoration:none'>").arg(codeTextLink.first).append(codeText.first).append("</a>");
+						data.alertMsg.append(links);
+						if (!Qt::mightBeRichText(data.alertMsg)) {
+							data.alertMsg = QString("<qt>%1</qt>").arg(data.alertMsg);
+						}
+					}
+					{
+						QString linksEnglish =
+							QString("<br><br><a href='%1' style='color:#effc35; text-decoration:none'>").arg(codeTextLink.second).append(codeText.second).append("</a>");
+						data.alertMsgEnglish.append(linksEnglish);
+						if (!Qt::mightBeRichText(data.alertMsgEnglish)) {
+							data.alertMsgEnglish = QString("<qt>%1</qt>").arg(data.alertMsgEnglish);
+						}
 					}
 				}
 			}
 		}
-		transAndDealValStr(data.alertMsg, data.matchedObj, data.extraData);
+		transAndDealValStr(data.alertMsg, data.matchedObj, data.extraData, false);
+		transAndDealValStr(data.alertMsgEnglish, data.matchedObj, data.extraData, true);
 		buttonsMap.insert(QDialogButtonBox::Ok, QObject::tr(dialogBtn2Str(QDialogButtonBox::Ok)));
-		if (!btnText.isEmpty()) {
+		if (!btnText.first.isEmpty()) {
 			auto qHelpBtn = QDialogButtonBox::Help;
-			buttonsMap.insert(qHelpBtn, btnText);
-			actionMap.insert(qHelpBtn, QString("open.").append(btnLink));
+			buttonsMap.insert(qHelpBtn, btnText.first);
+			actionMap.insert(qHelpBtn, QString("open.").append(btnLink.first));
 		}
 	}
 	if (buttonsMap.isEmpty()) {
@@ -869,14 +1030,28 @@ PLSErrorHandler::AlertType PLSErrorHandler::getButtonAndMsgDatas(QMap<PLSAlertVi
 	}
 	return finalType;
 }
-QString &PLSErrorHandler::transAndDealValStr(QString &dealStr, const QJsonObject &errorObj, const ExtraData &extraData)
+
+QString &PLSErrorHandler::transAndDealValStr(QString &dealStr, const QJsonObject &errorObj, const ExtraData &extraData, bool isEnglish)
 {
 	replaceQtStringFormat(dealStr, errorObj, extraData);
-	transTrString(replaceValString(dealStr, extraData.pathValueMap));
+	transTrString(replaceValString(dealStr, extraData.pathValueMap), false, isEnglish);
 	if (Qt::mightBeRichText(dealStr)) {
 		dealStr.replace("\n", "<br>");
 	}
 	return dealStr;
+}
+
+static PLSAlertView::Button getDefaultBtn(PLSErrorHandler::RetData &data)
+{
+	PLSAlertView::Button defaultButton = PLSAlertView::Button::Ok;
+	const QString defaultBtnStr = getValue<QString>(data.matchedObj, s_path_err_default_btn);
+	if (!defaultBtnStr.isEmpty()) {
+		auto defaultBtn = str2DialogBtn(defaultBtnStr);
+		if (defaultBtn != QDialogButtonBox::NoButton) {
+			defaultButton = static_cast<PLSAlertView::Button>(defaultBtn);
+		}
+	}
+	return defaultButton;
 }
 
 void PLSErrorHandler::showAlertInMain(RetData &data, QWidget *showParent)
@@ -889,19 +1064,37 @@ void PLSErrorHandler::showAlertInMain(RetData &data, QWidget *showParent)
 	}
 
 	QMap<PLSAlertView::Button, QString> actionMap;
-	QMap<PLSAlertView::Button, QString> buttonsMap;
+	QMap<PLSAlertView::Button, pls_text_t> buttonsMap;
 	AlertType finalType = getButtonAndMsgDatas(actionMap, buttonsMap, data);
 	QString title = QObject::tr(getValue<QString>(data.matchedObj, s_path_err_title, "Alert.Title").toUtf8().constData());
 
-	PLSAlertView::Button ret = PLSAlertView::Button::Ok;
+	PLSAlertView::Button defaultButton = getDefaultBtn(data);
 
-	if (finalType == AlertType::Error) {
-		ret = pls_alert_error_message(showParent, title, data.alertMsg, QString::number(data.prismCode), buttonsMap);
+	const QString checkBox = QObject::tr(getValue<QString>(data.matchedObj, "err.checkbox").toUtf8().constData());
+
+	if (checkBox.isEmpty()) {
+		PLSAlertView::Button ret = PLSAlertView::Button::Ok;
+		if (finalType == AlertType::Error) {
+			data.clickedBtn = pls_alert_error_message(showParent, title, pls_text_t(data.alertMsg, data.alertMsgEnglish, data.alertStage), QString::number(data.prismCode), buttonsMap,
+								  defaultButton, -1, data.extraData.propertiesMap);
+		} else {
+			data.clickedBtn =
+				PLSAlertView::warning(showParent, title, pls_text_t(data.alertMsg, data.alertMsgEnglish, data.alertStage), buttonsMap, defaultButton, -1, data.extraData.propertiesMap);
+		}
 	} else {
-		ret = PLSAlertView::warning(showParent, title, data.alertMsg, buttonsMap);
+		PLSAlertView::Result ret;
+		if (finalType == AlertType::Error) {
+			data.clickedBtn = pls_alert_error_message(showParent, title, pls_text_t(data.alertMsg, data.alertMsgEnglish, data.alertStage), QString::number(data.prismCode), buttonsMap,
+								  defaultButton, -1, data.extraData.propertiesMap);
+		} else {
+			ret = PLSAlertView::warning(showParent, title, pls_text_t(data.alertMsg, data.alertMsgEnglish, data.alertStage), checkBox, buttonsMap, defaultButton, -1,
+						    data.extraData.propertiesMap);
+			data.clickedBtn = ret.button;
+			data.isCheckBoxClick = ret.isChecked;
+		}
 	}
-	data.clickedBtn = ret;
-	PLSErrorHandler::dealAlertAction(actionMap.value(ret), data.extraData.pathValueMap);
+
+	PLSErrorHandler::dealAlertAction(actionMap.value(data.clickedBtn), data.extraData.pathValueMap);
 }
 
 bool PLSErrorHandler::isValidErrPhase(const QString &jsonPhase, const QString &userPhase)
@@ -986,7 +1179,7 @@ void PLSErrorHandler::printLog(const RetData &retData, bool forcePrint)
 	logEn = logPre + logEn + logSuffix;
 
 	QVariantMap anaMap;
-	anaMap["dev"] = pls_bool_2_string(pls_prism_is_dev());
+	anaMap["dev"] = pls_bool_2_string(pls_is_dev());
 	anaMap["type"] = "APIError";
 	anaMap["errcode"] = QString::number(retData.prismCode);
 	anaMap["errname"] = retData.prismName;
@@ -995,7 +1188,6 @@ void PLSErrorHandler::printLog(const RetData &retData, bool forcePrint)
 	anaMap["platformPhase"] = retData.prismCodePrefix;
 	anaMap["isExactMatch"] = pls_bool_2_string(retData.isExactMatch);
 	anaMap["url"] = extraData.urlEn;
-	pls_send_analog(AnalogType::ANALOG_ERROR_CODE, anaMap);
 
 	std::vector<std::pair<QByteArray, QByteArray>> fields_ByteArray;
 	for (auto iter = anaMap.begin(); iter != anaMap.end(); iter++) {
@@ -1008,7 +1200,7 @@ void PLSErrorHandler::printLog(const RetData &retData, bool forcePrint)
 			item.second = "empty";
 			QString log = QString("%1 fields value is empty, which key is: %2").arg(s_moudule_prefix).arg(item.first);
 			PLS_WARN(s_log_moudule, qUtf8Printable(log));
-//			assert(false && "value is empty");
+			assert(false && "value is empty");
 		}
 	}
 

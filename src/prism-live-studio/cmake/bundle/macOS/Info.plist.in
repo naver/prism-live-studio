@@ -31,5 +31,16 @@
     <false/>
 	<key>NSCameraReactionEffectGesturesEnabledDefault</key>
     <false/>
+	<key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.prismlive.prismlivestudio.applesigninprismpc</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>applesigninprismpc</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>

@@ -51,6 +51,8 @@ private:
 struct PLSWatermarkSource {
 	OBSSource source = nullptr;
 	OBSSceneItem item = nullptr;
+	float metadataWidth = 0.0f;
+	float metadataHeight = 0.0f;
 };
 
 class PLSWatermark {

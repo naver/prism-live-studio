@@ -14,6 +14,9 @@
 #include "action.h"
 #include "libutils-api.h"
 #include "PLSBasic.h"
+#include "PLSErrorHandler.h"
+#include "frontend-api.h"
+#include "libui.h"
 
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
@@ -25,10 +28,10 @@
 #include <QDirIterator>
 #include <QDir>
 using namespace common;
-constexpr auto SCENE_REFRESH_THUMBANIL_TIME_MS = 5000;
 
 PLSSceneListView::PLSSceneListView(QWidget *parent) : QFrame(parent)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	ui = pls_new<Ui::PLSSceneListView>();
 	ui->setupUi(this);
 	pls_add_css(this, {"PLSScene"});
@@ -53,9 +56,6 @@ PLSSceneListView::PLSSceneListView(QWidget *parent) : QFrame(parent)
 
 	CreateSceneTransitionsView();
 
-	thumbnailTimer = pls_new<QTimer>(this);
-	connect(thumbnailTimer, &QTimer::timeout, this, &PLSSceneListView::RefreshSceneThumbnail);
-
 	OnLiveStatus(false);
 	OnRecordStatus(false);
 }
@@ -67,18 +67,12 @@ PLSSceneListView::~PLSSceneListView()
 		transitionsView = nullptr;
 	}
 
-	StopRefreshThumbnailTimer();
-	if (thumbnailTimer) {
-		pls_delete(thumbnailTimer);
-		thumbnailTimer = nullptr;
-	}
-
 	pls_delete(ui);
 }
 
-void PLSSceneListView::SetSceneDisplayMethod(int method)
+void PLSSceneListView::SetSceneDisplayMethod(DisplayMethod method)
 {
-	if (method < 0 || method > static_cast<int>(DisplayMethod::TextView)) {
+	if (method < DisplayMethod::TextView || method >= DisplayMethod::InvalidMethod) {
 		return;
 	}
 
@@ -99,14 +93,7 @@ void PLSSceneListView::SetSceneDisplayMethod(int method)
 		}
 	}
 
-	if (DisplayMethod::ThumbnailView == displayMethod) {
-		RefreshSceneThumbnail();
-		StartRefreshThumbnailTimer();
-	} else {
-		StopRefreshThumbnailTimer();
-		RefreshSceneThumbnail();
-	}
-
+	RefreshSceneThumbnail();
 	this->RefreshScene(true);
 }
 
@@ -123,20 +110,6 @@ int PLSSceneListView::GetSceneOrder(const char *name) const
 		}
 	}
 	return 0;
-}
-
-const char *PLSSceneListView::getSceneDisplayMethodStr(DisplayMethod method)
-{
-	switch (method) {
-	case DisplayMethod::DynamicRealtimeView:
-		return "Real-time screen";
-	case DisplayMethod::ThumbnailView:
-		return "Thumbnail(5sec)";
-	case DisplayMethod::TextView:
-		return "Text";
-	default:
-		return "Unknown";
-	}
 }
 
 void PLSSceneListView::AddScene(const QString &name, OBSScene scene, const SignalContainer<OBSScene> &handler, bool loadingScene)
@@ -166,6 +139,7 @@ void PLSSceneListView::DeleteScene(const QString &name)
 	if (nullptr == main->GetCurrentSceneItemView()) {
 		if (view) {
 			obs_source_t *source = obs_scene_get_source(view->GetData());
+			main->SetPendingRenderSceneNamePerf(source, "User delete scene");
 			main->SetCurrentScene(source);
 		}
 	}
@@ -213,7 +187,7 @@ void PLSSceneListView::SetCurrentItem(const PLSSceneItemView *item) const
 		return;
 	}
 	for (const auto &iter : data) {
-		if (0 == strcmp(item->GetName().toStdString().c_str(), iter.first.toStdString().c_str())) {
+		if (0 == strcmp(item->GetName().toUtf8().constData(), iter.first.toUtf8().constData())) {
 			PLSBasic::instance()->SetScene(item->GetData());
 			iter.second->SetCurrentFlag(true);
 		} else {
@@ -229,7 +203,7 @@ void PLSSceneListView::SetCurrentItem(const QString &name) const
 		return;
 	}
 	for (const auto &iter : data) {
-		if (0 == strcmp(iter.first.toStdString().c_str(), name.toStdString().c_str())) {
+		if (0 == strcmp(iter.first.toUtf8().constData(), name.toUtf8().constData())) {
 			SetCurrentItem(iter.second);
 			break;
 		}
@@ -244,7 +218,7 @@ QList<PLSSceneItemView *> PLSSceneListView::FindItems(const QString &name) const
 		return items;
 	}
 	for (const auto &iter : data) {
-		if (0 == strcmp(iter.first.toStdString().c_str(), name.toStdString().c_str())) {
+		if (0 == strcmp(iter.first.toUtf8().constData(), name.toUtf8().constData())) {
 			items.push_back(iter.second);
 		}
 	}
@@ -493,7 +467,7 @@ void PLSSceneListView::showEvent(QShowEvent *event)
 	ui->scrollAreaWidgetContents->resize(ui->scrollArea->width(), ui->scrollArea->height());
 }
 
-void PLSSceneListView::OnMouseButtonClicked(const PLSSceneItemView *item) const
+void PLSSceneListView::OnMouseButtonClicked(const PLSSceneItemView *item)
 {
 	PLSBasic *main = PLSBasic::instance();
 	if (main && item) {
@@ -671,7 +645,7 @@ void PLSSceneListView::RefreshSceneBadge()
 void PLSSceneListView::RenameSceneItem(PLSSceneItemView *item, obs_source_t *source, const QString &name)
 {
 	const char *prevName = obs_source_get_name(source);
-	if (name == prevName || !item)
+	if (pls_is_empty(prevName) || name == prevName || !item)
 		return;
 
 	QString trimmedText = QT_TO_UTF8(name.simplified());
@@ -681,9 +655,11 @@ void PLSSceneListView::RenameSceneItem(PLSSceneItemView *item, obs_source_t *sou
 		item->SetName(prevName);
 		OBSBasic *main = OBSBasic::Get();
 		if (foundSource) {
-			OBSMessageBox::warning(main, QTStr("Alert.Title"), QTStr("NameExists.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAMEEXISTS_TEXT, PLSErrKeyAllAlert, QString(),
+							      PLSErrorHandler::ExtraData(QStringLiteral("PLSSceneListView::RenameSceneItem.exists")), main);
 		} else if (trimmedText.isEmpty()) {
-			OBSMessageBox::warning(main, QTStr("Alert.Title"), QTStr("NoNameEntered.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NONAMEENTERED_TEXT, PLSErrKeyAllAlert, QString(),
+							      PLSErrorHandler::ExtraData(QStringLiteral("PLSSceneListView::RenameSceneItem.empty")), main);
 		}
 
 		obs_source_release(foundSource);
@@ -695,15 +671,15 @@ void PLSSceneListView::RenameSceneItem(PLSSceneItemView *item, obs_source_t *sou
 
 		auto redo = [name](const std::string &data) {
 			OBSSourceAutoRelease source = obs_get_source_by_name(data.c_str());
-			obs_source_set_name(source, name.toStdString().c_str());
+			obs_source_set_name(source, name.toUtf8().constData());
 		};
 
 		std::string undo_data(name.toStdString());
 		std::string redo_data(prevName);
-		OBSBasic::Get()->undo_s.add_action(QTStr("Undo.Rename").arg(name.toStdString().c_str()), undo, redo, undo_data, redo_data);
+		OBSBasic::Get()->undo_s.add_action(QTStr("Undo.Rename").arg(name.toUtf8().constData()), undo, redo, undo_data, redo_data);
 
 		item->SetName(trimmedText);
-		obs_source_set_name(source, trimmedText.toStdString().c_str());
+		obs_source_set_name(source, trimmedText.toUtf8().constData());
 		PLSSceneDataMgr::Instance()->RenameSceneData(prevName, trimmedText);
 		emit SceneRenameFinished();
 	}
@@ -714,34 +690,4 @@ void PLSSceneListView::CreateSceneTransitionsView()
 	OBSBasic *main = OBSBasic::Get();
 	transitionsView = pls_new<PLSSceneTransitionsView>(main);
 	transitionsView->hide();
-}
-
-void PLSSceneListView::StartRefreshThumbnailTimer()
-{
-	if (!thumbnailTimer) {
-		return;
-	}
-
-	if (thumbnailTimer->isActive()) {
-		return;
-	}
-
-	if (displayMethod != DisplayMethod::ThumbnailView) {
-		return;
-	}
-
-	thumbnailTimer->start(SCENE_REFRESH_THUMBANIL_TIME_MS);
-}
-
-void PLSSceneListView::StopRefreshThumbnailTimer()
-{
-	if (!thumbnailTimer) {
-		return;
-	}
-
-	if (!thumbnailTimer->isActive()) {
-		return;
-	}
-
-	thumbnailTimer->stop();
 }

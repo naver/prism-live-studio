@@ -490,6 +490,7 @@ LIBHTTPCLIENT_API bool checkResult(const Reply &reply);
 LIBHTTPCLIENT_API QUrl buildHmacUrl(const QUrl &url, const QByteArray &hmacKey);
 LIBHTTPCLIENT_API QString contentType2Suffix(const QString &contentType); // image/png, ...
 LIBHTTPCLIENT_API QString suffix2ContentType(const QString &suffix);      // .png, ...
+LIBHTTPCLIENT_API QString getQueryParam(const QUrl &url, const QString &name);
 
 LIBHTTPCLIENT_API void setCleanupWaitTimeout(int timeout);
 LIBHTTPCLIENT_API void setDefaultRequestHeadersFactory(const DefaultRequestHeadersFactory &factory);

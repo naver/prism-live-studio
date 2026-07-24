@@ -100,7 +100,7 @@ void PLSPlatformBase::prepareLiveCallback(bool value)
 	//Set the live broadcast preparation status of the current channel
 	m_bApiPreparedStatus = value ? PLSPlatformLiveStartedStatus::PLS_SUCCESS : PLSPlatformLiveStartedStatus::PLS_FAILED;
 	PLS_INFO(MODULE_PlatformService, "%s  %s call PLSPlatformBase prepareLiveCallback method, channel name is %s , apiPrepared value is %d", PrepareInfoPrefix, getNameForChannelType(),
-		 getChannelName().toStdString().c_str(), static_cast<int>(getApiPrepared()));
+		 getChannelName().toUtf8().constData(), static_cast<int>(getApiPrepared()));
 
 	//If the current channel is not ready, this preparation process is directly interrupted
 	if (!value) {

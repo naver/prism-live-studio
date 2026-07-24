@@ -5,6 +5,7 @@
 #include <QPointer>
 #include <iostream>
 #include <objc/runtime.h>
+#include "mac/PLSMacNotificationCenter.h"
 
 //typedef struct objc_object WindowData;
 
@@ -44,13 +45,5 @@ private:
 	bool m_maxButtonHidden{true};
 	bool m_hasCornerRadius{false};
 };
-
-namespace pls {
-namespace mac {
-typedef void (*activeCallback)();
-void notifyPrismActiveSignal(pls::mac::activeCallback callback);
-void sendPrismActiveSignal();
-}
-}
 
 #endif // PLSCUSTOMMACWINDOW_H

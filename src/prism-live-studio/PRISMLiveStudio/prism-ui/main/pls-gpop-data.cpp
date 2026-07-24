@@ -21,14 +21,20 @@ void PLSGpopData::getGpopData(const QByteArray &gpopData)
 	m_gpopDataArray = gpopData;
 
 	if (gpopData.isEmpty()) {
-		auto file = findFileInResources(ChannelData::defaultSourcePath, "gpop");
+		QString filePath;
+#if defined(Q_OS_WIN)
+		filePath = ChannelData::defaultSourcePath + "/win";
+#elif defined(Q_OS_MACOS)
+		filePath = ChannelData::defaultSourcePath + "/mac";
+#endif
+		auto file = findFileInResources(filePath, "gpop");
 		m_gpopDataArray = pls_read_data(file);
 		PLS_INFO("PLSGpopData", "gpop data is empty, need  to read local qrc file .");
 	}
 	initGpopData();
 
 	QString crashLimitString = QString::number(m_common.duplicateCrashLimit == 0 ? 2 : m_common.duplicateCrashLimit);
-	pls_add_global_field("duplicateCrashLimit", crashLimitString.toStdString().c_str());
+	pls_add_global_field("duplicateCrashLimit", crashLimitString.toUtf8().constData());
 }
 
 PLSGpopData::PLSGpopData(QObject *parent) : QObject(parent) {}
@@ -36,6 +42,7 @@ PLSGpopData::PLSGpopData(QObject *parent) : QObject(parent) {}
 Connection PLSGpopData::getConnection()
 {
 	Connection connection;
+	connection.ssl = pls_is_dev_server() ? "" : "";
 	return connection;
 }
 Common PLSGpopData::getCommon()
@@ -48,7 +55,25 @@ Common PLSGpopData::getCommon()
 
 void PLSGpopData::initDefaultValues()
 {
-	
+	if (!pls_is_dev_server()) {
+		m_defaultCallbackUrls.insert("facebook", {"facebook", ""});
+		m_defaultCallbackUrls.insert("google", {"google", ""});
+		m_defaultCallbackUrls.insert("line", {"line", ""});
+		m_defaultCallbackUrls.insert("naver", {"naver", ""});
+		m_defaultCallbackUrls.insert("twitch", {"twitch", ""});
+		m_defaultCallbackUrls.insert("twitter", {"twitter", ""});
+
+	} else {
+		m_defaultCallbackUrls.insert("facebook", {"facebook", ""});
+		m_defaultCallbackUrls.insert("google", {"google", ""});
+		m_defaultCallbackUrls.insert("line", {"line", ""});
+		m_defaultCallbackUrls.insert("naver", {"naver", ""});
+		m_defaultCallbackUrls.insert("twitch", {"twitch", ""});
+		m_defaultCallbackUrls.insert("twitter", {"twitter", ""});
+	}
+	m_defaultChannelList = {"Twitch", "YouTube", "Facebook", "Naver Shopping LIVE", "CHZZK", "NAVER TV", "BAND", "afreecaTV", "Custom RTMP"};
+	m_defaultChannelResolutionGuidList = {"Twitch", "Youtube", "Facebook", "Naver Shopping LIVE", "Chzzk", "NAVER TV", "BAND", "Now", "afreecaTV", "kakaoTV", "NAVER Cloud Platform"};
+	m_defaultLoginList = {"Facebook", "Google", "Twitch", "NAVER", "LINE", "Apple"};
 }
 
 void PLSGpopData::initCommon()

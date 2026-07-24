@@ -30,6 +30,12 @@ struct MacProcessInfo {
 	void *task = NULL;
 };
 
+struct MacApplicationInfo {
+	uint32_t pid;
+	std::string processName;
+	std::string processPath;
+};
+
 namespace pls_libutil_api_mac {
 
 QString pls_get_app_executable_dir();
@@ -44,7 +50,7 @@ QString pls_get_bundle_dir();
 
 bool pls_is_install_app(const QString &identifier, QString &appPath);
 
-void pls_get_install_app_list(const QString &identifier, QStringList &appList);
+QString pls_get_install_app(const QString &identifier);
 
 std::string pls_get_cpu_name();
 
@@ -108,6 +114,7 @@ MacHandle pls_process_create(uint32_t process_id);
 //#2650 Use NSWorkspace to create sub process, This will not inherit all environment(camera permission and others) of the parent process. like NSTask.
 typedef void (*PLSMacProcessCallback)(void *inUserData, bool isSucceed, int pid);
 void pls_mac_create_process_with_not_inherit(const QString &program, const QStringList &arguments, void *receiver = nullptr, PLSMacProcessCallback callback = nullptr);
+void pls_create_and_observe_process(const QString &program, const QStringList &arguments, void *user_data, void (*callback)(void *user_data, bool created, bool processed));
 bool pls_process_destroy(MacHandle handle);
 
 bool pls_process_force_terminte(uint32_t process_id, int &exit_code);
@@ -155,10 +162,15 @@ bool pls_is_mouse_pressed_by_mac(Qt::MouseButton button);
 bool pls_is_lens_has_run();
 
 QString pls_get_app_version_by_identifier(const char *bundleID);
+QString pls_get_app_version_by_app_path(const QString &appPath);
 
 void pls_set_current_lens(int index);
 bool pls_get_is_app_quitting_by_dock();
 bool pls_open_url_mac(const QString &url);
 
 bool pls_lens_needs_reboot();
+
+QString pls_get_system_language();
+
+MacApplicationInfo pls_get_application_info(uint32_t pid);
 }

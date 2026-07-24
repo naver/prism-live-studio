@@ -1,0 +1,331 @@
+{
+    "data": [
+        {
+            "api": {
+                "defaultKey": "LoadLiveInfoFailed"
+            },
+            "err": {
+                "prismCode": 10500,
+                "prismName": "COMMON_DEFAULT_LOADLIVEINFOFAILED",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Net.Failed",
+                "alertType": "Normal_Code_Blog",
+                "msgText": "Failed to load the live information. Please check your network connection and try again"
+            },
+            "alert": {
+                "normal": {
+                    "blogLink": "https://guide.prismlive.com/desktop/guides/error-solution/streaming/how-to-fix-connection-errors-for-live-information"
+                }
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "StartLiveFailed_Single"
+            },
+            "err": {
+                "prismCode": 10501,
+                "prismName": "COMMON_DEFAULT_STARTLIVEFAILED_SINGLE",
+                "msgKey": "Live.Check.LiveInfo.Create.Failed.SingleChannel",
+                "msgText": "Cannot start live due to %1 error. Please try again."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "StartLiveFailed_Multi"
+            },
+            "err": {
+                "prismCode": 10502,
+                "prismName": "COMMON_DEFAULT_STARTLIVEFAILED_MULTI",
+                "msgKey": "Live.Check.LiveInfo.Create.Failed.MultiChannel",
+                "msgText": "Failed to update the live information due to %1 error. Please try again."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "UpdateLiveInfoFailed"
+            },
+            "err": {
+                "prismCode": 10503,
+                "prismName": "COMMON_DEFAULT_UPDATELIVEINFOFAILED",
+                "msgKey": "Live.Check.LiveInfo.Update.Error.Failed",
+                "msgText": "Failed to properly update live information. This may be a temporary issue with the %1 service. Please check the %1 page for details."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "StartRehearsalFailed"
+            },
+            "err": {
+                "prismCode": 10504,
+                "prismName": "COMMON_DEFAULT_STARTREHEARSALFAILED",
+                "msgKey": "LiveInfo.NaverTV.SaveLiveInfo.Fail.Rehearsal.Alert",
+                "msgText": "Failed to start rehearsal."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "LoadLiveInfoExpired"
+            },
+            "err": {
+                "prismCode": 10002,
+                "prismName": "COMMON_TOKEN_EXPIRED_ERROR",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Expired",
+                "msgText": "Your %1 channel verification information has expired."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "UpdateLiveInfoFailedNoService"
+            },
+            "err": {
+                "prismCode": 10515,
+                "prismName": "COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE",
+                "msgKey": "LiveInfo.live.error.update.failed",
+                "msgText": "Failed to update the live information."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "FailedToStartLive"
+            },
+            "err": {
+                "prismCode": 10505,
+                "prismName": "COMMON_DEFAULT_FAILEDTOSTARTLIVE",
+                "msgKey": "Live.Check.message.error.start.broadcast",
+                "msgText": "Failed to start live."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "TimeoutTryAgain"
+            },
+            "err": {
+                "prismCode": 10506,
+                "prismName": "COMMON_DEFAULT_TIMEOUTTRYAGAIN",
+                "msgKey": "Live.Check.prism.muti.timeout.30s",
+                "alertType": "Normal_Code_Blog",
+                "msgText": "The server is not responding. Please try again after a few minutes."
+            },
+            "alert": {
+                "normal": {
+                    "blogLink": "https://guide.prismlive.com/desktop/guides/error-solution/streaming/how-to-fix-streaming-timeout-errors"
+                }
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "UploadImageFailed"
+            },
+            "err": {
+                "prismCode": 10507,
+                "prismName": "COMMON_DEFAULT_UPLOADIMAGEFAILED",
+                "msgKey": "LiveInfo.live.error.set_photo_error",
+                "msgText": "The image file has not been successfully uploaded. Please try again."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "ServerErrorTryAgain"
+            },
+            "err": {
+                "prismCode": 10508,
+                "prismName": "COMMON_DEFAULT_SERVERERRORTRYAGAIN",
+                "msgKey": "Live.Check.message.mutilive.failed.normal",
+                "msgText": "An error has occurred within the server. Please try again after a few minutes."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "TempErrorTryAgain"
+            },
+            "err": {
+                "prismCode": 10509,
+                "prismName": "COMMON_DEFAULT_TEMPERRORTRYAGAIN",
+                "msgKey": "Live.Check.message.error.broadcast.temporary2",
+                "msgText": "A temporary error has occurred. Please try again in a few minutes."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "PRISMLoginFailedAgain"
+            },
+            "err": {
+                "prismCode": 10511,
+                "prismName": "COMMON_DEFAULT_PRISMLOGINFAILEDAGAIN",
+                "msgKey": "prism.login.default.error",
+                "msgText": "Failed to login. Please try again."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "B2BLoginFailedAgain"
+            },
+            "err": {
+                "prismCode": 10512,
+                "prismName": "COMMON_DEFAULT_B2BLOGINFAILEDAGAIN",
+                "msgKey": "Prism.Ncb2b.Default.Error",
+                "msgText": "An unknown error occurred. Please contact the service administrator."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "NaverTVUnknown"
+            },
+            "err": {
+                "prismCode": 10510,
+                "prismName": "COMMON_DEFAULT_NAVERTVUNKNOWN",
+                "msgKey": "main.message.error.navertv.service.unknown",
+                "msgText": "Cannot start paid live stream on NAVER TV. Please check and try again."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "ChannelLoginFailedAgain"
+            },
+            "err": {
+                "prismCode": 10004,
+                "prismName": "COMMON_CHANNEL_LOGIN_FAIL",
+                "msgKey": "Channels.Check.Login.Error",
+                "msgText": "Login failed. Please try again."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "FailedBecauseConnection"
+            },
+            "err": {
+                "prismCode": 10513,
+                "prismName": "COMMON_DEFAULT_FAILEDBECAUSECONNECTION",
+                "msgKey": "LiveInfo.live.error.start.other",
+                "msgText": "Cannot start live because the %1 stream aborted due to a connection error."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "OutputRecordFailed"
+            },
+            "err": {
+                "prismCode": 10514,
+                "prismName": "COMMON_DEFAULT_OUTPUT_RECORD_ERROR",
+                "msgKey": "Output.RecordError.Msg",
+                "msgText": "An encoder error occurred while recording",
+                "title": "Output.RecordError.Title"
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "MQTTBroadcastEnd"
+            },
+            "err": {
+                "prismCode": 10516,
+                "prismName": "COMMON_DEFAULT_MQTT_BROADCAST_END",
+                "msgKey": "MQTT.Request.Broadcast.End.Content",
+                "msgText": "The transmission may not be stable. Check the broadcast's status on the platform's website. Do you want to end the broadcast?"
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "PRISMTempError"
+            },
+            "err": {
+                "prismCode": 10517,
+                "prismName": "COMMON_DEFAULT_PRISM_TEMP_ERROR",
+                "msgKey": "common.message.error",
+                "msgText": "A temporary error has occurred.Please try again."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "SOOPLoadLiveInfoFailed"
+            },
+            "err": {
+                "prismCode": 34001,
+                "prismName": "CHANNEL_AFREECATV_LOADAPI_FAIL",
+                "msgKey": "Channels.SOOP.Load.Liveinfo.Failed",
+                "msgText": "Cannot start streaming due to a SOOP connection error. Please try again."
+            }
+        },
+        {
+            "api": {
+                "defaultKey": "SOOPUpdateLiveInfoFailed"
+            },
+            "err": {
+                "prismCode": 34002,
+                "prismName": "CHANNEL_AFREECATV_UPDATEAPI_FAIL",
+                "msgKey": "Channels.SOOP.Update.Liveinfo.Failed",
+                "alertType": "Error_Link",
+                "msgText": "The live title was not applied. Check the SOOP broadcast management page."
+            },
+            "alert": {
+                "error": {
+                    "thirdLinkText": "Channels.SOOP.Goto.Dashboard",
+                    "thirdLink": "https://dashboard.sooplive.com/"
+                }
+            }
+        }
+    ],
+    "extra": {
+        "macroPrefix": [
+            "COMMON_",
+            "PRISM_API_",
+            "MQTT_",
+            "PRISM_LOGIN_FACEBOOK_",
+            "PRISM_LOGIN_GOOGLE_",
+            "PRISM_LOGIN_TWITCH_",
+            "PRISM_LOGIN_NAVER_",
+            "PRISM_LOGIN_LINE_",
+            "PRISM_LOGIN_WHALESPACE_",
+            "PRISM_LOGIN_NCP_B2B_",
+            "PRISM_LOGIN_EMAIL_",
+            "CHANNEL_NCP_B2B_",
+            "CHANNEL_TWITCH_",
+            "CHANNEL_YOUTUBE_",
+            "CHANNEL_FACEBOOK_",
+            "CHANNEL_NAVER_SHOPPING_LIVE_",
+            "CHANNEL_CHZZK_",
+            "CHANNEL_NAVERTV_",
+            "CHANNEL_BAND_",
+            "CHANNEL_AFREECATV_",
+            "CHANNEL_CUSTOM_RTMP_",
+            "PRISM_OUTPUT_",
+            "CHANNEL_KICK_",
+            "ALERT_"
+        ],
+        "macroRange": [
+            "10000~10999",
+            "11000~11999",
+            "12000~12999",
+            "13000~13999",
+            "14000~14999",
+            "15000~15999",
+            "16000~16999",
+            "17000~17999",
+            "18000~18999",
+            "19000~19999",
+            "25000~25999",
+            "26000~26999",
+            "27000~27999",
+            "28000~28999",
+            "29000~29999",
+            "30000~30999",
+            "31000~31999",
+            "32000~32999",
+            "33000~33999",
+            "34000~34999",
+            "56000~56999",
+            "57000~57999",
+            "58000~58999",
+            "60000~69999"
+        ],
+        "alert": {
+            "normal": {
+                "codeText": "(tr(\"NaverShoppingLive.Alert.Error.Code\"){{prismCode}})",
+                "blogText": "Live.Button.View.Help",
+                "thirdLinkText": "{{platformName}}Link"
+            },
+            "error": {
+                "blogText": "Live.Button.View.Help",
+                "thirdLinkText": "Live.Check.platform.gotoStudio"
+            }
+        }
+    }
+}

@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resource/images/noticeUpdate/ic_next_normal.svg</file>
+        <file>resource/images/noticeUpdate/ic_next_over.svg</file>
+        <file>resource/images/noticeUpdate/ic_next_click.svg</file>
+        <file>resource/images/noticeUpdate/ic_chat_new.svg</file>
+    </qresource>
+</RCC>

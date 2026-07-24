@@ -22,13 +22,14 @@
 #include <QVariant>
 #include <QFileDialog>
 #include "window-basic-main.hpp"
-#include "window-basic-auto-config.hpp"
 #include "PLSNameDialog.hpp"
 #include "qt-wrappers.hpp"
 #include "liblog.h"
 #include "log/module_names.h"
 #include "PLSMessageBox.h"
 #include "PLSBasic.h"
+#include "pls-performance.h"
+#include "PLSErrorHandler.h"
 
 extern void DestroyPanelCookieManager();
 extern void DuplicateCurrentCookieProfile(ConfigFile &config);
@@ -43,7 +44,7 @@ static int GetProfilesCount()
 	for (const auto &fileInfo : fileInfoList) {
 		QString fileName = fileInfo.absolutePath() + "/" + fileInfo.fileName() + "/basic.ini";
 		ConfigFile config;
-		int ret = config.Open(fileName.toStdString().c_str(), CONFIG_OPEN_EXISTING);
+		int ret = config.Open(fileName.toUtf8().constData(), CONFIG_OPEN_EXISTING);
 		if (ret != CONFIG_SUCCESS)
 			continue;
 		profileCount++;
@@ -63,22 +64,25 @@ bool processProfile(bool &curExisted, const CallbackFunction &cb, const std::pai
 	}
 
 	ConfigFile config;
-	int open_result = config.Open(fileName.toStdString().c_str(), CONFIG_OPEN_EXISTING);
+	int open_result = config.Open(fileName.toUtf8().constData(), CONFIG_OPEN_EXISTING);
 	if (open_result != CONFIG_SUCCESS)
 		return false;
 
+	QByteArray filePathUtf8 = filePath.toUtf8();
+	const char *filePathCStr = filePathUtf8.constData();
+
 	const char *name = config_get_string(config, "General", "Name");
 	if (!name)
-		name = strrchr(filePath.toStdString().c_str(), '/') + 1;
+		name = strrchr(filePathCStr, '/') + 1;
 
 	if (!curExisted) {
 		config_set_string(App()->GlobalConfig(), "Basic", "Profile", name);
 		config_set_string(App()->GlobalConfig(), "Basic", "ProfileDir",
-				  strrchr(filePath.toUtf8().constData(), '/') + 1);
+				  strrchr(filePathCStr, '/') + 1);
 		curExisted = true;
 	}
 
-	if (!cb(name, filePath.toStdString().c_str()))
+	if (!cb(name, filePathCStr))
 		return true;
 
 	return false;
@@ -225,11 +229,15 @@ static bool AskForProfileName(QWidget *parent, std::string &name, std::string &f
 			return false;
 		}
 		if (name.empty()) {
-			OBSMessageBox::warning(parent, QTStr("Alert.Title"), QTStr("NoNameEntered.Text"));
+			PLSErrorHandler::showAlertByPrismCode(
+				PLSErrorHandler::ALERT_NONAMEENTERED_TEXT, PLSErrKeyAllAlert, QString(),
+				PLSErrorHandler::ExtraData(QStringLiteral("AskForProfileName.empty")), parent);
 			continue;
 		}
 		if (ProfileExists(name.c_str())) {
-			OBSMessageBox::warning(parent, QTStr("Alert.Title"), QTStr("NameExists.Text"));
+			PLSErrorHandler::showAlertByPrismCode(
+				PLSErrorHandler::ALERT_NAMEEXISTS_TEXT, PLSErrKeyAllAlert, QString(),
+				PLSErrorHandler::ExtraData(QStringLiteral("AskForProfileName.exists")), parent);
 			continue;
 		}
 		break;
@@ -687,15 +695,15 @@ bool OBSBasic::ExportProfile(QString &exportDir)
 		// rename export profile general name
 		QString iniPath = outputDir + "/basic.ini";
 		ConfigFile basicConfigTemp;
-		int open_result = basicConfigTemp.Open(iniPath.toStdString().c_str(), CONFIG_OPEN_ALWAYS);
+		int open_result = basicConfigTemp.Open(iniPath.toUtf8().constData(), CONFIG_OPEN_ALWAYS);
 		if (open_result != CONFIG_SUCCESS) {
 			return false;
 		}
-		config_set_string(basicConfigTemp, "General", "Name", strrchr(dir.toStdString().c_str(), '/') + 1);
+		config_set_string(basicConfigTemp, "General", "Name", strrchr(dir.toUtf8().constData(), '/') + 1);
 		basicConfigTemp.SaveSafe("tmp");
 
 		exportDir = dir;
-		return currentProfile == strrchr(dir.toStdString().c_str(), '/') + 1;
+		return currentProfile == strrchr(dir.toUtf8().constData(), '/') + 1;
 
 	} else {
 		return false;
@@ -718,8 +726,9 @@ void OBSBasic::ImportProfile(const QString &importDir)
 		QFile::copy(importDir + "/service.json", profileDir + "/service.json");
 		RefreshProfiles();
 	} else {
-		pls_alert_error_message(this, QTStr("Basic.MainMenu.Profile.Import"),
-					QTStr("Basic.MainMenu.Profile.Exists.Import"));
+		PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ALERT_BASIC_MAINMENU_PROFILE_EXISTS_IMPORT, PLSErrKeyAllAlert, QString(),
+			PLSErrorHandler::ExtraData(QStringLiteral("OBSBasic::ImportProfile")), this);
 	}
 }
 
@@ -872,19 +881,11 @@ void OBSBasic::on_actionRemoveProfile_triggered(bool skipConfirmation)
 	EnumProfiles(cb);
 
 	if (!skipConfirmation) {
-		QString text = QTStr("ConfirmRemove.Text.title");
-		PLSAlertView::Button button = PLSAlertView::Button::NoButton;
-		if (0 == strcmp(App()->GetLocale(), "ko-KR")) {
-			button = PLSMessageBox::question(this, QTStr("ConfirmRemove.Title"),
-							 QString::fromStdString(oldName), text,
-							 PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel);
-		} else {
-			button = PLSMessageBox::question(this, QTStr("ConfirmRemove.Title"), text,
-							 QString::fromStdString(oldName),
-							 PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel);
-		}
-
-		if (PLSAlertView::Button::Ok != button) {
+		PLSErrorHandler::ExtraData extra(QStringLiteral("OBSBasic::on_actionRemoveProfile_triggered"));
+		extra.defaultArg = QStringList{QString::fromStdString(oldName)};
+		if (PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CONFIRMREMOVE_TEXT_BODY,
+							  PLSErrKeyAllAlert, QString(), extra, this)
+			    .clickedBtn != PLSAlertView::Button::Ok) {
 			return;
 		}
 	}
@@ -958,8 +959,7 @@ void OBSBasic::on_actionRemoveProfile_triggered(bool skipConfirmation)
 
 		if (button == QMessageBox::Yes) {
 			GlobalVars::restart = true;
-			mainView->close();
-			PLSBasic::restartApp();
+			restartPrismApp();
 		}
 	}
 }
@@ -988,8 +988,11 @@ void OBSBasic::on_actionExportProfile_triggered()
 	}
 
 	if (samePath) {
-		pls_alert_error_message(this, QTStr("Basic.MainMenu.Profile.Import"),
-					QTStr("Basic.MainMenu.Profile.Exists.Import"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_BASIC_MAINMENU_PROFILE_EXISTS_IMPORT,
+						      PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral(
+							      "OBSBasic::on_actionExportProfile_triggered.samePath")),
+						      this);
 		return;
 	}
 
@@ -1003,11 +1006,15 @@ void OBSBasic::on_actionExportProfile_triggered()
 		QVariant v = menu->property("file_name");
 		if (v.typeName() == nullptr)
 			continue;
-		QString existingName = strrchr(v.toString().toLower().toStdString().c_str(), '/') + 1;
-		QString exportName = strrchr(exportFile.toLower().toStdString().c_str(), '/') + 1;
+		QString existingName = strrchr(v.toString().toLower().toUtf8().constData(), '/') + 1;
+		QString exportName = strrchr(exportFile.toLower().toUtf8().constData(), '/') + 1;
 		if (existingName == exportName) {
-			pls_alert_error_message(this, QTStr("Basic.MainMenu.Profile.Import"),
-						QTStr("Basic.MainMenu.Profile.Exists.Import"));
+			PLSErrorHandler::showAlertByPrismCode(
+				PLSErrorHandler::ALERT_BASIC_MAINMENU_PROFILE_EXISTS_IMPORT, PLSErrKeyAllAlert,
+				QString(),
+				PLSErrorHandler::ExtraData(
+					QStringLiteral("OBSBasic::on_actionExportProfile_triggered.duplicate")),
+				this);
 			return;
 		}
 	}
@@ -1103,14 +1110,14 @@ void OBSBasic::ChangeProfile()
 
 		if (button == QMessageBox::Yes) {
 			GlobalVars::restart = true;
-			mainView->close();
-			PLSBasic::restartApp();
+			restartPrismApp();
 		}
 	}
 }
 
 void OBSBasic::CheckForSimpleModeX264Fallback()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	const char *curStreamEncoder = config_get_string(activeConfiguration, "SimpleOutput", "StreamEncoder");
 	const char *curRecEncoder = config_get_string(activeConfiguration, "SimpleOutput", "RecEncoder");
 	bool qsv_supported = false;

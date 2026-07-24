@@ -28,6 +28,11 @@ PLSLivingMsgView::PLSLivingMsgView(DialogInfo info, QWidget *parent) : PLSSideBa
 	ui->livingMsgMainLayout->setAlignment(Qt::AlignTop);
 	setWindowTitle(tr("Alert.Title"));
 	connect(&m_t, &QTimer::timeout, [this]() {
+		if (m_msgItems.isEmpty()) {
+			m_t.stop();
+			initializeView();
+			return;
+		}
 		initializeView();
 		m_currentTime = QDateTime::currentMSecsSinceEpoch();
 		foreach(auto var, m_msgItems)
@@ -35,9 +40,8 @@ PLSLivingMsgView::PLSLivingMsgView(DialogInfo info, QWidget *parent) : PLSSideBa
 			var->updateTimeView(m_currentTime);
 		}
 	});
-	m_t.start(TIMEOFFSET);
 #if defined(Q_OS_MACOS)
-	setMinimumSize(300, 360);
+	setMinimumSize(300, 400 - PLS_TITLE_BAR_HEIGHT);
 #elif defined(Q_OS_WIN)
 	setMinimumSize(300, 400);
 #endif
@@ -65,6 +69,7 @@ void PLSLivingMsgView::clearMsgView()
 		pls_delete(item);
 	}
 	m_msgItems.clear();
+	m_t.stop();
 	initializeView();
 	update();
 }
@@ -100,10 +105,17 @@ void PLSLivingMsgView::closeEvent(QCloseEvent *event)
 
 void PLSLivingMsgView::addMsgItem(const QString &msgInfo, const long long time, pls_toast_info_type type)
 {
+	const bool wasEmpty = m_msgItems.isEmpty();
 	PLSLivingMsgItem *item = pls_new<PLSLivingMsgItem>(msgInfo, time, type);
 	item->setMsgInfo(msgInfo);
 	m_msgItems.push_back(item);
 	ui->livingMsgMainLayout->insertWidget(0, item);
+	if (wasEmpty) {
+		initializeView();
+	}
+	if (!m_t.isActive()) {
+		m_t.start(TIMEOFFSET);
+	}
 }
 
 QString PLSLivingMsgView::getInfoWithUrl(const QString &str, const QString &url, const QString &replaceStr) const

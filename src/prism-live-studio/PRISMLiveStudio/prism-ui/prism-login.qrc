@@ -46,5 +46,17 @@
         <file>resource/images/txt-unchekedbox-normal.svg</file>
         <file>resource/images/txt-unchekedbox-over.svg</file>
         <file>resource/images/sns-profile/img-naver cloud b2b-profile.svg</file>
+        <file>resource/images/sns-profile/img-apple-profile.svg</file>
+        <file>resource/images/prism-login/login-apple.svg</file>
+        <file>resource/images/prism-login/or.svg</file>
+        <file>resource/images/prism-login/ic-launcher-footer-dot.svg</file>
+        <file>resource/images/prism-login/img_recentlogin_en.svg</file>
+        <file>resource/images/prism-login/img_recentlogin_es.svg</file>
+        <file>resource/images/prism-login/img_recentlogin_ja.svg</file>
+        <file>resource/images/prism-login/img_recentlogin_ko.svg</file>
+        <file>resource/images/prism-login/img_recentlogin_id.svg</file>
+        <file>resource/images/prism-login/img_recentlogin_pt.svg</file>
+        <file>resource/images/prism-login/img_recentlogin_vi.svg</file>
+        
     </qresource>
 </RCC>

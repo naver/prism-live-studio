@@ -20,8 +20,6 @@ public:
 
 	QPixmap &getAIBadge();
 	QPixmap &getAILongBadge();
-	QPixmap &getPlusBadge();
-	QPixmap &getPlusDetailBadge();
 
 protected:
 	void hideEvent(QHideEvent *event) override;
@@ -34,7 +32,6 @@ private:
 	PLSLoadingEvent m_loadingEvent;
 
 	QPixmap m_pixmapAIBadge, m_pixmapAILongBadge;
-	QPixmap m_pixmapPlusBadge, m_pixmapPlusDetailBadge;
 };
 
 #endif // PLSSCENETEMPLATECONTAINER_H

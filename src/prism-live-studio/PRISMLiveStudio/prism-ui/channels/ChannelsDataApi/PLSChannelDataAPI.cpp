@@ -6,6 +6,7 @@
 #include <QMainWindow>
 #include <QPushButton>
 #include <algorithm>
+#include <utility>
 #include "../PLSPlatformApi/PLSPlatformApi.h"
 #include "ChannelCommonFunctions.h"
 #include "LogPredefine.h"
@@ -79,9 +80,10 @@ void PLSChannelDataAPI::addTask(const QVariant &function, const QVariant &parame
 
 void PLSChannelDataAPI::addTask(const QVariantMap &taskMap)
 {
-	QVariantList tasks = mTransactions.value(ChannelTransactionsKeys::g_taskQueue).toList();
+	QVariant &queueVar = mTransactions[ChannelTransactionsKeys::g_taskQueue];
+	QVariantList tasks = queueVar.toList();
 	tasks.append(taskMap);
-	mTransactions.insert(ChannelTransactionsKeys::g_taskQueue, tasks);
+	queueVar = std::move(tasks);
 }
 
 int PLSChannelDataAPI::currentTransactionCMDType() const
@@ -267,51 +269,40 @@ PLSChannelDataAPI::PLSChannelDataAPI(QObject *parent) : QObject(parent), mNetWor
 //add source path image to map,and scale default size image
 QPixmap PLSChannelDataAPI::addImage(const QString &srcPath, const QPixmap &tmp, const QSize &defaultSize)
 {
-	QVariantMap imageMap;
-
-	ImagesContainer images;
+	ImageCacheEntry imageEntry;
 	QPixmap target;
 	//if source image size is not equal to target size ,scale to
 	if (tmp.size() != defaultSize) {
 		target = tmp.scaled(defaultSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-		images.insert(defaultSize, target);
+		imageEntry.images.insert(defaultSize, target);
 	} else {
 		target = tmp;
 	}
-	images.insert(tmp.size(), tmp);
-
-	imageMap.insert(g_imageSize, tmp.size());
-	imageMap.insert(g_imageCache, QVariant::fromValue(images));
+	imageEntry.originalSize = tmp.size();
+	imageEntry.images.insert(tmp.size(), tmp);
 
 	auto fileKey = QFileInfo(srcPath).fileName();
-	mImagesCache.insert(fileKey, imageMap);
+	mImagesCache.insert(fileKey, imageEntry);
 	return target;
 }
 
 //get or load target size image
-QPixmap PLSChannelDataAPI::getImage(const QString &srcPath, const QSize &defaultSize)
+QPixmap PLSChannelDataAPI::getImage(ImageCacheEntry &cacheEntry, const QSize &defaultSize)
 {
-	auto fileKey = QFileInfo(srcPath).fileName();
-	QVariantMap imageMap = mImagesCache.value(fileKey);
-	auto images = imageMap.value(g_imageCache).value<ImagesContainer>();
-
-	auto tmp = images.value(defaultSize);
+	auto tmp = cacheEntry.images.value(defaultSize);
 	if (!tmp.isNull()) {
 		return tmp;
 	}
 
 	//to find original image  return null if source image not exists!
-	auto srcSize = imageMap.value(g_imageSize).value<QSize>();
-	auto srcImage = images.value(srcSize);
+	auto srcImage = cacheEntry.images.value(cacheEntry.originalSize);
 	if (srcImage.isNull()) {
 		return tmp;
 	}
 
 	//scale to target size
 	tmp = srcImage.scaled(defaultSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-	images.insert(defaultSize, tmp);
-	imageMap.insert(g_imageCache, QVariant::fromValue(images));
-	mImagesCache.insert(fileKey, imageMap);
+	cacheEntry.images.insert(defaultSize, tmp);
 
 	return tmp;
 }
@@ -336,21 +327,21 @@ QPixmap PLSChannelDataAPI::updateImage(const QString &srcPath, const QSize &size
 	//don't remove this folder
 	bool bRemove = true;
 	QString tmpPath = QString("PRISMLiveStudio/resources/library/library_Policy_PC/images");
+	QString imagePath = QString("Temp/PRISMLiveStudio");
 	tmpPath = pls_get_user_path(tmpPath);
-	if (srcPath.contains(tmpPath, Qt::CaseInsensitive)) {
+	if (srcPath.contains(tmpPath, Qt::CaseInsensitive) || srcPath.contains(imagePath, Qt::CaseInsensitive)) {
 		bRemove = false;
 	}
 
-	QVariantMap imageMap = mImagesCache.value(fInfo.fileName());
-	QPixmap tmp;
-	if (!imageMap.isEmpty()) {
+	auto ite = mImagesCache.find(fInfo.fileName());
+	if (ite != mImagesCache.end()) {
 		if (fInfo.isWritable() && bRemove) {
 			QFile::remove(srcPath);
 		}
 		// to get target size image
-		return getImage(srcPath, size);
+		return getImage(ite.value(), size);
 	}
-
+	QPixmap tmp;
 	//try to load source image
 	loadPixmap(tmp, srcPath, size);
 
@@ -1620,9 +1611,6 @@ void PLSChannelDataAPI::setChannelDefaultOutputDirection()
 				sigSetChannelDualOutput(uuid, VerticalOutput);
 				continue;
 			}
-			//dont use setChannelUserStatus
-			// the setChannelUserStatus function is an asynchronous modification
-			//This requires synchronous modification
 			setValueOfChannel(uuid, g_channelDualOutput, HorizontalOutput);
 			sigSetChannelDualOutput(uuid, HorizontalOutput);
 		}
@@ -1636,13 +1624,13 @@ void PLSChannelDataAPI::setOutputDirectionWhenAddChannel(const QString &uuid)
 	int horOutputCount = horOutputList.count();
 	int verOutputCount = verOutputList.count();
 
-	if ((horOutputCount == 1 && verOutputCount == 1) || isExclusiveChannel(uuid)) {
+	if (isExclusiveChannel(uuid)) {
 		setChannelUserStatus(uuid, Disabled);
 		return;
 	}
 	setChannelUserStatus(uuid, Enabled);
 
-	if (horOutputCount == 0) {
+	if (horOutputCount == 0 || (verOutputCount > 0 && horOutputCount > 0)) {
 		setValueOfChannel(uuid, ChannelData::g_channelDualOutput, HorizontalOutput);
 		sigSetChannelDualOutput(uuid, HorizontalOutput);
 	} else if (verOutputCount == 0) {
@@ -1674,17 +1662,11 @@ void PLSChannelDataAPI::clearDualOutput()
 
 int PLSChannelDataAPI::getUserAllowedEnabledChannelsCount() const
 {
-
 	if (pls_is_dual_output_on()) {
 		return g_maxActiveChannelsForPlusDualOutput;
 	} else {
 		return g_maxActiveChannelsForPlusNormal;
 	}
-}
-
-void PLSChannelDataAPI::disableChannelWhenDualOutputClose()
-{
-	return;
 }
 
 bool PLSChannelDataAPI::isExistYoutubeWhenRunApp(QString &channelId) const
@@ -1705,6 +1687,19 @@ bool PLSChannelDataAPI::isExistYoutubeWhenRunApp(QString &channelId) const
 		}
 	}
 	return false;
+}
+
+void PLSChannelDataAPI::checkAllRtmpUrlIsValid()
+{
+	auto matchedPlaftorms = getAllChannelInfo();
+	for (const QVariantMap &info : matchedPlaftorms) {
+		if (!(getInfo(info, ChannelData::g_data_type, ChannelData::NoType) >= ChannelData::CustomType)) {
+			continue;
+		} else if (auto channelName = getInfo(info, g_channelName), urlstream = getInfo(info, g_channelRtmpUrl); !checkRtmpUrlIsValid(channelName, urlstream)) {
+			PLSCHANNELS_API->sigRtmpUrlIsInvalid(getInfo(info, g_nickName));
+		}
+	}
+	return;
 }
 
 size_t qHash(const QSize &keySize, uint seed)

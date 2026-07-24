@@ -185,7 +185,15 @@ bool PLSCheckBox::event(QEvent *event)
 		if (isEnabled()) {
 			setState("pressed", m_pressed, false);
 			if (rect().contains(dynamic_cast<QMouseEvent *>(event)->pos())) {
+#if defined(PLS_UI_ACTION_STATS)
+				auto title = pls_uistep_v2_get_title(this).toUtf8();
+				auto text = pls_uistep_v2_to_english(this->text()).toUtf8();
+				PLS_UI_ACTION("In %s, Begin Choose CheckBox: %s, State: %s", title.constData(), text.constData(), m_checked ? "Checked" : "Unchecked");
+#endif
 				toggle();
+#if defined(PLS_UI_ACTION_STATS)
+				PLS_UI_ACTION("In %s, End Choose CheckBox: %s, State: %s", title.constData(), text.constData(), m_checked ? "Checked" : "Unchecked");
+#endif
 				click();
 			}
 		}

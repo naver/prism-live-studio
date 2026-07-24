@@ -6,6 +6,7 @@
 #include "CategoryVirtualTemplate.h"
 #include "PLSMotionImageListView.h"
 #include "PLSAlertView.h"
+#include "PLSErrorHandler.h"
 #include "obs-app.hpp"
 #include "PLSMotionAddButton.h"
 #include "PLSVirtualBgManager.h"
@@ -169,7 +170,7 @@ void PLSImageListView::itemViewSelectedStateChanged(const PLSMotionItemView *ite
 {
 	if (PLSMotionImageListView *listView = getListView(); listView) {
 		const auto &motionData = item->motionData();
-		listView->setCheckBoxEnabled(motionData.type == MotionType::MOTION && (!motionData.canDelete));
+		listView->setCheckBoxEnabled(CategoryVirtualTemplateInstance->isMotionEnabled(motionData.itemId, motionData.type));
 	}
 }
 
@@ -403,7 +404,8 @@ void PLSImageListView::movieViewClicked(const PLSMotionItemView *movieView)
 	const MotionData &motionData = movieView->motionData();
 	if (!PLSMotionFileManager::instance()->isValidMotionData(motionData)) {
 		if (motionData.canDelete) {
-			pls_alert_error_message(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.Title"), QTStr("virtual.resource.localfile.disappear.tip"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_VIRTUAL_RESOURCE_LOCALFILE_DISAPPEAR_TIP, PLSErrKeyAllAlert, QString(),
+							      PLSErrorHandler::ExtraData(QStringLiteral("PLSImageListView::movieViewClicked")), PLSBasic::instance()->GetPropertiesWindow());
 			return;
 		} else {
 #if 0
@@ -427,8 +429,9 @@ void PLSImageListView::filterButtonClicked()
 
 void PLSImageListView::deleteAllButtonClicked()
 {
-	if (PLSAlertView::question(PLSBasic::instance()->GetPropertiesWindow(), tr("Alert.Title"), tr("virtual.mylist.deleteAll.popup"), PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel) !=
-	    PLSAlertView::Button::Ok) {
+	if (PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_VIRTUAL_MYLIST_DELETEALL_POPUP, PLSErrKeyAllAlert, QString(),
+						  PLSErrorHandler::ExtraData(QStringLiteral("PLSImageListView::deleteAllButtonClicked")), PLSBasic::instance()->GetPropertiesWindow())
+		    .clickedBtn != PLSAlertView::Button::Ok) {
 		return;
 	}
 
@@ -452,13 +455,16 @@ void PLSImageListView::deleteFileButtonClicked(const MotionData &data)
 	if (!isRecent) {
 		// recent no popup
 		if (isVbUsed || isSourceUsed) {
-			if (PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.Title"), QTStr("virtual.resource.file.using.delete.tip"),
-						  PLSAlertView::Button::Yes | PLSAlertView::Button::No) != PLSAlertView::Button::Yes) {
+			if (PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_VIRTUAL_RESOURCE_FILE_USING_DELETE_TIP, PLSErrKeyAllAlert, QString(),
+								  PLSErrorHandler::ExtraData(QStringLiteral("PLSImageListView::deleteFileButtonClicked.using")),
+								  PLSBasic::instance()->GetPropertiesWindow())
+				    .clickedBtn != PLSAlertView::Button::Yes) {
 				return;
 			}
 		} else {
-			if (PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.Title"), QTStr("virtual.resource.file.delete.tip"),
-						  PLSAlertView::Button::Yes | PLSAlertView::Button::No) != PLSAlertView::Button::Yes) {
+			if (PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_VIRTUAL_RESOURCE_FILE_DELETE_TIP, PLSErrKeyAllAlert, QString(),
+								  PLSErrorHandler::ExtraData(QStringLiteral("PLSImageListView::deleteFileButtonClicked")), PLSBasic::instance()->GetPropertiesWindow())
+				    .clickedBtn != PLSAlertView::Button::Yes) {
 				return;
 			}
 		}

@@ -11,6 +11,7 @@
 #include "obs-app.hpp"
 #include "log/module_names.h"
 #include "pls/pls-dual-output.h"
+#include "pls-performance.h"
 
 using namespace std;
 
@@ -102,6 +103,7 @@ static uint32_t first_skipped_v = 0xFFFFFFFF;
 
 void PLSBasicStatusPanel::InitializeValues()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	const video_t *video = obs_get_video();
 	first_encoded = video_output_get_total_frames(video);
 	first_skipped = video_output_get_skipped_frames(video);
@@ -135,6 +137,68 @@ void PLSBasicStatusPanel::Reset()
 void PLSBasicStatusPanel::setTextAndAlignment(QLabel *widget, const QString &text)
 {
 	widget->setText(text);
+}
+
+void PLSBasicStatusPanel::checkDroppedCount(uint32_t iTotal, uint32_t iDropped, double dblDroppedPercent, StreamingNoticeType warningType, StreamingNoticeType errorType, DroppedCount &droppedCount)
+{
+	if (0 == droppedCount.iTotalFrames && 0 == droppedCount.iDroppedFrames) {
+		droppedCount.iTotalFrames = iTotal;
+		droppedCount.iDroppedFrames = iDropped;
+
+		return;
+	}
+
+	if (m_bPaused) {
+		return;
+	}
+	if (10 == droppedCount.lstDroppedPercent.size()) {
+		droppedCount.lstDroppedPercent.pop_front();
+	}
+
+	auto iRenderFrames = iTotal - droppedCount.iTotalFrames;
+	droppedCount.iTotalFrames = iTotal;
+	auto iRenderDropped = iDropped - droppedCount.iDroppedFrames;
+	droppedCount.iDroppedFrames = iDropped;
+	auto iRenderDroppedPercent = iRenderFrames ? iRenderDropped * 100 / iRenderFrames : 0;
+	droppedCount.lstDroppedPercent.push_back(iRenderDroppedPercent);
+
+	if (10 != droppedCount.lstDroppedPercent.size()) {
+		return;
+	}
+
+	auto iWarning = 0;
+	auto iError = 0;
+
+	for (auto iValue : droppedCount.lstDroppedPercent) {
+		if (iValue > 1) {
+			++iWarning;
+		}
+		if (iValue > 5) {
+			++iError;
+		}
+	}
+
+	auto dtNow = chrono::steady_clock::now();
+	if (iError > 2) {
+		if (State::Error != droppedCount.stateLastNotice && chrono::duration_cast<chrono::seconds>(dtNow - droppedCount.dtLastNotice) > 60s) {
+			droppedCount.dtLastNotice = dtNow;
+			PopupNotice(errorType, false, iDropped, dblDroppedPercent);
+
+			droppedCount.stateLastNotice = State::Error;
+		}
+	} else if (iWarning > 2) {
+		if (State::Warning != droppedCount.stateLastNotice && chrono::duration_cast<chrono::seconds>(dtNow - droppedCount.dtLastNotice) > 60s) {
+			droppedCount.dtLastNotice = dtNow;
+			PopupNotice(warningType, false, iDropped, dblDroppedPercent);
+
+			droppedCount.stateLastNotice = State::Warning;
+		}
+	} else if (State::Normal != droppedCount.stateLastNotice) {
+		PopupNotice(warningType, true);
+		PopupNotice(errorType, true);
+
+		droppedCount.stateLastNotice = State::Normal;
+	}
 }
 
 void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
@@ -229,26 +293,20 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 		if (num > 5.0 && total_rendered >= plsFPS * 5) {
 			if (State::Error != lastRenderingState) {
 				pls_flush_style(ui->renderingFramedropState, "state", "error");
-				PopupNotice(StreamingNoticeType::NoticeDropRenderingFrameError, false, total_lagged, num);
-
 				lastRenderingState = State::Error;
 			}
 		} else if (num > 1.0 && total_rendered >= plsFPS * 5) {
 			if (State::Warning != lastRenderingState) {
 				pls_flush_style(ui->renderingFramedropState, "state", "warning");
-				PopupNotice(StreamingNoticeType::NoticeDropRenderingFrameWarning, false, total_lagged, num);
-
 				lastRenderingState = State::Warning;
 			}
 		} else {
 			if (State::Normal != lastRenderingState) {
 				pls_flush_style(ui->renderingFramedropState, "state", "");
-				PopupNotice(StreamingNoticeType::NoticeDropRenderingFrameWarning, true);
-				PopupNotice(StreamingNoticeType::NoticeDropRenderingFrameError, true);
-
 				lastRenderingState = State::Normal;
 			}
 		}
+		checkDroppedCount(total_rendered, total_lagged, num, StreamingNoticeType::NoticeDropRenderingFrameWarning, StreamingNoticeType::NoticeDropRenderingFrameError, m_droppedCountRender);
 	}
 
 	{
@@ -295,26 +353,21 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 		if (num > 5.0 && total_encoded >= plsFPS * 5) {
 			if (State::Error != lastEncodingState) {
 				pls_flush_style(ui->encodingFramedropState, "state", "error");
-				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameError, false, total_skipped, num);
-
 				lastEncodingState = State::Error;
 			}
 		} else if (num > 1.0 && total_encoded >= plsFPS * 5) {
 			if (State::Warning != lastEncodingState) {
 				pls_flush_style(ui->encodingFramedropState, "state", "warning");
-				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameWarning, false, total_skipped, num);
-
 				lastEncodingState = State::Warning;
 			}
 		} else {
 			if (State::Normal != lastEncodingState) {
 				pls_flush_style(ui->encodingFramedropState, "state", "");
-				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameWarning, true);
-				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameError, true);
-
 				lastEncodingState = State::Normal;
 			}
 		}
+
+		checkDroppedCount(total_encoded, total_skipped, num, StreamingNoticeType::NoticeDropEncodingFrameWarning, StreamingNoticeType::NoticeDropEncodingFrameError, m_droppedCountEncoding);
 
 		outputLabels[0].Update(strOutput, false, dataStatus);
 		outputLabels[1].Update(recOutput, true, dataStatus);
@@ -369,26 +422,20 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 		if (num > 5.0 && total_encoded >= plsFPS * 5) {
 			if (State::Error != lastEncodingStateV) {
 				pls_flush_style(ui->encodingFramedropStateV, "state", "error");
-				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameError, false, total_skipped, num);
-
 				lastEncodingStateV = State::Error;
 			}
 		} else if (num > 1.0 && total_encoded >= plsFPS * 5) {
 			if (State::Warning != lastEncodingStateV) {
 				pls_flush_style(ui->encodingFramedropStateV, "state", "warning");
-				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameWarning, false, total_skipped, num);
-
 				lastEncodingStateV = State::Warning;
 			}
 		} else {
 			if (State::Normal != lastEncodingStateV) {
 				pls_flush_style(ui->encodingFramedropStateV, "state", "");
-				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameWarning, true);
-				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameError, true);
-
 				lastEncodingStateV = State::Normal;
 			}
 		}
+		checkDroppedCount(total_encoded, total_skipped, num, StreamingNoticeType::NoticeDropEncodingFrameWarning, StreamingNoticeType::NoticeDropEncodingFrameError, m_droppedCountEncoding);
 	} while (false);
 
 	// for dual output
@@ -475,13 +522,13 @@ void PLSBasicStatusPanel::PopupNotice(StreamingNoticeType type, bool recoverNorm
 	QString noticeStr = !dropStr.isEmpty() ? dropStr : QTStr(info.tipsInfo);
 	if (0 == noticeNumber % 2) {
 		info.notified = true;
-		PLS_INFO(STATUSBAR_MODULE, "[Stats] Notify : %s <%s>.", info.tipsInfo, noticeStr.toStdString().c_str());
+		PLS_INFO(STATUSBAR_MODULE, "[Stats] Notify : %s <%s>.", info.tipsInfo, noticeStr.toUtf8().constData());
 		return;
 	}
 
 	info.notified = true;
 
-	PLS_LOGEX(PLS_LOG_INFO, STATUSBAR_MODULE, {{"dropFrameStats", info.fieldValue}}, "[Stats] Toast : %s <%s>.", info.tipsInfo, noticeStr.toStdString().c_str());
+	PLS_LOGEX(PLS_LOG_INFO, STATUSBAR_MODULE, {{"dropFrameStats", info.fieldValue}}, "[Stats] Toast : %s <%s>.", info.tipsInfo, noticeStr.toUtf8().constData());
 	pls_toast_message(pls_toast_info_type::PLS_TOAST_ERROR, noticeStr);
 
 	switch (type) {

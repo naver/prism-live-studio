@@ -4,11 +4,13 @@
 #include "PLSPlatformApi.h"
 #include "../common/PLSDateFormate.h"
 #include "PLSAlertView.h"
+#include "PLSErrorHandler.h"
 #include "PLSChannelDataAPI.h"
 #include <QtGui/qdesktopservices.h>
 #include <QClipboard>
 #include <QPainter>
 #include <QPainterPath>
+#include <QHBoxLayout>
 #include "PLSPlatformPrism.h"
 #include "liblog.h"
 #include "PLSServerStreamHandler.hpp"
@@ -16,6 +18,8 @@
 #include "libutils-api.h"
 #include "log/log.h"
 #include "PLSGuideButton.h"
+#include "PLSShoppingCalenderCombox.h"
+#include "PLSSelectImageButton.h"
 
 using namespace common;
 static const int NAVER_SHOPPING_LIVE_MIN_PHOTO_WIDTH = 170;
@@ -40,26 +44,40 @@ constexpr auto liveInfoMoudule = "PLSLiveInfoNaverShoppingLIVE";
 PLSLiveInfoNaverShoppingLIVE::PLSLiveInfoNaverShoppingLIVE(PLSPlatformBase *pPlatformBase, const QVariantMap &info, QWidget *parent)
 	: PLSLiveInfoBase(pPlatformBase, parent), platform(dynamic_cast<PLSPlatformNaverShoppingLIVE *>(pPlatformBase)), srcInfo(info)
 {
+	PLS_PERFORMANCE_GLOBAL_START("PLSLiveInfoNaverShoppingLIVE Constructor", "BulidNaverShoppingLiveInfoWindow");
+	PLS_DISABLE_UISTEP_V2(this);
+	PLS_PERFORMANCE_GLOBAL_START("PLSLiveInfoNaverShoppingLIVE::pls_new", "PLSLiveInfoNaverShoppingLIVE Constructor");
 	ui = pls_new<Ui::PLSLiveInfoNaverShoppingLIVE>();
+	PLS_PERFORMANCE_GLOBAL_END("PLSLiveInfoNaverShoppingLIVE::pls_new");
 
 	imageScaleThread = pls_new<PLSPLSNaverShoppingLIVEImageScaleThread>();
 	imageScaleThread->startThread();
+	PLS_PERFORMANCE_GLOBAL_START("PLSLiveInfoNaverShoppingLIVE::pls_add_css", "PLSLiveInfoNaverShoppingLIVE Constructor");
 	pls_add_css(this, {"PLSLiveInfoNaverShoppingLIVE"});
+	PLS_PERFORMANCE_GLOBAL_END("PLSLiveInfoNaverShoppingLIVE::pls_add_css");
 
-	setAttribute(Qt::WA_AlwaysShowToolTips);
 	PLS_INFO(liveInfoMoudule, "Naver Shopping LIVE liveinfo Will show");
-	pls_add_css(this, {"PLSLiveInfoNaverShoppingLIVE"});
 	platform->setAlertParent(this);
+	PLS_PERFORMANCE_GLOBAL_START("PLSLiveInfoNaverShoppingLIVE::setupUi", "PLSLiveInfoNaverShoppingLIVE Constructor");
 	setupUi(ui);
+	ui->scheCombox->setVisible(false);
+	PLS_PERFORMANCE_GLOBAL_END("PLSLiveInfoNaverShoppingLIVE::setupUi");
 
+	PLS_PERFORMANCE_GLOBAL_START("PLSLiveInfoNaverShoppingLIVE::pls_new<QTimer>", "PLSLiveInfoNaverShoppingLIVE Constructor");
 	m_closeGuideTimer = pls_new<QTimer>(this);
 	m_closeGuideTimer->setSingleShot(true);
+	PLS_PERFORMANCE_GLOBAL_END("PLSLiveInfoNaverShoppingLIVE::pls_new<QTimer>");
 
-	auto lang = pls_get_current_language();
-	if (!IS_KR()) {
-		lang = "en-US";
-	}
-	ui->yearButton->setProperty("lang", lang);
+	PLS_PERFORMANCE_GLOBAL_START("PLSLiveInfoNaverShoppingLIVE::setProperty", "PLSLiveInfoNaverShoppingLIVE Constructor");
+	PLS_PERFORMANCE_GLOBAL_END("PLSLiveInfoNaverShoppingLIVE::setProperty");
+	PLS_PERFORMANCE_GLOBAL_START("PLSLiveInfoNaverShoppingLIVE::pls_uistep_v2_bind", "PLSLiveInfoNaverShoppingLIVE Constructor");
+
+	pls_uistep_v2_bind(ui->radioButton_allow, ui->searchTitleLabel);
+	pls_uistep_v2_bind(ui->radioButton_disallow, ui->searchTitleLabel);
+	pls_uistep_v2_bind(ui->sendRadioButton, ui->notifyLabel);
+	pls_uistep_v2_bind(ui->notSendRadioButton, ui->notifyLabel);
+	pls_uistep_v2_set_title(this, QStringLiteral("Live Information: %1").arg(platform->getNameForChannelType()));
+	PLS_PERFORMANCE_GLOBAL_END("PLSLiveInfoNaverShoppingLIVE::pls_uistep_v2_bind");
 
 	ui->thumbnailButton->setImageSize(QSize(NAVER_SHOPPING_LIVE_MIN_PHOTO_WIDTH, NAVER_SHOPPING_LIVE_MIN_PHOTO_HEIGHT));
 	ui->guideLabel->setHidden(false);
@@ -68,8 +86,6 @@ PLSLiveInfoNaverShoppingLIVE::PLSLiveInfoNaverShoppingLIVE(PLSPlatformBase *pPla
 	setupGuideButton();
 	setupLineEdit();
 	setupThumbnailButton();
-	setupScheduleComboBox();
-	setupDateComboBox();
 	setupSearchRadio();
 	setupProductList();
 	setupEventFilter();
@@ -85,9 +101,13 @@ PLSLiveInfoNaverShoppingLIVE::PLSLiveInfoNaverShoppingLIVE(PLSPlatformBase *pPla
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStartBroadcastInInfoView, this, &PLSLiveInfoNaverShoppingLIVE::on_okButton_clicked);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStartRehearsal, this, &PLSLiveInfoNaverShoppingLIVE::on_rehearsalButton_clicked);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStopRehearsal, this, &PLSLiveInfoNaverShoppingLIVE::on_cancelButton_clicked);
-	connect(ui->scheduleGuideLabel, &QLabel::linkActivated, this, [](const QString &) { QDesktopServices::openUrl(CHANNEL_NAVER_SHOPPING_LIVE_LOGIN); });
+	connect(ui->scheduleGuideLabel, &QLabel::linkActivated, this, [](const QString &) {
+		pls_async_invoke([]() { QDesktopServices::openUrl(CHANNEL_NAVER_SHOPPING_LIVE_LOGIN); });
+		PLS_UI_ACTION("Open NaverShoppingLive tool finished.");
+	});
+	pls_uistep_v2_custom(ui->scheduleGuideLabel, QStringLiteral("linkActivated"), QStringLiteral("Click"), QStringLiteral("button"), QStringLiteral("Shopping Live management tool"));
 
-	ui->dualWidget->setText(tr("navershopping.liveinfo.title"))->setUUID(platform->getChannelUUID());
+	PLS_PERFORMANCE_GLOBAL_END("PLSLiveInfoNaverShoppingLIVE Constructor");
 }
 
 PLSLiveInfoNaverShoppingLIVE::~PLSLiveInfoNaverShoppingLIVE()
@@ -110,10 +130,16 @@ void PLSLiveInfoNaverShoppingLIVE::setupData()
 
 void PLSLiveInfoNaverShoppingLIVE::setupGuideButton()
 {
+	PLS_PERFORMANCE_GLOBAL_START("setupGuideButton", "PLSLiveInfoNaverShoppingLIVE Constructor");
+
 	auto widget = pls_new<QWidget>();
 	widget->setObjectName("guideBackView");
 
-	auto manageButton = pls_new<GuideButton>(tr("NaverShoppingLive.LiveInfo.ScheNoProductGoToNST"), false, nullptr, []() { QDesktopServices::openUrl(CHANNEL_NAVER_SHOPPING_LIVE_LOGIN); });
+	auto manageButton = pls_new<GuideButton>(tr("NaverShoppingLive.LiveInfo.ScheNoProductGoToNST"), false, nullptr, [this]() {
+		pls_uistep_v2(this, "Click", "Button", QStringLiteral("N Shopping LIVE Tool"));
+		pls_async_invoke([]() { QDesktopServices::openUrl(CHANNEL_NAVER_SHOPPING_LIVE_LOGIN); });
+		PLS_UI_ACTION("Open NaverShoppingLive tool finished. ");
+	});
 	manageButton->setObjectName("manageButton");
 	manageButton->setProperty("showHandCursor", true);
 
@@ -128,13 +154,29 @@ void PLSLiveInfoNaverShoppingLIVE::setupGuideButton()
 	layout->addWidget(createResolutionButtonsFrame());
 	ui->horizontalLayout_3->addStretch();
 	ui->horizontalLayout_3->addWidget(widget);
+	PLS_PERFORMANCE_GLOBAL_END("setupGuideButton");
+}
+
+static bool labelTextHasWrapped(QLabel *label)
+{
+	QFontMetrics fm(label->font());
+	QString text = label->text();
+	if (Qt::mightBeRichText(text)) {
+		QTextDocument doc;
+		doc.setHtml(text);
+		text = doc.toPlainText();
+	}
+
+	QRect rect = fm.boundingRect(0, 0, label->width(), INT_MAX, Qt::TextWordWrap, text);
+	return rect.height() / fm.lineSpacing() > 1;
 }
 
 void PLSLiveInfoNaverShoppingLIVE::setupLineEdit()
 {
+	PLS_PERFORMANCE_GLOBAL_START("setupLineEdit", "PLSLiveInfoNaverShoppingLIVE Constructor");
+
 	ui->liveTitleLabel->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("LiveInfo.base.Title")));
 	ui->summaryLabel->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("navershopping.liveinfo.summary.title")));
-	ui->dateLabel->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("navershopping.liveinfo.date.title")));
 	connect(ui->lineEditTitle, &QLineEdit::textChanged, this, &PLSLiveInfoNaverShoppingLIVE::titleEdited, Qt::QueuedConnection);
 	connect(ui->summaryLineEdit, &QLineEdit::textChanged, this, &PLSLiveInfoNaverShoppingLIVE::summaryEdited, Qt::QueuedConnection);
 	ui->searchIcon->setToolTip(QString("<qt>%1</qt>").arg(tr("navershopping.liveinfo.search.hover.tip")));
@@ -143,6 +185,25 @@ void PLSLiveInfoNaverShoppingLIVE::setupLineEdit()
 	ui->helpLabel->setToolTip(tr("navershopping.liveinfo.notify.tooltip"));
 	ui->searchIcon->setVisible(m_TempPrepareInfo.isNowLiving);
 	ui->helpLabel->setVisible(m_TempPrepareInfo.isNowLiving);
+	updateHelpLayout();
+	PLS_PERFORMANCE_GLOBAL_END("setupLineEdit");
+}
+
+void PLSLiveInfoNaverShoppingLIVE::updateHelpLayout()
+{
+	auto setStretch = [](bool helpLabelVisible, QVBoxLayout *helpVLayout, QLabel *titleLabel, QVBoxLayout *titleVLayout, QHBoxLayout *hLayout) {
+		if (helpLabelVisible && labelTextHasWrapped(titleLabel)) {
+			helpVLayout->setStretch(2, 1);
+			titleVLayout->setStretch(2, 1);
+			hLayout->setContentsMargins(0, 3, 0, 0);
+		} else {
+			helpVLayout->setStretch(2, 0);
+			titleVLayout->setStretch(2, 0);
+			hLayout->setContentsMargins(0, 0, 0, 0);
+		}
+	};
+	setStretch(m_TempPrepareInfo.isNowLiving, ui->verticalLayout_4, ui->notifyLabel, ui->verticalLayout_5, ui->horizontalLayout_11);
+	setStretch(m_TempPrepareInfo.isNowLiving, ui->verticalLayout_6, ui->searchTitleLabel, ui->verticalLayout_7, ui->horizontalLayout_13);
 }
 
 void PLSLiveInfoNaverShoppingLIVE::setupThumbnailButton() const
@@ -152,84 +213,96 @@ void PLSLiveInfoNaverShoppingLIVE::setupThumbnailButton() const
 
 void PLSLiveInfoNaverShoppingLIVE::setupScheduleComboBox()
 {
-	ui->scheCombox->setButtonEnable(!PLS_PLATFORM_API->isLiving());
-	connect(ui->scheCombox, &PLSScheduleCombox::pressed, this, &PLSLiveInfoNaverShoppingLIVE::scheduleButtonClicked);
-	connect(ui->scheCombox, &PLSScheduleCombox::menuItemClicked, this, &PLSLiveInfoNaverShoppingLIVE::scheduleItemClick);
+	PLS_PERFORMANCE_GLOBAL_START("setupScheduleComboBox", "PLSLiveInfoNaverShoppingLIVE Constructor");
+
+	m_scheCombox = new PLSScheduleCombox(ui->scrollAreaWidgetContents);
+	m_scheCombox->setObjectName("scheCombox");
+	ui->horizontalLayout_2->replaceWidget(ui->scheCombox, m_scheCombox);
+
+	m_scheCombox->setButtonEnable(!PLS_PLATFORM_API->isLiving());
+	connect(m_scheCombox, &PLSScheduleCombox::pressed, this, &PLSLiveInfoNaverShoppingLIVE::scheduleButtonClicked);
+	connect(m_scheCombox, &PLSScheduleCombox::menuItemClicked, this, &PLSLiveInfoNaverShoppingLIVE::scheduleItemClick);
 	QSizePolicy policy = ui->guideLabel->sizePolicy();
 	policy.setRetainSizeWhenHidden(true);
 	ui->guideLabel->setSizePolicy(policy);
+	updateScheduleComboBox();
+	PLS_PERFORMANCE_GLOBAL_END("setupScheduleComboBox");
 }
 
 void PLSLiveInfoNaverShoppingLIVE::setupDateComboBox()
 {
-	bool isLiving = PLS_PLATFORM_API->isLiving();
-	ui->yearButton->setEnabled(!isLiving);
-	ui->hourButton->setEnabled(!isLiving);
-	ui->minuteButton->setEnabled(!isLiving);
-	ui->apButton->setEnabled(!isLiving);
+	if (!dateItemWidget) {
+		return;
+	}
 
-	connect(ui->yearButton, &QPushButton::toggled, this, [this](bool checked) {
+	bool isLiving = PLS_PLATFORM_API->isLiving();
+	yearButton->setEnabled(!isLiving);
+	hourButton->setEnabled(!isLiving);
+	minuteButton->setEnabled(!isLiving);
+	apButton->setEnabled(!isLiving);
+
+	connect(yearButton, &QPushButton::toggled, this, [this](bool checked) {
 		if (checked) {
-			ui->yearButton->showDateCalender();
+			yearButton->showDateCalender();
 		}
 	});
 
-	connect(ui->yearButton, &PLSShoppingCalenderCombox::clickDate, this, [this](const QDate &date) {
+	connect(yearButton, &PLSShoppingCalenderCombox::clickDate, this, [this](const QDate &date) {
 		m_TempPrepareInfo.ymdDate = date;
 		QTime time(0, 0, 0);
 		auto dateTime = QDateTime(date, time);
 		QString yearMonthDay;
 		PLSNaverShoppingLIVEAPI::getNaverShoppingDateFormat(dateTime.toSecsSinceEpoch(), yearMonthDay);
-		ui->yearButton->setDate(date);
-		ui->yearButton->setText(yearMonthDay);
+		yearButton->setDate(date);
+		yearButton->setText(yearMonthDay);
 		doUpdateOkState();
 	});
 
-	connect(ui->hourButton, &QPushButton::toggled, this, [this](bool checked) {
+	connect(hourButton, &QPushButton::toggled, this, [this](bool checked) {
 		if (checked) {
-			ui->hourButton->showHour(ui->hourButton->text());
+			hourButton->showHour(hourButton->text());
 		}
 	});
 
-	connect(ui->hourButton, &PLSShoppingCalenderCombox::clickTime, this, [this](QString time) {
+	connect(hourButton, &PLSShoppingCalenderCombox::clickTime, this, [this](QString time) {
 		m_TempPrepareInfo.hour = time;
-		ui->hourButton->setText(time);
+		hourButton->setText(time);
 		doUpdateOkState();
 	});
 
-	connect(ui->minuteButton, &QPushButton::toggled, this, [this](bool checked) {
+	connect(minuteButton, &QPushButton::toggled, this, [this](bool checked) {
 		if (checked) {
-			ui->minuteButton->showMinute(ui->minuteButton->text());
+			minuteButton->showMinute(minuteButton->text());
 		}
 	});
 
-	connect(ui->minuteButton, &PLSShoppingCalenderCombox::clickTime, this, [this](QString time) {
+	connect(minuteButton, &PLSShoppingCalenderCombox::clickTime, this, [this](QString time) {
 		m_TempPrepareInfo.minute = time;
-		ui->minuteButton->setText(time);
+		minuteButton->setText(time);
 		doUpdateOkState();
 	});
 
-	connect(ui->apButton, &QPushButton::toggled, this, [this](bool checked) {
+	connect(apButton, &QPushButton::toggled, this, [this](bool checked) {
 		if (checked) {
-			ui->apButton->showAp(ui->apButton->text());
+			apButton->showAp(apButton->text());
 		}
 	});
 
-	connect(ui->apButton, &PLSShoppingCalenderCombox::clickTime, this, [this](QString time) {
+	connect(apButton, &PLSShoppingCalenderCombox::clickTime, this, [this](QString time) {
 		int index = apIndexForString(time);
 		if (index >= 0) {
 			m_TempPrepareInfo.ap = index;
-			ui->apButton->setText(time);
+			apButton->setText(time);
 			doUpdateOkState();
 		}
 	});
 
-	QSizePolicy sizePolicy = ui->dateItemWidget->sizePolicy();
+	QSizePolicy sizePolicy = dateItemWidget->sizePolicy();
 	sizePolicy.setRetainSizeWhenHidden(false);
-	ui->dateItemWidget->setSizePolicy(sizePolicy);
-	ui->horizontalLayout_8->setAlignment(Qt::AlignLeft);
+	dateItemWidget->setSizePolicy(sizePolicy);
+	horizontalLayout_8->setAlignment(Qt::AlignLeft);
 	if (!IS_KR()) {
-		ui->horizontalLayout_8->addWidget(ui->apButton);
+		horizontalLayout_8->addWidget(apButton);
 	}
 }
 
@@ -249,9 +322,9 @@ void PLSLiveInfoNaverShoppingLIVE::prepareLiving(const std::function<void(bool, 
 {
 	//The 14-day validity period of the appointment time is not checked during the live broadcast
 	if (m_prepareLivingType != PrepareRequestType::UpdateLivingPrepareRequest && !m_TempPrepareInfo.isNowLiving) {
-		QStringList apList = ui->apButton->apList();
-		int apIndex = apList.indexOf(ui->apButton->text());
-		qint64 timeStamp = PLSNaverShoppingLIVEAPI::getLocalTimeStamp(ui->yearButton->date(), ui->hourButton->text(), ui->minuteButton->text(), apIndex);
+		QStringList apList = apButton->apList();
+		int apIndex = apList.indexOf(apButton->text());
+		qint64 timeStamp = PLSNaverShoppingLIVEAPI::getLocalTimeStamp(yearButton->date(), hourButton->text(), minuteButton->text(), apIndex);
 		QDateTime currTime = QDateTime::currentDateTime();
 		currTime = currTime.addDays(-14);
 		qint64 filterTimeStamp = currTime.toSecsSinceEpoch();
@@ -338,10 +411,8 @@ void PLSLiveInfoNaverShoppingLIVE::prepareLiving(const std::function<void(bool, 
 
 		//Request failure apiType equal to PLSNaverShoppingFailed means that all special errors have been handled, and this error identification needs to be handled by yourself
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-			PLSErrorHandler::ExtraData extraData;
-			extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_GET_SEESION_KEY;
 			PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_UPLOAD_IMAGE_FAILED, NAVER_SHOPPING_LIVE,
-										  PLSErrCustomKey_UploadImageFailed, extraData);
+										  PLSErrCustomKey_UploadImageFailed, PLSErrorHandler::ExtraData(CHANNEL_NAVER_SHOPPING_LIVE_GET_SEESION_KEY));
 		}
 
 		//Failed to upload pictures before GoLive and Rehearsal live, add SRE
@@ -383,11 +454,16 @@ void PLSLiveInfoNaverShoppingLIVE::saveLiveInfo()
 			prepareInfo.releaseLevel = RELEASE_LEVEL_REHEARSAL;
 		}
 	}
-	prepareInfo.ymdDate = ui->yearButton->date();
-	prepareInfo.yearMonthDay = ui->yearButton->text();
-	prepareInfo.hour = ui->hourButton->text();
-	prepareInfo.minute = ui->minuteButton->text();
-	prepareInfo.ap = apIndexForString(ui->apButton->text());
+
+	if (!dateItemWidget) {
+		return;
+	}
+
+	prepareInfo.ymdDate = yearButton->date();
+	prepareInfo.yearMonthDay = yearButton->text();
+	prepareInfo.hour = hourButton->text();
+	prepareInfo.minute = minuteButton->text();
+	prepareInfo.ap = apIndexForString(apButton->text());
 	prepareInfo.description = ui->summaryLineEdit->text();
 	platform->setPrepareInfo(prepareInfo);
 }
@@ -414,10 +490,9 @@ void PLSLiveInfoNaverShoppingLIVE::startLiving(const std::function<void(bool, co
 				return;
 			}
 			if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-				PLSErrorHandler::ExtraData extraData;
-				extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_LIVING;
 				PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_LIVE_INFO_FAILED, NAVER_SHOPPING_LIVE,
-											  PLSErrCustomKey_UpdateLiveInfoFailedNoService, extraData);
+											  PLSErrCustomKey_UpdateLiveInfoFailedNoService,
+											  PLSErrorHandler::ExtraData(CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_LIVING));
 			}
 		};
 		showLoading(content());
@@ -533,6 +608,9 @@ void PLSLiveInfoNaverShoppingLIVE::updateLiveTitleUI()
 void PLSLiveInfoNaverShoppingLIVE::updateLivePhotoUI()
 {
 	QString originImagePath = m_TempPrepareInfo.standByImagePath;
+	if (!m_TempPrepareInfo.isNowLiving && originImagePath.isEmpty()) {
+		PLS_INFO(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "Naver Shopping Live liveinfo thumbnail placeholder (no local path), scheduleId: %s", m_TempPrepareInfo.scheduleId.toUtf8().constData());
+	}
 	ui->thumbnailButton->setProperty("ignoreHover", !m_TempPrepareInfo.isNowLiving);
 	if (QString resultPath; platform->getScalePixmapPath(resultPath, originImagePath)) {
 		ui->thumbnailButton->setImagePath(resultPath);
@@ -567,7 +645,10 @@ void PLSLiveInfoNaverShoppingLIVE::updateScheduleGuideUI()
 
 void PLSLiveInfoNaverShoppingLIVE::updateLiveDateUI()
 {
-	ui->dateItemWidget->setHidden(m_TempPrepareInfo.isNowLiving);
+	if (!dateItemWidget) {
+		return;
+	}
+	dateItemWidget->setHidden(m_TempPrepareInfo.isNowLiving);
 	QDate ymdDate;
 	QString yearMonthDay;
 	QString hourString;
@@ -577,27 +658,17 @@ void PLSLiveInfoNaverShoppingLIVE::updateLiveDateUI()
 		PLSNaverShoppingLIVEAPI::ScheduleInfo scheduleInfo = platform->getSelectedScheduleInfo(m_TempPrepareInfo.scheduleId);
 		PLSNaverShoppingLIVEAPI::getNaverShoppingDateFormat(scheduleInfo.timeStamp, ymdDate, yearMonthDay, hourString, minuteString, apString);
 	}
-	ui->yearButton->setText(yearMonthDay);
-	ui->yearButton->setDate(ymdDate);
-	ui->hourButton->setText(hourString);
-	ui->minuteButton->setText(minuteString);
-	ui->apButton->setText(apString);
+	yearButton->setText(yearMonthDay);
+	yearButton->setDate(ymdDate);
+	hourButton->setText(hourString);
+	minuteButton->setText(minuteString);
+	apButton->setText(apString);
+	yearButton->setEnabled(m_TempPrepareInfo.isNowLiving);
+	hourButton->setEnabled(m_TempPrepareInfo.isNowLiving);
+	minuteButton->setEnabled(m_TempPrepareInfo.isNowLiving);
+	apButton->setEnabled(m_TempPrepareInfo.isNowLiving);
 
-	QString comboboxTitle = m_TempPrepareInfo.title;
-	if (m_TempPrepareInfo.isNowLiving) {
-		comboboxTitle = tr("New");
-	}
-	QString startTimeShort;
-	if (ui->yearButton->text().length() > 0 && ui->hourButton->text().length() > 0 && ui->minuteButton->text().length() > 0 && ui->apButton->text().length() > 0) {
-		PLSNaverShoppingLIVEAPI::ScheduleInfo scheduleInfo = platform->getSelectedScheduleInfo(m_TempPrepareInfo.scheduleId);
-		startTimeShort = PLSDateFormate::timeStampToShortString(scheduleInfo.timeStamp);
-	}
-	ui->scheCombox->setupButton(comboboxTitle, startTimeShort, (!m_TempPrepareInfo.isNowLiving && m_TempPrepareInfo.releaseLevel == RELEASE_LEVEL_REHEARSAL));
-
-	ui->yearButton->setEnabled(m_TempPrepareInfo.isNowLiving);
-	ui->hourButton->setEnabled(m_TempPrepareInfo.isNowLiving);
-	ui->minuteButton->setEnabled(m_TempPrepareInfo.isNowLiving);
-	ui->apButton->setEnabled(m_TempPrepareInfo.isNowLiving);
+	updateScheduleComboBox();
 }
 
 void PLSLiveInfoNaverShoppingLIVE::updateSearchUI()
@@ -660,6 +731,8 @@ void PLSLiveInfoNaverShoppingLIVE::switchNewScheduleItem(PLSScheComboxItemType t
 				getPrepareInfoFromScheduleInfo(m_TempPrepareInfo, scheduleInfo);
 				m_scheduleTempPrepareInfo = m_TempPrepareInfo;
 				if (m_TempPrepareInfo.standByImagePath.isEmpty()) {
+					PLS_ERROR(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "Naver Shopping Live liveinfo thumbnail not shown, scheduleId: %s, standByImageUrl empty or download failed",
+						  id.toUtf8().constData());
 					showToast(tr("navershopping.liveinfo.load.thumbnail.failed"));
 				}
 
@@ -683,10 +756,8 @@ void PLSLiveInfoNaverShoppingLIVE::updateScheduleLiveInfoRequest(const std::func
 			return;
 		}
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-			PLSErrorHandler::ExtraData extraData;
-			extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_LIVING;
 			PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_SCHEDULE_INFO_FAILED, NAVER_SHOPPING_LIVE,
-										  PLSErrCustomKey_LoadLiveInfoFailed, extraData);
+										  PLSErrCustomKey_LoadLiveInfoFailed, PLSErrorHandler::ExtraData(CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_LIVING));
 		}
 		callback(false, data);
 	};
@@ -700,12 +771,7 @@ void PLSLiveInfoNaverShoppingLIVE::createLivingRequest(const std::function<void(
 	auto requestCallback = [this, callback](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &, const QByteArray &data) {
 		if (apiType != PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 			hideLoading();
-			PLSErrorHandler::ExtraData extraData;
-			if (m_TempPrepareInfo.isNowLiving) {
-				extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_CREATE_NOW_LIVING;
-			} else {
-				extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_CREATE_SCHEDULE_LIVING;
-			}
+			PLSErrorHandler::ExtraData extraData(m_TempPrepareInfo.isNowLiving ? CHANNEL_NAVER_SHOPPING_LIVE_CREATE_NOW_LIVING : CHANNEL_NAVER_SHOPPING_LIVE_CREATE_SCHEDULE_LIVING);
 			if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
 				if (ui->productWidget->hasUnattachableProduct()) {
 					PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_ADD_UNATTACHABLE_PRODUCT_FAILED,
@@ -731,7 +797,10 @@ void PLSLiveInfoNaverShoppingLIVE::createLivingRequest(const std::function<void(
 
 int PLSLiveInfoNaverShoppingLIVE::apIndexForString(const QString &apString) const
 {
-	QStringList apList = ui->apButton->apList();
+	if (!apButton) {
+		return -1;
+	}
+	QStringList apList = apButton->apList();
 	int index = -1;
 	if (apList.contains(apString)) {
 		index = apList.indexOf(apString);
@@ -751,10 +820,8 @@ void PLSLiveInfoNaverShoppingLIVE::scheduleListLoadingFinished(PLSAPINaverShoppi
 {
 	if (apiType != PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-			PLSErrorHandler::ExtraData extraData;
-			extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_SCHEDULE_LIST;
 			PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_REFRESH_LIVEINFO_FAILED, NAVER_SHOPPING_LIVE,
-										  PLSErrCustomKey_LoadLiveInfoFailed, extraData);
+										  PLSErrCustomKey_LoadLiveInfoFailed, PLSErrorHandler::ExtraData(CHANNEL_NAVER_SHOPPING_LIVE_SCHEDULE_LIST));
 		}
 		return;
 	}
@@ -809,7 +876,9 @@ void PLSLiveInfoNaverShoppingLIVE::scheduleListLoadingFinished(PLSAPINaverShoppi
 		normalData.type = PLSScheComboxItemType::Ty_Placeholder;
 		m_vecItemDatas.insert(m_vecItemDatas.begin(), normalData);
 	}
-	ui->scheCombox->showScheduleMenu(m_vecItemDatas);
+	if (m_scheCombox) {
+		m_scheCombox->showScheduleMenu(m_vecItemDatas);
+	}
 }
 
 void PLSLiveInfoNaverShoppingLIVE::setupProductList()
@@ -823,7 +892,6 @@ void PLSLiveInfoNaverShoppingLIVE::setupEventFilter()
 {
 	m_verticalScrollBar = ui->scrollArea->verticalScrollBar();
 	m_verticalScrollBar->installEventFilter(this);
-	ui->searchIcon->installEventFilter(this);
 	connect(platform, &PLSPlatformNaverShoppingLIVE::showLiveinfoLoading, this, [this]() { showLoading(content()); }, Qt::QueuedConnection);
 	connect(platform, &PLSPlatformNaverShoppingLIVE::hiddenLiveinfoLoading, this, [this]() { hideLoading(); }, Qt::QueuedConnection);
 	connect(
@@ -837,6 +905,7 @@ void PLSLiveInfoNaverShoppingLIVE::setupEventFilter()
 
 void PLSLiveInfoNaverShoppingLIVE::initSetupUI(bool requestFinished)
 {
+	PLS_PERFORMANCE_GLOBAL_START("initSetupUI", "PLSLiveInfoNaverShoppingLIVE Constructor");
 	m_TempPrepareInfo = platform->getPrepareLiveInfo();
 	if (m_TempPrepareInfo.isNowLiving) {
 		m_scheduleTempPrepareInfo = PLSNaverShoppingLIVEAPI::NaverShoppingPrepareLiveInfo();
@@ -882,6 +951,7 @@ void PLSLiveInfoNaverShoppingLIVE::initSetupUI(bool requestFinished)
 
 	//update ok button state
 	doUpdateOkState();
+	PLS_PERFORMANCE_GLOBAL_END("initSetupUI");
 }
 
 void PLSLiveInfoNaverShoppingLIVE::updateRequest()
@@ -961,8 +1031,119 @@ void PLSLiveInfoNaverShoppingLIVE::printStartLiveFailedLog(const QByteArray &dat
 		  "navershopping start live failed");
 }
 
+void PLSLiveInfoNaverShoppingLIVE::createDateItemWidget()
+{
+	if (dateItemWidget) {
+		return;
+	}
+	dateItemWidget = pls_new<QWidget>(ui->scrollAreaWidgetContents);
+	dateItemWidget->setObjectName("dateItemWidget");
+	dateItemWidget->setHidden(m_TempPrepareInfo.isNowLiving);
+	auto horizontalLayout_9 = new QHBoxLayout(dateItemWidget);
+	horizontalLayout_9->setSpacing(10);
+	horizontalLayout_9->setObjectName("horizontalLayout_9");
+	horizontalLayout_9->setContentsMargins(0, 10, 0, 0);
+	auto dateLabel = new QLabel(dateItemWidget);
+	dateLabel->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("navershopping.liveinfo.date.title")));
+	dateLabel->setObjectName("dateLabel");
+
+	horizontalLayout_9->addWidget(dateLabel);
+
+	auto horizontalSpacer_10 = new QSpacerItem(392, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+	horizontalLayout_9->addItem(horizontalSpacer_10);
+
+	auto dateBgWidget = new QWidget(dateItemWidget);
+	dateBgWidget->setObjectName("dateBgWidget");
+	QSizePolicy sizePolicy;
+	sizePolicy.setHeightForWidth(dateBgWidget->sizePolicy().hasHeightForWidth());
+	dateBgWidget->setSizePolicy(sizePolicy);
+	dateBgWidget->setMinimumSize(QSize(555, 40));
+	dateBgWidget->setMaximumSize(QSize(555, 40));
+
+	horizontalLayout_8 = new QHBoxLayout(dateBgWidget);
+	horizontalLayout_8->setSpacing(10);
+	horizontalLayout_8->setObjectName("horizontalLayout_8");
+	horizontalLayout_8->setContentsMargins(0, 0, 0, 0);
+	yearButton = new PLSShoppingCalenderCombox(dateBgWidget);
+	auto lang = pls_get_current_language();
+	if (!IS_KR()) {
+		lang = "en-US";
+	}
+	yearButton->setProperty("lang", lang);
+	yearButton->setObjectName("yearButton");
+	yearButton->setCheckable(true);
+	yearButton->setChecked(false);
+
+	horizontalLayout_8->addWidget(yearButton);
+
+	apButton = new PLSShoppingCalenderCombox(dateBgWidget);
+	apButton->setObjectName("apButton");
+	apButton->setCheckable(true);
+
+	horizontalLayout_8->addWidget(apButton);
+
+	auto horizontalLayout_12 = new QHBoxLayout();
+	horizontalLayout_12->setSpacing(4);
+	horizontalLayout_12->setObjectName("horizontalLayout_12");
+	hourButton = new PLSShoppingCalenderCombox(dateBgWidget);
+	hourButton->setObjectName("hourButton");
+	hourButton->setCheckable(true);
+
+	horizontalLayout_12->addWidget(hourButton);
+
+	auto colonLabel = new QLabel(dateBgWidget);
+	colonLabel->setObjectName("colonLabel");
+	colonLabel->setAlignment(Qt::AlignmentFlag::AlignCenter);
+	horizontalLayout_12->addWidget(colonLabel);
+
+	minuteButton = new PLSShoppingCalenderCombox(dateBgWidget);
+	minuteButton->setObjectName("minuteButton");
+	minuteButton->setCheckable(true);
+
+	horizontalLayout_12->addWidget(minuteButton);
+	horizontalLayout_8->addLayout(horizontalLayout_12);
+	horizontalLayout_9->addWidget(dateBgWidget, 0, Qt::AlignmentFlag::AlignLeft);
+	ui->verticalLayout->replaceWidget(ui->dateItemWidget, dateItemWidget);
+	setupDateComboBox();
+}
+
+void PLSLiveInfoNaverShoppingLIVE::updateScheduleComboBox()
+{
+	if (!m_scheCombox) {
+		return;
+	}
+	QString comboboxTitle = m_TempPrepareInfo.title;
+	if (m_TempPrepareInfo.isNowLiving) {
+		comboboxTitle = tr("New");
+	}
+	QString startTimeShort;
+	if (!dateItemWidget) {
+		m_scheCombox->setupButton(comboboxTitle, startTimeShort, (!m_TempPrepareInfo.isNowLiving && m_TempPrepareInfo.releaseLevel == RELEASE_LEVEL_REHEARSAL));
+		return;
+	}
+	if (yearButton->text().length() > 0 && hourButton->text().length() > 0 && minuteButton->text().length() > 0 && apButton->text().length() > 0) {
+		PLSNaverShoppingLIVEAPI::ScheduleInfo scheduleInfo = platform->getSelectedScheduleInfo(m_TempPrepareInfo.scheduleId);
+		startTimeShort = PLSDateFormate::timeStampToShortString(scheduleInfo.timeStamp);
+	}
+	m_scheCombox->setupButton(comboboxTitle, startTimeShort, (!m_TempPrepareInfo.isNowLiving && m_TempPrepareInfo.releaseLevel == RELEASE_LEVEL_REHEARSAL));
+}
+
+void PLSLiveInfoNaverShoppingLIVE::createDualWidget()
+{
+	PLS_PERFORMANCE_GLOBAL_START("PLSLiveInfoNaverShoppingLIVEProductList::PLSLiveInfoDualWidget");
+
+	auto dualWidget = new PLSLiveInfoDualWidget(ui->nvtTitleWidget);
+	dualWidget->setObjectName("dualWidget");
+	dualWidget->setText(tr("navershopping.liveinfo.title"))->setUUID(platform->getChannelUUID());
+
+	ui->horizontalLayout_3->replaceWidget(ui->dualWidget, dualWidget);
+	PLS_PERFORMANCE_GLOBAL_END("PLSLiveInfoNaverShoppingLIVEProductList::PLSLiveInfoDualWidget");
+}
+
 void PLSLiveInfoNaverShoppingLIVE::getCategoryListRequest()
 {
+	PLS_PERFORMANCE_GLOBAL_START("getCategoryListRequest", "PLSLiveInfoNaverShoppingLIVE Constructor");
 	if (!pls_get_network_state()) {
 		ui->productWidget->setAllProducts(m_TempPrepareInfo.shoppingProducts, false);
 		doUpdateOkState();
@@ -975,13 +1156,13 @@ void PLSLiveInfoNaverShoppingLIVE::getCategoryListRequest()
 		}
 		doUpdateOkState();
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-			PLSErrorHandler::ExtraData extraData;
-			extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_CATEGORY_LIST;
-			PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_GET_CATEGORY_LIST_FAILED, NAVER_SHOPPING_LIVE, "", extraData);
+			PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_GET_CATEGORY_LIST_FAILED, NAVER_SHOPPING_LIVE, "",
+										  PLSErrorHandler::ExtraData(CHANNEL_NAVER_SHOPPING_LIVE_CATEGORY_LIST));
 		}
 	};
 
 	updateRequest();
+	PLS_PERFORMANCE_GLOBAL_END("getCategoryListRequest");
 }
 
 void PLSLiveInfoNaverShoppingLIVE::updateSetupUI()
@@ -997,9 +1178,11 @@ void PLSLiveInfoNaverShoppingLIVE::updateSetupUI()
 	updateLiveSummaryUI();
 
 	updateScheduleGuideUI();
+	updateScheduleComboBox();
 
 	ui->searchIcon->setVisible(m_TempPrepareInfo.isNowLiving);
 	ui->helpLabel->setVisible(m_TempPrepareInfo.isNowLiving);
+	updateHelpLayout();
 
 	//LiveInfo product
 	QList<PLSNaverShoppingLIVEAPI::ProductInfo> list = m_TempPrepareInfo.shoppingProducts;
@@ -1034,6 +1217,10 @@ void PLSLiveInfoNaverShoppingLIVE::doUpdateOkState()
 
 bool PLSLiveInfoNaverShoppingLIVE::isModified(const PLSNaverShoppingLIVEAPI::NaverShoppingPrepareLiveInfo &info)
 {
+	if (!dateItemWidget) {
+		return false;
+	}
+
 	if (!m_TempPrepareInfo.isNowLiving) {
 		return false;
 	}
@@ -1074,7 +1261,7 @@ bool PLSLiveInfoNaverShoppingLIVE::isModified(const PLSNaverShoppingLIVEAPI::Nav
 		QString apString;
 		PLSNaverShoppingLIVEAPI::ScheduleInfo scheduleInfo = platform->getSelectedScheduleInfo(info.scheduleId);
 		PLSNaverShoppingLIVEAPI::getNaverShoppingDateFormat(scheduleInfo.timeStamp, ymdDate, yearMonthDay, hourString, minuteString, apString);
-		bool dateNotChanged = yearMonthDay == ui->yearButton->text() && hourString == ui->hourButton->text() && minuteString == ui->minuteButton->text() && apString == ui->apButton->text();
+		bool dateNotChanged = yearMonthDay == yearButton->text() && hourString == hourButton->text() && minuteString == minuteButton->text() && apString == apButton->text();
 		if (!dateNotChanged) {
 			return true;
 		}
@@ -1194,7 +1381,9 @@ void PLSLiveInfoNaverShoppingLIVE::titleEdited()
 		if (QString newText = ui->lineEditTitle->text(); isTitleTooLong(newText, TitleLengthLimit)) {
 			QSignalBlocker signalBlocker(ui->lineEditTitle);
 			ui->lineEditTitle->setText(newText);
-			PLSAlertView::warning(this, tr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TitleLengthLimit).arg(QTStr("Channels.naver_shopping_live")));
+			PLSErrorHandler::ExtraData extra(QStringLiteral("PLSLiveInfoNaverShoppingLIVE::titleEdited"));
+			extra.defaultArg = QStringList{QString::number(TitleLengthLimit), QTStr("Channels.naver_shopping_live")};
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LIVEINFO_TITLE_LENGTH_CHECK_ARG, PLSErrKeyAllAlert, QString(), extra, this);
 		}
 	}
 	doUpdateOkState();
@@ -1206,7 +1395,8 @@ void PLSLiveInfoNaverShoppingLIVE::summaryEdited()
 		if (QString newText = ui->summaryLineEdit->text(); isTitleTooLong(newText, SummaryLengthLimit)) {
 			QSignalBlocker signalBlocker(ui->summaryLineEdit);
 			ui->summaryLineEdit->setText(newText);
-			PLSAlertView::warning(this, tr("Alert.Title"), tr("navershopping.liveinfo.max.summary.length"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPING_LIVEINFO_MAX_SUMMARY_LENGTH, PLSErrKeyAllAlert, QString(),
+							      PLSErrorHandler::ExtraData(QStringLiteral("PLSLiveInfoNaverShoppingLIVE::summaryEdited")), this);
 		}
 	}
 	doUpdateOkState();
@@ -1261,7 +1451,7 @@ void PLSLiveInfoNaverShoppingLIVE::on_linkButton_clicked()
 void PLSLiveInfoNaverShoppingLIVE::scheduleButtonClicked()
 {
 	PLS_UI_STEP(liveInfoMoudule, "NaverShopping liveinfo schedule pop button click", ACTION_CLICK);
-	if (!ui->scheCombox->getMenuHide()) {
+	if (!m_scheCombox || !m_scheCombox->getMenuHide()) {
 		return;
 	}
 	m_vecItemDatas.clear();
@@ -1276,9 +1466,9 @@ void PLSLiveInfoNaverShoppingLIVE::scheduleButtonClicked()
 		this->scheduleListLoadingFinished(apiType, scheduleList, data);
 	};
 
-	ui->scheCombox->showScheduleMenu(m_vecItemDatas);
+	m_scheCombox->showScheduleMenu(m_vecItemDatas);
 	m_requestFlag++;
-	platform->getScheduleList(requestCallback, SCHEDULE_FIRST_PAGE_NUM, m_requestFlag, LIVEINFO_GET_SCHEDULE_LIST, ui->scheCombox, [](const QObject *receiver) {
+	platform->getScheduleList(requestCallback, SCHEDULE_FIRST_PAGE_NUM, m_requestFlag, LIVEINFO_GET_SCHEDULE_LIST, m_scheCombox, [](const QObject *receiver) {
 		if (auto schedule = static_cast<const PLSScheduleCombox *>(receiver); schedule == nullptr || schedule->isMenuNULL() || schedule->getMenuHide()) {
 			return false;
 		}
@@ -1315,12 +1505,14 @@ void PLSLiveInfoNaverShoppingLIVE::scheduleItemClick(const QString selectID)
 void PLSLiveInfoNaverShoppingLIVE::checkSwitchNewScheduleItem(const PLSScheComboxItemData &selelctData)
 {
 	//Every time the reservation channel is switched, it is detected whether the reservation information has been changed before switching, and if it is changed, the user will be prompted whether to save it
-	PLSAlertView::Button button = pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("navershopping.liveinfo.schedule.switch.tip"), PLSAlertView::Button::Yes | PLSAlertView::Button::No);
-	if (button == PLSAlertView::Button::Yes) {
+	PLSErrorHandler::RetData switchRet = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPING_LIVEINFO_SCHEDULE_SWITCH_TIP, PLSErrKeyAllAlert, QString(),
+										   PLSErrorHandler::ExtraData(QStringLiteral("PLSLiveInfoNaverShoppingLIVE::checkSwitchNewScheduleItem")), this);
+	if (switchRet.clickedBtn == PLSAlertView::Button::Yes) {
 
 		//If the user clicks to save, first check whether the information to be saved is legal
 		if (!isOkButtonEnabled()) {
-			pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("navershopping.liveinfo.schedule.info.empty.tip"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPING_LIVEINFO_SCHEDULE_INFO_EMPTY_TIP, PLSErrKeyAllAlert, QString(),
+							      PLSErrorHandler::ExtraData(QStringLiteral("PLSLiveInfoNaverShoppingLIVE::checkSwitchNewScheduleItem.empty")), this);
 			return;
 		}
 
@@ -1347,6 +1539,14 @@ void PLSLiveInfoNaverShoppingLIVE::on_cancelButton_clicked()
 PLSPlatformNaverShoppingLIVE *PLSLiveInfoNaverShoppingLIVE::getPlatform()
 {
 	return platform;
+}
+
+void PLSLiveInfoNaverShoppingLIVE::showEvent(QShowEvent *event)
+{
+	PLSLiveInfoBase::showEvent(event);
+	createDateItemWidget();
+	createDualWidget();
+	setupScheduleComboBox();
 }
 
 void PLSNaverShoppingImageScaleProcessor::process(PLSPlatformNaverShoppingLIVE *platform, double dpi, const QString &imagePath, const QSize &imageSize) const

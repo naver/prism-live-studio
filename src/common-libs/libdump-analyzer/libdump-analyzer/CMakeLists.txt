@@ -49,7 +49,7 @@ elseif(OS_MACOS)
 	target_link_libraries(libdump-analyzer common-libs::third-party::kscrash)
 endif()
 
-target_link_libraries(libdump-analyzer Qt6::Core common-libs::utils-api common-libs::http-client)
+target_link_libraries(libdump-analyzer Qt6::Core common-libs::utils-api common-libs::http-client common-libs::ui)
 set_target_properties(libdump-analyzer PROPERTIES FOLDER common-libs/libdump-analyzer)
 set_target_properties(libdump-analyzer PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")
 

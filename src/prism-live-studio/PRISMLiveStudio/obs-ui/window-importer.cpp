@@ -29,6 +29,8 @@
 
 #include <qt-wrappers.hpp>
 #include "importers/importers.hpp"
+#include "PLSErrorHandler.h"
+#include "frontend-api.h"
 
 extern bool SceneCollectionExists(const char *findName);
 
@@ -399,14 +401,11 @@ OBSImporter::OBSImporter(QWidget *parent) : QDialog(parent), optionsModel(new Im
 	bool autoSearchPrompt = config_get_bool(App()->GetUserConfig(), "General", "AutoSearchPrompt");
 
 	if (!autoSearchPrompt) {
-		QMessageBox::StandardButton button = OBSMessageBox::question(
-			parent, QTStr("Importer.AutomaticCollectionPrompt"), QTStr("Importer.AutomaticCollectionText"));
-
-		if (button == QMessageBox::Yes) {
-			config_set_bool(App()->GetUserConfig(), "General", "AutomaticCollectionSearch", true);
-		} else {
-			config_set_bool(App()->GetUserConfig(), "General", "AutomaticCollectionSearch", false);
-		}
+		const PLSErrorHandler::RetData ret = PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ALERT_IMPORTER_AUTOMATICCOLLECTIONTEXT, PLSErrKeyAllAlert, QString(),
+			PLSErrorHandler::ExtraData(QStringLiteral("OBSImporter::OBSImporter")), parent);
+		config_set_bool(App()->GetUserConfig(), "General", "AutomaticCollectionSearch",
+				ret.clickedBtn == PLSAlertView::Button::Yes);
 
 		config_set_bool(App()->GetUserConfig(), "General", "AutoSearchPrompt", true);
 	}

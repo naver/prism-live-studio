@@ -24,6 +24,7 @@ void B2BResolutionGuideItem::initialize(const B2BResolutionPara &data, Resolutio
 	ui->bitrate->setText(data.bitrate);
 	ui->keyframeInterval->setText(data.keyframeInterval);
 	ui->ResolutionApplyBtn->setProperty("link", data.templateName + ":" + prefer + ":" + data.bitrate + ":" + data.keyframeInterval);
+	pls_uistep_v2_set_value(ui->ResolutionApplyBtn, QStringLiteral("*"), data.templateName + QStringLiteral(" Apply Now"));
 	connect(ui->ResolutionApplyBtn, &QAbstractButton::clicked, this, &B2BResolutionGuideItem::onLinkSelected);
 }
 

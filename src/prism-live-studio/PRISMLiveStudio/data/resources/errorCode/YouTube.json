@@ -1,0 +1,331 @@
+{
+    "extra": {
+        "path": {
+            "reason": [
+                "error.errors.[].reason",
+                "error"
+            ],
+            "helpUrl": [
+                "error.errors.[].extendedHelp"
+            ],
+            "helpMsg": [
+                "error.errors.[].message"
+            ]
+        },
+        "logAppend": [
+            "reason: {{reason}}",
+            "helpUrl: {{helpUrl}}"
+        ]
+    },
+    "data": [
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "404",
+                "reason": "channelNotFound"
+            },
+            "err": {
+                "prismCode": 28000,
+                "prismName": "CHANNEL_YOUTUBE_NOTFOUND_404_CHANNELNOTFOUND",
+                "msgKey": "Live.Check.LiveInfo.Broadcast.Error.Delete",
+                "msgText": "this scheduled live is no longer valid. Please choose a different option."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "400",
+                "reason": "invalid_grant"
+            },
+            "err": {
+                "prismCode": 10002,
+                "prismName": "COMMON_TOKEN_EXPIRED_ERROR",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Expired",
+                "msgText": "Your %1 channel verification information has expired.",
+                "errorType": "TokenExpired",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "login",
+            "api": {
+                "$statusCode": "400",
+                "reason": "invalid_grant"
+            },
+            "err": {
+                "prismCode": 10003,
+                "prismName": "COMMON_CHANNEL_LOGIN_TOKEN_EXPIRED_ERROR",
+                "msgKey": "Channels.expiredQuestion",
+                "msgText": "Your %1 account verification information has expired. You will be transferred to the login page.",
+                "errorType": "TokenExpired",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "400",
+                "reason": "invalidDescription"
+            },
+            "err": {
+                "prismCode": 28001,
+                "prismName": "CHANNEL_YOUTUBE_INVALIDVALUE_400_INVALIDDESCRIPTION",
+                "msgKey": "LiveInfo.invalid.description",
+                "msgText": "The live information has not been reflected. You can enter up to 5000 characters for YouTube Live. Check for special characters that are not allowed, such as < >."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "400",
+                "reason": "invalidLatencyPreferenceOptions"
+            },
+            "err": {
+                "prismCode": 28002,
+                "prismName": "CHANNEL_YOUTUBE_INVALIDVALUE_400_INVALIDLATENCYPREFERENCEOPTIONS",
+                "msgKey": "LiveInfo.latency.ultra.low.start.1080.failed",
+                "msgText": "Cannot start stream due to an unknown error."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "403",
+                "reason": "invalidTransition"
+            },
+            "err": {
+                "prismCode": 28003,
+                "prismName": "CHANNEL_YOUTUBE_FORBIDDEN_403_INVALIDTRANSITION",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Failed",
+                "msgText": "Live information could not be loaded. Please try again later."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "reason": "liveBroadcastNotFound"
+            },
+            "err": {
+                "prismCode": 28004,
+                "prismName": "CHANNEL_YOUTUBE_LIVEBROADCASTNOTFOUND",
+                "msgKey": "Live.Check.LiveInfo.Broadcast.Error.Delete",
+                "msgText": "this scheduled live is no longer valid. Please choose a different option."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "403",
+                "reason": "livePermissionBlocked"
+            },
+            "err": {
+                "prismCode": 28005,
+                "prismName": "CHANNEL_YOUTUBE_INSUFFICIENTPERMISSIONS_LIVEPERMISSIONBLOCKED",
+                "msgKey": "Live.Check.LiveInfo.Youtube.block.permisson.28005",
+                "msgText": "You are currently restricted from YouTube live streaming.\nThis may be due to a violation of community guidelines or platform policies. For more information, please click the [View Help] button.",
+                "alertType": "Error_Blog_Link"
+            },
+            "alert": {
+                "error": {
+                    "blogText": "Live.Button.View.Help",
+                    "blogLink": "https://support.google.com/youtube/answer/2853834",
+                    "thirdLink": "https://www.youtube.com/features"
+                }
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "403",
+                "reason": "liveStreamingNotEnabled"
+            },
+            "err": {
+                "prismCode": 28006,
+                "prismName": "CHANNEL_YOUTUBE_INSUFFICIENTPERMISSIONS_LIVESTREAMINGNOTENABLED",
+                "msgKey": "Live.Check.LiveInfo.Youtube.block.permisson.28006",
+                "msgText": "You cannot live stream on YouTube because streaming permissions haven’t been enabled.\nSome permissions may take up to 24 hours to activate after application or verification. For more information, please click the [View Help] button.",
+                "alertType": "Normal_Code_Blog"
+            },
+            "alert": {
+                "normal": {
+                    "blogLink": "https://guide.prismlive.com/desktop/guides/error-solution/streaming/how-to-fix-youtube-streaming-permission-errors"
+                }
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "403",
+                "reason": "madeForKidsModificationNotAllowed"
+            },
+            "err": {
+                "prismCode": 28007,
+                "prismName": "CHANNEL_YOUTUBE_403_MADEFORKIDSMODIFICATIONNOTALLOWED",
+                "msgKey": "LiveInfo.latency.will.call.api.failed",
+                "msgText": "Cannot change the YouTube stream latency settings for YouTube Kids. Please use the default settings."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "403",
+                "reason": "redundantTransition"
+            },
+            "err": {
+                "prismCode": 28008,
+                "prismName": "CHANNEL_YOUTUBE_FORBIDDEN_403_REDUNDANTTRANSITION",
+                "msgKey": "broadcast.no.longer.valid",
+                "msgText": "This live broadcast is no longer valid. Please check and try again."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "reason": "videoNotFound"
+            },
+            "err": {
+                "prismCode": 28009,
+                "prismName": "CHANNEL_YOUTUBE_VIDEONOTFOUND",
+                "msgKey": "Live.Check.LiveInfo.Broadcast.Error.Delete",
+                "msgText": "This scheduled live is no longer valid. Please choose a different option."
+            }
+        },
+        {
+            "phase": "channel",
+            "err": {
+                "prismCode": 28010,
+                "prismName": "CHANNEL_YOUTUBE_CUSTOM_REMOTEINVALID",
+                "msgKey": "LiveInfo.live.error.remote.have.lived",
+                "msgText": "%1 channel is already taken or invalid. Please check and try again."
+            }
+        },
+        {
+            "phase": "channel",
+            "err": {
+                "prismCode": 28011,
+                "prismName": "CHANNEL_YOUTUBE_CUSTOM_BROADCASTTYPENOTSUPPORT",
+                "msgKey": "LiveInfo.live.broadcast.type.not.support",
+                "msgText": "Scheduled Streams created from the Webcam menu of the %1 Live Dashboard are not supported. Please create Scheduled Stream by selecting Streaming Software from the Manage menu."
+            }
+        },
+        {
+            "phase": "channel",
+            "err": {
+                "prismCode": 28012,
+                "prismName": "CHANNEL_YOUTUBE_CUSTOM_LATENCYCHANGEFAILED",
+                "msgKey": "Live.Check.LiveInfo.latency.change.failed",
+                "buttons": "[{\"button\":\"Close\"},{\"button\":\"Open\",\"tr\":\"Live.Check.youtube.gotoPage\",\"action\":\"open.https://studio.youtube.com/video/{{youtubeLiveId}}/livestreaming\"}]",
+                "msgText": "Cannot edit stream latency. Configure your settings on %1 Studio."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "reason": "liveStreamNotFound"
+            },
+            "err": {
+                "prismCode": 28013,
+                "prismName": "CHANNEL_YOUTUBE_LIVESTREAMNOTFOUND",
+                "msgKey": "Live.Check.LiveInfo.Broadcast.Error.Delete",
+                "msgText": "this scheduled live is no longer valid. Please choose a different option."
+            }
+        },
+        {
+            "phase": "channel",
+            "err": {
+                "prismCode": 10005,
+                "title": "Channels.Confirm",
+                "prismName": "COMMON_CHANNEL_EMPTYCHANNEL",
+                "msgKey": "Channels.GotoYoutubetoSet",
+                "buttons": "[{\"button\":\"Cancel\"},{\"button\":\"Yes\",\"tr\":\"Channels.GotoYoutubeOk\",\"action\":\"open.https://www.youtube.com/live_dashboard\"}]",
+                "msgText": "You have not finished creating your channel. \nWould you like to continue the channel verification process on YouTube?"
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "reason": "authenticatedUserAccountSuspended"
+            },
+            "err": {
+                "prismCode": 28014,
+                "prismName": "CHANNEL_YOUTUBE_AUTHENTICATEDUSERACCOUNTSUSPENDED",
+                "msgKey": "Live.Check.LiveInfo.authenticatedUserAccountSuspended",
+                "msgText": "There’s an issue with your YouTube account. Please check your account status using the link below.",
+                "alertType": "Error_Link"
+            },
+            "alert": {
+                "error": {
+                    "thirdLink": "https://www.youtube.com/features"
+                }
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "reason": "backendError"
+            },
+            "err": {
+                "prismCode": 28015,
+                "prismName": "CHANNEL_YOUTUBE_BACKENDERROR",
+                "msgKey": "Live.Check.LiveInfo.backendError",
+                "msgText": "A temporary error occurred on the YouTube server. Please try again in a moment."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 28016,
+                "prismName": "CHANNEL_YOUTUBE_TITLE_CONTAIN_SPECIAL",
+                "msgKey": "LiveInfo.Youtube.Title.Contain.Special.Text",
+                "msgText": "Special characters (<, >) are not allowed in YouTube titles.",
+                "alertType": "Normal"
+            }
+        },
+        {
+            "err": {
+                "prismCode": 28017,
+                "prismName": "CHANNEL_YOUTUBE_DESCRIPTION_TOO_LONG",
+                "msgKey": "LiveInfo.Youtube.Description.Length.Check.arg",
+                "msgText": "Up to 5000 characters allowed for %1 live description.",
+                "alertType": "Normal"
+            }
+        },
+        {
+            "err": {
+                "prismCode": 28018,
+                "prismName": "CHANNEL_YOUTUBE_REHEARSAL_SWITCH_TO_LIVE",
+                "msgKey": "LiveInfo.rehearasl.switchto.live",
+                "msgText": "The rehearsal has ended. The broadcast scheduled on YouTube Studio has begun.",
+                "alertType": "Normal"
+            }
+        },
+        {
+            "err": {
+                "prismCode": 28019,
+                "prismName": "CHANNEL_YOUTUBE_AUTOSTART_RTMP",
+                "msgKey": "LiveInfo.live.Check.AutoStart.Rrmp",
+                "msgText": "Check to see if your broadcast is streaming properly via %1. You must click \"Start\" in %1 Studio for your broadcast to be properly streamed.",
+                "alertType": "Error"
+            }
+        },
+        {
+            "err": {
+                "prismCode": 28020,
+                "prismName": "CHANNEL_YOUTUBE_AUTOSTART_CHANNEL",
+                "msgKey": "LiveInfo.live.Check.AutoStart.Channel",
+                "buttons": "[{\"button\":\"Ok\"},{\"button\":\"Open\",\"tr\":\"Live.Check.youtube.gotoPage\",\"action\":\"open.https://studio.youtube.com/video/{{youtubeLiveId}}/livestreaming\"}]",
+                "msgText": "Select \"Start\" in %1 Studio to start a stream via %1. If you do not select \"Start\", your stream won't be broadcast via %1.",
+                "alertType": "Normal"
+            }
+        },
+        {
+            "err": {
+                "prismCode": 28021,
+                "prismName": "CHANNEL_YOUTUBE_AUTOSTART_BOTH",
+                "msgKey": "LiveInfo.live.Check.AutoStart.Both.ChannelAndRtmp",
+                "buttons": "[{\"button\":\"Ok\"},{\"button\":\"Open\",\"tr\":\"Live.Check.youtube.gotoPage\",\"action\":\"open.https://studio.youtube.com/video/{{youtubeLiveId}}/livestreaming\"}]",
+                "msgText": "Select \"Start\" in %1 Studio. If you do not select \"Start\", your stream won't be broadcast via YouTube.\nFor RTMP channels, check to see if your broadcast is streaming properly via %1. You must click \"Start\" in %1 Studio for your broadcast to be properly streamed.",
+                "alertType": "Normal"
+            }
+        }
+    ]
+}

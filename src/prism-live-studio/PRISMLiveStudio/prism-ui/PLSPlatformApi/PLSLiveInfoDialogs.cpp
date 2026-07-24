@@ -1,5 +1,4 @@
 #include "PLSLiveInfoDialogs.h"
-
 #include "PLSPlatformApi.h"
 #include "twitch/PLSLiveInfoTwitch.h"
 #include "youtube/PLSLiveInfoYoutube.h"
@@ -13,6 +12,8 @@
 #include "chzzk/PLSLiveInfoChzzk.h"
 #include "ncb2b/PLSLiveInfoNCB2B.h"
 #include "ChannelCommonFunctions.h"
+#include "libui.h"
+#include "PLSWatchers.h"
 
 int pls_exec_live_Info(const QVariantMap &info, QWidget *parent)
 {
@@ -59,8 +60,16 @@ int pls_exec_live_Info_twitch(const QString &which, const QVariantMap &info, QWi
 	if (nullptr == pPlatform) {
 		return QDialog::Rejected;
 	}
-
+#if defined(PLS_PERFORMANCE_STATS)
+	auto channelName = getInfo(info, channel_data::g_channelName, QString(""));
+	auto id = channelName.append("_ShowLiveInfoAllTime").toUtf8();
+#endif
+	PLS_PERFORMANCE_GLOBAL_END("LiveInfoShow_Before");
+	PLS_PERFORMANCE_GLOBAL_START("BulidTwitchLiveInfoWindow", id.constData());
 	PLSLiveInfoTwitch liveInfo(pPlatform, parent);
+	PLS_PERFORMANCE_GLOBAL_END("BulidTwitchLiveInfoWindow");
+	PLS_PERFORMANCE_GLOBAL_START("LiveInfoExec", id.constData());
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&liveInfo, PLS_PERFORMANCE_GLOBAL_END("LiveInfoExec"); PLS_PERFORMANCE_GLOBAL_END(id.constData()));
 	return liveInfo.exec();
 }
 
@@ -71,8 +80,16 @@ int pls_exec_live_Info_youtube(const QString &which, const QVariantMap &info, QW
 	if (nullptr == pPlatform) {
 		return QDialog::Rejected;
 	}
-
+#if defined(PLS_PERFORMANCE_STATS)
+	auto channelName = getInfo(info, channel_data::g_channelName, QString(""));
+	auto id = channelName.append("_ShowLiveInfoAllTime").toUtf8();
+#endif
+	PLS_PERFORMANCE_GLOBAL_END("LiveInfoShow_Before");
+	PLS_PERFORMANCE_GLOBAL_START("BulidYoutubeLiveInfoWindow", id.constData());
 	PLSLiveInfoYoutube liveInfo(pPlatform, parent);
+	PLS_PERFORMANCE_GLOBAL_END("BulidYoutubeLiveInfoWindow");
+	PLS_PERFORMANCE_GLOBAL_START("LiveInfoExec", id.constData());
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&liveInfo, PLS_PERFORMANCE_GLOBAL_END("LiveInfoExec"); PLS_PERFORMANCE_GLOBAL_END(id.constData()));
 	return liveInfo.exec();
 }
 
@@ -88,8 +105,16 @@ int pls_exec_live_Info_navertv(const QString &which, const QVariantMap &info, QW
 	if (!platform) {
 		return PLSLiveInfoNaverTV::Rejected;
 	}
-
+#if defined(PLS_PERFORMANCE_STATS)
+	auto channelName = getInfo(info, channel_data::g_channelName, QString(""));
+	auto id = channelName.append("_ShowLiveInfoAllTime").toUtf8();
+#endif
+	PLS_PERFORMANCE_GLOBAL_END("LiveInfoShow_Before");
+	PLS_PERFORMANCE_GLOBAL_START("BulidNaverTVLiveInfoWindow", id.constData());
 	PLSLiveInfoNaverTV liveInfo(platform, info, parent);
+	PLS_PERFORMANCE_GLOBAL_END("BulidNaverTVLiveInfoWindow");
+	PLS_PERFORMANCE_GLOBAL_START("LiveInfoExec", id.constData());
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&liveInfo, PLS_PERFORMANCE_GLOBAL_END("LiveInfoExec"); PLS_PERFORMANCE_GLOBAL_END(id.constData()));
 	return liveInfo.exec();
 }
 
@@ -106,8 +131,16 @@ int pls_exec_live_Info_band(const QString &which, const QVariantMap &info, QWidg
 	if (nullptr == pPlatform) {
 		return QDialog::Rejected;
 	}
-
+#if defined(PLS_PERFORMANCE_STATS)
+	auto channelName = getInfo(info, channel_data::g_channelName, QString(""));
+	auto id = channelName.append("_ShowLiveInfoAllTime").toUtf8();
+#endif
+	PLS_PERFORMANCE_GLOBAL_END("LiveInfoShow_Before");
+	PLS_PERFORMANCE_GLOBAL_START("BulidBandLiveInfoWindow", id.constData());
 	PLSLiveInfoBand liveInfo(pPlatform, parent);
+	PLS_PERFORMANCE_GLOBAL_END("BulidBandLiveInfoWindow");
+	PLS_PERFORMANCE_GLOBAL_START("LiveInfoExec", id.constData());
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&liveInfo, PLS_PERFORMANCE_GLOBAL_END("LiveInfoExec"); PLS_PERFORMANCE_GLOBAL_END(id.constData()));
 	return liveInfo.exec();
 }
 
@@ -118,19 +151,36 @@ int pls_exec_live_Info_afreecatv(const QString &which, const QVariantMap &info, 
 	if (nullptr == pPlatform) {
 		return QDialog::Rejected;
 	}
+#if defined(PLS_PERFORMANCE_STATS)
+	auto channelName = getInfo(info, channel_data::g_channelName, QString(""));
+	auto id = channelName.append("_ShowLiveInfoAllTime").toUtf8();
+#endif
+	PLS_PERFORMANCE_GLOBAL_END("LiveInfoShow_Before");
+	PLS_PERFORMANCE_GLOBAL_START("BulidAfreecaTVLiveInfoWindow", id.constData());
 	PLSLiveInfoAfreecaTV liveInfo(pPlatform, parent);
+	PLS_PERFORMANCE_GLOBAL_END("BulidAfreecaTVLiveInfoWindow");
+	PLS_PERFORMANCE_GLOBAL_START("LiveInfoExec", id.constData());
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&liveInfo, PLS_PERFORMANCE_GLOBAL_END("LiveInfoExec"); PLS_PERFORMANCE_GLOBAL_END(id.constData()));
 	return liveInfo.exec();
 }
 
-int pls_exec_live_Info_facebook(const QString &which, const QVariantMap &info, QWidget *parent)
+int pls_exec_live_Info_facebook(const QString &which, const QVariantMap &info, QWidget *parent, bool isFromGoLive)
 {
 	auto pPlatform = PLS_PLATFORM_API->getPlatformById(which, info);
 
 	if (nullptr == pPlatform) {
 		return QDialog::Rejected;
 	}
-
-	PLSLiveInfoFacebook liveInfo(pPlatform, parent);
+#if defined(PLS_PERFORMANCE_STATS)
+	auto channelName = getInfo(info, channel_data::g_channelName, QString(""));
+	auto id = channelName.append("_ShowLiveInfoAllTime").toUtf8();
+#endif
+	PLS_PERFORMANCE_GLOBAL_END("LiveInfoShow_Before");
+	PLS_PERFORMANCE_GLOBAL_START("BulidFacebookLiveInfoWindow", id.constData());
+	PLSLiveInfoFacebook liveInfo(pPlatform, parent, isFromGoLive);
+	PLS_PERFORMANCE_GLOBAL_END("BulidFacebookLiveInfoWindow");
+	PLS_PERFORMANCE_GLOBAL_START("LiveInfoExec", id.constData());
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&liveInfo, PLS_PERFORMANCE_GLOBAL_END("LiveInfoExec"); PLS_PERFORMANCE_GLOBAL_END(id.constData()));
 	return liveInfo.exec();
 }
 
@@ -141,10 +191,17 @@ int pls_exec_live_Info_naver_shopping_live(const QString &which, const QVariantM
 	if (!platform) {
 		return PLSLiveInfoNaverShoppingLIVE::Rejected;
 	}
-
+#if defined(PLS_PERFORMANCE_STATS)
+	auto channelName = getInfo(info, channel_data::g_channelName, QString(""));
+	auto id = channelName.append("_ShowLiveInfoAllTime").toUtf8();
+#endif
+	PLS_PERFORMANCE_GLOBAL_END("LiveInfoShow_Before");
+	PLS_PERFORMANCE_GLOBAL_START("BulidNaverShoppingLiveInfoWindow", id.constData());
 	parent = (!parent) ? App()->getMainView() : parent;
 	PLSLiveInfoNaverShoppingLIVE liveInfo(platform, info, parent);
-
+	PLS_PERFORMANCE_GLOBAL_END("BulidNaverShoppingLiveInfoWindow");
+	PLS_PERFORMANCE_GLOBAL_START("LiveInfoExec", id.constData());
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&liveInfo, PLS_PERFORMANCE_GLOBAL_END("LiveInfoExec"); PLS_PERFORMANCE_GLOBAL_END(id.constData()));
 	return liveInfo.exec();
 }
 
@@ -163,7 +220,16 @@ int pls_exec_live_Info_chzzk(const QString &which, const QVariantMap &info, QWid
 	if (nullptr == pPlatform) {
 		return QDialog::Rejected;
 	}
+	PLS_PERFORMANCE_GLOBAL_END("LiveInfoShow_Before");
+#if defined(PLS_PERFORMANCE_STATS)
+	auto channelName = getInfo(info, channel_data::g_channelName, QString(""));
+	auto id = channelName.append("_ShowLiveInfoAllTime").toUtf8();
+#endif
+	PLS_PERFORMANCE_GLOBAL_START("BulidChzzkLiveInfoWindow", id.constData());
 	PLSLiveInfoChzzk liveInfo(pPlatform, parent);
+	PLS_PERFORMANCE_GLOBAL_END("BulidChzzkLiveInfoWindow");
+	PLS_PERFORMANCE_GLOBAL_START("LiveInfoExec", id.constData());
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&liveInfo, PLS_PERFORMANCE_GLOBAL_END("LiveInfoExec"); PLS_PERFORMANCE_GLOBAL_END(id.constData()));
 	return liveInfo.exec();
 }
 
@@ -174,6 +240,15 @@ int pls_exec_live_Info_bcb2b(const QString &which, const QVariantMap &info, QWid
 	if (nullptr == pPlatform) {
 		return QDialog::Rejected;
 	}
+	PLS_PERFORMANCE_GLOBAL_END("LiveInfoShow_Before");
+#if defined(PLS_PERFORMANCE_STATS)
+	auto channelName = getInfo(info, channel_data::g_channelName, QString(""));
+	auto id = channelName.append("_ShowLiveInfoAllTime").toUtf8();
+#endif
+	PLS_PERFORMANCE_GLOBAL_START("BulidNCB2BLiveInfoWindow", id.constData());
 	PLSLiveInfoNCB2B liveInfo(pPlatform, parent);
+	PLS_PERFORMANCE_GLOBAL_END("BulidNCB2BLiveInfoWindow");
+	PLS_PERFORMANCE_GLOBAL_START("LiveInfoExec", id.constData());
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&liveInfo, PLS_PERFORMANCE_GLOBAL_END("LiveInfoExec"); PLS_PERFORMANCE_GLOBAL_END(id.constData()));
 	return liveInfo.exec();
 }

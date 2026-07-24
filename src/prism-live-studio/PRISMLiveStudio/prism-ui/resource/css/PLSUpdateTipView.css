@@ -1,81 +1,75 @@
 
 PLSUpdateTipView {
-	qproperty-hasHLine: /*hdpi*/ false;
-	qproperty-hasMinButton: /*hdpi*/ false;
-	qproperty-hasCloseButton: /*hdpi*/ false;
-	qproperty-isMoveInContent: /*hdpi*/ true;
-	qproperty-hasBorder: /*hdpi*/ false;
-	qproperty-hasCaption: /*hdpi*/ false;
-	min-width: 720px;
-	max-width: 720px;
-	min-height: 544px;
-	max-height: 544px;
+    qproperty-captionBarHeight: 0;
+    qproperty-captionHeight: 0;
+    qproperty-hasHLine: false;
+    min-height: 526px;
+    max-height: 526px;
+    min-width: 720px;
+    max-width: 720px;
 }
-
-PLSUpdateTipView[type="Mac"] {
-	qproperty-hasCaption:/*hdpi*/true;
+PLSUpdateTipView > #content {
+    background-color: #1e1e1f;
 }
+   PLSUpdateTipView #updateTop {
+    background-color:  #1e1e1f;
+    min-height: 112px;
+    max-height: 112px;
+ }
 
-PLSUpdateTipView[type="Win"] {
-	qproperty-hasCaption:/*hdpi*/false;
-}
+    PLSUpdateTipView #middleView {
+        min-height: 304px;
+        max-height: 304px;
+        background-color: #111111;
+    }
 
-PLSUpdateTipView #middleView {
-	min-height: /*hdpi*/ 304px;
-	max-height: /*hdpi*/ 304px;
-	background-color:#1e1e1e;
-}
+    PLSUpdateTipView #lineView {
+        background-color: #151515;
+        min-height: 1px;
+        max-height: 1px;
+    }
 
-PLSUpdateTipView #lineView {
-	background-color: #151515;
-	min-height: /*hdpi*/ 1px;
-	max-height: /*hdpi*/ 1px;
-}
+    PLSUpdateTipView #updateTopDescription {
+        color: #effc35;
+        font-size: 20px;
+        font-weight: bold;
+        background-color: transparent;
+    }
 
-PLSUpdateTipView #updateTopDescription {
-	color:#effc35;
-	font-size:/*hdpi*/20px;
-	font-weight: bold;
-	min-height:/*hdpi*/60px;
-	max-height:/*hdpi*/60px;
-    background-color: transparent;
-}
+    PLSUpdateTipView #nextUpdateBtn {
+        qproperty-minimumSize: 170px 40px;
+        qproperty-maximumSize: 170px 40px;
+        font-size: 14px;
+        font-weight: bold;
+        border-radius: 3px;
+        padding: 0px;
+        color: white;
+        background-color: #444444;
+    }
 
-PLSUpdateTipView #nextUpdateBtn {
-	qproperty-minimumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
-	qproperty-maximumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
-	font-size: /*hdpi*/ 14px;
-	font-weight: bold;
-	border-radius: /*hdpi*/ 3px;
-	padding: /*hdpi*/ 0px;
-	color: white;
-	background-color: #444444;
+        PLSUpdateTipView #nextUpdateBtn:hover {
+            background-color: #555555;
+        }
 
-}
+        PLSUpdateTipView #nextUpdateBtn:pressed {
+            background-color: #1e1e1f;
+        }
 
-PLSUpdateTipView #nextUpdateBtn:hover {
-	background-color:#555555;
-}
+    PLSUpdateTipView #nowUpdateBtn {
+        qproperty-minimumSize: 170px 40px;
+        qproperty-maximumSize: 170px 40px;
+        font-size: 14px;
+        font-weight: bold;
+        border-radius: 3px;
+        padding: 0px;
+        color: white;
+        background-color: #444444;
+    }
 
-PLSUpdateTipView #nextUpdateBtn:pressed {
-	background-color:#1e1e1f;
-}
+        PLSUpdateTipView #nowUpdateBtn:hover {
+            background-color: #555555;
+        }
 
-PLSUpdateTipView #nowUpdateBtn {
-	qproperty-minimumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
-	qproperty-maximumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
-	font-size: /*hdpi*/ 14px;
-	font-weight: bold;
-	border-radius: /*hdpi*/ 3px;
-	padding: /*hdpi*/ 0px;
-	color: white;
-	background-color: #444444;
-}
-
-PLSUpdateTipView #nowUpdateBtn:hover {
-	background-color:#555555;
-}
-
-PLSUpdateTipView #nowUpdateBtn:pressed {
-	background-color:#1e1e1f;
-}
+        PLSUpdateTipView #nowUpdateBtn:pressed {
+            background-color: #1e1e1f;
+        }

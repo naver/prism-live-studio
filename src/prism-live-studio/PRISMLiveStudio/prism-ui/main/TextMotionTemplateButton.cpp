@@ -23,7 +23,7 @@ void TextMotionTemplateButton::showEvent(QShowEvent *event)
 	PLSTemplateButton::showEvent(event);
 	if (m_paidIcon) {
 		m_paidIcon->move(6, 6);
-		bool isShowPaidIcon = isPaid() && isMovieValid();
+		bool isShowPaidIcon = false;
 		m_paidIcon->setVisible(isShowPaidIcon);
 	}
 }

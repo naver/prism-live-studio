@@ -71,7 +71,6 @@ private:
 	void onClickNoSetOutput();
 	void resetActionsState();
 
-	void showOpenPlusAlert(const QString &message);
 	bool showSelectedLimitedAlert(const QString &objectName);
 
 	//private:

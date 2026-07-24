@@ -11,6 +11,7 @@
 
 #include "PLSDialogView.h"
 #include "PLSCheckBox.h"
+#include "libui.h"
 
 namespace Ui {
 class PLSAlertView;
@@ -47,11 +48,11 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @param[in]  sugsize          : the window sugsize
 	*/
-	explicit PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const Buttons &buttons, Button defaultButton = Button::NoButton,
+	explicit PLSAlertView(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QString &checkbox, const Buttons &buttons, Button defaultButton = Button::NoButton,
 			      const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	explicit PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons,
+	explicit PLSAlertView(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons,
 			      Button defaultButton = Button::NoButton, const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	explicit PLSAlertView(Icon icon, const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, PLSAlertView::Buttons buttons,
+	explicit PLSAlertView(Icon icon, const QString &title, const pls_text_t &messageTitle, const pls_text_t &messageContent, QWidget *parent, PLSAlertView::Buttons buttons,
 			      Button defaultButton = Button::NoButton, const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 	~PLSAlertView() override;
 
@@ -63,11 +64,11 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked
 	*/
-	static Button open(QWidget *parent, const QString &message, const Buttons &buttons, Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(),
+	static Button open(QWidget *parent, const pls_text_t &message, const Buttons &buttons, Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(),
 			   const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Button open(QWidget *parent, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton,
+	static Button open(QWidget *parent, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton = Button::NoButton,
 			   const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Button open(const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, const QMap<Button, QString> &buttons,
+	static Button open(const QString &title, const pls_text_t &messageTitle, const pls_text_t &messageContent, QWidget *parent, const QMap<Button, pls_text_t> &buttons,
 			   Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 
 	/**
@@ -78,9 +79,9 @@ public:
 	* @param[in]  buttons    : the custom buttons
 	* @return     the button that user clicked
 	*/
-	static Button open(QWidget *parent, const QString &title, const QString &message, const Buttons &buttons, Button defaultButton = Button::NoButton,
+	static Button open(QWidget *parent, const QString &title, const pls_text_t &message, const Buttons &buttons, Button defaultButton = Button::NoButton,
 			   const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Button open(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton,
+	static Button open(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton = Button::NoButton,
 			   const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 
 	/**
@@ -93,11 +94,11 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked
 	*/
-	static Button open(QWidget *parent, Icon icon, const QString &title, const QString &message, const Buttons &buttons, Button defaultButton = Button::NoButton,
+	static Button open(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const Buttons &buttons, Button defaultButton = Button::NoButton,
 			   const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Button open(QWidget *parent, Icon icon, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton,
+	static Button open(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton = Button::NoButton,
 			   const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Button open(Icon icon, const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, PLSAlertView::Buttons buttons,
+	static Button open(Icon icon, const QString &title, const pls_text_t &messageTitle, const pls_text_t &messageContent, QWidget *parent, PLSAlertView::Buttons buttons,
 			   Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 
 	/**
@@ -111,9 +112,9 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked and checkbox state
 	*/
-	static Result open(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const Buttons &buttons, Button defaultButton = Button::NoButton,
+	static Result open(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QString &checkbox, const Buttons &buttons, Button defaultButton = Button::NoButton,
 			   const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Result open(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons,
+	static Result open(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons,
 			   Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 
 	/**
@@ -125,9 +126,9 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked
 	*/
-	static Button information(QWidget *parent, const QString &title, const QString &message, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
+	static Button information(QWidget *parent, const QString &title, const pls_text_t &message, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
 				  const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Button information(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton,
+	static Button information(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton = Button::NoButton,
 				  const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 	/**
 	* @brief      open information alert
@@ -139,10 +140,11 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked and checkbox state
 	*/
-	static Result information(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
+	static Result information(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
 				  const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Result information(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton,
-				  const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
+	static Result information(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons,
+				  Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(),
+				  const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 
 	/**
 	* @brief      open question alert
@@ -153,11 +155,11 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked
 	*/
-	static Button question(QWidget *parent, const QString &title, const QString &message, Buttons buttons = Buttons(Button::Yes | Button::No), Button defaultButton = Button::NoButton,
+	static Button question(QWidget *parent, const QString &title, const pls_text_t &message, Buttons buttons = Buttons(Button::Yes | Button::No), Button defaultButton = Button::NoButton,
 			       const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Button question(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton,
+	static Button question(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton = Button::NoButton,
 			       const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Button question(const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, PLSAlertView::Buttons buttons,
+	static Button question(const QString &title, const pls_text_t &messageTitle, const pls_text_t &messageContent, QWidget *parent, PLSAlertView::Buttons buttons,
 			       Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(),
 			       const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 
@@ -171,11 +173,12 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked and checkbox state
 	*/
-	static Result question(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, Buttons buttons = Buttons(Button::Yes | Button::No),
+	static Result question(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, Buttons buttons = Buttons(Button::Yes | Button::No),
 			       Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(),
 			       const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Result question(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton,
-			       const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
+	static Result question(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons,
+			       Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(),
+			       const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 
 	/**
 	* @brief      open warning alert
@@ -186,9 +189,9 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked
 	*/
-	static Button warning(QWidget *parent, const QString &title, const QString &message, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
+	static Button warning(QWidget *parent, const QString &title, const pls_text_t &message, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
 			      const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Button warning(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton,
+	static Button warning(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton = Button::NoButton,
 			      const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 	/**
 	* @brief      open warning alert
@@ -200,10 +203,10 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked and checkbox state
 	*/
-	static Result warning(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
+	static Result warning(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
 			      const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Result warning(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton,
-			      const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
+	static Result warning(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons,
+			      Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 
 	/**
 	* @brief      open critical alert
@@ -214,9 +217,9 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked
 	*/
-	static Button critical(QWidget *parent, const QString &title, const QString &message, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
+	static Button critical(QWidget *parent, const QString &title, const pls_text_t &message, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
 			       const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Button critical(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton,
+	static Button critical(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton = Button::NoButton,
 			       const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 	/**
 	* @brief      open critical alert
@@ -228,10 +231,11 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked and checkbox state
 	*/
-	static Result critical(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
+	static Result critical(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, Buttons buttons = Button::Ok, Button defaultButton = Button::Ok,
 			       const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Result critical(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton,
-			       const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
+	static Result critical(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons,
+			       Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(),
+			       const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 
 	/**
 	* @brief      open error message alert
@@ -244,24 +248,24 @@ public:
 	* @param[in]  defaultButton : the default button
 	* @return     the button that user clicked and checkbox state
 	*/
-	static Button errorMessage(QWidget *parent, const QString &title, const QString &message, const QString &errorCode, const QString &userId,
+	static Button errorMessage(QWidget *parent, const QString &title, const pls_text_t &message, const QString &errorCode, const QString &userId,
 				   const std::function<void(const QString &title, const QString &message, const QString &errorCode, const QString &userId, const QString &time)> &contactUsCb,
 				   Buttons buttons = Button::Ok, Button defaultButton = Button::Ok, const std::optional<int> &timeout = std::optional<int>(),
 				   const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-	static Button errorMessage(QWidget *parent, const QString &title, const QString &message, const QString &errorCode, const QString &userId,
+	static Button errorMessage(QWidget *parent, const QString &title, const pls_text_t &message, const QString &errorCode, const QString &userId,
 				   const std::function<void(const QString &title, const QString &message, const QString &errorCode, const QString &userId, const QString &time)> &contactUsCb,
-				   const QMap<Button, QString> &buttons, Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(),
+				   const QMap<Button, pls_text_t> &buttons, Button defaultButton = Button::NoButton, const std::optional<int> &timeout = std::optional<int>(),
 				   const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 
 	//for countdown
-	static Result openWithCountDownView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons,
+	static Result openWithCountDownView(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons,
 					    Button defaultButton = Button::NoButton, const quint64 &timeout = 10 * 1000, int buttonBoxWidth = 170);
 
-	static Result questionWithCountdownView(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons,
+	static Result questionWithCountdownView(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons,
 						Button defaultButton = Button::NoButton, const quint64 &timeout = 10 * 1000, int buttonBoxWidth = 170);
 
-	static Button dualOutputApplyResolutionWarn(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, const QString &hRadioMsg,
-						    const QString &vRadioMsg, bool &selectVRadio, Button defaultButton = Button::NoButton);
+	static Button dualOutputApplyResolutionWarn(QWidget *parent, const QString &title, const QString &message, const QMap<Button, pls_text_t> &buttons, const QString &hRadioMsg,
+						    const QString &vRadioMsg, bool &selectVRadio, bool bShowCloseBtn = false, Button defaultButton = Button::NoButton);
 	bool isChecked() const;
 
 	Qt::TextFormat getTextFormat() const;
@@ -273,14 +277,15 @@ public:
 	void delayAutoClick(const std::optional<int> &timeout /* milliseconds */, Button button);
 	void stopDelayAutoClick();
 
+signals:
+	void contentlinkActivated(const QString &link);
+
 private slots:
 	void onButtonClicked(QAbstractButton *button);
-	QString GetNameElideString(const QString &name, const QWidget *widget) const;
 
 protected:
 	void showEvent(QShowEvent *event) override;
-	void nativeResizeEvent(const QSize &size, const QSize &nativeSize) override;
-	void closeEvent(QCloseEvent *event);
+	void closeEvent(QCloseEvent *event) override;
 
 private:
 	Ui::PLSAlertView *ui = nullptr;
@@ -288,9 +293,9 @@ private:
 	PLSCheckBox *m_checkBox = nullptr;
 	QTimer *m_delayAutoClickTimer = nullptr;
 	int m_btnCount = 0;
+	QByteArray m_key;
+	QString m_stage;
 	QMap<QString, QVariant> m_savedProperties{};
-	bool m_needCorrectedHeight = false;
-	bool m_needUpdatePosWhenCorrectedHeight = false;
 };
 
 #endif // PLSALERTVIEW_H

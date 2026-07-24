@@ -1,0 +1,69 @@
+{
+    "data": [
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "200",
+                "code": "60903"
+            },
+            "err": {
+                "prismCode": 33004,
+                "prismName": "CHANNEL_BAND_ALEARD_BOARDCAST",
+                "msgKey": "Live.Check.Band.Have.Broardcast",
+                "msgText": "BAND channel is already broadcasting."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "200",
+                "code": "60106"
+            },
+            "err": {
+                "prismCode": 33003,
+                "prismName": "CHANNEL_BAND_NO_PERMISSION_ERROR",
+                "msgKey": "Live.Check.LiveInfo.Band.Have.No.Perssion",
+                "msgText": "You can no longer broadcast to this channel as you do not have permission. Please check the BAND."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "403"
+            },
+            "err": {
+                "prismCode": 33002,
+                "prismName": "CHANNEL_BAND_FORBIDDEN_ERROR",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Expired",
+                "arg": "Band",
+                "msgText": "Your %1 channel verification information has expired."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "200"
+            },
+            "err": {
+                "prismCode": 33005,
+                "prismName": "CHANNEL_BAND_OTHER_ERROR",
+                "msgKey": "Live.Check.Band.Other.Error",
+                "msgText": "Cannot start live because the BAND stream aborted due to a connection error."
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "code": [
+                "result_code"
+            ],
+            "message": [
+                "result_data.message"
+            ]
+        },
+        "logAppend": [
+            "subCode: {{code}}",
+            "message: {{message}}"
+        ]
+    }
+}

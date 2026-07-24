@@ -14,6 +14,7 @@
 #include "PLSNameDialog.hpp"
 #include "qt-wrappers.hpp"
 #include "PLSBasic.h"
+#include "PLSBasic.h"
 
 #define CUSTOMTHEME_MIN_ID 1100
 constexpr auto PRISM_CHAT_WIDGET = "chat-widget";
@@ -36,7 +37,7 @@ struct CategoryChatWidget : public pls::rsm::ICategory {
 	void getItemDownloadUrlAndHowSaves(pls::rsm::IResourceManager *mgr, std::list<pls::rsm::UrlAndHowSave> &urlAndHowSaves, pls::rsm::Item item) const override
 	{
 		PLS_INFO(moduleName(), "getItemDownloadUrlAndHowSaves chat widget background %s", item.itemId().toUtf8().constData());
-		auto lang = pls_prism_get_locale() != "ko-KR" ? "en" : "ko";
+		auto lang = pls_get_locale() != "ko-KR" ? "en" : "ko";
 		urlAndHowSaves.push_back(pls::rsm::UrlAndHowSave()
 						 .names({
 							 QStringLiteral("properties"),
@@ -51,10 +52,15 @@ struct CategoryChatWidget : public pls::rsm::ICategory {
 		PLS_INFO(moduleName(), "allDownload chat widget background");
 		pls_async_call_mt([this, ok, mgr]() {
 			pls_check_app_exiting();
-			if (PLSBasic::instance() && PLSBasic::instance()->GetPropertiesWindow()) {
-				static_cast<PLSChatTemplateDataHelper *>(PLSChatTemplateDataHelper::instance())->allDownloadedChatBKRes(mgr->getCategory(PRISM_CHAT_WIDGET), ok);
+			auto propertiesView = OBSBasic::Get()->GetPropertiesWindow();
+			if (propertiesView && propertiesView->property("sourceId").toString() == PRISM_CHATV2_SOURCE_ID) {
+				static_cast<PLSChatTemplateDataHelper *>(PLSChatTemplateDataHelper::instance())->allDownloadedChatBKRes(mgr->getCategory(PLS_RSM_CID_CHAT_BG), ok);
 			}
 		});
+	}
+	void jsonLoaded(pls::rsm::IResourceManager *mgr, pls::rsm::Category category) override
+	{
+		PLSBasic::updateWebSources(PRISM_CHATV2_SOURCE_ID, OBS_SOURCE_CHAT_UPDATE_PARAMS_SUB_CODE_JSONLOADED);
 	}
 };
 PLSChatTemplateDataHelper::PLSChatTemplateDataHelper()
@@ -74,7 +80,7 @@ void PLSChatTemplateDataHelper::initPLSChatTemplateData()
 			chatTemplate.id = templateData.toObject().value("itemId").toInt();
 			chatTemplate.name = templateData.toObject().value("title").toObject().value(lang).toString();
 			QString iconName = QString("%1_%2.png").arg(lang).arg(chatTemplate.id);
-			chatTemplate.resourcePath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/")) + QString("images/chat_source/%1").arg(iconName);
+			chatTemplate.resourcePath = PLS_RSM_getLibraryPolicy_Path(QStringLiteral("Library_Policy_PC/")) + QString("images/chat_source/%1").arg(iconName);
 			chatTemplate.resourceBackupPath = ":/resource/images/chat-template-source/" + iconName;
 			datas.append(chatTemplate);
 			m_chatTemplateObjs.insert(chatTemplate.id, templateData.toObject());
@@ -82,7 +88,7 @@ void PLSChatTemplateDataHelper::initPLSChatTemplateData()
 		}
 		m_templateInfos.insert(groupId, datas);
 	};
-	QString chatSourceJsonPath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/chatv2source/")) + QStringLiteral("chatv2source.json");
+	QString chatSourceJsonPath = PLS_RSM_getLibraryPolicy_Path(QStringLiteral("Library_Policy_PC/chatv2source/")) + QStringLiteral("chatv2source.json");
 	QString chatSourceLocalJsonPath = ":/Configs/resource/DefaultResources/chatv2source.json";
 	QJsonObject chatSourceObj, chatSourceLocalObj;
 	pls_read_json(chatSourceObj, chatSourceJsonPath);
@@ -159,14 +165,6 @@ QString PLSChatTemplateDataHelper::getDefaultTitle()
 
 bool PLSChatTemplateDataHelper::isPaidBkTemplate(int id)
 {
-
-	auto items = CategoryChatWidget::instance()->getItems();
-	for (auto item : items) {
-		auto itemId = item.attr({"properties", "itemNo"}).toInt();
-		if (id == itemId)
-			return item.attr("paidFlag").toBool();
-	}
-
 	return false;
 }
 void PLSChatTemplateDataHelper::initchatBKTemplateButtons()
@@ -190,8 +188,7 @@ void PLSChatTemplateDataHelper::initchatBKTemplateButtons()
 		auto id = item.attr({"properties", "itemNo"}).toInt();
 		if (!findExistButton(id)) {
 			auto name = item.attr({"properties", "item_name", IS_KR() ? "ko" : "en"}).toString();
-			auto isPaid = item.attr("paidFlag").toBool();
-			auto *button = pls_new<ChatTemplate>(m_chatBKTemplateGroup, id, name, item.file(0), false, "", isPaid);
+			auto *button = pls_new<ChatTemplate>(m_chatBKTemplateGroup, id, name, item.file(0), false, "", false);
 			m_chatBKTemplateGroup->addButton(button, id);
 		} else {
 			auto button = dynamic_cast<ChatTemplate *>(m_chatBKTemplateGroup->button(id));
@@ -212,11 +209,7 @@ void PLSChatTemplateDataHelper::allDownloadedChatBKRes(pls::rsm::Category catego
 		auto ret = pls_show_download_failed_alert(nullptr);
 		if (ret == PLSAlertView::Button::Ok) {
 			PLS_INFO(PRISM_CHAT_WIDGET, "chat widget background: User select retry download.");
-			if (!category) {
-				pls_async_call_mt([this, category]() { allDownloadedChatBKRes(category, false); });
-			} else {
-				pls_async_call_mt([this]() { CategoryChatWidget::instance()->download(); });
-			}
+			pls_async_call_mt([this]() { CategoryChatWidget::instance()->download(); });
 		} else {
 			PLS_INFO(PRISM_CHAT_WIDGET, "chat widget background: User select quit download.");
 			loadechatWidgetBKRes(true, false);
@@ -346,7 +339,7 @@ void PLSChatTemplateDataHelper::readCutsomPLSChatTemplateData()
 		chatTemplate.name = templateData.toObject().value("title").toString();
 		chatTemplate.backgroundColor = templateData.toObject().value("backgroundColor").toString();
 		QString iconName = QString("ic_chat_mytheme_%1.svg").arg(chatTemplate.id % 10 + 1);
-		chatTemplate.resourcePath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/")) + QString("images/chat_source/%1").arg(iconName);
+		chatTemplate.resourcePath = PLS_RSM_getLibraryPolicy_Path(QStringLiteral("Library_Policy_PC/")) + QString("images/chat_source/%1").arg(iconName);
 		chatTemplate.resourceBackupPath = ":/resource/images/chat-template-source/" + iconName;
 		chatTemplate.isPaid = pls_get_attr<bool>(templateData.toObject(), {"properties", "chat_background_template_properties", "Chat.Bk.Color.Template.Paid"});
 		datas.append(chatTemplate);
@@ -401,8 +394,9 @@ void insertJsonValue(QJsonObject &jsonObject, const QStringList &keys, const QVa
 }
 bool PLSChatTemplateDataHelper::saveCustomObj(const OBSData &settings, const int itemId)
 {
+	PLSErrorHandler::ExtraData extraData("PLSChatTemplateDataHelper");
 	if (m_needSaveChatTemplates.size() >= 10) {
-		PLSAlertView::information(nullptr, QObject::tr("Alert.Title"), QObject::tr("ChatTemplate.Over.Number.Ten"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHATSOURCE_RENAME_CONTENT, PLSErrKeyAllAlert, {}, extraData);
 		return false;
 	}
 	auto defaultCustomTitle = getDefaultTitle();
@@ -415,13 +409,13 @@ bool PLSChatTemplateDataHelper::saveCustomObj(const OBSData &settings, const int
 		if (!accepted)
 			break;
 		if (m_currentTemplateTitle.empty()) {
-			OBSMessageBox::warning(nullptr, QObject::tr("Alert.Title"), QObject::tr("NoNameEntered.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHATSOURCE_NO_NAME, PLSErrKeyAllAlert, {}, extraData);
 			continue;
 		}
 		bool isExist = m_chatTemplateNames.find(m_currentTemplateTitle.c_str()) != m_chatTemplateNames.end();
 
 		if (isExist) {
-			OBSMessageBox::warning(nullptr, QObject::tr("Alert.Title"), QObject::tr("ChatTemplate.Rename.Exist"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHATSOURCE_RENAME_EXIST, PLSErrKeyAllAlert, {}, extraData);
 			continue;
 		}
 		break;

@@ -265,7 +265,19 @@ bool PLSRadioButton::event(QEvent *event)
 		if (isEnabled()) {
 			setState("pressed", m_pressed, false);
 			if (rect().contains(dynamic_cast<QMouseEvent *>(event)->pos())) {
+#if defined(PLS_UI_ACTION_STATS)
+				if (!isChecked()) {
+					auto title = pls_uistep_v2_get_title(this).toUtf8();
+					auto text = pls_uistep_v2_to_english(this->text()).toUtf8();
+					PLS_UI_ACTION("In %s, Begin Choose RadioButton: %s, State: Unchecked", title.constData(), text.constData());
+					toggle();
+					PLS_UI_ACTION("In %s, End Choose RadioButton: %s, State: Checked", title.constData(), text.constData());
+				} else {
+					toggle();
+				}
+#else
 				toggle();
+#endif
 				click();
 			}
 		}

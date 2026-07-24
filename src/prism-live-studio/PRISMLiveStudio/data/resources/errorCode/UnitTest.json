@@ -1,0 +1,262 @@
+{
+    "data": [
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "404"
+            },
+            "err": {
+                "prismCode": 28000,
+                "prismName": "CHANNEL_YOUTUBE_NOTFOUND_404_CHANNELNOTFOUND",
+                "msgKey": "This is Unit Test Msg arg1_statusCode: %1, arg2_reason: %2, arg3_testArgValue:%3 trArg4_tr_gotoPage:%4 end!",
+                "arg": "[{{$statusCode}}, {{reason}}, testArgValue, tr(\"Live.Check.youtube.gotoPage\")]",
+                "buttons": "[{\"button\":\"Close\"},{\"button\":\"Open\",\"tr\":\"Live.Check.youtube.gotoPage\",\"action\":\"open.https://www.prismlivestudio.com/{{testLiveId}}/test\"}]",
+                "msgText": "This is Unit Test Msg arg1_statusCode: %1, arg2_reason: %2, arg3_testArgValue:%3 trArg4_tr_gotoPage:%4 end!"
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "405",
+                "reason": "/.*tr(\"navershopping.api.request.reservation.delete\").*/"
+            },
+            "err": {
+                "prismCode": 28000,
+                "prismName": "CHANNEL_YOUTUBE_NOTFOUND_404_CHANNELNOTFOUND",
+                "msgKey": "broadcast.invalid.schedule",
+                "msgText": "This scheduled live is no longer valid."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "406",
+                "reason": "tr(\"navershopping.api.request.reservation.delete\")"
+            },
+            "err": {
+                "prismCode": 28002,
+                "prismName": "CHANNEL_YOUTUBE_INVALIDVALUE_400_INVALIDLATENCYPREFERENCEOPTIONS",
+                "msgKey": "Basic.AutoConfig.StreamPage",
+                "msgText": "This scheduled live is no longer valid."
+            }
+        },
+        {
+            "api": {
+                "test2": "/.*/"
+            },
+            "err": {
+                "prismCode": 28003,
+                "prismName": "CHANNEL_YOUTUBE_FORBIDDEN_403_INVALIDTRANSITION",
+                "msgKey": "Basic.AutoConfig.StreamPage",
+                "msgText": "This scheduled live is no longer valid."
+            }
+        },
+        {
+            "api": {
+                "test1": "/.*/",
+                "test2": "/.*/"
+            },
+            "err": {
+                "prismCode": 28004,
+                "prismName": "CHANNEL_YOUTUBE_LIVEBROADCASTNOTFOUND",
+                "msgKey": "Basic.AutoConfig.StreamPage",
+                "msgText": "This scheduled live is no longer valid."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "407",
+                "reason": "666"
+            },
+            "err": {
+                "prismCode": 28005,
+                "prismName": "CHANNEL_YOUTUBE_INSUFFICIENTPERMISSIONS_LIVEPERMISSIONBLOCKED",
+                "msgKey": "YouTube.Errors.messageTextInvalid",
+                "msgText": "The message text is not valid."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "409",
+                "reason": "test_Normal_Code"
+            },
+            "err": {
+                "prismCode": 28009,
+                "prismName": "CHANNEL_YOUTUBE_VIDEONOTFOUND",
+                "msgKey": "YouTube.Errors.messageTextInvalid",
+                "alertType": "Normal_Code",
+                "msgText": "The message text is not valid."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "409",
+                "reason": "test_Normal_Code_Blog"
+            },
+            "err": {
+                "prismCode": 28010,
+                "prismName": "CHANNEL_YOUTUBE_CUSTOM_REMOTEINVALID",
+                "msgKey": "YouTube.Errors.messageTextInvalid",
+                "alertType": "Normal_Code_Blog",
+                "msgText": "The message text is not valid."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "409",
+                "reason": "test_Normal_Code_Link"
+            },
+            "err": {
+                "prismCode": 28011,
+                "prismName": "CHANNEL_YOUTUBE_CUSTOM_BROADCASTTYPENOTSUPPORT",
+                "msgKey": "YouTube.Errors.messageTextInvalid",
+                "alertType": "Normal_Code_Link",
+                "msgText": "The message text is not valid."
+            },
+            "alert": {
+                "normal": {
+                    "thirdLinkText": "Code link1",
+                    "thirdLink": "https://www.naver.com/{{prismName}}"
+                }
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "409",
+                "reason": "test_Error"
+            },
+            "err": {
+                "prismCode": 28012,
+                "prismName": "CHANNEL_YOUTUBE_CUSTOM_LATENCYCHANGEFAILED",
+                "msgKey": "YouTube.Errors.messageTextInvalid",
+                "alertType": "Error",
+                "msgText": "The message text is not valid."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "409",
+                "reason": "test_Error_Blog"
+            },
+            "err": {
+                "prismCode": 28013,
+                "prismName": "CHANNEL_YOUTUBE_LIVESTREAMNOTFOUND",
+                "msgKey": "YouTube.Errors.messageTextInvalid",
+                "alertType": "Error_Blog",
+                "msgText": "The message text is not valid."
+            },
+            "alert": {
+                "error": {
+                    "blogLink": "https://connect.{{reason}}.com/home"
+                }
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "409",
+                "reason": "test_Error_Link"
+            },
+            "err": {
+                "prismCode": 28000,
+                "prismName": "CHANNEL_YOUTUBE_NOTFOUND_404_CHANNELNOTFOUND",
+                "msgKey": "YouTube.Errors.messageTextInvalid",
+                "alertType": "Error_Link",
+                "msgText": "The message text is not valid."
+            },
+            "alert": {
+                "error": {
+                    "thirdLink": "https://www.naver.com/{{$statusCode}}"
+                }
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "409",
+                "reason": "test_Error_Blog_Link"
+            },
+            "err": {
+                "prismCode": 28001,
+                "prismName": "CHANNEL_YOUTUBE_INVALIDVALUE_400_INVALIDDESCRIPTION",
+                "msgKey": "YouTube.Errors.messageTextInvalid",
+                "alertType": "Error_Blog_Link",
+                "msgText": "The message text is not valid."
+            },
+            "alert": {
+                "error": {
+                    "blogText": "Blog {{reason}}",
+                    "blogLink": "https://www.naver.com/3"
+                }
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "409",
+                "reason": "test_Error_Blog_Link"
+            },
+            "err": {
+                "prismCode": 28001,
+                "prismName": "CHANNEL_YOUTUBE_INVALIDVALUE_400_INVALIDDESCRIPTION",
+                "msgKey": "YouTube.Errors.messageTextInvalid",
+                "alertType": "Error_Blog_Link",
+                "msgText": "The message text is not valid."
+            },
+            "alert": {
+                "error": {
+                    "blogText": "Blog {{reason}}",
+                    "blogLink": "https://www.naver.com/3"
+                }
+            }
+        },
+        {
+            "err": {
+                "prismCode": 31000,
+                "prismName": "CHANNEL_CHZZK_1106_AGREEMENT_REQUIRED",
+                "msgKey": "chzzk.clip.need.agree",
+                "append": "[\"\ntr(\\\"Main.Start.Prism.Lens.Failed\\\")\"]"
+            }
+        },
+        {
+            "err": {
+                "prismCode": 31001,
+                "prismName": "CHANNEL_CHZZK_1102_LOGIN_AGREEMENT_REQUIRED",
+                "msgKey": "Chzzk.Channel.Login.Term",
+                "alertType": "Normal",
+                "checkbox": "DoNotShowAgain"
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "reason": [
+                "error.errors.[].reason",
+                "error"
+            ],
+            "test1": [
+                "error.test1"
+            ],
+            "test2": [
+                "error.test2"
+            ]
+        },
+        "logAppend": [
+            "reason: {{reason}}"
+        ],
+        "append": [
+            "{{testTr}}tr(\"LiveInfo.Youtube.scheduled.title\")",
+            "{{testEmpty}}tr(\"LiveInfo.Youtube.privacy\")"
+        ],
+        "alert": {
+            "normal": {
+                "codeText": "(tr(\"NaverShoppingLive.Alert.Error.Code\"){{prismCode}})",
+                "blogText": "Basic.MainMenu.Help.Blog",
+                "blogLink": "https://prismlive.com/en_us/{{prismCode}}",
+                "thirdLinkText": "{{platformName}}Link",
+                "thirdLink": "https://prismlive.com/thirdlink/{{prismCode}}"
+            },
+            "error": {
+                "blogText": "Basic.MainMenu.Help.Blog",
+                "blogLink": "https://prismlive.com/bloglink/{{prismCode}}",
+                "thirdLinkText": "{{platformName}}Link>",
+                "thirdLink": "https://prismlive.com/errorthirdlink/{{prismCode}}"
+            }
+        }
+    }
+}

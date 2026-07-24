@@ -1,7 +1,6 @@
 /*
 * @file		LiveInfoDialogs.h
 * @brief	To show liveinfo dialog by type
-* @author	wu.longyue@navercorp.com
 * @date		2020-01-06
 */
 
@@ -24,7 +23,7 @@ int pls_exec_live_Info_navertv(const QString &which, const QVariantMap &info, QW
 int pls_exec_live_Info_navertv(PLSPlatformNaverTV *platform, QWidget *parent = PLSBasic::instance());
 int pls_exec_live_Info_band(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::instance());
 int pls_exec_live_Info_afreecatv(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::instance());
-int pls_exec_live_Info_facebook(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::instance());
+int pls_exec_live_Info_facebook(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::instance(), bool isFromGoLive = false);
 int pls_exec_live_Info_naver_shopping_live(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::instance());
 int pls_exec_live_Info_naver_shopping_live(PLSPlatformNaverShoppingLIVE *platform, QWidget *parent = PLSBasic::instance());
 int pls_exec_live_Info_chzzk(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::instance());

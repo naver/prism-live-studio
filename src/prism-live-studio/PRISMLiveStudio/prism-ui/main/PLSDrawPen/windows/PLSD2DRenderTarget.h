@@ -11,7 +11,7 @@ public:
 
 	bool DrawBegin() const;
 	void DrawEnd() const;
-	void DrawCurve(const std::vector<PointF> &points, uint32_t rgba, FLOAT line, bool round = true, int offset = 0) const;
+	bool DrawCurve(const std::vector<PointF> &points, uint32_t rgba, FLOAT line, bool round = true, int offset = 0) const;
 	void Draw2DShape(const std::vector<PointF> &points, ShapeType type, uint32_t rgba, FLOAT line) const;
 	void DrawLine(const std::vector<PointF> &points, uint32_t rgba, FLOAT line) const;
 	void DrawRectangle(const std::vector<PointF> &points, uint32_t rgba, FLOAT line) const;
@@ -27,6 +27,7 @@ public:
 	gs_texture_t *GetSharedTexture();
 
 	bool ResetRenderTarget();
+	bool IsRenderTargetInited() const { return inited && sharedTexture; }
 
 private:
 	bool inited = false;

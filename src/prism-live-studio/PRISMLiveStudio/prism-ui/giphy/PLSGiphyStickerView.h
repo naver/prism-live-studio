@@ -162,7 +162,6 @@ private:
 	PLSToastMsgFrame *networkErrorToast{nullptr};
 
 	QThread threadRequest;
-	GiphyDownloader *downloader;
 	GiphyWebHandler *webHandler;
 	QTimer timerAutoLoad;
 	QTimer timerSearch;

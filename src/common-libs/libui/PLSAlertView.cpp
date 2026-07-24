@@ -3,16 +3,21 @@
 
 #include <QPushButton>
 #include <QApplication>
+#include <QShortcut>
 #include <QHBoxLayout>
 #include <QList>
 #include <QPointer>
 #include <QTimeZone>
 #include <QMouseEvent>
+#include <QShowEvent>
+#include <QPalette>
+#include <QColor>
 #include "countdown.h"
 
 #include <libutils-api.h>
 #include <liblog.h>
 #include "PLSRadioButton.h"
+#include "PLSLabel.h"
 
 #ifdef Q_OS_WINDOWS
 #include <Windows.h>
@@ -45,8 +50,9 @@ const QString InitCss = "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"
 			"}";
 const QString AlertKeyDisableEsc = "disableEsc";
 const QString AlertKeyDisableAltF4 = "disableAltF4";
+const QString AlertKeySettingsUnsavedConfirmFocus = QStringLiteral("settingsUnsavedConfirmFocus");
 
-static PLSAlertView::Buttons getButtons(const QMap<PLSAlertView::Button, QString> &buttonMap)
+static PLSAlertView::Buttons getButtons(const QMap<PLSAlertView::Button, pls_text_t> &buttonMap)
 {
 	PLSAlertView::Buttons buttons = PLSAlertView::Button::NoButton;
 	for (auto iter = buttonMap.begin(); iter != buttonMap.end(); ++iter) {
@@ -111,22 +117,13 @@ static int calcButtonWidth(const PLSDialogButtonBox *buttonBox)
 	}
 }
 
-static QString checkQuoteComplete(QString before, QString after)
-{
-	if (!before.endsWith("'")) {
-		return after;
-	}
-	if (!after.endsWith("'")) {
-		return after.append("'");
-	}
-	return after;
-}
-
 // class PLSAlertView Implements
-PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const Buttons &buttons, Button defaultButton,
+PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QString &checkbox, const Buttons &buttons, Button defaultButton,
 			   const QMap<QString, QVariant> &properties)
 	: PLSDialogView(parent), m_savedProperties(properties)
 {
+	PLS_DISABLE_UISTEP_V2(this);
+	pls_add_css(this, {"PLSAlertView"});
 	ui = pls_new<Ui::PLSAlertView>();
 
 	setFixedWidth(410);
@@ -134,6 +131,13 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, con
 	setResizeEnabled(false);
 
 	setupUi(ui);
+
+	QPalette linkPalette = ui->message->palette();
+	linkPalette.setColor(QPalette::Link, QColor("#258EDD"));
+	linkPalette.setColor(QPalette::LinkVisited, QColor("#258EDD"));
+	ui->message->setPalette(linkPalette);
+	ui->nameLabel->setPalette(linkPalette);
+
 	setWindowTitle(title);
 	initSize(410, 190);
 
@@ -149,6 +153,14 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, con
 
 	ui->nameLabel->hide();
 	ui->message->setText(message);
+	m_key = message.key();
+	m_stage = message.stage();
+
+	if (m_savedProperties.value("disableExtralLink").toBool() == true) {
+		ui->message->setOpenExternalLinks(false);
+		connect(ui->message, &QLabel::linkActivated, this, &PLSAlertView::contentlinkActivated);
+	}
+
 	ui->buttonBox->setStandardButtons(buttons);
 	connect(ui->buttonBox, &PLSDialogButtonBox::clicked, this, &PLSAlertView::onButtonClicked);
 
@@ -165,18 +177,20 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, con
 		ui->contentLayout->addWidget(widget);
 		ui->contentLayout->addSpacing(9);
 		ui->horizontalLayout_2->setContentsMargins(25, 30, 25, 20);
+		m_checkBox->setChecked(m_savedProperties.value("isChecked").toBool());
 	} else {
 		m_checkBox = nullptr;
 		ui->horizontalLayout_2->setContentsMargins(25, 30, 25, 30);
 	}
 	setDefaultButton(ui->buttonBox, defaultButton);
 
-#define TranslateButtonText(name, text)                                                        \
-	do {                                                                                   \
-		if (QPushButton *button = ui->buttonBox->button(PLSAlertView::Button::name)) { \
-			++m_btnCount;                                                          \
-			button->setText(tr(#text));                                            \
-		}                                                                              \
+#define TranslateButtonText(name, text)                                                                    \
+	do {                                                                                               \
+		if (QPushButton *button = ui->buttonBox->button(PLSAlertView::Button::name)) {             \
+			++m_btnCount;                                                                      \
+			pls_uistep_v2_set_value(button, QStringLiteral("clicked"), QStringLiteral(#text)); \
+			button->setText(tr(#text));                                                        \
+		}                                                                                          \
 	} while (false)
 	TranslateButtonText(Ok, OK);
 	TranslateButtonText(Open, Open);
@@ -200,44 +214,68 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, con
 		width = qMax(width, configMinWidth);
 	}
 	ui->buttonBox->setStyleSheet(InitCss.arg(width));
-
-	//#PRISM_PC-1375 windows need add a item after linked label, so can show mouse
+	{
+		const auto onEnterKey = [this]() {
+			if (!isEnabled() || !isVisible())
+				return;
+			if (QApplication::keyboardModifiers() != Qt::NoModifier)
+				return;
+			QWidget *fw = focusWidget();
+			if (auto *pb = qobject_cast<QPushButton *>(fw)) {
+				if (ui->buttonBox->isAncestorOf(pb) && pb->isEnabled()) {
+					pb->animateClick();
+					return;
+				}
+			}
+			for (int i = 0; i < 32; ++i) {
+				if (QPushButton *b = ui->buttonBox->button(static_cast<Button>(1 << i)); b && b->isDefault() && b->isEnabled() && b->isVisible()) {
+					b->animateClick();
+					return;
+				}
+			}
+		};
+		auto *sr = pls_new<QShortcut>(QKeySequence(Qt::Key_Return), this);
+		sr->setContext(Qt::WindowShortcut);
+		connect(sr, &QShortcut::activated, this, onEnterKey);
+		auto *se = pls_new<QShortcut>(QKeySequence(Qt::Key_Enter), this);
+		se->setContext(Qt::WindowShortcut);
+		connect(se, &QShortcut::activated, this, onEnterKey);
+	}
 	QWidget *placeholderMouse = new QWidget(this);
 	placeholderMouse->hide();
 	ui->contentLayout->addWidget(placeholderMouse);
+
+	pls_uistep_v2_set_title(this, QStringLiteral("Alert: %1").arg(message.english()));
 }
 
-PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton,
+PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons, Button defaultButton,
 			   const QMap<QString, QVariant> &properties)
 	: PLSAlertView(parent, icon, title, message, checkbox, getButtons(buttons), defaultButton, properties)
 {
 	for (auto iter = buttons.begin(); iter != buttons.end(); ++iter) {
 		if (auto button = ui->buttonBox->button(iter.key())) {
+			pls_uistep_v2_set_value(button, QStringLiteral("clicked"), iter.value().english());
 			button->setText(iter.value());
 		}
 	}
 }
 
-PLSAlertView::PLSAlertView(Icon icon, const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, PLSAlertView::Buttons buttons, Button defaultButton,
+PLSAlertView::PLSAlertView(Icon icon, const QString &title, const pls_text_t &messageTitle, const pls_text_t &messageContent, QWidget *parent, PLSAlertView::Buttons buttons, Button defaultButton,
 			   const QMap<QString, QVariant> &properties)
-	: PLSAlertView(parent, icon, title, !messageTitle.isEmpty() ? messageTitle.left(1) : QString(), QString(), buttons, defaultButton, properties)
+	: PLSAlertView(parent, icon, title, !messageTitle.text().isEmpty() ? messageTitle.text().left(1) : QString(), QString(), buttons, defaultButton, properties)
 {
-	ui->message->setFixedWidth(MESSAGE_LABEL_FIX_WIDTH);
-	ui->message->setText(checkQuoteComplete(messageTitle, GetNameElideString(messageTitle, ui->message)));
-	ui->nameLabel->setText(checkQuoteComplete(messageContent, GetNameElideString(messageContent, ui->nameLabel)) + "?");
-	ui->nameLabel->setAlignment(Qt::AlignCenter);
+	ensurePolished();
+	if (messageTitle.text().endsWith("'"))
+		ui->message->setText(pls_get_elided_text("'" + messageTitle, ui->message->font(), {MESSAGE_LABEL_FIX_WIDTH, 0}).mid(1));
+	else
+		ui->message->setText(pls_get_elided_text(messageTitle, ui->message->font(), {MESSAGE_LABEL_FIX_WIDTH, 0}));
+	if (messageContent.text().endsWith("'"))
+		ui->nameLabel->setText(pls_get_elided_text("'?" + messageContent, ui->nameLabel->font(), {MESSAGE_LABEL_FIX_WIDTH, 0}).mid(2).append("?"));
+	else
+		ui->nameLabel->setText(pls_get_elided_text("?" + messageContent, ui->nameLabel->font(), {MESSAGE_LABEL_FIX_WIDTH, 0}).mid(1).append("?"));
 	ui->nameLabel->show();
-}
 
-QString PLSAlertView::GetNameElideString(const QString &name, const QWidget *widget) const
-{
-	if (widget) {
-		QFontMetrics fontWidth(widget->font());
-		if (fontWidth.horizontalAdvance(name) > widget->width() - APPEND_SPACE_WIDTH * 2)
-			return fontWidth.elidedText(name, Qt::ElideRight, widget->width() - APPEND_SPACE_WIDTH * 2);
-	}
-
-	return name;
+	pls_uistep_v2_set_title(this, QStringLiteral("Alert: %1\n%2").arg(messageTitle.english(), messageContent.english()));
 }
 
 PLSAlertView::~PLSAlertView()
@@ -246,31 +284,31 @@ PLSAlertView::~PLSAlertView()
 	stopDelayAutoClick();
 }
 
-PLSAlertView::Button PLSAlertView::open(QWidget *parent, const QString &message, const Buttons &buttons, Button defaultButton, const std::optional<int> &timeout,
+PLSAlertView::Button PLSAlertView::open(QWidget *parent, const pls_text_t &message, const Buttons &buttons, Button defaultButton, const std::optional<int> &timeout,
 					const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Information, QString(), message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::open(QWidget *parent, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton, const std::optional<int> &timeout,
+PLSAlertView::Button PLSAlertView::open(QWidget *parent, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton, const std::optional<int> &timeout,
 					const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Information, QString(), message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::open(QWidget *parent, const QString &title, const QString &message, const Buttons &buttons, Button defaultButton, const std::optional<int> &timeout,
+PLSAlertView::Button PLSAlertView::open(QWidget *parent, const QString &title, const pls_text_t &message, const Buttons &buttons, Button defaultButton, const std::optional<int> &timeout,
 					const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Information, title, message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::open(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton, const std::optional<int> &timeout,
-					const QMap<QString, QVariant> &properties)
+PLSAlertView::Button PLSAlertView::open(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton,
+					const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Information, title, message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const QString &message, const Buttons &buttons, Button defaultButton, const std::optional<int> &timeout,
+PLSAlertView::Button PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const Buttons &buttons, Button defaultButton, const std::optional<int> &timeout,
 					const QMap<QString, QVariant> &properties)
 {
 	PLSAlertView alertView(parent, icon, title, message, QString(), buttons, defaultButton, properties);
@@ -279,7 +317,7 @@ PLSAlertView::Button PLSAlertView::open(QWidget *parent, Icon icon, const QStrin
 	return static_cast<Button>(alertView.exec());
 }
 
-PLSAlertView::Button PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton,
+PLSAlertView::Button PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton,
 					const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	PLSAlertView alertView(parent, icon, title, message, QString(), buttons, defaultButton, properties);
@@ -288,7 +326,7 @@ PLSAlertView::Button PLSAlertView::open(QWidget *parent, Icon icon, const QStrin
 	return static_cast<Button>(alertView.exec());
 }
 
-PLSAlertView::Result PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const Buttons &buttons, Button defaultButton,
+PLSAlertView::Result PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QString &checkbox, const Buttons &buttons, Button defaultButton,
 					const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	PLSAlertView alertView(parent, icon, title, message, checkbox, buttons, defaultButton, properties);
@@ -297,8 +335,8 @@ PLSAlertView::Result PLSAlertView::open(QWidget *parent, Icon icon, const QStrin
 	return {static_cast<Button>(alertView.exec()), alertView.isChecked()};
 }
 
-PLSAlertView::Result PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton,
-					const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
+PLSAlertView::Result PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons,
+					Button defaultButton, const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	PLSAlertView alertView(parent, icon, title, message, checkbox, buttons, defaultButton, properties);
 	alertView.delayAutoClick(timeout, defaultButton);
@@ -306,7 +344,7 @@ PLSAlertView::Result PLSAlertView::open(QWidget *parent, Icon icon, const QStrin
 	return {static_cast<Button>(alertView.exec()), alertView.isChecked()};
 }
 
-PLSAlertView::Button PLSAlertView::open(Icon icon, const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, Buttons buttons, Button defaultButton,
+PLSAlertView::Button PLSAlertView::open(Icon icon, const QString &title, const pls_text_t &messageTitle, const pls_text_t &messageContent, QWidget *parent, Buttons buttons, Button defaultButton,
 					const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	PLSAlertView alertView(icon, title, messageTitle, messageContent, parent, buttons, defaultButton);
@@ -315,103 +353,103 @@ PLSAlertView::Button PLSAlertView::open(Icon icon, const QString &title, const Q
 	return static_cast<Button>(alertView.exec());
 }
 
-PLSAlertView::Button PLSAlertView::information(QWidget *parent, const QString &title, const QString &message, Buttons buttons, Button defaultButton, const std::optional<int> &timeout,
+PLSAlertView::Button PLSAlertView::information(QWidget *parent, const QString &title, const pls_text_t &message, Buttons buttons, Button defaultButton, const std::optional<int> &timeout,
 					       const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Information, title, message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::information(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton,
+PLSAlertView::Button PLSAlertView::information(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton,
 					       const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Information, title, message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Result PLSAlertView::information(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, Buttons buttons, Button defaultButton,
+PLSAlertView::Result PLSAlertView::information(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, Buttons buttons, Button defaultButton,
 					       const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Information, title, message, checkbox, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Result PLSAlertView::information(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton,
+PLSAlertView::Result PLSAlertView::information(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons, Button defaultButton,
 					       const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Information, title, message, checkbox, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::question(QWidget *parent, const QString &title, const QString &message, Buttons buttons, Button defaultButton, const std::optional<int> &timeout,
+PLSAlertView::Button PLSAlertView::question(QWidget *parent, const QString &title, const pls_text_t &message, Buttons buttons, Button defaultButton, const std::optional<int> &timeout,
 					    const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Question, title, message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::question(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton,
+PLSAlertView::Button PLSAlertView::question(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton,
 					    const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Question, title, message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Result PLSAlertView::question(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, Buttons buttons, Button defaultButton,
+PLSAlertView::Result PLSAlertView::question(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, Buttons buttons, Button defaultButton,
 					    const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Question, title, message, checkbox, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Result PLSAlertView::question(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton,
+PLSAlertView::Result PLSAlertView::question(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons, Button defaultButton,
 					    const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Question, title, message, checkbox, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::question(const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, PLSAlertView::Buttons buttons, Button defaultButton,
-					    const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
+PLSAlertView::Button PLSAlertView::question(const QString &title, const pls_text_t &messageTitle, const pls_text_t &messageContent, QWidget *parent, PLSAlertView::Buttons buttons,
+					    Button defaultButton, const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(Icon::Question, title, messageTitle, messageContent, parent, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::warning(QWidget *parent, const QString &title, const QString &message, Buttons buttons, Button defaultButton, const std::optional<int> &timeout,
+PLSAlertView::Button PLSAlertView::warning(QWidget *parent, const QString &title, const pls_text_t &message, Buttons buttons, Button defaultButton, const std::optional<int> &timeout,
 					   const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Warning, title, message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::warning(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton, const std::optional<int> &timeout,
-					   const QMap<QString, QVariant> &properties)
+PLSAlertView::Button PLSAlertView::warning(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton,
+					   const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Warning, title, message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Result PLSAlertView::warning(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, Buttons buttons, Button defaultButton,
+PLSAlertView::Result PLSAlertView::warning(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, Buttons buttons, Button defaultButton,
 					   const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Warning, title, message, checkbox, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Result PLSAlertView::warning(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton,
+PLSAlertView::Result PLSAlertView::warning(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons, Button defaultButton,
 					   const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Warning, title, message, checkbox, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::critical(QWidget *parent, const QString &title, const QString &message, Buttons buttons, Button defaultButton, const std::optional<int> &timeout,
+PLSAlertView::Button PLSAlertView::critical(QWidget *parent, const QString &title, const pls_text_t &message, Buttons buttons, Button defaultButton, const std::optional<int> &timeout,
 					    const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Critical, title, message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Button PLSAlertView::critical(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton,
+PLSAlertView::Button PLSAlertView::critical(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<Button, pls_text_t> &buttons, Button defaultButton,
 					    const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Critical, title, message, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Result PLSAlertView::critical(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, Buttons buttons, Button defaultButton,
+PLSAlertView::Result PLSAlertView::critical(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, Buttons buttons, Button defaultButton,
 					    const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Critical, title, message, checkbox, buttons, defaultButton, timeout, properties);
 }
 
-PLSAlertView::Result PLSAlertView::critical(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton,
+PLSAlertView::Result PLSAlertView::critical(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons, Button defaultButton,
 					    const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return open(parent, Icon::Critical, title, message, checkbox, buttons, defaultButton, timeout, properties);
@@ -495,7 +533,7 @@ protected:
 	}
 };
 
-static void initErrorMessage(PLSAlertView *alertView, QHBoxLayout *horizontalLayout, QVBoxLayout *contentLayout, const QString &title, const QString &message, const QString &errorCode,
+static void initErrorMessage(PLSAlertView *alertView, QHBoxLayout *horizontalLayout, QVBoxLayout *contentLayout, const QString &title, const pls_text_t &message, const QString &errorCode,
 			     const QString &userId,
 			     const std::function<void(const QString &title, const QString &message, const QString &errorCode, const QString &userId, const QString &time)> &contactUsCb, int btnCount)
 {
@@ -542,7 +580,7 @@ static void initErrorMessage(PLSAlertView *alertView, QHBoxLayout *horizontalLay
 
 	errorLayout->addSpacing(10);
 
-	QLabel *guideLabel = pls_new<QLabel>(QObject::tr("Alert.ErrorMessage.Guide"));
+	auto guideLabel = pls_new<PLSHeightFromWidthLabel>(QObject::tr("Alert.ErrorMessage.Guide"));
 	guideLabel->setObjectName("errMsgGuideLabel");
 	guideLabel->setAlignment(Qt::AlignCenter);
 	guideLabel->setWordWrap(true);
@@ -564,7 +602,7 @@ static void initErrorMessage(PLSAlertView *alertView, QHBoxLayout *horizontalLay
 }
 
 PLSAlertView::Button
-PLSAlertView::errorMessage(QWidget *parent, const QString &title, const QString &message, const QString &errorCode, const QString &userId,
+PLSAlertView::errorMessage(QWidget *parent, const QString &title, const pls_text_t &message, const QString &errorCode, const QString &userId,
 			   const std::function<void(const QString &title, const QString &message, const QString &errorCode, const QString &userId, const QString &time)> &contactUsCb, Buttons buttons,
 			   Button defaultButton, const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
@@ -575,9 +613,9 @@ PLSAlertView::errorMessage(QWidget *parent, const QString &title, const QString 
 	return static_cast<Button>(alertView.exec());
 }
 PLSAlertView::Button
-PLSAlertView::errorMessage(QWidget *parent, const QString &title, const QString &message, const QString &errorCode, const QString &userId,
+PLSAlertView::errorMessage(QWidget *parent, const QString &title, const pls_text_t &message, const QString &errorCode, const QString &userId,
 			   const std::function<void(const QString &title, const QString &message, const QString &errorCode, const QString &userId, const QString &time)> &contactUsCb,
-			   const QMap<Button, QString> &buttons, Button defaultButton, const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
+			   const QMap<Button, pls_text_t> &buttons, Button defaultButton, const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	PLSAlertView alertView(parent, Icon::Warning, title, message, QString(), buttons, defaultButton, properties);
 	initErrorMessage(&alertView, alertView.ui->horizontalLayout_2, alertView.ui->contentLayout, title, message, errorCode, userId, contactUsCb, alertView.m_btnCount);
@@ -666,22 +704,16 @@ void PLSAlertView::onButtonClicked(QAbstractButton *button)
 
 void PLSAlertView::showEvent(QShowEvent *event)
 {
-#if defined(Q_OS_WIN)
-	m_needCorrectedHeight = true;
-	m_needUpdatePosWhenCorrectedHeight = false;
-#endif
-
 	adjustSize();
-
-#if defined(Q_OS_WIN)
-	m_needCorrectedHeight = true;
-	m_needUpdatePosWhenCorrectedHeight = false;
-	resize(size() - QSize(0, titleBarHeight()));
-#endif
-
-	PLS_LOGEX(PLS_LOG_INFO, "alert-view", {{"alert-msg", ui->message->text().toUtf8().constData()}}, "UI: [ALERT] %s%s", ui->message->text().toUtf8().constData(),
+	PLS_LOGEX(PLS_LOG_UI_STEP, "alert-view", {{"alert-msg", ui->message->text().toUtf8().constData()}}, "UI: [ALERT] %s%s", ui->message->text().toUtf8().constData(),
 		  ui->nameLabel->text().toUtf8().constData());
 	PLSDialogView::showEvent(event);
+	for (int i = 0; i < 32; ++i) {
+		if (QPushButton *b = ui->buttonBox->button(static_cast<Button>(1 << i)); b && b->isDefault() && b->isEnabled() && b->isVisible()) {
+			b->setFocus();
+			break;
+		}
+	}
 }
 void PLSAlertView::closeEvent(QCloseEvent *event)
 {
@@ -697,33 +729,8 @@ void PLSAlertView::closeEvent(QCloseEvent *event)
 	PLSDialogView::closeEvent(event);
 }
 
-void PLSAlertView::nativeResizeEvent(const QSize &size, const QSize &nativeSize)
-{
-	PLSDialogView::nativeResizeEvent(size, nativeSize);
-
-#if defined(Q_OS_WIN)
-	if ((size.height() % 2) != 0) {
-		pls_async_call(this, [this, size]() {
-			if (m_needCorrectedHeight) {
-				m_needCorrectedHeight = false;
-				m_needUpdatePosWhenCorrectedHeight = true;
-				resize(QSize(size.width(), size.height() + 1));
-			}
-		});
-	} else if (auto parent = pls_get_toplevel_view(parentWidget()); parent && m_needUpdatePosWhenCorrectedHeight) {
-		m_needUpdatePosWhenCorrectedHeight = false;
-		auto g = parent->geometry();
-		QPoint pos(g.x() + (g.width() - size.width()) / 2, g.y() + (g.height() - size.height()) / 2);
-		pls_async_call(this, [this, pos]() { move(pos); });
-	} else {
-		m_needCorrectedHeight = false;
-		m_needUpdatePosWhenCorrectedHeight = false;
-	}
-#endif
-}
-
 //for countdown
-PLSAlertView::Result PLSAlertView::openWithCountDownView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons,
+PLSAlertView::Result PLSAlertView::openWithCountDownView(QWidget *parent, Icon icon, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons,
 							 Button defaultButton, const quint64 &timeout, int buttonBoxWidth)
 {
 	PLSAlertView alertView(parent, icon, title, message, checkbox, buttons, defaultButton);
@@ -741,17 +748,18 @@ PLSAlertView::Result PLSAlertView::openWithCountDownView(QWidget *parent, Icon i
 	return {static_cast<Button>(alertView.exec()), alertView.isChecked()};
 }
 
-PLSAlertView::Result PLSAlertView::questionWithCountdownView(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons,
+PLSAlertView::Result PLSAlertView::questionWithCountdownView(QWidget *parent, const QString &title, const pls_text_t &message, const QString &checkbox, const QMap<Button, pls_text_t> &buttons,
 							     Button defaultButton, const quint64 &timeout, int buttonBoxWidth)
 {
 	return openWithCountDownView(parent, Icon::Question, title, message, checkbox, buttons, defaultButton, timeout);
 }
 
-PLSAlertView::Button PLSAlertView::dualOutputApplyResolutionWarn(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, const QString &hRadioMsg,
-								 const QString &vRadioMsg, bool &selectVRadio, Button defaultButton)
+PLSAlertView::Button PLSAlertView::dualOutputApplyResolutionWarn(QWidget *parent, const QString &title, const QString &message, const QMap<Button, pls_text_t> &buttons, const QString &hRadioMsg,
+								 const QString &vRadioMsg, bool &selectVRadio, bool bShowCloseBtn, Button defaultButton)
 {
 	PLSAlertView alertView(parent, Icon::Warning, title, message, QString(), buttons, defaultButton);
 	alertView.ui->horizontalLayout_2->setContentsMargins(25, 28, 25, 30);
+	alertView.setHasCloseButton(bShowCloseBtn);
 	auto layout = pls_new<QVBoxLayout>();
 	layout->setSpacing(10);
 	layout->setContentsMargins(0, 20, 0, 0);

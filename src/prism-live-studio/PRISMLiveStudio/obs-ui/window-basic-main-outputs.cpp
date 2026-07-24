@@ -16,7 +16,10 @@
 #include <utils-api.h>
 #include <pls/pls-source.h>
 #include <pls/pls-dual-output.h>
+#include <pls/pls-base.h>
 #include "main/pls-log-profile.hpp"
+#include <pls/pls-output.h>
+#include <pls/pls-obs-api.h>
 
 using namespace std;
 
@@ -238,6 +241,11 @@ static void OBSStopStreaming(void *data, calldata_t *params)
 	//PRISM/chenguoxi/20240712/#5835/add log
 	blog(LOG_INFO, "%s: set streamingActive=%d, output=%p", __FUNCTION__, output->streamingActive,
 	     output->streamOutput.Get());
+	//PRISM/lizhiyong/20251023/PRISM_PC-4243/add metrics for network
+	if (output->streamOutput) {
+		pls_update_stream_frames(obs_output_get_total_frames(output->streamOutput),
+					 obs_output_get_frames_dropped(output->streamOutput));
+	}
 
 	output->delayActive = false;
 	output->multitrackVideoActive = false;
@@ -668,6 +676,21 @@ inline BasicOutputHandler::BasicOutputHandler(OBSBasic *main_, PLSOutputHandler 
 
 extern void log_vcam_changed(const VCamConfig &config, bool starting);
 
+//PRISM/wangshaohui/20260116/PRISM_PC-4817/improve win/vcam performance
+video_t *AddVCamView(obs_view_t *virtualCamView)
+{
+	struct obs_video_info ovi;
+	if (!obs_get_video_info(&ovi))
+		return nullptr;
+
+	if (ovi.output_format == VIDEO_FORMAT_NV12) {
+		return obs_view_add(virtualCamView);
+	} else {
+		ovi.output_format = VIDEO_FORMAT_NV12;
+		return obs_view_add2(virtualCamView, &ovi);
+	}
+}
+
 bool BasicOutputHandler::StartVirtualCam()
 {
 	if (!main->vcamEnabled || 0 != outputIndex)
@@ -681,7 +704,12 @@ bool BasicOutputHandler::StartVirtualCam()
 	UpdateVirtualCamOutputSource();
 
 	if (!virtualCamVideo) {
+//PRISM/wangshaohui/20260116/PRISM_PC-4817/improve win/vcam performance
+#ifdef _WIN32
+		virtualCamVideo = typeIsProgram ? obs_get_video() : AddVCamView(virtualCamView);
+#else
 		virtualCamVideo = typeIsProgram ? obs_get_video() : obs_view_add(virtualCamView);
+#endif
 
 		if (!virtualCamVideo)
 			return false;
@@ -693,16 +721,21 @@ bool BasicOutputHandler::StartVirtualCam()
 
 	bool success = obs_output_start(virtualCam);
 	if (!success) {
-		QString errorReason;
+		PLSErrorHandler::ExtraData extraData(QString::fromUtf8(__FUNCTION__));
 
 		const char *error = obs_output_get_last_error(virtualCam);
 		if (error) {
-			errorReason = QT_UTF8(error);
-		} else {
-			errorReason = QTStr("Output.StartFailedGeneric");
-		}
+			QString errorReason = QT_UTF8(error);
+			extraData.pathValueMap = {
+				{"contentVar",
+				 errorReason}}; // "contentVar" is defined in excel, you should not change it
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_VCAM_FAILED_WITH_ERROR,
+							      PLSErrKeyAllAlert, {}, extraData, main->Get());
 
-		pls_alert_error_message(main->Get(), QTStr("Output.StartVirtualCamFailed"), errorReason);
+		} else {
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_VCAM_FAILED_COMMON,
+							      PLSErrKeyAllAlert, {}, extraData, main->Get());
+		}
 
 		DestroyVirtualCamView();
 	}
@@ -1167,6 +1200,7 @@ void SimpleOutput::Update()
 	case VIDEO_FORMAT_NV12:
 	case VIDEO_FORMAT_I010:
 	case VIDEO_FORMAT_P010:
+		obs_encoder_set_preferred_video_format(videoStreaming, VIDEO_FORMAT_NONE);
 		break;
 	default:
 		obs_encoder_set_preferred_video_format(videoStreaming, VIDEO_FORMAT_NV12);
@@ -1547,29 +1581,6 @@ static bool is_hw_codec(const char *codec, const char *id)
 #endif
 }
 
-static void sendCodecAnalog(obs_encoder_t *encoder)
-{
-	if (nullptr == encoder) {
-		return;
-	}
-
-	auto codec = obs_encoder_get_codec(encoder);
-	auto id = obs_encoder_get_id(encoder);
-
-	if (nullptr == codec || nullptr == id) {
-		return;
-	}
-
-	PLS_PLATFORM_API->sendCodecAnalog(
-		{{"codec", codec}, {"encodeDecode", "encode"}, {"hw", is_hw_codec(codec, id)}});
-}
-
-static void sendCodecAnalog(obs_output_t *output)
-{
-	sendCodecAnalog(obs_output_get_video_encoder(output));
-	sendCodecAnalog(obs_output_get_audio_encoder(output, 0));
-}
-
 bool SimpleOutput::StartStreaming(obs_service_t *service)
 {
 	LogBasicProfile(pls_config_get_file_path(main->Config()), __FUNCTION__);
@@ -1622,10 +1633,11 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 	if (!multitrackVideo || !multitrackVideoActive)
 		SetupVodTrack(service);
 
+	pls_log_output_info(streamOutput, service, __FUNCTION__);
+
 	obs_output_set_naver_shopping(streamOutput,
 				      PLS_PLATFORM_API->isPlatformActived(PLSServiceType::ST_NAVER_SHOPPING_LIVE));
 	if (obs_output_start(streamOutput)) {
-		sendCodecAnalog(streamOutput);
 		if (multitrackVideo && multitrackVideoActive)
 			multitrackVideo->StartedStreaming();
 		return true;
@@ -1640,6 +1652,8 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 		lastError = error;
 	else
 		lastError = string();
+
+	isEncoderError = pls_is_output_encoder_error(streamOutput);
 
 	const char *type = obs_output_get_id(streamOutput);
 	blog(LOG_WARNING, "Stream output type '%s' failed to start!%s%s", type, hasLastError ? "  Last Error: " : "",
@@ -1782,23 +1796,30 @@ bool SimpleOutput::StartRecording()
 		const char *error = obs_output_get_last_error(fileOutput);
 		if (error)
 			error_reason = QT_UTF8(error);
-		else
-#ifdef _WIN32
-			error_reason = QTStr("Output.StartFailedGeneric");
-#else
-			error_reason = QTStr("Output.StartFailedGeneric.Mac");
-#endif
 		QMetaObject::invokeMethod(
 			main,
 			[this, error_reason]() {
-				pls_alert_error_message(this->main->Get(), QTStr("Output.StartRecordingFailed"),
-							error_reason);
+				bool useDefaultError = error_reason.isEmpty();
+				pls_text_t error_text;
+				if (useDefaultError) {
+#ifdef _WIN32
+					auto key = QByteArray("Output.StartFailedGeneric");
+#else
+					auto key = QByteArray("Output.StartFailedGeneric.Mac");
+#endif
+					error_text = pls_text_t(pls_language_key_t(key));
+
+				} else {
+					auto error_en = obs_output_get_last_english_error(fileOutput);
+					error_text = pls_text_t(error_reason, error_en ? QT_UTF8(error_en) : "");
+				}
+
+				main->Get()->showOutputStartErrorAlert(QTStr("Output.StartRecordingFailed"), error_text,
+								       pls_is_output_encoder_error(fileOutput));
 			},
 			Qt::QueuedConnection);
 		return false;
 	}
-
-	sendCodecAnalog(fileOutput);
 
 	return true;
 }
@@ -1812,11 +1833,14 @@ bool SimpleOutput::StartReplayBuffer()
 	if (!ConfigureRecording(true))
 		return false;
 	if (!obs_output_start(replayBuffer)) {
-		pls_alert_error_message(main->Get(), QTStr("Output.StartReplayFailed"),
 #ifdef _WIN32
-					QTStr("Output.StartFailedGeneric"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_SIMPLE_REPLAY_BUFFER_STARTFAIL,
+						      PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData("SimpleOutput_StartReplayBuffer"));
 #else
-					QTStr("Output.StartFailedGeneric.Mac"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_SIMPLE_REPLAY_BUFFER_STARTFAIL_MAC,
+						      PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData("SimpleOutput_StartReplayBuffer"));
 #endif
 		return false;
 	}
@@ -2160,6 +2184,7 @@ void AdvancedOutput::UpdateStreamSettings()
 	case VIDEO_FORMAT_NV12:
 	case VIDEO_FORMAT_I010:
 	case VIDEO_FORMAT_P010:
+		obs_encoder_set_preferred_video_format(videoStreaming, VIDEO_FORMAT_NONE);
 		break;
 	default:
 		obs_encoder_set_preferred_video_format(videoStreaming, VIDEO_FORMAT_NV12);
@@ -2685,12 +2710,13 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 		SetupVodTrack(service);
 	}
 
+	pls_log_output_info(streamOutput, service, __FUNCTION__);
+
 	obs_output_set_naver_shopping(streamOutput,
 				      PLS_PLATFORM_API->isPlatformActived(PLSServiceType::ST_NAVER_SHOPPING_LIVE));
 	if (obs_output_start(streamOutput)) {
 		if (multitrackVideo && multitrackVideoActive)
 			multitrackVideo->StartedStreaming();
-		sendCodecAnalog(streamOutput);
 		return true;
 	}
 
@@ -2703,6 +2729,8 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 		lastError = error;
 	else
 		lastError = string();
+
+	isEncoderError = pls_is_output_encoder_error(streamOutput);
 
 	const char *type = obs_output_get_id(streamOutput);
 	blog(LOG_WARNING, "Stream output type '%s' failed to start!%s%s", type, hasLastError ? "  Last Error: " : "",
@@ -2778,21 +2806,24 @@ bool AdvancedOutput::StartRecording()
 	}
 
 	if (!obs_output_start(fileOutput)) {
-		QString error_reason;
+		pls_text_t error_reason;
 		const char *error = obs_output_get_last_error(fileOutput);
-		if (error)
-			error_reason = QT_UTF8(error);
-		else
+		if (error) {
+			auto error_en = obs_output_get_last_english_error(fileOutput);
+			error_reason = pls_text_t(QT_UTF8(error), error_en ? QT_UTF8(error_en) : "");
+
+		} else {
 #ifdef _WIN32
-			error_reason = QTStr("Output.StartFailedGeneric");
+			auto key = QByteArray("Output.StartFailedGeneric");
 #else
-			error_reason = QTStr("Output.StartFailedGeneric.Mac");
+			auto key = QByteArray("Output.StartFailedGeneric.Mac");
 #endif
-		pls_alert_error_message(main->Get(), QTStr("Output.StartRecordingFailed"), error_reason);
+			error_reason = pls_text_t(pls_language_key_t(key));
+		}
+		main->Get()->showOutputStartErrorAlert(QTStr("Output.StartRecordingFailed"), error_reason,
+						       pls_is_output_encoder_error(fileOutput));
 		return false;
 	}
-
-	sendCodecAnalog(fileOutput);
 
 	return true;
 }
@@ -2852,17 +2883,27 @@ bool AdvancedOutput::StartReplayBuffer()
 	}
 
 	if (!obs_output_start(replayBuffer)) {
-		QString error_reason;
+		pls_text_t error_reason;
 		const char *error = obs_output_get_last_error(replayBuffer);
-		if (error)
-			error_reason = QT_UTF8(error);
-		else
+		if (error) {
+			auto erro_en = obs_output_get_last_english_error(replayBuffer);
+			error_reason = pls_text_t(QT_UTF8(error), erro_en ? QT_UTF8(erro_en) : "");
+			PLSErrorHandler::ExtraData extraData("AdvancedOutput_StartReplayBuffer_OutputError");
+			if (!error_reason.text().isEmpty()) {
+				extraData.pathValueMap["errorReason"] = error_reason.text();
+			}
+			PLSErrorHandler::showAlertByPrismCode(
+				PLSErrorHandler::ALERT_ADVANCE_REPLAY_BUFFER_STARTFAIL_BY_OUTPUTERROR,
+				PLSErrKeyAllAlert, {}, extraData, main->Get());
+		} else {
+			PLSErrorHandler::ExtraData extraData("AdvancedOutput_StartReplayBuffer");
 #ifdef _WIN32
-			error_reason = QTStr("Output.StartFailedGeneric");
+			PLSErrorHandler::ErrCode code = PLSErrorHandler::ALERT_ADVANCE_REPLAY_BUFFER_STARTFAIL;
 #else
-			error_reason = QTStr("Output.StartFailedGeneric.Mac");
+			PLSErrorHandler::ErrCode code = PLSErrorHandler::ALERT_ADVANCE_REPLAY_BUFFER_STARTFAIL_MAC;
 #endif
-		pls_alert_error_message(main->Get(), QTStr("Output.StartReplayFailed"), error_reason);
+			PLSErrorHandler::showAlertByPrismCode(code, PLSErrKeyAllAlert, {}, extraData, main->Get());
+		}
 		return false;
 	}
 

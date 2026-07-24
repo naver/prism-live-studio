@@ -1,7 +1,3 @@
-/**
- API Doc: https://wiki.navercorp.com/pages/viewpage.action?pageId=1661981717
- */
-
 #include "PLSAPINCB2B.h"
 #include <qfileinfo.h>
 #include <QNetworkCookieJar>
@@ -16,7 +12,6 @@
 #include "common/PLSDateFormate.h"
 #include "login-user-info.hpp"
 #include "pls-common-define.hpp"
-#include "PLSCommonConst.h"
 
 using namespace std;
 
@@ -60,14 +55,14 @@ void configDefaultRequest(const pls::http::Request &_request, const QObject *rec
 void addCommonCookieAndUserKey(const pls::http::Request &_request)
 {
 	_request.cookie(PLSLoginUserInfo::getInstance()->getPrismCookie());
-	_request.rawHeader("X-prism-access-token", PLSLoginUserInfo::getInstance()->getNCPPlatformToken());
+	_request.rawHeader("X-prism-access-token", PLSLoginUserInfo::getInstance()->getSNSPlatformToken());
 }
 
 void requestChannelList(const QObject *receiver, PLSPlatformNCB2B *platform, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
 			PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed, platform] {
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, "requestChannelList");
 
 		auto &_id = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
@@ -85,7 +80,7 @@ void requestScheduleList(const QObject *receiver, const QString &channelID, PLSP
 			 PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, channelID, onSucceed, onFailed, platform] {
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, "requestScheduleList");
 		QString url = QString("%1/partner/ncp/service/%2/%3/lives").arg(_getNCPHost()).arg(PLSLoginUserInfo::getInstance()->getNCPPlatformServiceId()).arg(channelID);
 		_request.method(pls::http::Method::Get) //
@@ -110,7 +105,7 @@ void requestCreateLive(const QObject *receiver, const PLSNCB2BLiveinfoData &data
 		auto nowTime = PLSDateFormate::youtubeTimeStampToString(PLSDateFormate::getNowTimeStamp() + 20);
 		object["reservedAt"] = nowTime;
 
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, "requestCreateLive");
 		QString url = QString("%1/partner/ncp/service/%2/%3/live").arg(_getNCPHost()).arg(PLSLoginUserInfo::getInstance()->getNCPPlatformServiceId()).arg(platform->subChannelID());
 		_request.method(pls::http::Method::Post) //
@@ -133,7 +128,7 @@ void requestUpdateLive(const QObject *receiver, const PLSNCB2BLiveinfoData &data
 		object["scope"] = data.scope;
 		object["reservedAt"] = data.startTimeOrigin;
 
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, "requestUpdateLive");
 		QString url = QString("%1/partner/ncp/service/%2/live/%3").arg(_getNCPHost()).arg(PLSLoginUserInfo::getInstance()->getNCPPlatformServiceId()).arg(data._id);
 		_request.method(pls::http::Method::Put) //
@@ -150,7 +145,7 @@ void requestGetLiveInfo(const QObject *receiver, const QString &liveId, PLSPlatf
 			PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, liveId, onSucceed, onFailed, platform] {
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, "requestGetLiveInfo");
 		QString url = QString("%1/partner/ncp/service/%2/live/%3").arg(_getNCPHost()).arg(PLSLoginUserInfo::getInstance()->getNCPPlatformServiceId()).arg(liveId);
 		_request.method(pls::http::Method::Get) //
@@ -167,7 +162,7 @@ void refreshTokenBeforeRequest(PLSPlatformNCB2B *platform, PLSAPICommon::Refresh
 	pls_check_app_exiting();
 
 	if (refreshType == PLSAPICommon::RefreshType::NotRefresh ||
-	    (refreshType == PLSAPICommon::RefreshType::CheckRefresh && PLSAPICommon::isTokenValid(PLSLoginUserInfo::getInstance()->getNCPPlatformExpiresTime()))) {
+	    (refreshType == PLSAPICommon::RefreshType::CheckRefresh && PLSAPICommon::isTokenValid(PLSLoginUserInfo::getInstance()->getSNSPlatformExpiresTime()))) {
 		if (nullptr != originNetworkReplay) {
 			originNetworkReplay();
 		} else if (nullptr != originOnSucceed) {
@@ -200,12 +195,12 @@ void refreshTokenBeforeRequest(PLSPlatformNCB2B *platform, PLSAPICommon::Refresh
 
 	PLS_INFO(MODULE_PLATFORM_NCB2B, "refreshTokenBeforeRequest start");
 
-	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+	const auto _request = pls::http::Request();
 	configDefaultRequest(_request, originReceiver, platform, _onSucceed, _onFail, "refreshTokenBeforeRequest", false);
 	QString url = QString("%1/oauth/ncp/refresh").arg(_getNCPHost_auth());
 
 	QJsonObject obj;
-	obj["refreshToken"] = PLSLoginUserInfo::getInstance()->getNCPPlatformRefreshToken();
+	obj["refreshToken"] = PLSLoginUserInfo::getInstance()->getSNSPlatformRefreshToken();
 
 	_request.method(pls::http::Method::Post) //
 		.hmacUrl(url, PLS_PC_HMAC_KEY.toUtf8())

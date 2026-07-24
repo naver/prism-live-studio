@@ -8,18 +8,13 @@
 #include <string>
 
 #include <qdir.h>
+#include <qprocess.h>
 #include <quuid.h>
 #include <qsystemsemaphore.h>
 #include <qthread.h>
 
 #include <libutils-api.h>
 #include <libutils-api-log.h>
-
-#if defined(Q_OS_WIN)
-#include <malloc.h>
-#else
-#include <malloc/malloc.h>
-#endif
 
 constexpr auto LIBLOG_MODULE = "liblog";
 
@@ -58,6 +53,7 @@ struct log_info_t {
 	uint32_t tid;
 	int field_count;
 	pls_datetime_t log_time;
+	uint64_t timestamp;
 	int module_name_offset;
 	int file_name_offset;
 	int fields_offset;
@@ -105,52 +101,26 @@ static void logex(bool kr, int log_level, const char *module_name, const char *f
 namespace {
 struct LocalGlobalVars {
 	static bool is_initialized;
-	static pls_process_t *logger_process;
 
-	static pls_shm_t *shm;
 	static pls_log_handler_t log_handler;
 	static void *log_param;
-	static std::string log_gcc;
 
 	static pls_thread_t *log_proc_thread;
-	static pls_thread_t *nelo_log_proc_thread;
-	static pls_thread_t *check_logger_running_thread;
 
 	static QFile *log_file;
 };
 
 bool LocalGlobalVars::is_initialized = false;
-pls_process_t *LocalGlobalVars::logger_process = nullptr;
 
-pls_shm_t *LocalGlobalVars::shm = nullptr;
 pls_log_handler_t LocalGlobalVars::log_handler = def_log_handler;
 void *LocalGlobalVars::log_param = nullptr;
-std::string LocalGlobalVars::log_gcc;
 
 pls_thread_t *LocalGlobalVars::log_proc_thread = nullptr;
-pls_thread_t *LocalGlobalVars::nelo_log_proc_thread = nullptr;
-pls_thread_t *LocalGlobalVars::check_logger_running_thread = nullptr;
 
 QFile *LocalGlobalVars::log_file = nullptr;
 }
 
 namespace {
-class WaitLoggerStartedThread : public QThread {
-	QSystemSemaphore m_sem;
-
-public:
-	WaitLoggerStartedThread(const QString &name) : m_sem(name) { start(); }
-
-	void waitFinished(int timeout)
-	{
-		wait(timeout);
-		m_sem.release();
-		wait();
-	}
-
-private:
-	void run() override { m_sem.acquire(); }
-};
 class Initializer {
 public:
 	Initializer()
@@ -274,6 +244,7 @@ static log_msg_t *new_log_msg(bool kr, pls_log_level_t log_level, const char *mo
 	log_info->tid = tid;
 	log_info->field_count = field_count;
 	log_info->log_time = log_time;
+	log_info->timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
 	auto buffer = (char *)(log_info + 1);
 
@@ -336,8 +307,9 @@ static void generic_logva(bool kr, pls_log_level_t log_level, const char *module
 		}
 	}
 
-	if (!LocalGlobalVars::log_gcc.empty()) {
-		tmp_fields.push_back({"gcc", LocalGlobalVars::log_gcc.c_str()});
+	auto gcc = pls_get_gcc().toStdString();
+	if (!gcc.empty()) {
+		tmp_fields.push_back({"gcc", gcc.c_str()});
 	}
 
 	if (log_msg_t *log_msg = new_log_msg(kr, log_level, module_name, time, tid, file_name, file_line, tmp_fields, format, args); log_msg) {
@@ -375,6 +347,12 @@ static void process_log(log_msg_t *log_msg, log_info_t *log_info)
 			break;
 		case PLS_LOG_INFO:
 			log_line.append(QStringLiteral(" [INFO]"));
+			break;
+		case PLS_LOG_UI_STEP:
+			log_line.append(QStringLiteral(" [UI STEP]"));
+			break;
+		case PLS_LOG_UI_ACTION:
+			log_line.append(QStringLiteral(" [UI ACTION]"));
 			break;
 		case PLS_LOG_DEBUG:
 			log_line.append(QStringLiteral(" [DEBUG]"));
@@ -416,6 +394,12 @@ static void process_log(log_msg_t *log_msg, log_info_t *log_info)
 		case PLS_LOG_INFO:
 			pls_printf(L"INFO ");
 			break;
+		case PLS_LOG_UI_STEP:
+			pls_printf(L"UI STEP ");
+			break;
+		case PLS_LOG_UI_ACTION:
+			pls_printf(L"UI ACTION ");
+			break;
 		case PLS_LOG_WARN:
 			pls_printf(L"WARN ");
 			break;
@@ -446,6 +430,12 @@ static void process_log(log_msg_t *log_msg, log_info_t *log_info)
 			break;
 		case PLS_LOG_INFO:
 			logLevel = "INFO";
+			break;
+		case PLS_LOG_UI_STEP:
+			logLevel = "UI STEP";
+			break;
+		case PLS_LOG_UI_ACTION:
+			logLevel = "UI ACTION";
 			break;
 		case PLS_LOG_WARN:
 			logLevel = "WARN";
@@ -484,11 +474,7 @@ static void log_proc_thread_entry(pls_thread_t *thread)
 		if (log_msg_t *log_msg = (log_msg_t *)pls_thread_queue_pop(thread); log_msg) {
 			exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
 			process_log(log_msg);
-			if (LocalGlobalVars::logger_process && LocalGlobalVars::nelo_log_proc_thread) {
-				pls_thread_queue_push(LocalGlobalVars::nelo_log_proc_thread, &log_msg->list_item);
-			} else {
-				pls_free(log_msg);
-			}
+			pls_free(log_msg);
 		}
 	}
 
@@ -499,128 +485,17 @@ static void log_proc_thread_entry(pls_thread_t *thread)
 
 		exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
 		process_log(log_msg);
-		if (LocalGlobalVars::logger_process && LocalGlobalVars::nelo_log_proc_thread) {
-			pls_thread_queue_push(LocalGlobalVars::nelo_log_proc_thread, &log_msg->list_item);
-		} else {
-			pls_free(log_msg);
-		}
-	}
-}
-static void nelo_log_proc_thread_entry(pls_thread_t *thread)
-{
-	bool exited = false;
-	while (pls_thread_running(thread)) {
-		if (exited) {
-			break;
-		}
-
-		auto log_msg = (log_msg_t *)pls_thread_queue_pop(thread);
-		if (!log_msg) {
-			continue;
-		}
-
-		exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
-
-		pls_shm_send_msg(
-			LocalGlobalVars::shm, [](pls_shm_msg_t *msg) { pls_free(msg->data - sizeof(pls_queue_item_t)); },
-			[thread, &log_msg, &exited](pls_shm_msg_t *msg, int remaining, int max_data_size) {
-				if (!log_msg) {
-					log_msg = (log_msg_t *)pls_thread_queue_top(thread);
-					if (!log_msg) {
-						return false;
-					} else if (log_msg->total_length > remaining) {
-						log_msg = nullptr;
-						return false;
-					}
-
-					pls_thread_queue_pop(thread);
-					exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
-					msg->length = log_msg->total_length;
-					msg->data = (char *)&log_msg->type;
-					log_msg = nullptr;
-					return true;
-				} else if (log_msg->total_length <= remaining) {
-					exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
-					msg->length = log_msg->total_length;
-					msg->data = (char *)&log_msg->type;
-					log_msg = nullptr;
-					return true;
-				}
-				return false;
-			},
-			[&log_msg](int count) {
-				if (count <= 0 && log_msg) {
-					pls_free(log_msg);
-					log_msg = nullptr;
-				}
-			});
-	}
-
-	for (auto log_msg = (log_msg_t *)pls_thread_queue_top(thread); log_msg && pls_shm_is_online(LocalGlobalVars::shm);) {
-		if (exited) {
-			break;
-		}
-
-		pls_shm_send_msg(
-			LocalGlobalVars::shm, [](pls_shm_msg_t *msg) { pls_free(msg->data - sizeof(pls_queue_item_t)); },
-			[thread, &log_msg, &exited](pls_shm_msg_t *msg, int remaining, int max_data_size) {
-				if (!log_msg) {
-					log_msg = (log_msg_t *)pls_thread_queue_top(thread);
-				}
-
-				if (!log_msg) {
-					return false;
-				} else if (log_msg->total_length > remaining) {
-					log_msg = nullptr;
-					return false;
-				}
-
-				pls_thread_queue_pop(thread);
-				exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
-				msg->length = log_msg->total_length;
-				msg->data = (char *)&log_msg->type;
-				log_msg = nullptr;
-				return true;
-			},
-			[&log_msg, thread](int count) {
-				if (count <= 0 && log_msg) {
-					pls_thread_queue_pop(thread);
-					pls_free(log_msg);
-					log_msg = nullptr;
-				}
-			});
-	}
-}
-static void check_logger_running_entry(pls_thread_t *thread)
-{
-	while (pls_thread_running(thread)) {
-		if (pls_process_wait(LocalGlobalVars::logger_process, 2000) > 0) {
-			pls_delete(LocalGlobalVars::logger_process, pls_process_destroy, nullptr);
-			if (LocalGlobalVars::shm && pls_shm_is_receiver_online(LocalGlobalVars::shm)) {
-				if (LocalGlobalVars::nelo_log_proc_thread)
-					pls_thread_quit(LocalGlobalVars::nelo_log_proc_thread);
-				pls_shm_close(LocalGlobalVars::shm);
-			}
-			break;
-		}
+		pls_free(log_msg);
 	}
 }
 static void init_log_file(const char *session)
 {
-	if (!LocalGlobalVars::log_file && (pls_prism_is_dev() || pls_prism_save_local_log())) {
+	if (!LocalGlobalVars::log_file && (pls_is_dev() || pls_save_local_log())) {
 		std::lock_guard guard(pls_global_mutex());
 		if (!LocalGlobalVars::log_file) {
-#if defined(Q_OS_WIN)
-			QDir dir(QString("%1/PRISMLiveStudio/log/%2").arg(qEnvironmentVariable("APPDATA"), session));
-#elif defined(Q_OS_MACOS)
-			QDir dir(QString("%1/PRISMLiveStudio/log/%2").arg(pls_get_mac_app_data_dir(), session));
-#endif
-			if (!dir.exists()) {
-				dir.mkpath(dir.absolutePath());
-			}
-
-			QString processName = pls_get_app_pn();
-			auto log_file = pls_new<QFile>(QString("%1/%2_%3.txt").arg(dir.absolutePath(), QDateTime::currentDateTime().toString("yyyyMMddhhmmss"), processName));
+			auto dirPath = pls_get_app_user_data_dir_path_pn(QStringLiteral("/log/") + session);
+			auto processName = pls_get_app_pn();
+			auto log_file = pls_new<QFile>(QString("%1/%2_%3.txt").arg(dirPath, QDateTime::currentDateTime().toString("yyyyMMddhhmmss"), processName));
 			if (log_file->open(QFile::WriteOnly)) {
 				LocalGlobalVars::log_file = log_file;
 			} else {
@@ -645,39 +520,22 @@ static void log_cleanup()
 		pls_delete(LocalGlobalVars::log_proc_thread, pls_thread_destroy, nullptr);
 	}
 
-	if (LocalGlobalVars::nelo_log_proc_thread) {
-		pls_thread_quit(LocalGlobalVars::nelo_log_proc_thread);
-		while (!pls_thread_queue_empty(LocalGlobalVars::nelo_log_proc_thread) && pls_thread_joinable(LocalGlobalVars::nelo_log_proc_thread))
-			pls_sleep_ms(10);
-		if (LocalGlobalVars::shm)
-			pls_shm_close(LocalGlobalVars::shm);
-		pls_delete(LocalGlobalVars::nelo_log_proc_thread, pls_thread_destroy, nullptr);
-	}
-
-	if (LocalGlobalVars::check_logger_running_thread) {
-		pls_delete(LocalGlobalVars::check_logger_running_thread, pls_thread_destroy, nullptr);
-	}
-
-	if (LocalGlobalVars::logger_process) {
-		pls_process_wait(LocalGlobalVars::logger_process, 1000);
-		pls_delete(LocalGlobalVars::logger_process, pls_process_destroy, nullptr);
-	}
-
-	if (LocalGlobalVars::shm) {
-		pls_delete(LocalGlobalVars::shm, pls_shm_destroy, nullptr);
-	}
-
 	if (LocalGlobalVars::log_file) {
 		LocalGlobalVars::log_file->flush();
 		pls_delete(LocalGlobalVars::log_file, nullptr);
 	}
 }
 LIBLOG_API bool pls_log_init(const char *project_name, const char *project_token, const char *project_name_kr, const char *project_token_kr, const char *project_version, const char *log_source,
-			     const char *local_log_session)
+			     const char *local_log_session, const char *local_log_sub_session)
 {
+	pls_unused(project_name, project_token, project_name_kr, project_token_kr, project_version, log_source);
+
 	if (LocalGlobalVars::is_initialized) {
 		return true;
 	}
+
+	pls_set_prism_session(pls_is_not_empty(local_log_session) ? local_log_session : "");
+	pls_set_prism_subsession(pls_is_not_empty(local_log_sub_session) ? local_log_sub_session : "");
 
 	if (!pls_is_empty(local_log_session)) {
 		init_log_file(local_log_session);
@@ -685,61 +543,28 @@ LIBLOG_API bool pls_log_init(const char *project_name, const char *project_token
 
 	LocalGlobalVars::log_proc_thread = pls_thread_create(log_proc_thread_entry, true);
 	LocalGlobalVars::is_initialized = true;
-
-	uint32_t pid = pls_current_process_id();
-	QString uuid = pls_gen_uuid();
-
-	// PRISMLogger.exe project_name project_token project_name_kr project_token_kr project_version log_source pid uuid
-	QString program;
-#if defined(Q_OS_WIN)
-	program = pls_get_dll_dir("liblog") + QStringLiteral("\\PRISMLogger.exe");
-#elif defined(Q_OS_MACOS)
-	program = pls_get_app_dir() + QStringLiteral("/PRISMLogger");
-#endif
-
-	//pls_get_app_dir
-	QStringList arguments{QString::fromUtf8(project_name),
-			      QString::fromUtf8(project_token),
-			      QString::fromUtf8(project_name_kr),
-			      QString::fromUtf8(project_token_kr),
-			      QString::fromUtf8(project_version),
-			      QString::fromUtf8(log_source),
-			      QString::number(pid),
-			      uuid,
-			      QString::fromUtf8(local_log_session)};
-	if (LocalGlobalVars::logger_process = pls_process_create(program, arguments); !LocalGlobalVars::logger_process) {
-		pls_thread_start(LocalGlobalVars::log_proc_thread);
-		return false;
-	}
-
-	QString startedSemName = QStringLiteral("PRISMLoggerStartedSem_%1_%2").arg(pid).arg(uuid);
-	WaitLoggerStartedThread waitThread(startedSemName);
-	waitThread.waitFinished(10000);
-
-	QString shmName = QStringLiteral("PRISMLoggerShm_%1_%2").arg(pid).arg(uuid);
-	if (LocalGlobalVars::shm = pls_shm_create(shmName, 10 * 1024 * 1024, true); !LocalGlobalVars::shm) {
-		pls_thread_start(LocalGlobalVars::log_proc_thread);
-		return false;
-	}
-
-	LocalGlobalVars::nelo_log_proc_thread = pls_thread_create(nelo_log_proc_thread_entry);
 	pls_thread_start(LocalGlobalVars::log_proc_thread);
-
-	LocalGlobalVars::check_logger_running_thread = pls_thread_create(check_logger_running_entry);
-	pls_thread_start(LocalGlobalVars::check_logger_running_thread);
 
 	std::string pn = pls_get_app_pn().toStdString();
 	pls_add_global_field("processName", pn.c_str());
 
 	return true;
 }
-LIBLOG_API bool pls_prism_log_init(const char *project_version, const char *log_source, const char *local_log_session)
+LIBLOG_API bool pls_prism_log_init(const char *project_version, const char *log_source, const char *local_log_session, const char *local_log_sub_session)
 {
 	constexpr const char *PLS_PROJECT_NAME = "";
 	constexpr const char *PLS_PROJECT_NAME_KR = "";
 	constexpr const char *PLS_PROJECT_TOKEN = "";
 	constexpr const char *PLS_PROJECT_TOKEN_KR = "";
-	return pls_log_init(PLS_PROJECT_NAME, PLS_PROJECT_TOKEN, PLS_PROJECT_NAME_KR, PLS_PROJECT_TOKEN_KR, project_version, log_source, local_log_session);
+	return pls_log_init(PLS_PROJECT_NAME, PLS_PROJECT_TOKEN, PLS_PROJECT_NAME_KR, PLS_PROJECT_TOKEN_KR, project_version, log_source, local_log_session, local_log_sub_session);
+}
+LIBLOG_API bool pls_lens_log_init(const char *project_version, const char *log_source, const char *local_log_session, const char *local_log_sub_session)
+{
+	constexpr const char *PLS_PROJECT_NAME = "";
+	constexpr const char *PLS_PROJECT_NAME_KR = "";
+	constexpr const char *PLS_PROJECT_TOKEN = "";
+	constexpr const char *PLS_PROJECT_TOKEN_KR = "";
+	return pls_log_init(PLS_PROJECT_NAME, PLS_PROJECT_TOKEN, PLS_PROJECT_NAME_KR, PLS_PROJECT_TOKEN_KR, project_version, log_source, local_log_session, local_log_sub_session);
 }
 LIBLOG_API void pls_log_cleanup()
 {
@@ -1005,16 +830,7 @@ LIBLOG_API void pls_ui_step(bool kr, const char *module_name, const char *contro
 LIBLOG_API void pls_ui_stepex(bool kr, const char *module_name, const char *controls, const char *action, const char *file_name, int file_line,
 			      const std::vector<std::pair<const char *, const char *>> &fields)
 {
-	pls_datetime_t time;
-	pls_get_current_datetime(time);
-
-	uint32_t tid = pls_current_thread_id();
-
-	file_name = file_name ? pls_get_path_file_name(file_name) : file_name;
-
-	auto tmp_fields = fields;
-	tmp_fields.push_back({"ui-step", "all"});
-	generic_log(kr, PLS_LOG_INFO, module_name, time, tid, file_name, file_line, tmp_fields, "UI: [UI STEP] %s %s", controls, action);
+	pls_log(kr, PLS_LOG_UI_STEP, module_name, file_name, file_line, "UI: [UI STEP] %s %s", controls, action);
 }
 
 static void send_kvpairs_to_cn(const pls::map<std::string, std::string> &pairs, int messate_type)
@@ -1061,16 +877,7 @@ LIBLOG_API void pls_runtime_stats(pls_runtime_stats_type_t runtime_stats_type, c
 	send_kvpairs_to_cn(kvpairs, log_msg_t::MT_RUNTIME_STATS | log_msg_t::MT_CN_TAG);
 }
 
-LIBLOG_API void pls_set_gcc(const char *gcc)
-{
-	LocalGlobalVars::log_gcc = gcc;
-}
-
 LIBLOG_API std::vector<uint32_t> pls_get_logger_pids()
 {
-	std::vector<uint32_t> pids;
-	if (auto pid = pls_process_id(LocalGlobalVars::logger_process); pid > 0) {
-		pids.push_back(pid);
-	}
-	return pids;
+	return {};
 }

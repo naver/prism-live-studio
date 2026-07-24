@@ -1027,6 +1027,26 @@
        </layout>
       </widget>
      </item>
+     <item>
+      <widget class="QToolBar" name="scenesToolbar">
+       <property name="iconSize">
+        <size>
+         <width>16</width>
+         <height>16</height>
+        </size>
+       </property>
+       <property name="floatable">
+        <bool>false</bool>
+       </property>
+       <addaction name="actionAddScene"/>
+       <addaction name="actionRemoveScene"/>
+       <addaction name="separator"/>
+       <addaction name="actionSceneFilters"/>
+       <addaction name="separator"/>
+       <addaction name="actionSceneUp"/>
+       <addaction name="actionSceneDown"/>
+      </widget>
+     </item>
     </layout>
    </widget>
   </widget>
@@ -1141,6 +1161,26 @@
           </property>
          </spacer>
         </item>
+        <item>
+         <widget class="QToolBar" name="sourcesToolbar">
+          <property name="iconSize">
+           <size>
+            <width>16</width>
+            <height>16</height>
+           </size>
+          </property>
+          <property name="floatable">
+           <bool>false</bool>
+          </property>
+          <addaction name="actionAddSource"/>
+          <addaction name="actionRemoveSource"/>
+          <addaction name="separator"/>
+          <addaction name="actionSourceProperties"/>
+          <addaction name="separator"/>
+          <addaction name="actionSourceUp"/>
+          <addaction name="actionSourceDown"/>
+         </widget>
+        </item>
        </layout>
       </widget>
      </item>
@@ -1221,7 +1261,7 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>194</width>
+              <width>159</width>
               <height>16</height>
              </rect>
             </property>
@@ -1306,6 +1346,14 @@
      </item>
     </layout>
    </widget>
+  </widget>
+  <widget class="OBSDock" name="bgmDock">
+   <property name="windowTitle">
+    <string>Bgm.Title</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
   </widget>
   <action name="actionAddScene">
    <property name="icon">
@@ -1934,7 +1982,7 @@
   </action>
   <action name="actionShowAbout">
    <property name="text">
-    <string>Basic.MainMenu.Help.About</string>
+    <string>MainFrame.SideBar.Help.ProgramInfo</string>
    </property>
    <property name="shortcut">
     <string>Shift+A</string>

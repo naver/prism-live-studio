@@ -18,6 +18,9 @@ PLSSceneTemplateMainSceneInstallView::~PLSSceneTemplateMainSceneInstallView()
 void PLSSceneTemplateMainSceneInstallView::updateUI(const SceneTemplateItem &model)
 {
 	m_item = model;
+
+	ui->detailButton->setEnabled(m_item.status() == pls::rsm::State::Ok);
+	ui->installButton->setEnableState(m_item.status() == pls::rsm::State::Ok);
 }
 
 void PLSSceneTemplateMainSceneInstallView::on_detailButton_clicked()

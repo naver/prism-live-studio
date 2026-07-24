@@ -88,6 +88,9 @@ private:
 
 	QVariantMap mLastMap;
 	QWidget *m_pTopWiget = nullptr;
+
+	QString m_lastViewerPix;
+	QString m_lastLikePix;
 };
 
 QString getStatisticsImage(const QString &src, bool isEnabled = true);

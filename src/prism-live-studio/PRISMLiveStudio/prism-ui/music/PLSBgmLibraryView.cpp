@@ -77,9 +77,9 @@ PLSBgmLibraryView::PLSBgmLibraryView(QWidget *parent) : PLSDialogView(parent)
 	qRegisterMetaType<obs_media_state>("obs_media_state");
 	pls_add_css(this, {"PLSBgmLibraryView", "PLSToastMsgFrame"});
 	setWindowTitle(QTStr("Bgm.library.title"));
-	setAttribute(Qt::WA_AlwaysShowToolTips);
 	initToast();
-	initGroup();
+	pls_uistep_v2_set_value(ui->preGroupBtn, "Previous button");
+	pls_uistep_v2_set_value(ui->nextGroupBtn, "Next button");
 	connect(ui->preGroupBtn, &QPushButton::clicked, this, &PLSBgmLibraryView::OnPreGroupButtonClicked);
 	connect(ui->nextGroupBtn, &QPushButton::clicked, this, &PLSBgmLibraryView::OnNextGroupButtonClicked);
 	connect(ui->groupScrollArea->horizontalScrollBar(), &QScrollBar::valueChanged, this, &PLSBgmLibraryView::OnGroupScrolled);
@@ -122,6 +122,7 @@ PLSBgmLibraryView::~PLSBgmLibraryView()
 
 void PLSBgmLibraryView::initGroup()
 {
+	PLS_PERFORMANCE_GLOBAL_START("initGroup", "Bulid PLSBgmLibraryView");
 	ui->nextFrame->setVisible(false);
 	ui->preFrame->setVisible(false);
 
@@ -146,6 +147,7 @@ void PLSBgmLibraryView::initGroup()
 	}
 
 	OnGroupButtonClicked(firstGroupName);
+	PLS_PERFORMANCE_GLOBAL_END("initGroup");
 }
 
 void PLSBgmLibraryView::InitButtonState(const QString &group)
@@ -227,6 +229,12 @@ void PLSBgmLibraryView::resizeEvent(QResizeEvent *event)
 	toastView.SetShowWidth(this->width() - 2 * 10);
 }
 
+void PLSBgmLibraryView::showEvent(QShowEvent *event)
+{
+	PLSDialogView::showEvent(event);
+	initGroup();
+}
+
 void PLSBgmLibraryView::OnListenButtonClicked(const PLSBgmLibraryItem *item)
 {
 	if (!item) {
@@ -252,7 +260,7 @@ void PLSBgmLibraryView::OnListenButtonClicked(const PLSBgmLibraryItem *item)
 	}
 
 	if (listenUrl == item->GetUrl(item->GetDurationType())) {
-		PLS_INFO(MAIN_BGM_MODULE, "obs_source_media_stop called: %s", listenUrl.toStdString().c_str());
+		PLS_INFO(MAIN_BGM_MODULE, "obs_source_media_stop called: %s", listenUrl.toUtf8().constData());
 		obs_source_media_stop(sourceAudition);
 		listenUrl.clear(); //#5275
 		return;
@@ -266,9 +274,10 @@ void PLSBgmLibraryView::OnListenButtonClicked(const PLSBgmLibraryItem *item)
 		obs_source_media_restart(sourceAudition);
 	} else {
 		emit signal_meida_state_changed(currentUrl, OBS_MEDIA_STATE_STOPPED);
-		obs_data_set_string(settings, "local_file", url.toStdString().c_str());
+		obs_data_set_string(settings, "local_file", url.toUtf8().constData());
 		obs_source_update(sourceAudition, settings);
 	}
+	PLS_UI_ACTION("In Music Playlist, Click preview music finished.");
 }
 
 void PLSBgmLibraryView::OnAddButtonClicked(PLSBgmLibraryItem *item)
@@ -276,21 +285,21 @@ void PLSBgmLibraryView::OnAddButtonClicked(PLSBgmLibraryItem *item)
 	if (!item) {
 		return;
 	}
-
-	auto bmv = static_cast<PLSBackgroundMusicView *>(this->parent());
+	auto bmv = static_cast<PLSBackgroundMusicView *>(parent());
 	if (!bmv) {
 		return;
 	}
-
 	PLSBgmItemData data = item->GetData();
 	if (PLSBgmDataViewManager::Instance()->CachePlayListExisted(data)) {
 		ShowToastView(QTStr("Bgm.Add.Free.Music.Once"));
 		return;
 	}
-
-	item->SetCheckedButtonVisible(true);
-	PLSBgmDataViewManager::Instance()->AddCachePlayList(data);
-	UpdateSelectedString();
+	withListScrollPreserved([this, item, data]() {
+		item->SetCheckedButtonVisible(true);
+		PLSBgmDataViewManager::Instance()->AddCachePlayList(data);
+		UpdateSelectedString();
+	});
+	PLS_UI_ACTION("In Music Playlist, the selected music has been added.");
 }
 
 void PLSBgmLibraryView::OnCheckedButtonClicked(PLSBgmLibraryItem *item)
@@ -298,11 +307,13 @@ void PLSBgmLibraryView::OnCheckedButtonClicked(PLSBgmLibraryItem *item)
 	if (!item) {
 		return;
 	}
-
 	PLSBgmItemData data = item->GetData();
-	item->SetCheckedButtonVisible(false);
-	PLSBgmDataViewManager::Instance()->DeleteCachePlayList(data);
-	UpdateSelectedString();
+	withListScrollPreserved([this, item, data]() {
+		item->SetCheckedButtonVisible(false);
+		PLSBgmDataViewManager::Instance()->DeleteCachePlayList(data);
+		UpdateSelectedString();
+	});
+	PLS_UI_ACTION("In Music Playlist, the selected music has been cancel.");
 }
 
 void PLSBgmLibraryView::OnDurationTypeChanged(PLSBgmLibraryItem *item)
@@ -318,6 +329,8 @@ void PLSBgmLibraryView::OnDurationTypeChanged(PLSBgmLibraryItem *item)
 	} else
 		item->SetCheckedButtonVisible(false);
 	OnListenButtonClicked(item);
+
+	PLS_UI_ACTION("In Music Playlist, selected music duration has been changed.");
 }
 
 void PLSBgmLibraryView::OnOkButtonClicked()
@@ -410,6 +423,8 @@ void PLSBgmLibraryView::OnGroupButtonClicked(const QString &group)
 		UpdateMusiclist(group);
 	}
 	ShowList(group);
+	PLS_UI_ACTION("In Music Playlist, the category list has been changed.");
+	PLS_PERFORMANCE_GLOBAL_END("CreateGroup");
 }
 
 void PLSBgmLibraryView::MediaStateChanged(void *data, calldata_t *calldata)
@@ -533,6 +548,8 @@ void PLSBgmLibraryView::CreateListenSource()
 
 void PLSBgmLibraryView::CreateGroup(const QString &groupName)
 {
+	PLS_PERFORMANCE_GLOBAL_START("CreateGroup", "initGroup");
+
 	auto btn = pls_new<PLSCategoryButton>(ui->groupFrame);
 	btn->setCheckable(true);
 	btn->SetDisplayText(groupName);
@@ -540,29 +557,6 @@ void PLSBgmLibraryView::CreateGroup(const QString &groupName)
 
 	ui->groupHLayout->addWidget(btn);
 	listCatgaoryButton.append(btn);
-}
-
-void PLSBgmLibraryView::ScrollToCategoryButton(const QPushButton *categoryButton) const
-{
-	if (!categoryButton)
-		return;
-	int leftPosX = categoryButton->mapToParent(QPoint(0, 0)).x();
-	int rightPosX = categoryButton->mapToParent(QPoint(0, 0)).x() + categoryButton->width();
-	int value = ui->groupScrollArea->horizontalScrollBar()->value();
-	int viewportLeft = value;
-	int viewportRight = value + ui->groupScrollArea->width();
-	int offset = leftPosX - viewportLeft;
-	if (offset < 0) {
-		ui->groupScrollArea->horizontalScrollBar()->setValue(viewportLeft + offset);
-	}
-	offset = rightPosX - viewportRight;
-	if (offset > 0) {
-		int maxValue = ui->groupScrollArea->horizontalScrollBar()->maximum();
-		int newValue = value + offset;
-		if (maxValue < newValue)
-			newValue = maxValue;
-		ui->groupScrollArea->horizontalScrollBar()->setValue(newValue);
-	}
 }
 
 void PLSBgmLibraryView::RefreshSelectedGroupButtonStyle(const QString &group) const
@@ -576,7 +570,7 @@ void PLSBgmLibraryView::RefreshSelectedGroupButtonStyle(const QString &group) co
 		}
 		if (item->text() == group) {
 			item->setChecked(true);
-			ScrollToCategoryButton(item);
+			scroll_to_category_button(item, ui->groupScrollArea);
 			++iter;
 			continue;
 		}
@@ -605,6 +599,24 @@ void PLSBgmLibraryView::ResizeToastView()
 	toastView.move(pos.x(), pos.y() - toastView.height() - 10);
 }
 
+void PLSBgmLibraryView::withListScrollPreserved(const std::function<void()> &action)
+{
+	auto it = groupWidget.find(selectedGroup);
+	PLSFloatScrollBarScrollArea *area = (it != groupWidget.end()) ? it->second : nullptr;
+	if (!area) {
+		action();
+		return;
+	}
+	QScrollBar *bar = area->verticalScrollBar();
+	const int saved = bar ? bar->value() : 0;
+	area->viewport()->setFocus();
+	action();
+	if (bar) {
+		bar->setValue(saved);
+	}
+	area->viewport()->setFocus();
+}
+
 void PLSBgmLibraryView::ShowList(const QString &group)
 {
 	auto iter = groupWidget.cbegin();
@@ -618,16 +630,22 @@ void PLSBgmLibraryView::ShowList(const QString &group)
 		++iter;
 	}
 	iter = groupWidget.find(group);
-	iter->second->show();
+	if (iter != groupWidget.cend()) {
+		iter->second->show();
+		iter->second->viewport()->setFocus();
+	}
 }
 
 void PLSBgmLibraryView::CreateMusicList(const QString &group)
 {
+	PLS_PERFORMANCE_GLOBAL_START("CreateMusicList", "CreateGroup");
+
 	auto scrollArea = pls_new<PLSFloatScrollBarScrollArea>(this);
 	scrollArea->SetScrollBarRightMargin(1);
 	scrollArea->setObjectName("musicLibraryList");
 	scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	scrollArea->setWidgetResizable(true);
+	scrollArea->viewport()->setFocusPolicy(Qt::StrongFocus);
 	auto content = pls_new<QWidget>();
 	content->setObjectName("musicLibraryContent");
 	scrollArea->setWidget(content);
@@ -637,13 +655,14 @@ void PLSBgmLibraryView::CreateMusicList(const QString &group)
 	layoutContent->setSpacing(0);
 	layoutContent->setEnabled(false);
 	ui->verticalLayout_list->addWidget(scrollArea);
+	groupWidget.insert({group, scrollArea});
 
 	auto groups = CategoryMusic::instance()->getGroup(group);
 	if (!groups) {
-		PLS_WARN(MAIN_BGM_MODULE, "Get music group %s failed.", group.toStdString().c_str());
+		PLS_WARN(MAIN_BGM_MODULE, "Get music group %s failed.", group.toUtf8().constData());
+		PLS_PERFORMANCE_GLOBAL_END("CreateMusicList");
 		return;
 	}
-
 	std::map<QString, PLSBgmLibraryItem *> listItem;
 	auto musicList = groups.items();
 	for (auto item : musicList) {
@@ -670,7 +689,8 @@ void PLSBgmLibraryView::CreateMusicList(const QString &group)
 	layoutContent->setEnabled(true);
 
 	musicListItem.insert({group, listItem});
-	groupWidget.insert({group, scrollArea});
+
+	PLS_PERFORMANCE_GLOBAL_END("CreateMusicList");
 }
 
 void PLSBgmLibraryView::UpdateMusiclist(const QString &group)
@@ -706,6 +726,12 @@ PLSBgmLibraryItem::PLSBgmLibraryItem(const PLSBgmItemData &data_, QWidget *paren
 	ui->checkBtn->hide();
 	ui->listenBtn->setToolTip(QTStr("Bgm.library.preview.on"));
 	ui->itemDurationLabel->setText(PLSBgmDataViewManager::Instance()->ConvertIntToTimeString(data.GetDuration(data.id)));
+	pls_uistep_v2_set_value(ui->fullButton, "Full button");
+	pls_uistep_v2_set_value(ui->thirtyButton, "30s button");
+	pls_uistep_v2_set_value(ui->fifteenButton, "15s button");
+	pls_uistep_v2_set_value(ui->sixtyButton, "60s button");
+	pls_uistep_v2_set_value(ui->checkBtn, "UnSelected button");
+	pls_uistep_v2_set_value(ui->addBtn, "Selected button");
 	SetDurationButtonVisible();
 	setProperty("showHandCursor", true);
 }

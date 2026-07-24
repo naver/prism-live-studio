@@ -22,8 +22,8 @@ public:
 	PLSSceneItemView *DeleteSceneData(const QString &name);
 	void DeleteAllData();
 	void SetDisplayVector(const SceneDisplayVector &dVec, QString file = "");
-	void SwapData(const int &romoveRow, const int &removeCol, const int &appendRow, const int &appendCol, const int &columnCount);
-	void SwapDataInListMode(const int &romoveRow, const int &appendRow);
+	QString SwapData(const int &romoveRow, const int &removeCol, const int &appendRow, const int &appendCol, const int &columnCount);
+	QString SwapDataInListMode(const int &romoveRow, const int &appendRow);
 	void SwapToUp(const QString &name);
 	void SwapToDown(const QString &name);
 	void SwapToBottom(const QString &name);
@@ -37,8 +37,7 @@ public:
 private:
 	QString GetCurrentSceneCollectionName() const;
 	QString GetCurrentSceneCollectionAbsName() const;
-	void SwapDataToVec(const int &romoveRow, const int &removeCol, const int &appendRow, const int &appendCol, const int &columnCount, PLSSceneItemView *view, SceneDisplayVector &vec) const;
-
+	QString SwapDataToVec(const int &romoveRow, const int &removeCol, const int &appendRow, const int &appendCol, const int &columnCount, PLSSceneItemView *view, SceneDisplayVector &vec) const;
 	SceneDisplayMap sceneDisplay;
 };
 

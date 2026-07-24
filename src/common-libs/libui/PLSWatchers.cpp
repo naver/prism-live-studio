@@ -1,6 +1,7 @@
 #include "PLSWatchers.h"
 
 #include <qcoreevent.h>
+#include <qevent.h>
 
 PLSShowWatcher::PLSShowWatcher(QWidget *watched) : QObject(watched)
 {
@@ -24,6 +25,19 @@ bool PLSHideWatcher::eventFilter(QObject *watched, QEvent *event)
 {
 	if (watched->isWidgetType() && event->type() == QEvent::Hide) {
 		emit signalHide(static_cast<QWidget *>(watched));
+	}
+	return false;
+}
+
+PLSResizeWatcher::PLSResizeWatcher(QWidget *watched) : QObject(watched)
+{
+	watched->installEventFilter(this);
+}
+
+bool PLSResizeWatcher::eventFilter(QObject *watched, QEvent *event)
+{
+	if (watched->isWidgetType() && event->type() == QEvent::Resize) {
+		emit signalSizeChanged(static_cast<QResizeEvent *>(event)->size(), static_cast<QWidget *>(watched));
 	}
 	return false;
 }

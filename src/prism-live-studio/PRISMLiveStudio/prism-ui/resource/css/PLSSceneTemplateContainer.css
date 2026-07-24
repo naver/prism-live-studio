@@ -1,425 +1,499 @@
 PLSSceneTemplateContainer {
-
 }
 
-PLSSceneTemplateContainer > #plsDialogViewBorderFrame > #titleBar > #titleLabel {
-	background-color: transparent;
-	font-weight: normal;
-} 
+    PLSSceneTemplateContainer > #titleBar > #titleLabel {
+        background-color: transparent;
+        font-weight: normal;
+    }
 
-PLSSceneTemplateContainer QScrollBar:vertical {
-    background-color: #272727;
-	width:/*hdpi*/ 12px;
-    margin:/*hdpi*/0px;
-}
+    PLSSceneTemplateContainer QScrollBar:vertical {
+        background-color: #272727;
+        width: 12px;
+        margin: 0px;
+    }
 
-PLSSceneTemplateContainer QScrollBar::handle:vertical {
-    background-color: #444444;
-	border-radius:/*hdpi*/ 3px;
-	border:/*hdpi*/ none;
-    margin:/*hdpi*/0px /*hdpi*/3px;
-	min-height:/*hdpi*/ 20px;
-}
+    PLSSceneTemplateContainer QScrollBar::handle:vertical {
+        background-color: #444444;
+        border-radius: 3px;
+        border: none;
+        margin: 0px 3px;
+        min-height: 20px;
+    }
 
 QScrollArea {
-	border: none;
+    border: none;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene #mainSceneTitle {
-    font-weight:normal;
-	color:#bababa;
-	font-size:/*hdpi*/12px;
+    font-weight: normal;
+    color: #bababa;
+    font-size: 12px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene #mainSceneComboBox, #comboBoxPlus {
-	min-height: /*hdpi-u*/ 30px;
-	max-height: /*hdpi-u*/ 30px;
-	min-width: /*hdpi-u*/ 120px;
-	max-width: /*hdpi-u*/ 120px;
+    min-height: 30px;
+    max-height: 30px;
+    min-width: 120px;
+    max-width: 120px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSComboBox {
-	font-size:/*hdpi*/ 12px;
+    font-size: 12px;
     color: #ffffff;
 }
 
-PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSComboBox QLabel#itemLabel {
-	font-weight: normal;
-	font-size:/*hdpi*/ 12px;
-	padding-left: 10px;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSComboBox QLabel#itemLabel {
+        font-weight: normal;
+        font-size: 12px;
+        padding-left: 10px;
+    }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItem {
-    min-height: /*hdpi-u*/ 284px;
-	max-height: /*hdpi-u*/ 284px;
-	min-width: /*hdpi-u*/ 260px;
-	max-width: /*hdpi-u*/ 260px;
-	background-color: #444444;
-	border-radius: 3px;
+    min-height: 284px;
+    max-height: 284px;
+    min-width: 260px;
+    max-width: 260px;
+    background-color: #444444;
+    border-radius: 3px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateImageView #imageLabel {
-	background-color: black;
+    background-color: black;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItem #mainSceneLeftImageView,
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItem #mainSceneRightImageView {
-    min-height: /*hdpi-u*/ 65px;
-	max-height: /*hdpi-u*/ 65px;
-	min-width: /*hdpi-u*/ 115px;
-	max-width: /*hdpi-u*/ 115px;
+    min-height: 65px;
+    max-height: 65px;
+    min-width: 115px;
+    max-width: 115px;    
+	border-radius: 3px;
 }
 
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItem #mainSceneTopImageView,
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItem #mainSceneTopVideoView {
-    min-height: /*hdpi-u*/ 135px;
-	max-height: /*hdpi-u*/ 135px;
-	min-width: /*hdpi-u*/ 240px;
-	max-width: /*hdpi-u*/ 240px;
+    min-height: 135px;
+    max-height: 135px;
+    min-width: 240px;
+    max-width: 240px;
+	border-radius: 3px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #nameLabel {
-    font-weight:bold;
-	color:white;
-	font-size:/*hdpi*/14px;
-	background-color: transparent;
-	max-width: 196px;
+    font-weight: bold;
+    color: white;
+    font-size: 14px;
+    background-color: transparent;
+    max-width: 196px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #resolutionLabel {
-    font-weight:normal;
-	color:#bababa;
-	font-size:/*hdpi*/11px;
-	background-color: transparent;
+    font-weight: normal;
+    color: #bababa;
+    font-size: 11px;
+    background-color: transparent;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #roundLabel {
-    min-height: /*hdpi-u*/ 4px;
-	max-height: /*hdpi-u*/ 4px;
-	min-width: /*hdpi-u*/ 4px;
-	max-width: /*hdpi-u*/ 4px;
-	background-color: transparent;
-	image: url(":/resource/images/scene-template/round.svg");
+    min-height: 4px;
+    max-height: 4px;
+    min-width: 4px;
+    max-width: 4px;
+    background-color: transparent;
+    image: url(":/resource/images/scene-template/round.svg");
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #sceneCountLabel {
-    font-weight:normal;
-	color:#bababa;
-	font-size:/*hdpi*/11px;
-	background-color: transparent;
+    font-weight: normal;
+    color: #bababa;
+    font-size: 11px;
+    background-color: transparent;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #iconLabel {
-	min-width: /*hdpi*/ 34px;
-	max-width: /*hdpi*/ 34px;
-	min-height: /*hdpi*/ 16px;
-	max-height: /*hdpi*/ 16px;
-	background-color: transparent;
-	padding: 0px;
+    min-width: 34px;
+    max-width: 34px;
+    min-height: 16px;
+    max-height: 16px;
+    background-color: transparent;
+    padding: 0px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene #installButton {
-	min-height: /*hdpi-u*/ 40px;
-	max-height: /*hdpi-u*/ 40px;
-	min-width: /*hdpi-u*/ 150px;
-	max-width: /*hdpi-u*/ 150px;
-    background-color:#EFFC35;
-	padding: 0px;
-	margin: 0px;
+    min-height: 40px;
+    max-height: 40px;
+    min-width: 150px;
+    max-width: 150px;
+    background-color: #EFFC35;
+    padding: 0px;
+    margin: 0px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #installButton {
-	min-height: /*hdpi-u*/ 40px;
-	max-height: /*hdpi-u*/ 40px;
-	min-width: /*hdpi-u*/ 180px;
-	max-width: /*hdpi-u*/ 180px;
-    background-color:#EFFC35;
-	padding: 0px;
-	margin: 0px;
+    min-height: 40px;
+    max-height: 40px;
+    min-width: 180px;
+    max-width: 180px;
+    background-color: #EFFC35;
+    padding: 0px;
+    margin: 0px;
 }
 
-PLSSceneTemplateContainer PLSSceneTemplateMainScene #installButton #installLabel {
-	font-size:/*hdpi*/14px;
-    font-weight:bold;
-	color:black;
-	background-color: transparent;
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #installButton #installLabel,
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #installButton #installLabel[enable=true] {
+    font-size: 14px;
+    font-weight: bold;
+    color: black;
+    background-color: transparent;
 }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #installButton #installLabel {
-	font-size:14px;
-    font-weight:bold;
-	color:black;
-	background-color: transparent;
-}
-
-PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate {
-	min-height: /*hdpi-u*/ 24px;
-	max-height: /*hdpi-u*/ 24px;
-	min-width: /*hdpi-u*/ 20px;
-	max-width: /*hdpi-u*/ 20px;
-	background-color: transparent;
-	padding: 0px;
-	margin: 0px;
-}
-
-PLSSceneTemplateContainer #installButton:hover {
-	background-color: #f1fa75;
-}
-
-PLSSceneTemplateContainer #installButton:pressed {
-	background-color: #7a7f34;
-}
-
-PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneInstallView #detailButton {
-	min-height: /*hdpi-u*/ 40px;
-	max-height: /*hdpi-u*/ 40px;
-	min-width: /*hdpi-u*/ 80px;
-	max-width: /*hdpi-u*/ 80px;
-	font-size:/*hdpi*/14px;
-    font-weight:bold;
-    border-radius:/*hdpi*/3px;
-    color:white;
-    background-color:#666666;
-	padding: 0px;
-	margin: 0px;
-}
-
-PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneInstallView #detailButton:hover {
-    background-color:#777777;
-}
-
-PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneInstallView #detailButton:disabled {
-    background-color:#666666;
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #installButton #installLabel[enable=false] {
 	color: #999999;
 }
 
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #installButton #installLabel {
+    font-size: 14px;
+    font-weight: bold;
+    color: black;
+    background-color: transparent;
+}
+
+PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate {
+    min-height: 24px;
+    max-height: 24px;
+    min-width: 20px;
+    max-width: 20px;
+    background-color: transparent;
+    padding: 0px;
+    margin: 0px;
+}
+
+PLSSceneTemplateContainer #installButton:hover {
+    background-color: #f1fa75;
+}
+
+PLSSceneTemplateContainer #installButton:pressed {
+    background-color: #7a7f34;
+}
+
+PLSSceneTemplateContainer #installButton:disabled {
+    background-color: #666666;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneInstallView #detailButton {
+    min-height: 40px;
+    max-height: 40px;
+    min-width: 80px;
+    max-width: 80px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 3px;
+    color: white;
+    background-color: #666666;
+    padding: 0px;
+    margin: 0px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneInstallView #detailButton:hover {
+    background-color: #777777;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneInstallView #detailButton:disabled {
+    background-color: #666666;
+    color: #999999;
+}
+
 PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneInstallView #detailButton:pressed {
-    background-color:#2D2D2D;
+    background-color: #2D2D2D;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton {
-	min-height: /*hdpi-u*/ 30px;
-	max-height: /*hdpi-u*/ 30px;
-	border: 1px solid #3D3D3D;
-	border-radius: 3px;
-	background-color: transparent;
+    min-height: 30px;
+    max-height: 30px;
+    border: 1px solid #3D3D3D;
+    border-radius: 3px;
+    background-color: transparent;
 }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="normal"]  {
-	border: 1px solid #3D3D3D;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="normal"] {
+        border: 1px solid #3D3D3D;
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="hover"]  {
-	border: 1px solid #FFFFFF;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="hover"] {
+        border: 1px solid #FFFFFF;
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="clicked"]  {
-	border: 1px solid #1E1E1E;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="clicked"] {
+        border: 1px solid #1E1E1E;
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="disable"]  {
-	border: 1px solid #3D3D3D;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="disable"] {
+        border: 1px solid #3D3D3D;
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton #arrowLabel {
-	min-height: /*hdpi-u*/ 12px;
-	max-height: /*hdpi-u*/ 12px;
-	min-width: /*hdpi-u*/ 13px;
-	max-width: /*hdpi-u*/ 13px;
-    background-color:transparent;
-	padding: 0px;
-	margin: 0px;
-	image:url(":/resource/images/scene-template/ic_arrow_scenetemplate_normal.svg");
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton #arrowLabel {
+        min-height: 12px;
+        max-height: 12px;
+        min-width: 13px;
+        max-width: 13px;
+        background-color: transparent;
+        padding: 0px;
+        margin: 0px;
+        image: url(":/resource/images/scene-template/ic_arrow_scenetemplate_normal.svg");
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="normal"] #arrowLabel {
-	image:url(":/resource/images/scene-template/ic_arrow_scenetemplate_normal.svg");
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="normal"] #arrowLabel {
+        image: url(":/resource/images/scene-template/ic_arrow_scenetemplate_normal.svg");
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="hover"] #arrowLabel {
-	image:url(":/resource/images/scene-template/ic_arrow_scenetemplate_hover.svg");
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="hover"] #arrowLabel {
+        image: url(":/resource/images/scene-template/ic_arrow_scenetemplate_hover.svg");
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="clicked"] #arrowLabel {
-	image:url(":/resource/images/scene-template/ic_arrow_scenetemplate_click.svg");
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="clicked"] #arrowLabel {
+        image: url(":/resource/images/scene-template/ic_arrow_scenetemplate_click.svg");
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="disable"] #arrowLabel {
-	image:url(":/resource/images/scene-template/ic_arrow_scenetemplate_disable.svg");
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="disable"] #arrowLabel {
+        image: url(":/resource/images/scene-template/ic_arrow_scenetemplate_disable.svg");
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton #returnLabel {
-	color: #BABABA;
-    background-color:transparent;
-	padding: 0px;
-	margin: 0px;
-	font-size: 12px;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton #returnLabel {
+        color: #BABABA;
+        background-color: transparent;
+        padding: 0px;
+        margin: 0px;
+        font-size: 12px;
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="normal"] #returnLabel {
-    color: #BABABA;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="normal"] #returnLabel {
+        color: #BABABA;
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="hover"] #returnLabel {
-    color:#FFFFFF;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="hover"] #returnLabel {
+        color: #FFFFFF;
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="clicked"] #returnLabel {
-    color:#1E1E1E;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="clicked"] #returnLabel {
+        color: #1E1E1E;
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="disable"] #returnLabel {
-    color:#3D3D3D;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="disable"] #returnLabel {
+        color: #3D3D3D;
+    }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame {
-	min-height: /*hdpi*/ 125px;
-	max-height: /*hdpi*/ 125px;
+    min-height: 125px;
+    max-height: 125px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #rightFrame {
-	min-height: /*hdpi*/ 125px;
-	max-height: /*hdpi*/ 125px;
-	min-width: /*hdpi*/ 240px;
-	max-width: /*hdpi*/ 240px;
+    min-height: 125px;
+    max-height: 125px;
+    min-width: 240px;
+    max-width: 240px;
 }
 
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneNameLabel {
-	color: #FFFFFF;
-	padding: 0px;
-	margin: 0px;
-	font-size: 32px;
-	font-weight: bold;
-	background-color: transparent;
-	max-width: 834px;
+    color: #FFFFFF;
+    padding: 0px;
+    margin: 0px;
+    font-size: 32px;
+    font-weight: bold;
+    background-color: transparent;
+    max-width: 834px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneIconLabel {
-	padding: 0px;
-	margin-top: 4px;
-	min-width: /*hdpi*/ 34px;
-	max-width: /*hdpi*/ 34px;
-	min-height: /*hdpi*/ 16px;
-	max-height: /*hdpi*/ 16px;
-	background-color: transparent;
-	padding: 0px;
+    padding: 0px;
+    margin-top: 4px;
+    min-width: 34px;
+    max-width: 34px;
+    min-height: 16px;
+    max-height: 16px;
+    background-color: transparent;
+    padding: 0px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailResolutionLabel {
-	padding: 0px;
-	margin: 0px;
-	font-size: 12px;
-	font-weight: bold;
-	color: #BABABA;
+    padding: 0px;
+    margin: 0px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #BABABA;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneTipButton {
-	padding: 0px;
-	margin: 0px;
-	background-color: transparent;
-	min-width: /*hdpi*/ 15px;
-	max-width: /*hdpi*/ 15px;
-	min-height: /*hdpi*/ 16px;
-	max-height: /*hdpi*/ 16px;
-	image:url(":/resource/images/scene-template/ic_scene_help_normal.svg");
+    padding: 0px;
+    margin: 0px;
+    background-color: transparent;
+    min-width: 15px;
+    max-width: 15px;
+    min-height: 16px;
+    max-height: 16px;
+    image: url(":/resource/images/scene-template/ic_scene_help_normal.svg");
 }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneTipButton:hover {
-	image:url(":/resource/images/scene-template/ic_scene_help_hover.svg");
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneTipButton:hover {
+        image: url(":/resource/images/scene-template/ic_scene_help_hover.svg");
+    }
 
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneRoundLabel {
-    min-height: /*hdpi-u*/ 4px;
-	max-height: /*hdpi-u*/ 4px;
-	min-width: /*hdpi-u*/ 4px;
-	max-width: /*hdpi-u*/ 4px;
-	background-color: transparent;
-	image: url(":/resource/images/scene-template/round.svg");
+    min-height: 4px;
+    max-height: 4px;
+    min-width: 4px;
+    max-width: 4px;
+    background-color: transparent;
+    image: url(":/resource/images/scene-template/round.svg");
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneCountLabel {
-    font-weight:normal;
-	color:#bababa;
-	font-size:/*hdpi*/12px;
-	background-color: transparent;
+    font-weight: normal;
+    color: #bababa;
+    font-size: 12px;
+    background-color: transparent;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame {
-	min-width: /*hdpi-u*/ 200px;
-	max-width: /*hdpi-u*/ 200px;
-	background-color: transparent;
+    min-width: 200px;
+    max-width: 200px;
+    background-color: transparent;
 }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame  PLSMediaRender,
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame  PLSSceneTemplateImageView {
-    min-height: 84px;
-	max-height: 84px;
-	min-width: 150px;
-	max-width: 150px;
-	border-radius: 3px;
-	border: none;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame PLSMediaRender,
+    PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame PLSSceneTemplateImageView {
+        min-height: 84px;
+        max-height: 84px;
+        min-width: 150px;
+        max-width: 150px;
+        border-radius: 3px;
+        border: none;
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame PLSSceneTemplateImageView #imageLabel {
-	border-radius: 3px;
-	border: none;
-}
+        PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame PLSSceneTemplateImageView #imageLabel {
+            border-radius: 3px;
+            border: none;
+        }
 
 PLSSceneTemplateContainer PLSSceneTemplateBorderLabel {
-	background-color: transparent;
+    background-color: transparent;
 }
 
-PLSSceneTemplateContainer PLSSceneTemplateBorderLabel #borderFrame {
-	background-color: transparent;
-	border-radius: 3px;
-	border: none;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateBorderLabel #borderFrame {
+        background-color: transparent;
+        border-radius: 3px;
+        border: none;
+    }
 
-PLSSceneTemplateContainer PLSSceneTemplateBorderLabel #borderFrame[type="select"] {
-	border: 2px solid #EFFC35;
-}
+        PLSSceneTemplateContainer PLSSceneTemplateBorderLabel #borderFrame[type="select"] {
+            border: 2px solid #EFFC35;
+        }
 
-PLSSceneTemplateContainer PLSSceneTemplateBorderLabel #sceneNameRoundLabel{
-	min-height: /*hdpi-u*/ 30px;
-	max-height: /*hdpi-u*/ 30px;
-	font-weight: bold;
-	font-size: 14px;
-	color: white;
-	border: 1px solid #ffffff;
-	border-radius: 16px;
-	background-color: rgba(0, 0, 0, 10%);;
-	padding-left: 16px;
-	padding-right: 16px;
-}
+    PLSSceneTemplateContainer PLSSceneTemplateBorderLabel #sceneNameRoundLabel {
+        min-height: 30px;
+        max-height: 30px;
+        font-weight: bold;
+        font-size: 14px;
+        color: white;
+        border: 1px solid #ffffff;
+        border-radius: 16px;
+        background-color: rgba(0, 0, 0, 10%);
+        padding-left: 16px;
+        padding-right: 16px;
+    }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene #labelLoading, PLSSceneTemplateContainer PLSSceneTemplateMainScene #labelRetry {
-	color: #bababa;
-	font-size: 14px;
+    color: #bababa;
+    font-size: 14px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateMainScene #buttonRetry {
-	min-width: 108px;
-	min-height: 25px;
-	padding: 0;
-	color: #bababa;
-	font-size: 12px;
-	border: 1px solid #3d3d3d;
-	border-radius: 3px;
+    min-width: 108px;
+    min-height: 25px;
+    padding: 0;
+    color: #bababa;
+    font-size: 12px;
+    border: 1px solid #3d3d3d;
+    border-radius: 3px;
 }
 
-	PLSSceneTemplateContainer PLSSceneTemplateMainScene #buttonRetry:hover {
-		color: #ffffff;
-		border-color: #bababa;
-	}
+    PLSSceneTemplateContainer PLSSceneTemplateMainScene #buttonRetry:hover {
+        color: #ffffff;
+        border-color: #bababa;
+    }
 
-	PLSSceneTemplateContainer PLSSceneTemplateMainScene #buttonRetry:pressed {
-		color: #444444;
-		border-color: #444444;
-	}
+    PLSSceneTemplateContainer PLSSceneTemplateMainScene #buttonRetry:pressed {
+        color: #444444;
+        border-color: #444444;
+    }
 
 PLSSceneTemplateContainer #labelAIBadge, PLSSceneTemplateContainer #labelPlusBadge {
-	background-color: transparent;
+    background-color: transparent;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #toastView{
+	min-width: 325px;
+	max-width: 325px;
+	min-height: 105px;
+	border-radius: 3px;
+	background: rgba(102, 102, 102, 0.94);
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #descLabel, PLSSceneTemplateContainer PLSSceneTemplateMainScene #frame,
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #frame_2{
+	background: transparent;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #descLabel{
+	font-size: 14px;
+	color: rgba(255, 255, 255, 1);
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #refreshBtn{
+	min-height: 22px;
+    max-height: 22px;
+    min-width: 22px;
+    max-width: 22x;
+	padding: 0;
+	margin: 0;
+    background-color: transparent;
+    image: url(":/resource/images/scene-template/btn_refresh_normal.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #refreshBtn:hover{
+    image: url(":/resource/images/scene-template/btn_refresh_hover.svg");
+}
+    
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #refreshBtn:pressed {
+    image: url(":/resource/images/scene-template/btn_refresh_click.svg");
+ }
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #refreshBtn:disabled{
+    image: url("");
+}
+   
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #closeBtn{
+	min-height: 22px;
+    max-height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+	padding: 0;
+	margin: 0;
+    background-color: transparent;
+    image: url(":/resource/images/scene-template/btn_close_normal.svg");
+}   
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #closeBtn:hover{
+    image: url(":/resource/images/scene-template/btn_close_over.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #closeBtn:pressed{
+    image: url(":/resource/images/scene-template/btn_close_click.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #closeBtn:disabled{
+    image: url(":/resource/images/scene-template/btn_close_diaable.svg");
 }

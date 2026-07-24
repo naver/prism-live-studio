@@ -1,0 +1,150 @@
+PLSOnBoardingDlg #content,
+PLSOnBoardingDlg #scrollArea_r #scrollAreaWidgetContents,
+PLSOnBoardingDlg #scrollArea_r #scrollAreaWidgetContents QLabel,
+PLSOnBoardingDlg QScrollBar:vertical {
+    background-color: #1e1e1e;
+}
+
+PLSOnBoardingDlg #widget_l {
+    min-width: 440px;
+    max-width: 440px;
+    image: url("://resource/images/onboarding_bg.png");
+}
+
+PLSOnBoardingDlg #widget_l #label_l_title {
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+    background-color: transparent;
+}
+PLSOnBoardingDlg #widget_l #label_l_detail {
+    font-size: 20px;
+    font-weight: bold;
+    color: white;
+    background-color: transparent;
+}
+
+PLSOnBoardingDlg  #scrollArea_r #scrollAreaWidgetContents #label_setting_bg {
+    min-height: 146px;
+    max-height: 146px;
+    background-color: #151515;
+    border-radius: 4px;
+}
+PLSOnBoardingDlg #label_setting_bg[OS="win"] {
+    image: url("://resource/images/onboarding_lens_setting_win.png");
+}
+PLSOnBoardingDlg #label_setting_bg[OS="mac"]  {
+    image: url("://resource/images/onboarding_lens_setting_mac.png");
+}
+PLSOnBoardingDlg #scrollArea_r {
+    border: none;
+}
+PLSOnBoardingDlg #scrollArea_r #label_3 {
+    min-height: 20px;
+    max-height: 20px;
+
+    min-width: 20px;
+    max-width: 20px;
+    image: url("://resource/images/onboarding_combine.png");
+}
+
+PLSOnBoardingDlg #scrollArea_r #label_min_img {
+    min-height: 20px;
+    max-height: 20px;
+
+    min-width: 20px;
+    max-width: 20px;
+    image: url("://resource/images/onboarding_connectedlens.png");
+}
+
+PLSOnBoardingDlg #scrollArea_r #label_top_title,
+PLSOnBoardingDlg #scrollArea_r #label_min_title{
+    font-size: 14px;
+    font-weight: bold;
+    color: white;
+    margin: 0px;
+    padding: 0px;
+}
+
+PLSOnBoardingDlg #scrollArea_r #label_top_detail,
+PLSOnBoardingDlg #scrollArea_r #label_mid_detail {
+    font-size: 14px;
+    color: #999999;
+}
+
+PLSOnBoardingDlg #scrollArea_r #widget_line {
+    min-height: 1px;
+    max-height: 1px;
+    background-color: #343435;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+PLSOnBoardingDlg #scrollArea_r #label_10 {
+    font-size: 11px;
+    color: #666666;
+}
+
+PLSOnBoardingDlg #scrollArea_r #label_11 {
+    font-size: 14px;
+    font-weight: bold;
+    color:#999999;
+}
+
+PLSOnBoardingDlg #scrollArea_r #widget_space {
+    min-height: 5px;
+    max-height: 5px;
+    background-color: transparent;
+}
+
+PLSOnBoardingDlg #scrollArea_r #pushButton_link,
+PLSOnBoardingDlg #scrollArea_r #pushButton_link:hover,
+PLSOnBoardingDlg #scrollArea_r #pushButton_link:pressed,
+PLSOnBoardingDlg #scrollArea_r #pushButton_link:disabled {
+   background-color: transparent;
+   margin: 0px;
+   padding: 0px;
+   min-width: 192px;
+   max-width: 192px;
+   min-height: 42px;
+   max-height: 42px;
+
+   border: 1px solid #3D3D3D;
+   border-radius: 3px;
+}
+
+PLSOnBoardingDlg #pushButton_link #labelLeft  {
+  font-size: 12px;
+  font-weight: bold;
+  color: #bababa;
+  /*background-color: red;*/
+  min-height: 38px;
+  max-height: 38px;
+}
+
+PLSOnBoardingDlg #pushButton_link #labelRight  {
+    max-height:16px;
+    min-height:16px;
+    min-width: 16px;
+    max-width: 16px;
+}
+
+PLSOnBoardingDlg #pushButton_link[status="normal"] #labelLeft {
+  color: #bababa;
+}
+PLSOnBoardingDlg #pushButton_link[status="hover"] #labelLeft {
+     color: white;
+}
+PLSOnBoardingDlg #pushButton_link[status="clicked"] #labelLeft {
+     color: #444444;
+}
+PLSOnBoardingDlg #pushButton_link[status="disable"] #labelLeft {
+      color: #666666;
+}
+
+PLSOnBoardingDlg #pushButton_link #labelRight,
+PLSOnBoardingDlg #pushButton_link[status="normal"] #labelRight {
+        image: url("://resource/images/onboarding_ic_outlink_normal.png");
+}
+
+

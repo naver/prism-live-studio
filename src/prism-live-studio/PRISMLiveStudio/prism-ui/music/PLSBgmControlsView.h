@@ -22,12 +22,12 @@ public:
 	void UpdateUI();
 
 public slots:
-	void OnMediaLoopStateChanged(bool loop) override;
+	void OnMediaLoopStateChanged(int loop) override;
 	void OnMediaModeStateChanged(int mode);
 
 private slots:
 	void SetSliderPos();
-	void OnLoopButtonClicked(bool checked);
+	void OnLoopButtonClicked();
 	void OnModeButtonClicked();
 	void OnMediaSliderMoved(int val);
 	void OnMediaSliderClicked();
@@ -36,9 +36,11 @@ private:
 	virtual void SetDisabledState(bool disable) override;
 	virtual void SetPlayingState() override;
 	virtual void SetPauseState() override;
+	virtual void setSelectState(const PLSBgmItemData &data) override;
 	void SetLoopState();
 	void SetModeState();
 	void SeekTo(int);
+	void refreshLoopUi();
 
 private:
 	QRadioButton *loopBtn = nullptr;
@@ -50,6 +52,7 @@ private:
 	QLabel *currentTimeLabel = nullptr;
 	QLabel *durationLabel = nullptr;
 	PLSBackgroundMusicView::PlayMode mode = PLSBackgroundMusicView::PlayMode::RandomMode;
+	LoopMode m_loopMode = LoopMode::LoopAll;
 };
 
 #endif // PLSBGMCONTROLSVIEW_H

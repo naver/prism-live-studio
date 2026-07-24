@@ -416,12 +416,12 @@ void PLSVirtualBgManager::updateDataToCore(const OBSSource _source, const PLSVir
 		obs_data_set_int(data, s_blur, vrData.blurValue);
 	}
 
-	obs_data_set_string(data, s_ui_motion_id, vrData.motionItemID.toStdString().c_str());
-	obs_data_set_string(data, s_path, processResourcePath(vrData.isPrismResource, vrData.originPath).toStdString().c_str());
-	obs_data_set_string(data, s_stop_motion_file_path, processResourcePath(vrData.isPrismResource, vrData.stopPath).toStdString().c_str());
-	obs_data_set_string(data, s_thumbnail_file_path, processResourcePath(vrData.isPrismResource, vrData.thumbnailFilePath).toStdString().c_str());
-	obs_data_set_string(data, s_foreground_path, processResourcePath(vrData.isPrismResource, vrData.foregroundPath).toStdString().c_str());
-	obs_data_set_string(data, s_foreground_static_path, processResourcePath(vrData.isPrismResource, vrData.foregroundStaticPath).toStdString().c_str());
+	obs_data_set_string(data, s_ui_motion_id, vrData.motionItemID.toUtf8().constData());
+	obs_data_set_string(data, s_path, processResourcePath(vrData.isPrismResource, vrData.originPath).toUtf8().constData());
+	obs_data_set_string(data, s_stop_motion_file_path, processResourcePath(vrData.isPrismResource, vrData.stopPath).toUtf8().constData());
+	obs_data_set_string(data, s_thumbnail_file_path, processResourcePath(vrData.isPrismResource, vrData.thumbnailFilePath).toUtf8().constData());
+	obs_data_set_string(data, s_foreground_path, processResourcePath(vrData.isPrismResource, vrData.foregroundPath).toUtf8().constData());
+	obs_data_set_string(data, s_foreground_static_path, processResourcePath(vrData.isPrismResource, vrData.foregroundStaticPath).toUtf8().constData());
 	obs_data_set_int(data, s_is_temp_origin, vrData.isTempOriginModel);
 	obs_data_set_bool(data, s_ui_have_shown_chromakey_tip, vrData.haveShownChromakeyTip);
 

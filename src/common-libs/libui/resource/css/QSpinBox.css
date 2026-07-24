@@ -1,11 +1,11 @@
 QSpinBox, QDoubleSpinBox {
     background-color: #222222;
-	border:/*hdpi*/ none;
-	border-radius:/*hdpi*/ 3px;
-	padding-left:/*hdpi*/ 12px;
-	min-height:/*hdpi*/ 40px;
-	max-height:/*hdpi*/ 40px;
-	font-size:/*hdpi*/ 14px;
+	border:none;
+	border-radius:3px;
+	padding-left:12px;
+	min-height:40px;
+	max-height:40px;
+	font-size:14px;
     color: #ffffff;
 }
 QSpinBox:disabled, QDoubleSpinBox:disabled {
@@ -17,21 +17,21 @@ QSpinBox::up-button, QDoubleSpinBox::up-button {
     subcontrol-position: top right;
 
     background-color: #444444;
-	width:/*hdpi*/ 25px;
-	border-top-right-radius:/*hdpi*/ 3px;
+	width:25px;
+	border-top-right-radius:3px;
 }
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
 	image:url(":/libui/resource/images/txt-dropbox-close-normal.svg");
-    width:/*hdpi*/ 10px;
-    height:/*hdpi*/ 10px;
+    width:10px;
+    height:10px;
 }
 QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover {
     background-color: #555555;
 }
 QSpinBox::up-arrow:hover, QDoubleSpinBox::up-arrow:hover {
 	image:url(":/libui/resource/images/txt-dropbox-close-over.svg");
-    width:/*hdpi*/ 10px;
-    height:/*hdpi*/ 10px;
+    width:10px;
+    height:10px;
 }
 QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed {
     background-color: #2d2d2d;
@@ -46,21 +46,21 @@ QSpinBox::down-button, QDoubleSpinBox::down-button {
     subcontrol-origin: margin;
     subcontrol-position: bottom right;
     background-color: #444444;
-	width:/*hdpi*/ 25px;
-	border-bottom-right-radius:/*hdpi*/ 3px;
+	width:25px;
+	border-bottom-right-radius:3px;
 }
 QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
 	image:url(":/libui/resource/images/txt-dropbox-open-normal.svg");
-	width:/*hdpi*/ 10px;
-	height:/*hdpi*/ 10px;
+	width:10px;
+	height:10px;
 }
 QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {
     background-color: #555555;
 }
 QSpinBox::down-arrow:hover, QDoubleSpinBox::down-arrow:hover {
 	image:url(":/libui/resource/images/txt-dropbox-open-over.svg");
-	width:/*hdpi*/ 10px;
-	height:/*hdpi*/ 10px;
+	width:10px;
+	height:10px;
 }
 QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {
     background-color: #2d2d2d;

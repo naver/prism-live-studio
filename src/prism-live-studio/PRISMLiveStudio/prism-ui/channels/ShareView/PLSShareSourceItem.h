@@ -12,10 +12,10 @@ class PLSShareSourceItem : public PLSDialogView {
 
 public:
 	/*  parent must't be NULL  */
-	explicit PLSShareSourceItem(QWidget *parent);
+	explicit PLSShareSourceItem(QWidget *parent, const QVariantMap &source);
 	~PLSShareSourceItem() override;
 	/*  for initialize data and children views  */
-	void initInfo(const QVariantMap &source);
+	void initInfo();
 
 signals:
 	/*  used by parent obj  */

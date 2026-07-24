@@ -5,16 +5,11 @@
 #include <QPen>
 #include <QFrame>
 #include <QRectF>
-#include <QPixmap>
 #include <QLabel>
+#include "win-signal.h"
 
 class RegionCapture : public QWidget {
 	Q_OBJECT
-
-	struct ScreenShotData {
-		QPixmap pixmap;
-		QRect geometry;
-	};
 
 public:
 	explicit RegionCapture(QWidget *parent = nullptr);
@@ -31,6 +26,7 @@ protected:
 	bool eventFilter(QObject *watched, QEvent *event) override;
 	void closeEvent(QCloseEvent *event) override;
 	void keyPressEvent(QKeyEvent *event) override;
+	void showEvent(QShowEvent *event) override;
 
 private:
 	void UpdateSelectedRect();
@@ -53,6 +49,10 @@ signals:
 	void selectedRegion(const QRect &rect);
 
 private:
+#if defined(_WIN32) && defined(PLS_UI_ACTION_STATS)
+	CSignalEvent signal;
+#endif
+
 	QFrame *menuFrame = nullptr;
 	QLabel *labelTip = nullptr;
 	QLabel *labelRect = nullptr;
@@ -69,7 +69,6 @@ private:
 	QRect rectSelected;
 	QPen penLine;
 	QPen penBorder;
-	QList<ScreenShotData> screenShots;
 	uint64_t maxRegionWidth = 0;
 	uint64_t maxRegionHeight = 0;
 	bool drawing = true;

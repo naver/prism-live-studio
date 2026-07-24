@@ -25,7 +25,7 @@
 #include "../prism-ui/main/pls-gpop-data.hpp"
 #include "../prism-ui/scene-templates/PLSSceneTemplateModel.h"
 #include "PLSErrorHandler.h"
-
+#include "../prism-ui/main/PLSNoticeUpdateTypes.hpp"
 class PLSLoginInfo;
 class QWidget;
 class QNetworkCookie;
@@ -33,7 +33,6 @@ class QNetworkCookie;
 #define PRISM_SSL pls_get_gpop_connection().ssl
 
 enum class PLSResultCheckingResult { Ok, Continue, Close };
-enum class PLSPaidState { Free = 0, Trial, Plus };
 
 /**
   * browser result check
@@ -235,15 +234,6 @@ FRONTEND_API QString pls_get_b2b_auth_url();
 FRONTEND_API bool pls_get_b2b_acctoken(const QString &url);
 
 /**
-  * get cpu, gpu, memory data
-  * param:
-  * return:
-  *     e.g.	{"result": "OK", "data": {"CPU": 0.3, "GPU": 0.3, "memory": 200.3}}
-  *				{"result": "fail", reason: ""}
-  */
-FRONTEND_API QJsonObject pls_get_resource_statistics_data();
-
-/**
 * alert window
 */
 FRONTEND_API bool pls_click_alert_message();
@@ -259,8 +249,6 @@ FRONTEND_API int pls_alert_message_count();
 FRONTEND_API QList<std::tuple<QString, QString>> pls_get_user_active_channles_info();
 
 FRONTEND_API bool pls_is_rehearsal_info_display();
-
-FRONTEND_API QString pls_get_remote_control_mobile_name(const QString &platformName);
 
 FRONTEND_API bool pls_frontend_set_preview_program_mode(bool enable);
 
@@ -312,7 +300,9 @@ enum class pls_frontend_event {
 	PLS_FRONTEND_EVENT_DUAL_OUTPUT_OFF,
 
 	//PRISM/jimboRen/20250403/for paid, parameter--> (current, previous)
-	PLS_FRONTEND_EVENT_PAID_STATE_CHANGED
+	PLS_FRONTEND_EVENT_PAID_STATE_CHANGED,
+
+	PLS_FRONT_EVENT_MUSIC_PLAYLIST_SELECT_CHANGED
 };
 /**
   * frontend event callback
@@ -373,25 +363,6 @@ FRONTEND_API void pls_toast_message(pls_toast_info_type type, const QString &mes
 FRONTEND_API void pls_toast_clear();
 
 /**
-  * show paid message
-  * param:
-  *     [in] type: message type
-  *     [in] title: title name
-  *     [in] message: message content
-  *     [in] bottomButton: bottom button, default is empty
-  *     [in] btnCallback: when button click, the callback will call
-  *     [in] containCloseBtn: top right close btn
-  *     [in] auto_close: auto close timeout(millisecond), if not any button, the time will be set 5000
-  */
-FRONTEND_API void pls_paid_toast_message(pls_toast_info_type type, const QString &title, const QString &message, const QString &bottomButton = QString(),
-					 const std::function<void()> &btnCallback = nullptr, bool containCloseBtn = true, int auto_close = -1);
-//only have top right close image button
-FRONTEND_API void pls_paid_toast_message_close_btn(pls_toast_info_type type, const QString &title, const QString &message);
-//not have any button
-FRONTEND_API void pls_paid_toast_message_no_btn(pls_toast_info_type type, const QString &title, const QString &message, int auto_close = 5000);
-// hide current toast and clear the queue list.
-FRONTEND_API void pls_paid_toast_clear();
-/**
   * set main view side bar user button icon
   * param:
   *     [in] icon: user button icon
@@ -447,7 +418,8 @@ enum class pls_upload_file_result_t {
   * return:
   *     check result
   */
-FRONTEND_API pls_check_update_result_t pls_check_app_update(bool &is_force, QString &version, QString &file_url, QString &update_info_url, PLSErrorHandler::RetData &retData);
+FRONTEND_API pls_check_update_result_t pls_check_app_update(bool &is_force, QString &version, QString &file_url, QString &update_info_url, PLSErrorHandler::RetData &retData,
+							    bool isNeedLatestApi = false);
 
 /**
   * check update
@@ -478,7 +450,8 @@ FRONTEND_API bool pls_show_update_info_view(bool is_force, const QString &versio
   * return:
   *     url
   */
-FRONTEND_API void pls_get_new_notice_Info(const std::function<void(const QVariantMap &noticeInfo)> &noticeCallback);
+FRONTEND_API void pls_get_new_notice_Info(const std::function<void(const QList<PLSNoticeUpdateItem> &noticeInfos)> &noticeCallback);
+FRONTEND_API QList<PLSNoticeUpdateItem> pls_get_new_notice_from_cache();
 /**
   * get windows version
   * return:
@@ -619,31 +592,13 @@ struct ITextMotionTemplateHelper {
 FRONTEND_API ITextMotionTemplateHelper *pls_get_text_motion_template_helper_instance();
 FRONTEND_API ITextMotionTemplateHelper *pls_get_chat_template_helper_instance();
 
-/**
-  * get current application language
-  */
-FRONTEND_API QString pls_get_current_language();
-
 FRONTEND_API QLocale::Language pls_get_current_language_enum();
 
-/**
-  * pt-BR -> pt
-  */
-FRONTEND_API QString pls_get_current_language_short_str();
-
-/**
-  * pt-BR -> BR
-  */
-FRONTEND_API QString pls_get_current_country_short_str();
 /*
 * check if current app language  is languge x
 * et. QLocale::English ->pls_is_match_current_language(QLocale::English)
 */
 FRONTEND_API bool pls_is_match_current_language(QLocale::Language xlanguage);
-
-#define IS_ENGLISH() pls_is_match_current_language(QLocale::English)
-
-#define IS_KR() pls_is_match_current_language(QLocale::Korean)
 
 /**
   * get current accept language
@@ -915,27 +870,6 @@ FRONTEND_API void pls_enum_sources(const std::function<bool(obs_source_t *)> &ca
 
 FRONTEND_API void pls_on_frontend_event(pls_frontend_event event, const QVariantList &params = QVariantList());
 
-enum class AnalogType {
-	ANALOG_VIRTUAL_BG_TEMPLATE,
-	ANALOG_VIRTUAL_BG,
-	ANALOG_BEAUTY,
-	ANALOG_DRAWPEN,
-	ANALOG_ADD_SOURCE,
-	ANALOG_ADD_FILTER,
-	ANALOG_PLAY_BGM,
-	ANALOG_VIRTUAL_CAM,
-	ANALOG_PLATFORM_OUTPUTGUIDE,
-	ANALOG_NCB2B_LOGIN,
-	ANALOG_ERROR_CODE,
-	ANALOG_PAID_STATE
-};
-
-FRONTEND_API void pls_send_analog(AnalogType logType, const QVariantMap &info);
-
-FRONTEND_API QString pls_get_analog_filter_id(const char *id);
-
-FRONTEND_API void pls_get_scene_source_count(int &sceneCount, int &sourceCount);
-
 FRONTEND_API int pls_show_download_failed_alert(QWidget *parent);
 
 FRONTEND_API QVector<QString> pls_get_scene_collections();
@@ -951,15 +885,15 @@ namespace pls {
 using Button = QDialogButtonBox::StandardButton;
 using Buttons = QDialogButtonBox::StandardButtons;
 }
-FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const QString &message, pls::Buttons buttons = pls::Button::Ok, pls::Button defaultButton = pls::Button::Ok,
+FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const pls_text_t &message, pls::Buttons buttons = pls::Button::Ok, pls::Button defaultButton = pls::Button::Ok,
 						 const std::optional<int> &timeout = std::optional<int>(), const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const QString &message, const QMap<pls::Button, QString> &buttons,
+FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<pls::Button, pls_text_t> &buttons,
 						 pls::Button defaultButton = pls::Button::NoButton, const std::optional<int> &timeout = std::optional<int>(),
 						 const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const QString &message, const QString &errorCode, pls::Buttons buttons = pls::Button::Ok,
+FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const pls_text_t &message, const QString &errorCode, pls::Buttons buttons = pls::Button::Ok,
 						 pls::Button defaultButton = pls::Button::Ok, const std::optional<int> &timeout = std::optional<int>(),
 						 const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
-FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const QString &message, const QString &errorCode, const QMap<pls::Button, QString> &buttons,
+FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const pls_text_t &message, const QString &errorCode, const QMap<pls::Button, pls_text_t> &buttons,
 						 pls::Button defaultButton = pls::Button::NoButton, const std::optional<int> &timeout = std::optional<int>(),
 						 const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 
@@ -1023,15 +957,6 @@ FRONTEND_API bool pls_register_mdns_service(const char *pszName, unsigned short 
 FRONTEND_API void pls_register_mdns_service_ex(const char *pszName, unsigned short wPort, const ServiceRecord &record, bool bRegister, void *context, void (*completion)(void *context, bool success));
 #endif
 
-FRONTEND_API void pls_set_remote_control_server_info(quint16 port);
-FRONTEND_API void pls_get_remote_control_server_info(quint16 &port);
-
-FRONTEND_API void pls_set_remote_control_client_info(const QString &peerName, bool connected);
-FRONTEND_API void pls_get_remote_control_client_info(QString &peerName, bool &connected);
-
-FRONTEND_API bool pls_set_remote_control_log_file(const QString &logFile);
-FRONTEND_API void pls_get_remote_control_log_file(QString &logFile);
-
 FRONTEND_API void pls_sys_tray_notify(const QString &text, QSystemTrayIcon::MessageIcon n, bool usePrismLogo = true);
 
 FRONTEND_API config_t *pls_get_global_cookie_config(void);
@@ -1044,7 +969,7 @@ FRONTEND_API pls_load_ndi_runtime_pfn pls_get_load_ndi_runtime();
 FRONTEND_API void pls_set_load_ndi_runtime(pls_load_ndi_runtime_pfn load_ndi_runtime);
 
 FRONTEND_API QWidget *pls_get_banner_widget();
-FRONTEND_API void pls_open_cam_studio(QStringList arguments, QWidget *parent);
+FRONTEND_API void pls_open_cam_studio(QStringList arguments, QWidget *parent, bool isMobile);
 FRONTEND_API bool pls_is_install_cam_studio(QString &program);
 FRONTEND_API void pls_show_cam_studio_uninstall(QWidget *parent, QString title, QString content, QString okTip, QString cancelTip);
 
@@ -1063,7 +988,28 @@ FRONTEND_API bool pls_get_random_bool();
 FRONTEND_API bool pls_is_chzzk_checked(bool forHorizontal = true);
 
 FRONTEND_API obs_output_t *pls_frontend_get_streaming_output_v(void);
+
 /**
-  * call obs_source_check_settings_ex to check if the source is paid or not.
+  * Click the update button on the sticker source properties page.
   */
-FRONTEND_API bool pls_source_check_paid(obs_source_t *source);
+FRONTEND_API void pls_sticker_source_start_update_sticker(obs_source_t *source);
+
+/**
+  * Start by opening the page for adding a source mode PRISM Sticker.
+  */
+FRONTEND_API void pls_sticker_source_start_add_sticker();
+
+/**
+  * Click Cancel update sticker button
+  */
+FRONTEND_API bool pls_sticker_source_cancel_update_sticker(obs_source_t *source);
+
+/**
+  * Click Apply update sticker button
+  */
+FRONTEND_API void pls_sticker_source_apply_update_sticker(obs_source_t *source);
+
+/**
+  * Click the defaults button on the sticker source properties page.
+  */
+FRONTEND_API void pls_sticker_source_defaults_update_sticker(obs_source_t *source);

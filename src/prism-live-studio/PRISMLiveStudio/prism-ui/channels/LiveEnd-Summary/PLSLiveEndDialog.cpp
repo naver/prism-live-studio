@@ -20,6 +20,17 @@
 #include "qfile.h"
 #include "ui_PLSLiveEndDialog.h"
 
+static const int s_topMargin = 18;
+
+static int getHeight(int windowsHeight)
+{
+#if defined(Q_OS_WIN)
+	return windowsHeight;
+#elif defined(Q_OS_MACOS)
+	return windowsHeight - PLS_TITLE_BAR_HEIGHT + s_topMargin;
+#endif
+}
+
 PLSLiveEndDialog::PLSLiveEndDialog(PLSEndPageType pageType, QWidget *parent) : PLSDialogView(parent), m_pageType(pageType)
 {
 	ui = pls_new<Ui::PLSLiveEndDialog>();
@@ -31,15 +42,18 @@ PLSLiveEndDialog::PLSLiveEndDialog(PLSEndPageType pageType, QWidget *parent) : P
 	setHasCloseButton(true);
 	setHasHLine(false);
 	setResizeEnabled(false);
-	this->setAttribute(Qt::WA_AlwaysShowToolTips, true);
-	addMacTopMargin();
+	addMacTopMargin(20 + s_topMargin);
 
 	PLS_INFO(END_MODULE, "PLSEnd Dialog Show");
 
 	this->setupFirstUI();
 	ui->titleLabel->adjustSize();
 	connect(ui->okButton, &QPushButton::clicked, this, &PLSLiveEndDialog::okButtonClicked);
+
+	pls_uistep_v2_set_value(ui->savePushButton, "clicked", QString("Record Path"));
 	connect(ui->savePushButton, &QPushButton::clicked, this, &PLSLiveEndDialog::openFileSavePath);
+	pls_uistep_v2_set_custom_enter_leave_name(ui->savePushButton, []() { return "Record Path Button"; });
+	pls_uistep_v2_set_title(this, "Live End Dialog");
 }
 
 PLSLiveEndDialog::~PLSLiveEndDialog()
@@ -110,7 +124,7 @@ void PLSLiveEndDialog::setupScrollData()
 
 	if (m_pageType == PLSEndPageType::PLSRecordPage) {
 		ui->channelScroll->setHidden(true);
-		initSize(windowWidth, pls_get_platform_window_height_by_windows_height(recordWidnowHeight));
+		initSize(windowWidth, getHeight(recordWidnowHeight));
 		ui->placehoderLabel->setFixedHeight(0);
 		return;
 	}
@@ -122,7 +136,7 @@ void PLSLiveEndDialog::setupScrollData()
 		if (recordWhenStreaming) {
 			rehearsalHeight = 261;
 		}
-		initSize(windowWidth, pls_get_platform_window_height_by_windows_height(rehearsalHeight));
+		initSize(windowWidth, getHeight(rehearsalHeight));
 		ui->placehoderLabel->setFixedHeight(0);
 		return;
 	}
@@ -175,7 +189,7 @@ void PLSLiveEndDialog::updateOnDPIChanged(int tmpLiveCount, double dpi, bool isE
 	} else {
 		ui->channelScroll->setHidden(true);
 	}
-	initSize(windowWidth, pls_get_platform_window_height_by_windows_height(windowHeight));
+	initSize(windowWidth, getHeight(windowHeight));
 
 	QMetaObject::invokeMethod(
 		this,
@@ -205,6 +219,7 @@ void PLSLiveEndDialog::openFileSavePath() const
 	if (!QDesktopServices::openUrl(videoPath.toString())) {
 		PLS_WARN(END_MODULE, "openFileSavePath failed");
 	}
+	PLS_UI_ACTION("Widget PLSLiveEndDialog Record Path Opend");
 }
 
 void PLSLiveEndDialog::openTipView()
@@ -215,14 +230,9 @@ void PLSLiveEndDialog::openTipView()
 
 QString PLSLiveEndDialog::getRecordPath() const
 {
-
-	const char *mode = pls_basic_config_get_string("Output", "Mode");
-	bool adv = astrcmpi(mode, "Advanced") == 0;
-
-	const char *path = pls_basic_config_get_string("SimpleOutput", "FilePath");
-	if (adv) {
-		path = pls_basic_config_get_string("AdvOut", "RecFilePath");
-	}
-
-	return QString(path);
+	OBSBasic *main = OBSBasic::Get();
+	if (!main)
+		return {};
+	const char *path = main->GetCurrentOutputPath();
+	return path ? QString::fromUtf8(path) : QString();
 }

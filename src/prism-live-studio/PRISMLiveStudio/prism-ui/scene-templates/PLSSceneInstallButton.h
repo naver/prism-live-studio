@@ -17,6 +17,8 @@ public:
 	void startInstall();
 	void endInstall();
 
+	void setEnableState(bool enable);
+
 private:
 	void showLoading();
 	void hideLoading();

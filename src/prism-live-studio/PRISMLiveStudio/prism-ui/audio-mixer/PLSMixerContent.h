@@ -6,6 +6,7 @@
 #include <QBasicTimer>
 #include <QPointer>
 #include "volume-control.hpp"
+#include "window-dock.hpp"
 
 enum class Direction { Left, Right, Top, Bottom, Unknown };
 
@@ -18,13 +19,13 @@ public:
 	void AddWidget(QWidget *widget);
 	void DisplayItemBorder(VolControl *current, const char *borderType);
 	void ClearItemBorder();
+	void AddListenDockWidget(OBSDock *dockWidget);
 
 protected:
 	Qt::Orientation orientation;
 	QBoxLayout *main_layout = nullptr;
 
 protected:
-	void mousePressEvent(QMouseEvent *event) override;
 	void mouseMoveEvent(QMouseEvent *event) override;
 	void dragEnterEvent(QDragEnterEvent *event) override;
 	void dragMoveEvent(QDragMoveEvent *event) override;
@@ -33,6 +34,7 @@ protected:
 	void paintEvent(QPaintEvent *event) override;
 	void timerEvent(QTimerEvent *event) override;
 	void changeEvent(QEvent *event) override;
+	bool eventFilter(QObject *watcher, QEvent *e) override;
 
 signals:
 	void mixerReorderd();
@@ -52,6 +54,7 @@ private:
 	QPoint startDragPoint;
 	QPointer<VolControl> lastClickedVol;
 	QPointer<VolControl> lastDisplayedVol;
+	QPointer<OBSDock> m_dockWidget;
 };
 
 class HMixerContent : public PLSMixerContent {

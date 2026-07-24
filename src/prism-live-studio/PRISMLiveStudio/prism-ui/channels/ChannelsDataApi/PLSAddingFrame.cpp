@@ -1,10 +1,12 @@
 #include "PLSAddingFrame.h"
+#include "libui.h"
 
 PLSAddingFrame::PLSAddingFrame(QWidget *parent) : QFrame(parent)
 {
 	ui->setupUi(this);
 	connect(&mUpdateTimer, &QTimer::timeout, this, &PLSAddingFrame::nextFrame);
 	connect(qApp, &QCoreApplication::aboutToQuit, &mUpdateTimer, &QTimer::stop);
+	pls_uistep_v2_set_custom_show_hide_name(this, parent->property("subWindowLoadingName").toByteArray());
 }
 
 PLSAddingFrame::~PLSAddingFrame()

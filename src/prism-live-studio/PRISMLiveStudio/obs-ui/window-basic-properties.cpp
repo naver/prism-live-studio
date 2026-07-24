@@ -23,6 +23,7 @@
 #include <properties-view.hpp>
 #include "pls-common-define.hpp"
 #include "PLSGetPropertiesThread.h"
+#include "PLSErrorHandler.h"
 
 #include <QCloseEvent>
 #include <QScreen>
@@ -46,6 +47,7 @@
 #include "frontend-api.h"
 #include "PLSAlertView.h"
 #include "PLSChatTemplateDataHelper.h"
+#include "PLSBasic.h"
 
 using namespace std;
 using namespace common;
@@ -64,13 +66,18 @@ OBSBasicProperties::OBSBasicProperties(QWidget *parent, OBSSource source_)
 	  renamedSignal(obs_source_get_signal_handler(source), "rename", OBSBasicProperties::SourceRenamed, this),
 	  oldSettings(obs_data_create())
 {
+	PLS_PERFORMANCE_GLOBAL_START("OBSBasicProperties init", "Properties Page Construct");
+
+	PLS_DISABLE_UISTEP_V2(this);
+	const char *id = obs_source_get_id(source);
+	pls_uistep_v2_add_to_english_cb(id, text_lookup_get_plugin_english_str);
+
 	setupUi(ui);
 	int cx = (int)config_get_int(App()->GetAppConfig(), "PropertiesWindow", "cx");
 	int cy = (int)config_get_int(App()->GetAppConfig(), "PropertiesWindow", "cy");
 
 	enum obs_source_type type = obs_source_get_type(source);
 
-	const char *id = obs_source_get_id(source);
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
 	ui->buttonBox->button(QDialogButtonBox::Ok)->setDefault(true);
@@ -91,13 +98,15 @@ OBSBasicProperties::OBSBasicProperties(QWidget *parent, OBSSource source_)
 
 	bool drawable_type = pls_is_in(type, OBS_SOURCE_TYPE_INPUT, OBS_SOURCE_TYPE_SCENE);
 	bool isVirtualBackgroundSource = pls_is_equal(id, PRISM_BACKGROUND_TEMPLATE_SOURCE_ID);
-	bool showFilterButton = drawable_type && (!isVirtualBackgroundSource);
+	PLSPropertiesData proData;
+	proData.showFiltersBtn = drawable_type && (!isVirtualBackgroundSource);
 
+	PLS_PERFORMANCE_GLOBAL_START("PLSPropertiesView construct", "OBSBasicProperties init");
 	//PRISM/renjinbo/20230104/#/change to PLSPropertiesView
 	view = new PLSPropertiesView(nd_settings.Get(), source, (PropertiesReloadCallback)obs_source_properties,
 				     (PropertiesUpdateCallback) nullptr, // No special handling required for undo/redo
-				     (PropertiesVisualUpdateCb)obs_source_update, 0, -1, showFilterButton);
-
+				     (PropertiesVisualUpdateCb)obs_source_update, proData);
+	PLS_PERFORMANCE_GLOBAL_END("PLSPropertiesView construct");
 	view->SetForProperty(true);
 	view->setMouseTracking(true);
 	// modify by xiewei issue #5324
@@ -119,7 +128,9 @@ OBSBasicProperties::OBSBasicProperties(QWidget *parent, OBSSource source_)
 
 	ui->propertiesLayout->setContentsMargins(15, marginViewTop, 6, 0);
 
+	PLS_PERFORMANCE_GLOBAL_START("OBSBasicProperties add PLSPropertiesView", "OBSBasicProperties init");
 	ui->propertiesLayout->addWidget(view);
+	PLS_PERFORMANCE_GLOBAL_END("OBSBasicProperties add PLSPropertiesView");
 
 	ui->windowSplitter->setStretchFactor(1, 1);
 	ui->windowSplitter->setObjectName(OBJECT_NAME_PROPERTY_SPLITTER);
@@ -163,6 +174,14 @@ OBSBasicProperties::OBSBasicProperties(QWidget *parent, OBSSource source_)
 		CreateTransitionScene(sourceA.Get(), "A", colorA);
 		CreateTransitionScene(sourceB.Get(), "B", colorB);
 
+		//PRISM/Lizhiyong/20260128/PRISM_PC-5198
+		if (pls_is_equal(id, "obs_stinger_transition")) {
+			debounceTimer = new QTimer(this);
+			debounceTimer->setSingleShot(true);
+			debounceTimer->setInterval(800);
+			connect(debounceTimer, &QTimer::timeout, this, &OBSBasicProperties::DebouncedUpdate);
+		}
+
 		/**
 		 * The cloned source is made from scratch, rather than using
 		 * obs_source_duplicate, as the stinger transition would not
@@ -172,19 +191,20 @@ OBSBasicProperties::OBSBasicProperties(QWidget *parent, OBSSource source_)
 		OBSDataAutoRelease settings = obs_source_get_settings(source);
 
 		sourceClone = obs_source_create_private(obs_source_get_id(source), "clone", settings);
+		if (!pls_source_context_data_valid(sourceClone)) {
+			return;
+		}
 
 		obs_source_inc_active(sourceClone);
 		obs_transition_set(sourceClone, sourceA);
 
 		auto updateCallback = [=]() {
-			OBSDataAutoRelease settings = obs_source_get_settings(source);
-			obs_source_update(sourceClone, settings);
-
-			obs_transition_clear(sourceClone);
-			obs_transition_set(sourceClone, sourceA);
-			obs_transition_force_stop(sourceClone);
-
-			direction = true;
+			//PRISM/Lizhiyong/20260128/PRISM_PC-5198
+			if (pls_is_equal(id, "obs_stinger_transition") && debounceTimer) {
+				debounceTimer->start();
+			} else {
+				DebouncedUpdate();
+			}
 		};
 
 		connect(view, &OBSPropertiesView::Changed, updateCallback);
@@ -198,13 +218,18 @@ OBSBasicProperties::OBSBasicProperties(QWidget *parent, OBSSource source_)
 
 #if defined(Q_OS_MACOS)
 	if ((pls_is_equal(id, PRISM_LENS_SOURCE_ID) || pls_is_equal(id, PRISM_LENS_MOBILE_SOURCE_ID) ||
-	     pls_is_equal(id, OBS_DSHOW_SOURCE_ID_V2) || pls_is_equal(id, OBS_DSHOW_SOURCE_ID)) &&
-	    pls_lens_needs_reboot()) {
+	     pls_is_equal(id, OBS_DSHOW_SOURCE_ID_V2) || pls_is_equal(id, OBS_DSHOW_SOURCE_ID))) {
 
 		QMetaObject::invokeMethod(
 			this,
 			[this]() {
-				PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("source.lens.upgrade.notice"));
+				if (pls_lens_needs_reboot()) {
+					PLSErrorHandler::showAlertByPrismCode(
+						PLSErrorHandler::ALERT_SOURCE_LENS_UPGRADE_NOTICE, PLSErrKeyAllAlert,
+						{},
+						PLSErrorHandler::ExtraData("OBSBasicProperties::OBSBasicProperties"),
+						this);
+				}
 			},
 			Qt::QueuedConnection);
 	}
@@ -216,11 +241,17 @@ OBSBasicProperties::OBSBasicProperties(QWidget *parent, OBSSource source_)
 	QWidget *placeholderMouse = new QWidget(this);
 	placeholderMouse->hide();
 	ui->propertiesLayout->addWidget(placeholderMouse);
+
+	pls_uistep_v2_auto_bind(this);
+	PLS_PERFORMANCE_GLOBAL_END("OBSBasicProperties init");
 }
 
 OBSBasicProperties::~OBSBasicProperties()
 {
-	pls_source_properties_edit_end(source, m_isSaveClick);
+	if (!m_isSendCloseNotify) {
+		m_isSendCloseNotify = true;
+		pls_source_properties_edit_end(source, m_isSaveClick);
+	}
 
 	if (sourceClone) {
 		obs_source_dec_active(sourceClone);
@@ -228,6 +259,21 @@ OBSBasicProperties::~OBSBasicProperties()
 	obs_source_dec_showing(source);
 	main->SaveProject();
 	main->UpdateContextBarDeferred(true);
+
+	if (const char *id = obs_source_get_id(source); !pls_is_empty(id))
+		pls_uistep_v2_remove_to_english_cb(id);
+}
+
+void OBSBasicProperties::DebouncedUpdate()
+{
+	OBSDataAutoRelease settings = obs_source_get_settings(source);
+	obs_source_update(sourceClone, settings);
+
+	obs_transition_clear(sourceClone);
+	obs_transition_set(sourceClone, sourceA);
+	obs_transition_force_stop(sourceClone);
+
+	direction = true;
 }
 
 void OBSBasicProperties::AddPreviewButton()
@@ -238,6 +284,10 @@ void OBSBasicProperties::AddPreviewButton()
 	playButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
 	auto play = [=]() {
+		if (!pls_source_context_data_valid(sourceClone)) {
+			return;
+		}
+
 		OBSSource start;
 		OBSSource end;
 
@@ -323,7 +373,7 @@ static void CreateTransitionScene(OBSSource scene, const char *text, uint32_t co
 
 void OBSBasicProperties::SourceRemoved(void *data, calldata_t *)
 {
-	QMetaObject::invokeMethod(static_cast<OBSBasicProperties *>(data), "close");
+	QMetaObject::invokeMethod(static_cast<OBSBasicProperties *>(data), "close", Qt::QueuedConnection);
 }
 
 void OBSBasicProperties::SourceRenamed(void *data, calldata_t *params)
@@ -341,12 +391,12 @@ void OBSBasicProperties::UpdateProperties(void *data, calldata_t *)
 
 static bool ConfirmReset(QWidget *parent)
 {
-	QMessageBox::StandardButton button;
+	auto button = PLSErrorHandler::showAlertByPrismCode(
+			      PLSErrorHandler::ALERT_PROPERTIES_CONFIRM_RESET, PLSErrKeyAllAlert, {},
+			      PLSErrorHandler::ExtraData("OBSBasicProperties::ConfirmReset"), parent)
+			      .clickedBtn;
 
-	button = OBSMessageBox::question(parent, QTStr("ConfirmReset.Title"), QTStr("ConfirmReset.Text"),
-					 QMessageBox::Yes | QMessageBox::No);
-
-	return button == QMessageBox::Yes;
+	return button == QDialogButtonBox::StandardButton::Yes;
 }
 
 void OBSBasicProperties::on_buttonBox_clicked(QAbstractButton *button)
@@ -372,10 +422,6 @@ void OBSBasicProperties::on_buttonBox_clicked(QAbstractButton *button)
 
 		OBSDataAutoRelease new_settings = obs_data_create();
 		OBSDataAutoRelease curr_settings = obs_source_get_settings(source);
-		//check source is paid or not
-		if (isPaidSource()) {
-			return;
-		}
 		obs_data_apply(new_settings, curr_settings);
 		obs_data_set_string(new_settings, "undo_uuid", obs_source_get_uuid(source));
 		obs_data_set_string(oldSettings, "undo_uuid", obs_source_get_uuid(source));
@@ -389,10 +435,12 @@ void OBSBasicProperties::on_buttonBox_clicked(QAbstractButton *button)
 
 		m_isSaveClick = true; //RenJinbo/add is save button clicked
 		acceptClicked = true;
+		m_lastClickedButton = ButtonClickType::PropertyOk;
 		close();
 
 		if (view->DeferUpdate())
 			view->UpdateSettings();
+		PLSBasic::instance()->refreshSceneThumbnail();
 	} else if (val == QDialogButtonBox::RejectRole) {
 		OBSDataAutoRelease settings = obs_source_get_settings(source);
 		obs_data_clear(settings);
@@ -401,7 +449,7 @@ void OBSBasicProperties::on_buttonBox_clicked(QAbstractButton *button)
 			obs_data_apply(settings, oldSettings);
 		else
 			obs_source_update(source, oldSettings);
-
+		m_lastClickedButton = ButtonClickType::PropertyCancel;
 		close();
 
 	} else if (val == QDialogButtonBox::ResetRole) {
@@ -430,8 +478,15 @@ void OBSBasicProperties::on_buttonBox_clicked(QAbstractButton *button)
 			pls_get_chat_template_helper_instance()->initTemplateButtons();
 		}
 
+		if (pls_is_equal(PRISM_STICKER_SOURCE_ID, id)) {
+			pls_sticker_source_defaults_update_sticker(source);
+		}
+
 		if (!view->DeferUpdate())
-			obs_source_update(source, nullptr);
+#ifdef PLS_UI_ACTION_STATS
+			pls_on_source_property_changed(source, "defaults");
+#endif
+		obs_source_update(source, nullptr);
 		if (!pls_is_equal(obs_source_get_id(source), PRISM_TIMER_SOURCE_ID)) {
 			pls_source_properties_edit_start(source);
 		}
@@ -440,15 +495,14 @@ void OBSBasicProperties::on_buttonBox_clicked(QAbstractButton *button)
 	}
 }
 
-void OBSBasicProperties::DrawPreview(void *data, uint32_t cx, uint32_t cy)
+QRect OBSBasicProperties::OBSBasicProperties::getRenderSize(OBSBasicProperties *window, uint32_t cx, uint32_t cy,
+							    uint32_t &sourceCX, uint32_t &sourceCY)
 {
-	OBSBasicProperties *window = static_cast<OBSBasicProperties *>(data);
-
 	if (!window->source)
-		return;
+		return {};
 
-	uint32_t sourceCX = max(obs_source_get_width(window->source), 1u);
-	uint32_t sourceCY = max(obs_source_get_height(window->source), 1u);
+	sourceCX = max(obs_source_get_width(window->source), 1u);
+	sourceCY = max(obs_source_get_height(window->source), 1u);
 	const char *sourceId = obs_source_get_id(window->source);
 
 	int x, y;
@@ -461,18 +515,40 @@ void OBSBasicProperties::DrawPreview(void *data, uint32_t cx, uint32_t cy)
 		GetChatScaleAndCenterPos(window->m_dpi, sourceCX, sourceCY, cx, cy, x, y, scale);
 		newCX = int(scale * float(sourceCX));
 		newCY = int(scale * float(sourceCY));
+	} else if (auto settings = pls_get_source_setting(window->source);
+		   pls_is_equal(sourceId, PRISM_CHATV2_SOURCE_ID) && obs_data_get_int(settings, "Tab") != 3) {
+		float width = 330.f + 30.f; // chatv2 template1/2/3/4 defaut size + margin
+		auto index = obs_data_get_int(settings, "Chat.Template.List");
+		if (index % 10 == 4)
+			width = 690.f + 30.f; // chatv2 template5 defaut size + margin
+
+		float WIDTH = float(width * window->m_dpi);
+		newCX = int(WIDTH);
+		newCY = int(float(WIDTH * float(sourceCY)) / float(sourceCX));
+		x = cx / 2 - newCX / 2;
+		y = cy - (newCY - 20.f * window->m_dpi); // chatv2 y size - y margin
 	} else {
 		GetScaleAndCenterPos(sourceCX, sourceCY, cx, cy, x, y, scale);
 		newCX = int(scale * float(sourceCX));
 		newCY = int(scale * float(sourceCY));
 	}
+	return {x, y, newCX, newCY};
+}
+
+void OBSBasicProperties::DrawPreview(void *data, uint32_t cx, uint32_t cy)
+{
+	OBSBasicProperties *window = static_cast<OBSBasicProperties *>(data);
+	if (!window->source)
+		return;
+	uint32_t sourceCX, sourceCY;
+	QRect renderRect = getRenderSize(window, cx, cy, sourceCX, sourceCY);
 
 	gs_viewport_push();
 	gs_projection_push();
 	const bool previous = gs_set_linear_srgb(true);
 
 	gs_ortho(0.0f, float(sourceCX), 0.0f, float(sourceCY), -100.0f, 100.0f);
-	gs_set_viewport(x, y, newCX, newCY);
+	gs_set_viewport(renderRect.x(), renderRect.y(), renderRect.width(), renderRect.height());
 	obs_source_video_render(window->source);
 
 	gs_set_linear_srgb(previous);
@@ -517,23 +593,6 @@ void OBSBasicProperties::Cleanup()
 
 	obs_display_remove_draw_callback(ui->preview->GetDisplay(), OBSBasicProperties::DrawPreview, this);
 	obs_display_remove_draw_callback(ui->preview->GetDisplay(), OBSBasicProperties::DrawTransitionPreview, this);
-}
-
-bool OBSBasicProperties::isPaidSource()
-{
-	bool isPaidSource = pls_source_check_paid(source);
-	if (isPaidSource) {
-		const char *sourceId = obs_source_get_id(source);
-		PLSChatTemplateDataHelper::raisePropertyView();
-		if (pls_is_equal(PRISM_CHATV2_SOURCE_ID, sourceId)) {
-			OBSBasic::Get()->showsTipAndPrismPlusIntroWindow(tr("Chat.Widget.Paid.Tips"), "Chat Widget",
-									 this);
-		} else if (pls_is_equal(PRISM_TEXT_TEMPLATE_ID, sourceId)) {
-			OBSBasic::Get()->showsTipAndPrismPlusIntroWindow(tr("Text.Template.Paid.Tips"), "Text Template",
-									 this);
-		}
-	}
-	return isPaidSource;
 }
 
 void OBSBasicProperties::closeEvent(QCloseEvent *event)
@@ -600,18 +659,16 @@ void OBSBasicProperties::UpdateOldSettings()
 bool OBSBasicProperties::ConfirmQuit()
 {
 	bringWindowToTop(this);
-	PLSAlertView::Button button;
-
-	button = PLSAlertView::information(
-		nullptr, QTStr("Basic.PropertiesWindow.ConfirmTitle"), QTStr("Basic.PropertiesWindow.Confirm"),
-		PLSAlertView::Button::Save | PLSAlertView::Button::Discard | PLSAlertView::Button::Cancel,
-		PLSAlertView::Button::NoButton, -1, {{AlertKeyDisableEsc, true}, {AlertKeyDisableAltF4, true}});
+	PLSErrorHandler::ExtraData extraData("OBSBasicProperties::ConfirmQuit");
+	extraData.propertiesMap = {{AlertKeyDisableEsc, true}, {AlertKeyDisableAltF4, true}};
+	auto button = static_cast<QMessageBox::StandardButton>(
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_PROPERTIES_CONFIRM_QUIT, PLSErrKeyAllAlert,
+						      {}, extraData, this)
+			.clickedBtn);
 
 	switch (button) {
 	case QMessageBox::Save:
-		if (isPaidSource()) {
-			return false;
-		}
+		m_lastClickedButton = ButtonClickType::PromptSave;
 		acceptClicked = true;
 		m_isSaveClick = true; //RenJinbo/add is save button clicked
 		if (view->DeferUpdate())
@@ -620,6 +677,7 @@ bool OBSBasicProperties::ConfirmQuit()
 
 		break;
 	case QMessageBox::Discard:
+		m_lastClickedButton = ButtonClickType::PromptDiscard;
 		acceptClicked = true;  //#4341 by zengqin
 		m_isSaveClick = false; //RenJinbo/add is save button clicked
 		obs_source_reset_settings(
@@ -627,6 +685,7 @@ bool OBSBasicProperties::ConfirmQuit()
 			oldSettings); //RenJinbo/#1494/obs bug change obs_source_update to obs_source_reset_settings
 		break;
 	case QMessageBox::Cancel:
+		m_lastClickedButton = ButtonClickType::PromptCancel;
 		return false;
 		break;
 	default:

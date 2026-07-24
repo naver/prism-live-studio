@@ -20,11 +20,15 @@ static inline QPoint operator+(const QPoint &pt, const QSize &sz)
 	return QPoint(pt.x() + sz.width(), pt.y() + sz.height());
 }
 
-PLSShareSourceItem::PLSShareSourceItem(QWidget *parent) : PLSDialogView(parent)
+PLSShareSourceItem::PLSShareSourceItem(QWidget *parent, const QVariantMap &source) : PLSDialogView(parent), mSource(source)
 {
+	PLS_DISABLE_UISTEP_V2(this);
+	auto channelName = getInfo(mSource, g_channelName, QString());
+	pls_uistep_v2_set_custom_show_hide_name(this, QString("%1 Share View").arg(channelName).toUtf8());
 	ui = pls_new<Ui::ShareSourceItem>();
 	setupUi(ui);
 	setFixedSize(QSize(480, 369));
+	setResizeEnabled(false);
 #if defined(Q_OS_MACOS)
 	this->setHasCloseButton(true);
 	this->setHasMinButton(false);
@@ -48,6 +52,9 @@ PLSShareSourceItem::PLSShareSourceItem(QWidget *parent) : PLSDialogView(parent)
 	auto centerShow = [this, parent]() { move(parent->pos() + (parent->size() - size()) / 2); };
 
 	centerShow();
+	pls_uistep_v2_set_custom_enter_leave_name(ui->OpenUrlFaceBook, "Share Facebook");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->OpenUrlTwitter, "Share X");
+	pls_uistep_v2_set_title(this, QStringLiteral("Channel Share View"));
 }
 
 PLSShareSourceItem::~PLSShareSourceItem()
@@ -55,10 +62,8 @@ PLSShareSourceItem::~PLSShareSourceItem()
 	delete ui;
 }
 
-void PLSShareSourceItem::initInfo(const QVariantMap &source)
+void PLSShareSourceItem::initInfo()
 {
-	mSource = source;
-
 	auto disName = getInfo(mSource, g_displayLine1);
 	QString disElidName = getElidedText(ui->DisnameLabel, disName, ui->DisnameLabel->contentsRect().width());
 	ui->DisnameLabel->setText(disElidName);
@@ -77,10 +82,10 @@ void PLSShareSourceItem::initInfo(const QVariantMap &source)
 
 	auto facebookShareUrl = g_facebookShareUrl.arg(urlStr);
 	ui->OpenUrlFaceBook->setProperty(SHARE_URL_KEY, facebookShareUrl);
-
+	pls_uistep_v2_set_value(ui->OpenUrlFaceBook, QStringLiteral("*"), QStringLiteral("Share to Facebook"));
 	auto twitterUrl = g_twitterShareUrl.arg(disName + " Broadcast Share ", urlStr);
 	ui->OpenUrlTwitter->setProperty(SHARE_URL_KEY, twitterUrl);
-
+	pls_uistep_v2_set_value(ui->OpenUrlTwitter, QStringLiteral("*"), QStringLiteral("Share to Twitter"));
 	updatePixmap();
 }
 
@@ -94,6 +99,7 @@ void PLSShareSourceItem::onCopyPressed()
 	clipboard->setText(url);
 	emit UrlCopied();
 	ui->CopyBtn->setEnabled(false);
+	PLS_UI_ACTION("In Share View Copy Url Finished");
 }
 
 void PLSShareSourceItem::openUrl() const
@@ -107,6 +113,7 @@ void PLSShareSourceItem::openUrl() const
 		}
 		PLS_INFO("PLSShareSourceItem", "open url finished");
 	}
+	PLS_UI_ACTION("In Share View Open Url Finished");
 }
 
 void PLSShareSourceItem::on_CloseBtn_clicked()

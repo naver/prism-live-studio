@@ -282,8 +282,14 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="1">
+          <item row="3" column="1" alignment="Qt::AlignmentFlag::AlignLeft">
            <widget class="PLSCheckBox" name="money_checkbox" native="true">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="text" stdset="0">
              <string>chzzk.need.money.content</string>
             </property>
@@ -345,7 +351,7 @@
               </widget>
              </item>
              <item>
-              <widget class="PLSHelpIcon" name="label">
+              <widget class="PLSHelpIcon" name="followHelp">
                <property name="toolTip">
                 <string>chzzk.chat.limit.followers.tooltip</string>
                </property>
@@ -373,7 +379,7 @@
              <item>
               <widget class="PLSRadioButton" name="radioButton_chat_manager" native="true">
                <property name="toolTip">
-                <string>chzzk.chat.limit.admin.tooltip</string>
+                <string/>
                </property>
                <property name="text" stdset="0">
                 <string>chzzk.chat.limit.admin</string>
@@ -381,7 +387,7 @@
               </widget>
              </item>
              <item alignment="Qt::AlignLeft|Qt::AlignVCenter">
-              <widget class="PLSHelpIcon" name="label_2">
+              <widget class="PLSHelpIcon" name="adminHelp">
                <property name="toolTip">
                 <string>chzzk.chat.limit.admin.tooltip</string>
                </property>

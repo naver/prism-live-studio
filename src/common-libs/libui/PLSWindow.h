@@ -1,5 +1,5 @@
-#ifndef PLSWIDGET_H
-#define PLSWIDGET_H
+#ifndef PLSWINDOW_H
+#define PLSWINDOW_H
 
 #include <functional>
 #include <QDialog>
@@ -13,17 +13,18 @@ class PLSWindow;
 
 class LIBUI_API PLSWindow : public PLSToplevelView<QWidget> {
 	Q_OBJECT
+	Q_PROPERTY(int captionBarHeight READ getCaptionBarHeight WRITE setCaptionBarHeight)
 	Q_PROPERTY(int captionHeight READ getCaptionHeight WRITE setCaptionHeight)
 	Q_PROPERTY(int captionButtonSize READ getCaptionButtonSize WRITE setCaptionButtonSize)
 	Q_PROPERTY(int captionButtonMargin READ getCaptionButtonMargin WRITE setCaptionButtonMargin)
 	Q_PROPERTY(int textMarginLeft READ getTextMarginLeft WRITE setTextMarginLeft)
+	Q_PROPERTY(int textMarginRight READ getTextMarginRight WRITE setTextMarginRight)
 	Q_PROPERTY(int closeButtonMarginRight READ getCloseButtonMarginRight WRITE setCloseButtonMarginRight)
 	Q_PROPERTY(bool hasCaption READ getHasCaption WRITE setHasCaption)
 	Q_PROPERTY(bool hasHLine READ getHasHLine WRITE setHasHLine)
 	Q_PROPERTY(bool hasMinButton READ getHasMinButton WRITE setHasMinButton)
 	Q_PROPERTY(bool hasCloseButton READ getHasCloseButton WRITE setHasCloseButton)
 	Q_PROPERTY(bool hasMaxResButton READ getHasMaxResButton WRITE setHasMaxResButton)
-	Q_PROPERTY(bool isMoveInContent READ moveInContent WRITE setMoveInContent)
 	Q_PROPERTY(bool maxState READ getMaxState)
 	Q_PROPERTY(bool fullScreenState READ getFullScreenState)
 	Q_PROPERTY(int captionButtonTopMargin READ getCaptionButtonTopMargin WRITE setCaptionButtonTopMargin)
@@ -31,15 +32,27 @@ class LIBUI_API PLSWindow : public PLSToplevelView<QWidget> {
 	Q_PROPERTY(QColor titleBarBkgColor READ getTitleBarBkgColor WRITE setTitleBarBkgColor)
 
 public:
-	explicit PLSWindow(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
+	explicit PLSWindow(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags(), CreateWinId createWinId = CreateWinId::DontCreate);
 
 	~PLSWindow() override;
+
+	/**
+	* @brief      get title bar view
+	* @return     title bar view
+	*/
+	QWidget *titleBar() const;
 
 	/**
 	* @brief      get content view
 	* @return     content view
 	*/
 	QWidget *content() const;
+
+	/**
+	* @brief      get or set title widget
+	*/
+	QWidget *titleWidget() const;
+	void setTitleWidget(QWidget *widget, std::function<void(QWidget *titleWidget, const QSize &size)> &&resizeCb = nullptr);
 
 	/**
 	* @brief      get or set content widget
@@ -49,6 +62,12 @@ public:
 
 	/**
 	* @brief      get or set title bar height
+	*/
+	int getCaptionBarHeight() const;
+	void setCaptionBarHeight(int captionBarHeight);
+
+	/**
+	* @brief      get or set title height
 	*/
 	int getCaptionHeight() const;
 	void setCaptionHeight(int captionHeight);
@@ -70,6 +89,12 @@ public:
 	*/
 	int getTextMarginLeft() const;
 	void setTextMarginLeft(int textMarginLeft);
+
+	/**
+	* @brief      get or set title bar text's right margin
+	*/
+	int getTextMarginRight() const;
+	void setTextMarginRight(int textMarginRight);
 
 	/**
 	* @brief      get or set title bar close button's right margin
@@ -143,7 +168,6 @@ public:
 	void setCaptionButtonTopMargin(int captionButtonTopMargin);
 
 	QWidget *titleLabel() const;
-	int setTitleCustomWidth(int width);
 
 	int titleBarHeight() const override;
 
@@ -159,8 +183,10 @@ public:
 	*/
 	void setisUseOriginalParent(bool isUseOriginalParent) { m_isUseOriginalParent = isUseOriginalParent; }
 
+	void updateTitleBarLayout(const QSize &titleBarSize);
 signals:
 	void shown();
+	void resizing(const QSize &size);
 
 private:
 	void flushMaxFullScreenStateStyle();
@@ -173,10 +199,12 @@ protected:
 	void keyPressEvent(QKeyEvent *event) override;
 	void keyReleaseEvent(QKeyEvent *event) override;
 	bool eventFilter(QObject *watcher, QEvent *event) override;
-	bool event(QEvent *event) override;
 	void windowStateChanged(QWindowStateChangeEvent *event) override;
+	void resizeEvent(QResizeEvent *event) override;
+	void paintEvent(QPaintEvent *event) override;
 
 	virtual bool closeButtonHook() { return true; }
+	virtual int getTitleWidth(int titleWidth) const { return titleWidth; }
 
 	template<typename Ui> void setupUi(Ui &ui)
 	{
@@ -184,17 +212,18 @@ protected:
 		QMetaObject::connectSlotsByName(this);
 	}
 
-private slots:
-	void SetNameLabelText(const QString &title);
-
 private:
 	Ui::PLSWindow *ui = nullptr;
 	QWidget *owidget = nullptr;
+	QWidget *otitleWidget = nullptr;
+	int captionBarHeight = 0;
 	int captionHeight = 0;
 	int captionButtonSize = 0;
 	int captionButtonMargin = 0;
 	int textMarginLeft = 8;
+	int textMarginRight = 5;
 	int closeButtonMarginRight = 0;
+	int captionButtonTopMargin = 0;
 	bool hasCaption = true;
 	bool hasHLine = true;
 	bool hasMinButton = false;
@@ -207,8 +236,8 @@ private:
 	QString helpTooltip;
 	int helpTooltipX = 0;
 	int helpTooltipY = 0;
-	int titleCustomWidth = 0;
 	QColor m_bkgColor;
+	std::function<void(QWidget *titleWidget, const QSize &size)> titleWidgetResizeCb = nullptr;
 };
 
-#endif // PLSWIDGET_H
+#endif // PLSWINDOW_H

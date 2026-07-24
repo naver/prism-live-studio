@@ -1,0 +1,112 @@
+{
+    "data": [
+        {
+            "key": "This.UnitTest.key.1",
+            "en-US": "test en-US",
+            "es-ES": "test es-ES",
+            "id-ID": "test id-ID",
+            "ko-KR": "test ko-KR",
+            "pt-BR": "test pt-BR",
+            "vi-VN": "test vi-VN",
+            "ja-JP": "test ja-JP"
+        },
+        {
+            "key": "This.UnitTest.key.2",
+            "en-US": "test2 라이브\nen-US"
+        },
+        {
+            "key": "This.UnitTest.key.3",
+            "ko-KR": "test3 ko-KR"
+        },
+        {
+            "key": "Live.Check.LiveInfo.Youtube.block.permisson.28006",
+            "en-US": "You cannot live stream on %1 because streaming permissions haven’t been enabled.\nSome permissions may take up to 24 hours to activate after application or verification. For more information, please click the [View Help] button.",
+            "es-ES": "No puedes retransmitir en directo en %1 porque no se han activado los permisos de retransmisión.\nAlgunos permisos pueden tardar hasta 24 horas en activarse tras su solicitud o verificación. Para obtener más información, haz clic en el botón [Ver ayuda].",
+            "id-ID": "Anda tidak dapat melakukan live streaming di %1 karena izin streaming belum diaktifkan.\nBeberapa izin dapat memerlukan waktu hingga 24 jam untuk diaktifkan setelah pengajuan atau verifikasi. Untuk informasi lebih lanjut, silakan klik tombol [Lihat Bantuan].",
+            "ko-KR": "%1 스트리밍 권한이 활성화되지 않아 방송을 시작할 수 없습니다.\n일부 권한은 신청 또는 인증 후 최대 24시간이 소요될 수 있습니다. 자세한 내용은 [도움말 보기] 버튼을 선택해 확인해 주세요.",
+            "pt-BR": "Você não pode fazer transmissões ao vivo no %1 porque as permissões de transmissão não foram ativadas.\nAlgumas permissões podem levar até 24 horas para serem ativadas após a solicitação ou verificação. Para mais informações, por favor clique no botão [Ver ajuda].",
+            "vi-VN": "Bạn không thể phát trực tiếp trên %1 vì quyền phát trực tiếp chưa được bật.\nMột số quyền có thể mất đến 24 giờ để kích hoạt sau khi đăng ký hoặc xác minh. Để biết thêm thông tin, vui lòng nhấp vào nút [Xem trợ giúp].",
+            "ja-JP": "%1ストリーミングの権限が有効になっていないため、配信を開始できません。\n一部の権限は申請または認証後、有効になるまで最大24時間かかる場合があります。詳しくは［ヘルプを表示］ボタンをクリックしてご確認ください。"
+        },
+        {
+            "key": "Live.Check.LiveInfo.Youtube.block.permisson.28005",
+            "en-US": "You are currently restricted from %1 live streaming.\nThis may be due to a violation of community guidelines or platform policies. For more information, please click the [View Help] button.",
+            "es-ES": "Actualmente tienes restringida la retransmisión en directo en %1.\nEsto puede deberse a una infracción de las directrices de la comunidad o de las políticas de la plataforma. Para obtener más información, haz clic en el botón [Ver ayuda].",
+            "id-ID": "Saat ini Anda dibatasi dari live streaming %1.\nHal ini dapat terjadi karena pelanggaran pedoman komunitas atau kebijakan platform. Untuk informasi lebih lanjut, silakan klik tombol [Lihat Bantuan].",
+            "ko-KR": "%1 라이브 스트리밍 권한이 제한되어 방송을 시작할 수 없습니다.\n계정이 커뮤니티 가이드라인 또는 정책 위반으로 인해 제한되었을 수 있습니다. 자세한 내용은 [도움말 보기] 버튼을 선택해 확인해 주세요.",
+            "pt-BR": "Você está atualmente restrito às transmissões ao vivo do %1.\nIsso pode ser devido a uma violação das diretrizes da comunidade ou das políticas da plataforma. Para mais informações, por favor clique no botão [Ver ajuda].",
+            "vi-VN": "Hiện tại, bạn đang bị hạn chế phát trực tiếp trên %1.\nTài khoản của bạn có thể đã bị hạn chế do vi phạm nguyên tắc cộng đồng hoặc chính sách nền tảng. Để biết thêm thông tin, vui lòng nhấp vào nút [Xem trợ giúp].",
+            "ja-JP": "%1ライブストリーミングの権限が制限されているため、配信を開始できません。\nアカウントがコミュニティガイドラインまたはポリシーに違反したことにより、制限されている可能性があります。詳しくは［ヘルプを表示］ボタンをクリックしてご確認ください。"
+        },
+        {
+            "key": "Live.Check.LiveInfo.authenticatedUserAccountSuspended",
+            "en-US": "There’s an issue with your %1 account. Please check your account status using the link below.",
+            "es-ES": "Hay un problema con tu cuenta de %1. Por favor, comprueba el estado de tu cuenta utilizando el siguiente enlace.",
+            "id-ID": "Terdapat masalah dengan akun %1 Anda. Silakan cek status akun Anda melalui link di bawah ini.",
+            "ko-KR": "%1 계정에 문제가 발생했습니다. 아래의 링크에서 계정 상태를 확인해 주세요.",
+            "pt-BR": "Detectamos um problema com sua conta do %1. Por favor verifique o status acessando o link abaixo.",
+            "vi-VN": "Tài khoản %1 của bạn đang gặp sự cố. Vui lòng kiểm tra trạng thái tài khoản tại liên kết bên dưới.",
+            "ja-JP": "%1のアカウントに問題が発生しています。下記のリンクからアカウントの状態をご確認ください。"
+        },
+        {
+            "key": "Live.Check.LiveInfo.backendError",
+            "en-US": "A temporary error occurred on the %1 server. Please try again in a moment.\n",
+            "es-ES": "Se ha producido un error temporal en el servidor de %1. Por favor, inténtalo de nuevo en un momento.",
+            "id-ID": "Terjadi kesalahan sementara pada server %1. Silakan coba lagi beberapa saat lagi.",
+            "ko-KR": "%1 서버에서 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+            "pt-BR": "Ocorreu um erro temporário no servidor do %1. Por favor tente novamente em instantes.",
+            "vi-VN": "Đã xảy ra lỗi tạm thời trên máy chủ %1. Vui lòng thử lại sau.",
+            "ja-JP": "%1サーバーで一時的なエラーが発生しました。しばらくしてから再度お試しください。"
+        },
+        {
+            "key": "Live.Check.LiveInfo.Refresh.Net.Failed",
+            "en-US": "Failed to load the live information. Please check your network connection and try again",
+            "es-ES": "No se ha podido cargar la información en directo. Comprueba tu conexión de red e inténtalo de nuevo",
+            "id-ID": "Gagal memuat informasi live. Silakan periksa koneksi jaringan Anda dan coba kembali.",
+            "ko-KR": "라이브 정보를 불러올 수 없습니다. 네트워크 상태 등을 확인한 후, 잠시 후에 다시 시도해 주세요.",
+            "pt-BR": "Falha ao carregar as informações ao vivo. Verifique sua conexão de rede e tente novamente.",
+            "vi-VN": "Không tải được thông tin live. Vui lòng kiểm tra kết nối mạng và thử lại.",
+            "ja-JP": "配信情報を読み込めません。ネットワークの状態を確認し、しばらくしてから再度お試しください。"
+        },
+        {
+            "key": "facebook.liveinfo.login.token.expired",
+            "en-US": "Your Facebook channel authentication has expired. Your login session may have ended, or the necessary permissions may have been revoked. Please reconnect your channel.",
+            "es-ES": "La autenticación de tu canal de Facebook ha caducado. Es posible que tu sesión de inicio de sesión haya finalizado o que se hayan revocado los permisos necesarios. Vuelve a conectar tu canal.",
+            "id-ID": "Autentikasi saluran Facebook Anda telah kedaluwarsa. Sesi login Anda mungkin telah berakhir, atau izin yang diperlukan telah dicabut. Silakan sambungkan kembali saluran Anda.",
+            "ko-KR": "Facebook 채널의 인증 정보가 만료되었습니다. 로그인이 만료되었거나 권한이 해제되었을 수 있으니, 채널을 다시 연동해 주세요.",
+            "pt-BR": "A autenticação do seu canal do Facebook expirou. Sua sessão de login pode ter sido encerrada ou as permissões necessárias podem ter sido revogadas. Por favor reconecte seu canal.",
+            "vi-VN": "Xác thực kênh Facebook của bạn đã hết hạn, có thể vì phiên đăng nhập đã kết thúc hoặc các quyền cần thiết đã bị thu hồi. Vui lòng kết nối lại kênh của bạn.\n",
+            "ja-JP": "Facebookチャンネルの認証情報の有効期限が切れました。ログインの有効期限が切れたか、権限が解除された可能性があります。チャンネルを再連携してください。"
+        },
+        {
+            "key": "Prism.Login.Systemtime.Error",
+            "en-US": "The app cannot run normally due to an incorrect system time setting. Please change the setting to the current time and try again.",
+            "es-ES": "La aplicación no puede ejecutarse con normalidad debido a un ajuste incorrecto de la hora del sistema. Por favor, cambie el ajuste a la hora actual e inténtelo de nuevo.",
+            "id-ID": "Aplikasi tidak dapat berjalan normal karena pengaturan waktu sistem yang salah. Silakan ubah pengaturan ke waktu saat ini dan coba kembali.",
+            "ko-KR": "시스템 시간이 잘못 설정되어 앱을 정상적으로 사용할 수 없습니다. 현재 시간으로 설정 변경 후 다시 시도해 주세요.",
+            "pt-BR": "O aplicativo não pode ser executado normalmente devido a uma configuração incorreta da hora do sistema. Altere a configuração para a hora atual e tente novamente.",
+            "vi-VN": "Ứng dụng không thể chạy bình thường do thời gian hệ thống cài đặt không chính xác. Vui lòng thay đổi cài đặt về thời gian hiện tại và thử lại.",
+            "ja-JP": "システム時間が正しく設定されていないため、アプリを正常に使用できません。現在の時間に設定を変更してからもう一度お試しください。"
+        },
+        {
+            "key": "Live.Check.LiveInfo.Update.Error.Failed",
+            "en-US": "Failed to properly update live information. This may be a temporary issue with the %1 service. Please check the %1 page for details.",
+            "es-ES": "No se ha podido actualizar correctamente la información en tiempo real. Esto puede ser un problema temporal con el servicio %1. Consulta la página %1 para obtener más información.",
+            "id-ID": "Gagal memperbarui informasi live dengan benar. Mungkin ini adalah masalah sementara yang terjadi dengan layanan %1. Silakan cek halaman %1 untuk informasi selengkapnya.",
+            "ko-KR": "라이브 정보가 정상적으로 반영되지 않았습니다. %1 서비스에서 발생한 일시적인 문제일 수 있습니다. %1 페이지를 확인해 주세요.",
+            "pt-BR": "Falha ao atualizar corretamente as informações ao vivo. Este pode ser um problema temporário com o serviço %1. Por favor consulte a página %1 para obter detalhes.",
+            "vi-VN": "Thông tin live hiển thị chưa chính xác. Đây có thể là sự cố tạm thời với dịch vụ %1. Vui lòng kiểm tra trang %1 để biết thêm chi tiết.",
+            "ja-JP": "配信情報が正常に反映されませんでした。%1 サービス側で一時的な問題が発生している可能性があります。%1 ページをご確認ください。"
+        },
+        {
+            "key": "Live.Button.View.Help",
+            "en-US": "View Help",
+            "es-ES": "Ver ayuda",
+            "id-ID": "Lihat Bantuan",
+            "ko-KR": "도움말 보기",
+            "pt-BR": "Ver ajuda",
+            "vi-VN": "Xem trợ giúp",
+            "ja-JP": "ヘルプを表示"
+        }
+    ]
+}

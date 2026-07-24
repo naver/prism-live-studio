@@ -15,6 +15,8 @@
 #include <QString>
 #include <QStackedWidget>
 
+class QLineEdit;
+
 namespace LoginCommonHelpers {
 /**
  * @brief isValidEmailByRegExp: check email format
@@ -22,6 +24,8 @@ namespace LoginCommonHelpers {
  * @return
  */
 bool isValidEmailByRegExp(const QString &email);
+/** Trim leading/trailing whitespace on email field (\\r, \\n, spaces, etc., per QChar::isSpace). */
+void sanitizeEmailLineEdit(QLineEdit *edit);
 /**
  * @brief isValidPasswordByRegExp: check password format
  * @param password

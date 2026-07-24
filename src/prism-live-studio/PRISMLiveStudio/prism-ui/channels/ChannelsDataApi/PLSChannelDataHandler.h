@@ -7,7 +7,9 @@
 #include <QSharedPointer>
 #include <QString>
 #include <QVariantMap>
+#include "libhttp-client.h"
 #include "liblog.h"
+
 using ChannelsMap = QMap<QString, QVariantMap>;
 
 using InfosList = QList<QVariantMap>;
@@ -49,6 +51,7 @@ public:
 
 	//login
 	virtual void loginWithWebPage(const QString &cmdStr);
+	virtual void initChannelDataFromPrismLogin(const QString &cmdStr);
 
 	virtual void showLiveInfo(const QString & /*uuid*/) {};
 
@@ -90,9 +93,18 @@ public:
 	QString getPlatformName() override;
 	bool tryToUpdate(const QVariantMap &srcInfo, const UpdateCallback &callback) override;
 	virtual bool downloadHeaderImage(const QString &pixUrl);
+	bool runTasks();
 
 private:
+	QVariantMap getTwitchHead();
+	bool getTwitchUserInfo();
 	bool getChannelsInfo();
+	bool getTwitchToken();
+	bool refreshTwitchToken();
+	void errorHandler(const pls::http::Reply &reply, const QString &reason);
+
+protected:
+	QMap<long long, QVariant> mTaskMap;
 };
 
 class YoutubeHandler : public TwitchDataHandler {
@@ -116,9 +128,6 @@ protected:
 
 	void handleError(int code, QByteArray data, QNetworkReply::NetworkError error, const QString &logFrom);
 	void resetWhenRefresh() override;
-
-private:
-	QMap<long long, QVariant> mTaskMap;
 };
 
 #endif // ! CHANNELDATAHANDLER_H

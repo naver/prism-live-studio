@@ -1,9 +1,11 @@
 #include "PLSShoppingCalenderCombox.h"
 #include <QTimer>
 #include "utils-api.h"
+#include "pls-performance.h"
 
 PLSShoppingCalenderCombox::PLSShoppingCalenderCombox(QWidget *parent) : QPushButton(parent)
 {
+	PLS_PERFORMANCE_GLOBAL_START("PLSShoppingCalenderCombox::constructor", "PLSLiveInfoNaverShoppingLIVE::setupUi");
 	setDefault(false);
 	setAutoDefault(false);
 	m_menu = pls_new<PLSShoppingComboxMenu>(this);
@@ -16,6 +18,7 @@ PLSShoppingCalenderCombox::PLSShoppingCalenderCombox(QWidget *parent) : QPushBut
 		m_menu->setHidden(true);
 		emit clickTime(item->text());
 	});
+	PLS_PERFORMANCE_GLOBAL_END("PLSShoppingCalenderCombox::constructor");
 }
 
 void PLSShoppingCalenderCombox::showDateCalender()

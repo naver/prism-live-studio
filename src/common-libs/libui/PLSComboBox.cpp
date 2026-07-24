@@ -108,9 +108,12 @@ private:
 	PLSComboBoxListView *listView;
 };
 
-PLSComboBoxListView::PLSComboBoxListView(QWidget *parent) : QListView(parent)
+PLSComboBoxListView::PLSComboBoxListView(QComboBox *comboBox) : m_comboBox(comboBox)
 {
 	this->installEventFilter(this);
+#if defined(PLS_UI_ACTION_STATS)
+	this->viewport()->installEventFilter(this);
+#endif
 }
 
 bool PLSComboBoxListView::scrollBarShow() const
@@ -127,16 +130,31 @@ QItemSelectionModel::SelectionFlags PLSComboBoxListView::selectionCommand(const 
 	return QItemSelectionModel::SelectionFlag::NoUpdate;
 }
 
-bool PLSComboBoxListView::eventFilter(QObject *i_Object, QEvent *i_Event)
+bool PLSComboBoxListView::eventFilter(QObject *watched, QEvent *event)
 {
-	if (i_Object == this && i_Event->type() == QEvent::KeyPress) {
-		auto key = static_cast<QKeyEvent *>(i_Event);
+	if (watched == this && event->type() == QEvent::KeyPress) {
+		auto key = static_cast<QKeyEvent *>(event);
 		if ((key->key() != Qt::Key_Enter) && (key->key() != Qt::Key_Return)) {
 			//disable up down and other key.
 			return true;
 		}
 	}
-	return QWidget::eventFilter(i_Object, i_Event);
+
+#if defined(PLS_UI_ACTION_STATS)
+	if (event->type() == QEvent::MouseButtonRelease && isVisible()) {
+		if (auto index = currentIndex(); index.isValid()                                                             //
+						 && rect().contains(static_cast<QMouseEvent *>(event)->position().toPoint()) //
+						 && (index.flags().testFlag(Qt::ItemIsEnabled))                              //
+						 && (index.flags().testFlag(Qt::ItemIsSelectable))) {
+			auto title = pls_uistep_v2_get_title(m_comboBox).toUtf8();
+			auto name = pls_uistep_v2_get_name(m_comboBox, PLS_UI_STEPS_V2_SIGNAL_CURRENTINDEXCHANGED).toUtf8();
+			auto item = m_comboBox->itemText(index.row()).toUtf8();
+			PLS_UI_ACTION("In %s, Choose ComboBox: %s, Item: %s", title.constData(), name.constData(), item.constData());
+		}
+	}
+#endif
+
+	return QWidget::eventFilter(watched, event);
 }
 
 void PLSComboBoxListView::verticalScrollbarValueChanged(int value)
@@ -201,6 +219,11 @@ PLSComboBox::PLSComboBox(QWidget *parent) : QComboBox(parent)
 	auto listView = pls_new<PLSComboBoxListView>(this);
 	listView->setObjectName("PLSComboBoxListView");
 	PLSComboBoxListViewResize *resizeEvent = pls_new<PLSComboBoxListViewResize>(listView, this);
+#if defined(PLS_UI_ACTION_STATS)
+	pls_uistep_v2_set_custom_show_hide_name(listView, [this]() {
+		return pls_uistep_v2_get_title(this).toUtf8() + QByteArrayLiteral(", ComboBox: ") + pls_uistep_v2_get_name(this, PLS_UI_STEPS_V2_SIGNAL_CURRENTINDEXCHANGED).toUtf8();
+	});
+#endif
 
 	setView(listView);
 	view()->window()->setWindowFlags(Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
@@ -226,6 +249,12 @@ QSize PLSComboBox::minimumSizeHint() const
 
 void PLSComboBox::showPopup()
 {
+#if defined(PLS_UI_ACTION_STATS)
+	auto title = pls_uistep_v2_get_title(this).toUtf8();
+	auto name = pls_uistep_v2_get_name(this, PLS_UI_STEPS_V2_SIGNAL_CURRENTINDEXCHANGED).toUtf8();
+	PLS_UI_ACTION("In %s, Click ComboBox: %s", title.constData(), name.constData());
+#endif
+
 	auto model = this->model();
 	for (int row = 0, rowCount = model->rowCount(); row < rowCount; ++row) {
 		auto index = model->index(row, 0);

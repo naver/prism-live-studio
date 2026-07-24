@@ -57,27 +57,62 @@ PLSVisualizerResource::PLSVisualizerResource()
 	solid_rgb[solid_color::SOLID_COLOR_11] = C_SOLID_COLOR_11;
 	solid_rgb[solid_color::SOLID_COLOR_12] = C_SOLID_COLOR_12;
 
-	obs_enter_graphics();
-	char *path = obs_module_file(P_GRADIENT_MODE_0);
-	gradient_texture[gradient_color::GRADIENT_COLOR_0] = gs_texture_create_from_file(path);
-	bfree(path);
-	path = obs_module_file(P_GRADIENT_MODE_1);
-	gradient_texture[gradient_color::GRADIENT_COLOR_1] = gs_texture_create_from_file(path);
-	bfree(path);
-	path = obs_module_file(P_GRADIENT_MODE_2);
-	gradient_texture[gradient_color::GRADIENT_COLOR_2] = gs_texture_create_from_file(path);
-	bfree(path);
-	path = obs_module_file(P_GRADIENT_MODE_3);
-	gradient_texture[gradient_color::GRADIENT_COLOR_3] = gs_texture_create_from_file(path);
-	bfree(path);
-	path = obs_module_file(P_GRADIENT_MODE_4);
-	gradient_texture[gradient_color::GRADIENT_COLOR_4] = gs_texture_create_from_file(path);
-	bfree(path);
+	gradient_texture[gradient_color::GRADIENT_COLOR_0].store(nullptr);
+	gradient_texture[gradient_color::GRADIENT_COLOR_1].store(nullptr);
+	gradient_texture[gradient_color::GRADIENT_COLOR_2].store(nullptr);
+	gradient_texture[gradient_color::GRADIENT_COLOR_3].store(nullptr);
+	gradient_texture[gradient_color::GRADIENT_COLOR_4].store(nullptr);
 
-	obs_leave_graphics();
+	gradientThread = std::thread([this] {
+		struct ImageData {
+			uint8_t *data = nullptr;
+			uint32_t cx = 0;
+			uint32_t cy = 0;
+			enum gs_color_format format;
+		};
+		std::map<gradient_color, ImageData> images;
+		std::map<gradient_color, const char *> paths = {{gradient_color::GRADIENT_COLOR_0, P_GRADIENT_MODE_0},
+								{gradient_color::GRADIENT_COLOR_1, P_GRADIENT_MODE_1},
+								{gradient_color::GRADIENT_COLOR_2, P_GRADIENT_MODE_2},
+								{gradient_color::GRADIENT_COLOR_3, P_GRADIENT_MODE_3},
+								{gradient_color::GRADIENT_COLOR_4, P_GRADIENT_MODE_4}};
+
+		for (const auto &kv : paths) {
+			char *path = obs_module_file(kv.second);
+			uint32_t cx = 0;
+			uint32_t cy = 0;
+			enum gs_color_format format;
+			uint8_t *data = gs_create_texture_file_data(path, &format, &cx, &cy);
+			images[kv.first] = {std::move(data), cx, cy, format};
+			bfree(path);
+		}
+
+		auto images_ptr = std::make_unique<std::map<gradient_color, ImageData>>(std::move(images));
+		obs_queue_task(
+			OBS_TASK_GRAPHICS,
+			[](void *param) {
+				std::unique_ptr<std::map<gradient_color, ImageData>> images(static_cast<std::map<gradient_color, ImageData> *>(param));
+				auto resource = PLSVisualizerResource::Instance();
+				obs_enter_graphics();
+				for (const auto &kv : *images) {
+					if (kv.second.data) {
+						gs_texture_t *tex = gs_texture_create(kv.second.cx, kv.second.cy, kv.second.format, 1, (const uint8_t **)&kv.second.data, 0);
+						resource->gradient_texture[kv.first].store(tex);
+						bfree(kv.second.data);
+					}
+				}
+				obs_leave_graphics();
+			},
+			images_ptr.release(), false);
+	});
 }
 
-PLSVisualizerResource::~PLSVisualizerResource() = default;
+PLSVisualizerResource::~PLSVisualizerResource()
+{
+	if (gradientThread.joinable()) {
+		gradientThread.join();
+	}
+}
 
 void PLSVisualizerResource::freeVisualizerResource()
 {
@@ -85,12 +120,24 @@ void PLSVisualizerResource::freeVisualizerResource()
 	signal_handler_disconnect(obs_get_signal_handler(), "source_destroy", source_changed, &this->destroy_type);
 	signal_handler_disconnect(obs_get_signal_handler(), "source_rename", source_changed, &this->rename_type);
 
-	obs_enter_graphics();
-	for (auto it = gradient_texture.rbegin(); it != gradient_texture.rend(); it++) {
-		gs_texture_destroy(it->second);
-		it->second = nullptr;
+	if (gradientThread.joinable()) {
+		gradientThread.join();
 	}
-	obs_leave_graphics();
+	obs_queue_task(
+		OBS_TASK_GRAPHICS,
+		[](void *param) {
+			auto resource = static_cast<PLSVisualizerResource *>(param);
+			obs_enter_graphics();
+			for (auto it = resource->gradient_texture.rbegin(); it != resource->gradient_texture.rend(); it++) {
+				if (it->second.load() != nullptr) {
+					gs_texture_destroy(it->second);
+					it->second.store(nullptr);
+				}
+			}
+			resource->gradient_texture.clear();
+			obs_leave_graphics();
+		},
+		this, false);
 }
 
 static bool update_properties(void *param, obs_source_t *source)
@@ -669,7 +716,6 @@ visual_mode visualizer_source::get_old_visual_mode() const
 {
 	return config.visual;
 }
-
 void register_visualiser()
 {
 	obs_source_info si = {};
@@ -717,7 +763,16 @@ void register_visualiser()
 
 	si.update = [](void *data, obs_data_t *settings) { static_cast<visualizer_source *>(data)->update(settings); };
 	si.video_tick = [](void *data, float seconds) { static_cast<visualizer_source *>(data)->tick(seconds); };
-	si.video_render = [](void *data, gs_effect_t *effect) { static_cast<visualizer_source *>(data)->render(effect); };
+	si.video_render = [](void *data, gs_effect_t *effect) {
+		auto visualizer = static_cast<visualizer_source *>(data);
+		if (visualizer) {
+			visualizer->render(effect);
+#ifdef PLS_UI_ACTION_STATS
+			//PRISM/lizhiyong/20260122/PRISM_PC-5037/action log
+			pls_on_source_property_render(visualizer->get_source(), 0);
+#endif
+		}
+	};
 	si.type_data = PLSVisualizerResource::Instance();
 	si.free_type_data = [](void *type_data) { static_cast<PLSVisualizerResource *>(type_data)->freeVisualizerResource(); };
 

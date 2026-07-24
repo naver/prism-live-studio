@@ -7,6 +7,8 @@
 #include "pls-common-define.hpp"
 #include "liblog.h"
 #include "libutils-api.h"
+#include "pls-shared-values.h"
+#include "PLSRecentLoginStore.hpp"
 
 using namespace common;
 
@@ -49,17 +51,22 @@ bool PLSLoginUserInfo::isSelf() const
 	return isSelf;
 }
 
-QString PLSLoginUserInfo::getNCPPlatformToken()
+QString PLSLoginUserInfo::getSNSPlatformTokenType()
 {
-	return m_userObj.value("NCP_access_token").toString();
+	return m_userObj.value(common::SNS_TOKEN_TYPE).toString();
 }
-QString PLSLoginUserInfo::getNCPPlatformRefreshToken()
+
+QString PLSLoginUserInfo::getSNSPlatformToken()
 {
-	return m_userObj.value("NCP_refresh_token").toString();
+	return m_userObj.value(common::SNS_ACCESS_TOKEN).toString();
 }
-qint64 PLSLoginUserInfo::getNCPPlatformExpiresTime()
+QString PLSLoginUserInfo::getSNSPlatformRefreshToken()
 {
-	return m_userObj.value("NCP_expires_in").toInteger();
+	return m_userObj.value(common::SNS_REFRESH_TOKEN).toString();
+}
+qint64 PLSLoginUserInfo::getSNSPlatformExpiresTime()
+{
+	return m_userObj.value(common::SNS_EXPIRED_IN).toInteger();
 }
 QString PLSLoginUserInfo::getNCPPlatformServiceName()
 {
@@ -77,27 +84,37 @@ QString PLSLoginUserInfo::getNCPPlatformServiceAuthUrl()
 {
 	return m_userObj.value("NCP_service_auth_url").toString();
 }
-void PLSLoginUserInfo::updateNCB2BTokenInfo(const QString &token, const QString &refreshToken, const qint64 &expiresTime)
+
+void PLSLoginUserInfo::updateNCB2BTokenInfo(const QString &token, const QString &refreshToken, const qint64 &expiresTime, const QString &tokenType)
 {
 	auto userPath = pls_get_user_path(CONFIGS_USER_CONFIG_PATH);
-	m_userObj.insert("NCP_access_token", token);
-	m_userObj.insert("NCP_refresh_token", refreshToken);
-	m_userObj.insert("NCP_expires_in", expiresTime);
+	m_userObj.insert(common::SNS_ACCESS_TOKEN, token);
+	m_userObj.insert(common::SNS_REFRESH_TOKEN, refreshToken);
+	m_userObj.insert(common::SNS_EXPIRED_IN, expiresTime);
+	m_userObj.insert(common::SNS_TOKEN_TYPE, tokenType);
+
 	bool isSuccess = pls_write_json_cbor(userPath, m_userObj);
 
 	PLS_INFO("UserInfo", "save ncb2b token is %s.", isSuccess ? "success" : "failed");
 }
+
 void PLSLoginUserInfo::getUserLoginInfo()
 {
 	auto userPath = pls_get_user_path(CONFIGS_USER_CONFIG_PATH);
 	auto camUsePath = pls_get_user_path(CONFIGS_CAM_USER_CONFIG_PATH);
 	bool isSuccess = pls_read_json_cbor(m_userObj, userPath) && !m_userObj.value(LOGIN_USERINFO_TOKEN).isNull();
-	if (!isSuccess) {
+	auto restartType = pls_cmdline_get_uint32_arg(pls_cmdline_args(), shared_values::k_launcher_command_type);
+	auto cachePath = userPath;
+
+	if (!isSuccess && restartType != static_cast<int>(RestartAppType::Logout)) {
 		PLS_INFO("UserInfo", "get user info from lens");
 		isSuccess = pls_read_json_cbor(m_userObj, camUsePath);
 		m_userObj.insert("isCam", true);
 		m_isSelf = false;
+		cachePath = camUsePath;
 	}
+	if (isSuccess)
+		PLSRecentLoginStore::storeByCacheFile(m_userObj, cachePath);
 
 	PLS_INFO("UserInfo", "get user info is %s.", isSuccess ? "success" : "failed");
 }

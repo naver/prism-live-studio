@@ -24,7 +24,7 @@
 	case Triangle:
 		return base;
 	case Highlighter:
-		return base + 2.0;
+		return [self getHighlighterStrokeWidthFromThichnessMode:thicknessMode];
 	default:
 		return base;
 	}
@@ -103,6 +103,23 @@
 		return 14.0;
 	case Thichness4:
 		return 18.0;
+	default:
+		return 4.0;
+	}
+}
+
++ (CGFloat)getHighlighterStrokeWidthFromThichnessMode:(ThicknessMode)thicknessMode {
+	switch (thicknessMode) {
+	case Thichness0:
+		return 4.0;
+	case Thichness1:
+		return 10.0;
+	case Thichness2:
+		return 16.0;
+	case Thichness3:
+		return 22.0;
+	case Thichness4:
+		return 30.0;
 	default:
 		return 4.0;
 	}

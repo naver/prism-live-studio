@@ -106,6 +106,24 @@ void onDownloadedItem(const pls::rsm::Item &item, DownloadTasks &tasks)
 
 bool PLSStickerDataHandler::CheckStickerSource()
 {
+	static DownloadTasks tasks;
+	tasks.clear();
+	obs_enum_sources(checkCallback, &tasks);
+	if (!tasks.empty()) {
+		PLS_INFO(MAIN_PRISM_STICKER, "There are %d sticker resource file missed, download it agin", tasks.size());
+		connect(CategoryPrismSticker::instance(), &CategoryPrismSticker::finishDownloadItem, [](pls::rsm::Item item, bool ok, bool) {
+			pls_async_call_mt([item, ok]() {
+				// handle download item
+				if (ok) {
+					onDownloadedItem(item, tasks);
+				}
+			});
+		});
+		for (const auto &[itemId, _] : tasks) {
+			CategoryPrismSticker::instance()->downloadItem(itemId);
+		}
+	}
+
 	return true;
 }
 
@@ -237,6 +255,7 @@ QString PLSStickerDataHandler::getTargetImagePath(QString resourcePath, QString 
 		if (varMap.isEmpty()) {
 			return false;
 		}
+
 		auto stickerId = varMap.value("itemId").toString();
 		if (0 == id.compare(stickerId)) {
 			index = landscape ? varMap.value("landscapeFrame").toInt() : varMap.value("portraitFrame").toInt();
@@ -246,18 +265,23 @@ QString PLSStickerDataHandler::getTargetImagePath(QString resourcePath, QString 
 		return false;
 	};
 
+	bool useDefaultStickerImage = false;
 	auto it = std::find_if(items.begin(), items.end(), isMatchSticker);
 	if (it == items.cend()) {
-		return imageFile;
+		useDefaultStickerImage = true;
 	}
 
 	QDir dir(resourcePath);
 	if (dir.exists()) {
 		QStringList list = dir.entryList(QDir::Files);
+		if (useDefaultStickerImage) {
+			index = std::ceil(list.size() / 2.0f);
+		}
 		index -= 1;
 		if (index >= 0 && index < list.size())
 			imageFile = resourcePath + "/" + list.at(index);
 	}
+	assert(imageFile != "");
 	return imageFile;
 }
 
@@ -298,6 +322,7 @@ StickerHandleResult PLSStickerDataHandler::RemuxItemResource(const pls::rsm::Ite
 	for (const auto &config : wrapper->m_config) {
 		auto remuxedFile = path + config.resourceDirectory + ".mp4";
 		auto resourcePath = path + config.resourceDirectory;
+
 		if (!QFile::exists(remuxedFile) && !PLSStickerDataHandler::MediaRemux(resourcePath, remuxedFile, config.fps)) {
 			ok = false;
 			PLS_WARN(MAIN_PRISM_STICKER, "Failed to remux file:%s.", qUtf8Printable(downloader::getFileName(remuxedFile)));

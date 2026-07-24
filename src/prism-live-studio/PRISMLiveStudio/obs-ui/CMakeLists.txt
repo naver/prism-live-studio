@@ -141,6 +141,8 @@ target_sources(
           crash-report.hpp
           display-helpers.hpp
           platform.hpp
+          qt-display-failed-view.cpp
+          qt-display-failed-view.hpp
           qt-display.cpp
           qt-display.hpp
           qt-wrappers.cpp

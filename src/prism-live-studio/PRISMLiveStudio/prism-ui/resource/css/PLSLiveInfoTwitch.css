@@ -1,49 +1,54 @@
 PLSLiveInfoTwitch #lineEditTitle {
-	qproperty-minimumSize: /*hdpi*/ 555px /*hdpi*/ 40px;
-	qproperty-maximumSize: /*hdpi*/ 555px /*hdpi*/ 40px;
+    qproperty-minimumSize: 555px 40px;
+    qproperty-maximumSize: 555px 40px;
 }
 
 PLSLiveInfoTwitch #labelTitle {
-	qproperty-maximumSize: /*hdpi*/ 114px /*hdpi*/ 40px;
-	qproperty-minimumSize: /*hdpi*/ 114px /*hdpi*/ 40px;
+    qproperty-maximumSize: 114px 40px;
+    qproperty-minimumSize: 114px 40px;
 }
 
-PLSLiveInfoTwitch > #plsDialogViewBorderFrame > #titleBar {
-	qproperty-focusPolicy: StrongFocus;
+PLSLiveInfoTwitch > #titleBar {
+    qproperty-focusPolicy: StrongFocus;
 }
+
 PLSLiveInfoTwitch #categoryIconLabel {
-	qproperty-maximumSize: /*hdpi*/ 38px /*hdpi*/ 52px;
-	qproperty-minimumSize: /*hdpi*/ 38px /*hdpi*/ 52px;
-}
-PLSLiveInfoTwitch #frame {
-	border:none;
-	background-color:transparent;
-	border-bottom:1px solid #111111;
-}
-PLSLiveInfoTwitch #labelTooltip {
-	border: none;
-	background-color: transparent;
-}
-PLSLiveInfoTwitch #labelTooltip {
-	image: url(":resource/images/ic-help-off-normal.svg");
-	min-width: /*hdpi*/ 18px;
-	max-width: /*hdpi*/ 18px;
-	min-height: /*hdpi*/ 18px;
-	max-height: /*hdpi*/ 18px;
-	background-color: transparent;
-	padding: 0;
-	margin: 0;
+    qproperty-maximumSize: 38px 52px;
+    qproperty-minimumSize: 38px 52px;
 }
 
-PLSLiveInfoTwitch #labelTooltip:hover {
-	image: url(":resource/images/ic-help-off-over.svg");
+PLSLiveInfoTwitch #frame {
+    border: none;
+    background-color: transparent;
+    border-bottom: 1px solid #111111;
 }
-PLSLiveInfoBase > #plsDialogViewBorderFrame > #content > #twitchService {
-	border: none;
-	background-color: transparent;
-	font-size: 12px;
-	font-weight:normal;
-	min-height:16px;
-	max-height:16px;
-	color:#bababa;
+
+PLSLiveInfoTwitch #labelTooltip {
+    border: none;
+    background-color: transparent;
+}
+
+PLSLiveInfoTwitch #labelTooltip {
+    image: url(":resource/images/ic-help-off-normal.svg");
+    min-width: 18px;
+    max-width: 18px;
+    min-height: 18px;
+    max-height: 18px;
+    background-color: transparent;
+    padding: 0;
+    margin: 0;
+}
+
+    PLSLiveInfoTwitch #labelTooltip:hover {
+        image: url(":resource/images/ic-help-off-over.svg");
+    }
+
+PLSLiveInfoBase > #content > #twitchService {
+    border: none;
+    background-color: transparent;
+    font-size: 12px;
+    font-weight: normal;
+    min-height: 16px;
+    max-height: 16px;
+    color: #bababa;
 }

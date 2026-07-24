@@ -1,16 +1,16 @@
 QPlainTextEdit{
-	border:/*hdpi*/ none;
-	border-radius:/*hdpi*/ 3px;
+	border: none;
+	border-radius: 3px;
 	background-color: #222222;
-	padding:/*hdpi*/2px/*hdpi*/2px/*hdpi*/3px/*hdpi*/7px;
-	font-size:/*hdpi*/ 14px;
+	padding: 2px 2px 3px 7px;
+	font-size: 14px;
 	color: #ffffff;
 }
-QPlainTextEdit::focus
+QPlainTextEdit:focus
 {    
-	border:/*hdpi*/ 1px solid #EFFC35;
+	border: 1px solid #EFFC35;
 }
 
 QPlainTextEdit:!focus{
-	border:/*hdpi*/ 1px solid transparent;
+	border: 1px solid transparent;
 }

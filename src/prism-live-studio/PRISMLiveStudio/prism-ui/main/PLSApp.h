@@ -8,6 +8,7 @@
 #define SUCCESSFAIL QStringLiteral("successFail")
 
 using EventFilterFunc = std::function<bool(QObject *, QEvent *)>;
+class pls_process_t;
 
 class PLSEventFilter : public QObject {
 	Q_OBJECT
@@ -43,8 +44,9 @@ public:
 	bool notify(QObject *obj, QEvent *evt) override;
 	bool event(QEvent *event) override;
 	void initSideBarWindowVisible() const;
+	void createLoadingApp();
+	void destoryLoadingApp();
 	static void setAnalogBaseInfo(QJsonObject &obj, bool isUploadHardwareInfo = false);
-	static void uploadAnalogInfo(const QString &apiPath, const QVariantMap &paramInfos, bool isUploadHardwareInfo = false);
 	static int runProgram(PLSApp &program, int argc, char *argv[], ScopeProfiler &prof);
 	static void generatePrismSessionAndSubSession(int argc, char *argv[]);
 
@@ -54,8 +56,13 @@ public slots:
 protected:
 	bool eventFilter(QObject *obj, QEvent *event) override;
 
+	void onIpcConnected(pls_ipc_t ipc) override;
+	void onIpcDisconnected(pls_ipc_t ipc) override;
+	void onIpcMessage(pls_ipc_t ipc, int type, const QJsonValue &data) override;
+
 signals:
-	bool AppNotify(void *obj, void *evt);
+	void appleIDAuthCallbackUrl(const QString &url);
+	void facebookAuthCallbackUrl(const QString &url);
 
 private:
 	void InitCrashConfigDefaults() const;
@@ -65,6 +72,8 @@ private:
 	ConfigFile cookieConfig;
 	ConfigFile naverShoppingConfig;
 	bool m_isDirectLauncher = true;
+	pls_process_t *m_loadingAppPro{nullptr};
+	quint32 m_loadingAppPid = -1;
 };
 
 #endif // PLSAPP_H

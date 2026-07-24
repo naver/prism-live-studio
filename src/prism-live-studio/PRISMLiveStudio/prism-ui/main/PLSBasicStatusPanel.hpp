@@ -25,6 +25,15 @@ class PLSBasicStatusPanel : public QDialog {
 		Error,
 	};
 
+	struct DroppedCount {
+		uint32_t iTotalFrames = 0;
+		uint32_t iDroppedFrames = 0;
+		std::list<int> lstDroppedPercent;
+
+		State stateLastNotice = State::Normal;
+		std::chrono::steady_clock::time_point dtLastNotice;
+	};
+
 	struct OutputLabels {
 		QPointer<QLabel> networkStateImage;
 		QPointer<QLabel> droppedFramesState;
@@ -98,9 +107,11 @@ public:
 public slots:
 	void updateStatusPanel(PLSBasicStatusData &dataStatus);
 	void onDualOutputChanged(bool bDualOutput);
+	void setPaused(bool bPaused) { m_bPaused = bPaused; }
 
 protected:
 	void showEvent(QShowEvent *event) override;
+	void checkDroppedCount(uint32_t iTotal, uint32_t iDropped, double dblDroppedPercent, StreamingNoticeType warningType, StreamingNoticeType errorType, DroppedCount &droppedCount);
 
 private:
 	Ui::PLSBasicStatusPanel *ui;
@@ -112,4 +123,9 @@ private:
 	State lastRenderingState = State::Normal;
 	State lastEncodingState = State::Normal;
 	State lastEncodingStateV = State::Normal;
+	bool m_bPaused = false;
+
+	DroppedCount m_droppedCountRender;
+	DroppedCount m_droppedCountEncoding;
+	DroppedCount m_droppedCountEncodingV;
 };

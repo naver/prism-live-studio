@@ -14,6 +14,7 @@ PLSImporterItem::PLSImporterItem(QString name, QString filepath, QString program
 	ui->nameLabel->SetText(name);
 	ui->programLabel->SetText(program);
 	ui->selectCheckBox->setChecked(selected);
+	pls_uistep_v2_set_name(ui->selectCheckBox, name);
 	connect(ui->selectCheckBox, &QCheckBox::stateChanged, this, [this](int state) { emit CheckedState(Qt::Checked == state); });
 }
 
@@ -186,6 +187,7 @@ PLSImporterItem *PLSImporterListView::CreateItem(int row, ImporterEntry data)
 {
 	auto item = pls_new<PLSImporterItem>(data.name, data.path, data.program, data.selected, this);
 	connect(item, &PLSImporterItem::CheckedState, this, [this, row](bool checked) {
+		PLS_UI_ACTION("In Import from another program window, item check state changed: %s.", checked ? "checked" : "unchecked");
 		SetData(row, checked, ImporterCustomRole::selectedRole);
 		emit DataChanged();
 	});

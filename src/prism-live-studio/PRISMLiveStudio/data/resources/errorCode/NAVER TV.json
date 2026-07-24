@@ -1,0 +1,133 @@
+{
+    "data": [
+        {
+            "phase": "channel",
+            "api": {
+                "code": "10002"
+            },
+            "err": {
+                "prismCode": 32000,
+                "prismName": "CHANNEL_NAVERTV_LIVENOTFOUND",
+                "msgKey": "broadcast.invalid.schedule",
+                "msgText": "This scheduled live is no longer valid."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "code": "10003"
+            },
+            "err": {
+                "prismCode": 32001,
+                "prismName": "CHANNEL_NAVERTV_PERMITEXCEPTION",
+                "msgKey": "main.message.error.navertv.service.10003",
+                "msgText": "You can no longer broadcast to this channel as you do not have permission. Please check the Creator Studio."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "code": "10006"
+            },
+            "err": {
+                "prismCode": 32002,
+                "prismName": "CHANNEL_NAVERTV_LIVESTATUSEXCEPTION",
+                "msgKey": "broadcast.no.longer.valid",
+                "msgText": "This live broadcast is no longer valid. Please check and try again."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "code": "10007"
+            },
+            "err": {
+                "prismCode": 32003,
+                "prismName": "CHANNEL_NAVERTV_START30MINEXCEPTION",
+                "msgKey": "main.message.error.navertv.service.10007",
+                "msgText": "You can only begin broadcasting 30 minutes before the scheduled time.\""
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "code": "10008"
+            },
+            "err": {
+                "prismCode": 32004,
+                "prismName": "CHANNEL_NAVERTV_ALREADYONAIR",
+                "msgKey": "main.message.error.navertv.service.10008",
+                "msgText": "This channel is already broadcasting."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "code": "10010"
+            },
+            "err": {
+                "prismCode": 32005,
+                "prismName": "CHANNEL_NAVERTV_PAIDSPONSORSHIPINFO",
+                "msgKey": "main.message.error.navertv.service.10010",
+                "msgText": "Cannot start sponsored live stream on NAVER TV. Please check to see whether paid sponsorship information is registered on the NAVER sponsorship platform."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401"
+            },
+            "err": {
+                "prismCode": 10001,
+                "prismName": "COMMON_UNKNOWN_ERROR",
+                "msgKey": "Common.Unknown.Error",
+                "msgText": "An unknown error occurred. \nPlease try again later."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401",
+                "code": "10001"
+            },
+            "err": {
+                "prismCode": 10002,
+                "prismName": "COMMON_TOKEN_EXPIRED_ERROR",
+                "alertType": "Normal_Code",
+                "errorType": "TokenExpired",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Expired",
+                "msgText": "Your %1 channel verification information has expired."
+            }
+        },
+        {
+            "api": {
+                "code": "/.+/",
+                "message": "/.+/",
+                "type": "auth"
+            },
+            "err": {
+                "prismCode": 32006,
+                "prismName": "CHANNEL_NAVERTV_AUTH_FAILED",
+                "msgKey": "Common.Unknown.Error",
+                "msgText": "An unknown error occurred. \nPlease try again later."
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "code": [
+                "code",
+                "errorCode",
+                "rtn_cd",
+                "header.code"
+            ],
+            "message": [
+                "message",
+                "errorMessage",
+                "rtn_msg",
+                "header.message"
+            ]
+        },
+        "inherit": [
+            "PRISM"
+        ]
+    }
+}

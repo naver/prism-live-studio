@@ -15,29 +15,29 @@
 #include "window-basic-interaction.hpp"
 #include <util/platform.h>
 #include "PLSAlertView.h"
+#include "PLSErrorHandler.h"
 #include "frontend-api.h"
 
 #define USER_CACHE_PATH QString("%1/%2").arg(PLSResCommonFuns::getAppLocationPath()).arg("/user/cache")
 
 QString PLSLoginFunc::getGpopUrl()
 {
-	return QString("%1/%2").arg(pls_http_api_func::getPrismHost()).arg(pls_launcher_const::GPOP_URL);
+	return QString("%1%2").arg(pls_http_api_func::getPrismHost()).arg(pls_launcher_const::GPOP_URL);
 }
 
 QString PLSLoginFunc::getGoogleClientId()
 {
-	return pls_prism_is_dev() ? pls_launcher_const::YOUTUBE_CLIENT_ID_DEV : pls_launcher_const::YOUTUBE_CLIENT_ID_;
+	return pls_is_dev() ? pls_launcher_const::YOUTUBE_CLIENT_ID_DEV : pls_launcher_const::YOUTUBE_CLIENT_ID_;
 }
 QString PLSLoginFunc::getGoogleClientKey()
 {
-	return pls_prism_is_dev() ? pls_launcher_const::YOUTUBE_CLIENT_KEY_DEV : pls_launcher_const::YOUTUBE_CLIENT_KEY_;
+	return pls_is_dev() ? pls_launcher_const::YOUTUBE_CLIENT_KEY_DEV : pls_launcher_const::YOUTUBE_CLIENT_KEY_;
 }
 
 void PLSLoginFunc::showAlertViewAsync(QObject *obj, const QString &text)
 {
 	pls_unused(text);
-	QMetaObject::invokeMethod(
-		obj, []() { /*add alert view*/ }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(obj, []() { /*add alert view*/ }, Qt::QueuedConnection);
 }
 
 void PLSLoginFunc::sendAction(const QByteArray &body)
@@ -64,7 +64,7 @@ bool PLSLoginFunc::isExistPath(const QString &dirName)
 
 QString PLSLoginFunc::getUserPath(const QString &dirName, const QString &fileName)
 {
-	QString path = pls_get_prism_subpath(dirName, true);
+	QString path = pls_get_app_user_data_dir_path_pn(dirName);
 	if (!makePath(path).isEmpty() && !fileName.isEmpty()) {
 		path += "/" + fileName;
 	}
@@ -73,17 +73,17 @@ QString PLSLoginFunc::getUserPath(const QString &dirName, const QString &fileNam
 
 bool PLSLoginFunc::isKR()
 {
-	return pls_prism_get_locale().contains("kr", Qt::CaseInsensitive);
+	return pls_get_locale().contains("kr", Qt::CaseInsensitive);
 }
 
 QString PLSLoginFunc::getCurrentLocaleShort()
 {
-	return pls_prism_get_locale().section(QRegularExpression("\\W+"), 0, 0);
+	return pls_get_locale().section(QRegularExpression("\\W+"), 0, 0);
 }
 
 QLocale PLSLoginFunc::getCurrentLocale()
 {
-	return QLocale(pls_prism_get_locale());
+	return QLocale(pls_get_locale());
 }
 
 QByteArray PLSLoginFunc::readFile(const QString &path)
@@ -268,5 +268,7 @@ PLSLoadingPage *PLSUIFunc::showLoadingView(QWidget *parent, const QString &tipSt
 void PLSUIFunc::showEnumTimeoutAlertView(const QString &deviceName, QWidget *parent)
 {
 	PLS_LOGEX(PLS_LOG_ERROR, MAINFRAME_MODULE, {{"enumTimeOut", deviceName.toUtf8().data()}}, "Enumerate device '%s' timeout.", qUtf8Printable(deviceName));
-	PLSAlertView::warning(pls_get_main_view(), pls_translate_qstr("Alert.Title"), pls_translate_qstr("main.property.prism.enume.device.timeout").arg(deviceName));
+	PLSErrorHandler::ExtraData extraData("showEnumTimeoutAlertView");
+	extraData.defaultArg = {deviceName};
+	PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_ENUM_DEVICE_TIMEOUT, PLSErrKeyAllAlert, {}, extraData, parent);
 }

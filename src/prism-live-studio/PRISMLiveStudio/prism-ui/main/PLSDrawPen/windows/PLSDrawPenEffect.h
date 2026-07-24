@@ -8,7 +8,7 @@ public:
 	PLSDrawPenGlowEffect();
 	~PLSDrawPenGlowEffect();
 
-	void RenderEffect(gs_texture_t *srcTexture, gs_texture_t *dstTexture, uint32_t rgba, float range, bool clear = false);
+	void RenderEffect(gs_texture_t *srcTexture, gs_texture_t *maskTexture, gs_texture_t *dstTexture, uint32_t rgba, float range, bool clear = false);
 
 private:
 	gs_effect_t *outerGlowEffect;

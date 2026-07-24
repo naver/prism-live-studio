@@ -59,7 +59,7 @@
            <height>0</height>
           </size>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,1,0,1">
+         <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,0,1">
           <property name="spacing">
            <number>0</number>
           </property>
@@ -79,19 +79,6 @@
            <widget class="QLabel" name="asyncLabel">
             <property name="text">
              <string>Basic.Filters.AsyncFilters</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="ClickableLabel" name="asyncEmptyDesLabel">
-            <property name="text">
-             <string>Basic.Filters.Empty</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
-            </property>
-            <property name="wordWrap">
-             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -297,7 +284,7 @@
            <height>0</height>
           </size>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,1,0,1">
+         <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0,1">
           <property name="spacing">
            <number>0</number>
           </property>
@@ -317,19 +304,6 @@
            <widget class="QLabel" name="effectLabel">
             <property name="text">
              <string>Basic.Filters.EffectFilters</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="ClickableLabel" name="effectEmptyDesLabel">
-            <property name="text">
-             <string>Basic.Filters.Empty</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
-            </property>
-            <property name="wordWrap">
-             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -717,11 +691,6 @@
    <class>PLSDialogButtonBox</class>
    <extends>QDialogButtonBox</extends>
    <header location="global">PLSDialogButtonBox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>ClickableLabel</class>
-   <extends>QLabel</extends>
-   <header>clickable-label.hpp</header>
   </customwidget>
  </customwidgets>
  <resources>

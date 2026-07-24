@@ -15,6 +15,7 @@
 #include <pls/pls-obs-api.h>
 #include "PLSChannelDataAPI.h"
 #include "PLSSceneDataMgr.h"
+#include "PLSTrackers.h"
 
 #ifdef Q_OS_WIN
 #include <Windows.h>
@@ -36,7 +37,9 @@
 #include <QDir>
 #include <ctime>
 #include <vector>
-#include "obs.hpp"
+#include <QToolTip>
+#include "PLSPreviewMaskWidget.h"
+
 using namespace common;
 #define AUTO_LOCKER std::lock_guard<std::mutex> locker(mutex);
 constexpr auto BADGE_TYPE = "badge_type";
@@ -201,13 +204,19 @@ void PLSSceneDisplay::visibleSlot(bool visible)
 void PLSSceneDisplay::CustomCreateDisplay()
 {
 #ifdef Q_OS_WIN
-	CreateDisplay();
+	pls_async_call(this, [this]() {
+		if (TestSceneDisplayMethod(DisplayMethod::TextView)) {
+			return;
+		}
+		CreateDisplay(true);
+	});
 
 #else
 	bool textMode = displayMethod == DisplayMethod::TextView;
 	if (textMode) {
 		return;
 	}
+
 	auto display = GetDisplay();
 	if (!display) {
 		QTimer::singleShot(0, this, [this]() { CreateDisplay(true); });
@@ -227,6 +236,12 @@ bool PLSSceneDisplay::GetRefreshThumbnail()
 {
 	AUTO_LOCKER
 	return refreshThumbnail;
+}
+
+bool PLSSceneDisplay::getForceRealtimeRendering()
+{
+	AUTO_LOCKER
+	return m_forceRealtimeRendering;
 }
 
 void PLSSceneDisplay::SetSceneDisplayMethod(DisplayMethod _displayMethod)
@@ -271,6 +286,7 @@ void PLSSceneDisplay::enterEvent(QEnterEvent *event)
 	UpdateMouseState(MouseState::Normal);
 	AUTO_LOCKER
 	btn_visible = true;
+	m_forceRealtimeRendering = true;
 	OBSQTDisplay::enterEvent(event);
 }
 
@@ -281,7 +297,24 @@ void PLSSceneDisplay::leaveEvent(QEvent *event)
 	UpdateMouseState(MouseState::None);
 	AUTO_LOCKER
 	btn_visible = false;
+	m_forceRealtimeRendering = false;
+	refreshThumbnail = true;
 	OBSQTDisplay::leaveEvent(event);
+}
+
+void PLSSceneDisplay::clearHoverState()
+{
+	obs_display_t *display = GetDisplay();
+	if (display) {
+		obs_display_set_background_color(display, 0x222222);
+	}
+	isHover.store(false);
+	UpdateMouseState(MouseState::None);
+	AUTO_LOCKER
+	btn_visible = false;
+	m_forceRealtimeRendering = false;
+	refreshThumbnail = true;
+	update();
 }
 
 void PLSSceneDisplay::resizeEvent(QResizeEvent *)
@@ -290,10 +323,7 @@ void PLSSceneDisplay::resizeEvent(QResizeEvent *)
 	if (!display) {
 		CustomCreateDisplay();
 	}
-	dpi = devicePixelRatioF();
-	int width = SCENE_DISPLAY_DEFAULT_WIDTH * dpi;
-	int height = SCENE_DISPLAY_DEFAULT_HEIGHT * dpi;
-	obs_display_resize(GetDisplay(), width, height);
+	ResizeDisplay();
 
 	qreal margin = 4;
 	qreal btn_width = 16;
@@ -307,7 +337,17 @@ void PLSSceneDisplay::resizeEvent(QResizeEvent *)
 
 void PLSSceneDisplay::mouseMoveEvent(QMouseEvent *event)
 {
-	auto state = rect_delete_btn.contains(event->pos()) ? MouseState::Hover : MouseState::Normal;
+	auto pos = event->pos();
+	auto state = rect_delete_btn.contains(pos) ? MouseState::Hover : MouseState::Normal;
+	if (state == MouseState::Hover) {
+#ifdef Q_OS_MACOS
+		pos.setY(pos.y() - 24);
+#endif //  Q_OS_MACOS
+		QToolTip::showText(mapToGlobal(pos), tr("main.scenes.delete"));
+	} else {
+		QToolTip::hideText();
+	}
+
 	UpdateMouseState(state);
 	OBSQTDisplay::mouseMoveEvent(event);
 }
@@ -322,6 +362,14 @@ void PLSSceneDisplay::changeEvent(QEvent *event)
 	OBSQTDisplay::changeEvent(event);
 }
 
+void PLSSceneDisplay::focusOutEvent(QFocusEvent *event)
+{
+	// Notify parent to clear hover (display + modifyBtn etc.) via signal; no dependency on parent hierarchy.
+	emit focusLost();
+	clearHoverState();
+	OBSQTDisplay::focusOutEvent(event);
+}
+
 void PLSSceneDisplay::OnDisplayCreated()
 {
 	AddRenderCallback();
@@ -330,6 +378,11 @@ void PLSSceneDisplay::OnDisplayCreated()
 void PLSSceneDisplay::CaptureImageFinished(const QImage &image)
 {
 	emit CaptureImageFinishedSignal(image);
+}
+
+void PLSSceneDisplay::SizeChanged(int x, int y, int cx, int cy)
+{
+	emit SizeChangedSignal(x, y, cx, cy);
 }
 
 void PLSSceneDisplay::AddRenderCallback()
@@ -451,6 +504,9 @@ void drawTexture(gs_texture_t *texture)
 void PLSSceneDisplay::DrawRadiusOverlay() const
 {
 	GetRadiusTexture();
+	if (!radius_texture.texture) {
+		return;
+	}
 
 	gs_rect rt = {0};
 	gs_get_viewport(&rt);
@@ -616,7 +672,9 @@ void PLSSceneDisplay::DrawSceneBackground() const
 void createTexure(gs_texture_t **tex, const QString file)
 {
 	std::string path;
-	GetDataFilePath(file.toStdString().c_str(), path);
+	if (!GetDataFilePath(file.toUtf8().constData(), path)) {
+		return;
+	}
 	if (*tex) {
 		obs_enter_graphics();
 		destory_texture(tex);
@@ -696,6 +754,9 @@ void PLSSceneDisplay::DrawThumbnail()
 	gs_blend_state_push();
 	gs_blend_function(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA);
 
+	const bool previous = gs_framebuffer_srgb_enabled();
+	gs_enable_framebuffer_srgb(true);
+
 	gs_rect rt = {0};
 	gs_get_viewport(&rt);
 
@@ -705,7 +766,7 @@ void PLSSceneDisplay::DrawThumbnail()
 	gs_technique_begin(tech);
 	gs_technique_begin_pass(tech, 0);
 
-	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), item_texture);
+	gs_effect_set_texture_srgb(gs_effect_get_param_by_name(effect, "image"), item_texture);
 	// Only render scene region
 	gs_draw_sprite_subregion(item_texture, 0, 0, 0, rt.cx, rt.cy);
 
@@ -714,6 +775,8 @@ void PLSSceneDisplay::DrawThumbnail()
 
 	gs_blend_state_pop();
 	gs_matrix_pop();
+
+	gs_enable_framebuffer_srgb(previous);
 }
 
 bool PLSSceneDisplay::CheckTextureChanged(uint32_t cx, uint32_t cy)
@@ -808,10 +871,14 @@ void PLSSceneDisplay::ResizeDisplay()
 	int realHeight = SCENE_DISPLAY_DEFAULT_HEIGHT * dpi;
 
 	auto display = GetDisplay();
+	if (!display) {
+		return;
+	}
+
 	uint32_t width, height;
 	obs_display_size(display, &width, &height);
 	if (width != realWidth || height != realHeight) {
-		obs_display_resize(display, realWidth, realHeight);
+		syncObsDisplaySurfacePixels(realWidth, realHeight);
 	}
 }
 
@@ -833,6 +900,8 @@ PLSSceneItemView::PLSSceneItemView(const QString &name_, OBSScene scene_, Displa
 	this->setAttribute(Qt::WA_DeleteOnClose);
 
 	this->SetName(name_);
+	ui->nameLabel->setProperty("posFollowCursor", true);
+	ui->label->setProperty("posFollowCursor", true);
 	ui->nameLabel->setToolTip(GetName());
 	ui->nameLineEdit->hide();
 	ui->nameLineEdit->installEventFilter(this);
@@ -846,18 +915,40 @@ PLSSceneItemView::PLSSceneItemView(const QString &name_, OBSScene scene_, Displa
 	ui->lineEdit->hide();
 	ui->modifyBtn->hide();
 	ui->renameBtn->hide();
+	ui->deleteSceneBtn->hide();
 	ui->label_badge->hide();
 
+	ui->renameBtn->setToolTip(tr("main.scenes.rename"));
+	ui->modifyBtn->setToolTip(tr("main.scenes.rename"));
+	ui->deleteSceneBtn->setToolTip(tr("main.scenes.delete"));
+	pls_uistep_v2_set_custom_enter_leave_name(ui->renameBtn, "Rename Scene");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->modifyBtn, "Rename Scene");
 	ui->display->SetSceneData(scene);
+
+	sceneDisplayMaskWidget = pls_new<PLSPreviewMaskWidget>(ui->display, this);
+	sceneDisplayMaskWidget->setFixedSize(SCENE_DISPLAY_DEFAULT_WIDTH, SCENE_DISPLAY_DEFAULT_HEIGHT);
+	sceneDisplayMaskWidget->setAttribute(Qt::WA_TransparentForMouseEvents);
+	sceneDisplayMaskWidget->setBgColor(QColor("#222222"));
+	sceneDisplayMaskWidget->setRenderColor(QColor("#111111"));
+	ui->verticalLayout->removeWidget(ui->display);
+	ui->verticalLayout->insertWidget(0, sceneDisplayMaskWidget);
 
 	SetSceneDisplayMethod(displayMethod);
 
+	pls_uistep_v2_set_value(ui->modifyBtn, QStringLiteral("Rename Scene In Thumbnail Mode"));
+	pls_uistep_v2_set_value(ui->renameBtn, QStringLiteral("Rename Scene In Text Mode"));
+
 	connect(this, &PLSSceneItemView::CurrentItemChanged, this, &PLSSceneItemView::OnCurrentItemChanged);
+	connect(ui->deleteSceneBtn, &QPushButton::clicked, this, &PLSSceneItemView::OnDeleteButtonClicked);
 	connect(ui->modifyBtn, &QPushButton::clicked, this, &PLSSceneItemView::OnModifyButtonClicked);
 	connect(ui->renameBtn, &QPushButton::clicked, this, &PLSSceneItemView::OnModifyButtonClicked);
 	connect(ui->display, &PLSSceneDisplay::DeleteBtnClicked, this, &PLSSceneItemView::OnDeleteButtonClicked);
 	connect(ui->display, &PLSSceneDisplay::MouseLeftButtonClicked, this, &PLSSceneItemView::OnMouseButtonClicked);
 	connect(ui->display, &PLSSceneDisplay::CaptureImageFinishedSignal, this, &PLSSceneItemView::OnCaptureImageFinished);
+	connect(ui->display, &PLSSceneDisplay::SizeChangedSignal, this, &PLSSceneItemView::OnSizeChanged);
+	connect(ui->display, &PLSSceneDisplay::focusLost, this, &PLSSceneItemView::clearSceneItemHover);
+	connect(App()->getMainView()->resizeTracker(), &PLSResizeTracker::beginResize, this, &PLSSceneItemView::HandleResizeTrackerBeginEvent);
+	connect(App()->getMainView()->resizeTracker(), &PLSResizeTracker::endResize, this, &PLSSceneItemView::HandleResizeTrackerEndEvent);
 }
 
 PLSSceneItemView::~PLSSceneItemView()
@@ -899,8 +990,7 @@ void PLSSceneItemView::SetRenderFlag(bool state) const
 	ui->display->SetRenderFlag(state);
 
 	if (state && displayMethod == DisplayMethod::ThumbnailView && ui->display->GetDisplay()) {
-		ui->display->SetRefreshThumbnail(true);
-		RefreshSceneThumbnail();
+		RefreshSceneThumbnail(false);
 	} else {
 		ui->display->SetRefreshThumbnail(!state || displayMethod == DisplayMethod::ThumbnailView);
 	}
@@ -922,12 +1012,12 @@ void PLSSceneItemView::SetSceneDisplayMethod(DisplayMethod displayMethod_)
 
 	this->displayMethod = displayMethod_;
 
-	if (displayMethod_ == DisplayMethod::DynamicRealtimeView || displayMethod_ == DisplayMethod::ThumbnailView) {
+	if (displayMethod_ == DisplayMethod::ThumbnailView) {
 		ui->listFrame->hide();
-		ui->display->show();
+		sceneDisplayMaskWidget->show();
 		ui->editWidget->show();
 	} else {
-		ui->display->hide();
+		sceneDisplayMaskWidget->hide();
 		ui->editWidget->hide();
 		ui->listFrame->show();
 	}
@@ -964,18 +1054,14 @@ bool PLSSceneItemView::GetCurrentFlag() const
 	return current;
 }
 
-void PLSSceneItemView::RefreshSceneThumbnail() const
+void PLSSceneItemView::RefreshSceneThumbnail(bool refresh) const
 {
 	if (displayMethod == DisplayMethod::ThumbnailView) {
-		ui->display->SetRefreshThumbnail(true);
+		ui->display->SetRefreshThumbnail(refresh);
 		ui->display->AddRenderCallback();
-		ui->display->show();
-	} else if (displayMethod == DisplayMethod::DynamicRealtimeView) {
-		ui->display->SetRefreshThumbnail(false);
-		ui->display->AddRenderCallback();
-		ui->display->show();
+		sceneDisplayMaskWidget->show();
 	} else if (displayMethod == DisplayMethod::TextView) {
-		ui->display->hide();
+		sceneDisplayMaskWidget->hide();
 		ui->display->RemoveRenderCallback();
 	}
 }
@@ -993,6 +1079,26 @@ void PLSSceneItemView::SetDpi(float dpi)
 	}
 }
 
+void PLSSceneItemView::clearSceneItemHover()
+{
+	if (ui->display) {
+		ui->display->clearHoverState();
+	}
+	// Clear hover state of modify button (and list-mode controls).
+	bool gridMode = (displayMethod == DisplayMethod::ThumbnailView);
+	if (gridMode) {
+		ui->modifyBtn->hide();
+		setEnterPropertyState(false, ui->editWidget);
+		setEnterPropertyState(false, ui->modifyBtn);
+	} else {
+		setEnterPropertyState(false, ui->listFrame);
+		setEnterPropertyState(false, ui->renameBtn);
+		setEnterPropertyState(false, ui->deleteSceneBtn);
+		ui->renameBtn->hide();
+		ui->deleteSceneBtn->hide();
+	}
+}
+
 void PLSSceneItemView::OnRenameOperation()
 {
 	if (ui->nameLineEdit->isVisible() || ui->lineEdit->isVisible()) {
@@ -1000,14 +1106,14 @@ void PLSSceneItemView::OnRenameOperation()
 	}
 
 	isFinishEditing = false;
-	bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
+	bool gridMode = (displayMethod == DisplayMethod::ThumbnailView);
 	gridMode ? RenameWithGridMode() : RenameWithListMode();
 }
 
 void PLSSceneItemView::mousePressEvent(QMouseEvent *event)
 {
 	if (event->buttons() & Qt::LeftButton) {
-		PLS_UI_STEP(MAINSCENE_MODULE, QString("The user clicks on the scene: %1 by").arg(name).toStdString().c_str(), ACTION_LBUTTON_CLICK);
+		PLS_UI_STEP(MAINSCENE_MODULE, QString("The user clicks on the scene: %1 by").arg(name).toUtf8().constData(), ACTION_LBUTTON_CLICK);
 		startPos = mapToParent(event->pos());
 	}
 
@@ -1024,7 +1130,7 @@ void PLSSceneItemView::mouseMoveEvent(QMouseEvent *event)
 		int distance = (mapToParent(event->pos()) - startPos).manhattanLength();
 		if (distance < QApplication::startDragDistance())
 			return;
-		if (displayMethod == DisplayMethod::DynamicRealtimeView || DisplayMethod::ThumbnailView == displayMethod) {
+		if (DisplayMethod::ThumbnailView == displayMethod) {
 			ui->display->SetDragingState(true);
 		} else {
 			CreateDrag(startPos, QImage());
@@ -1036,7 +1142,7 @@ void PLSSceneItemView::mouseDoubleClickEvent(QMouseEvent *event)
 {
 	OBSBasic *main = OBSBasic::Get();
 	if (main) {
-		PLS_UI_STEP(MAINSCENE_MODULE, QString("The user double clicks on the scene: %1 by").arg(name).toStdString().c_str(), ACTION_DBCLICK);
+		PLS_UI_STEP(MAINSCENE_MODULE, QString("The user double clicks on the scene: %1 by").arg(name).toUtf8().constData(), ACTION_DBCLICK);
 		main->OnScenesItemDoubleClicked();
 	}
 
@@ -1045,6 +1151,9 @@ void PLSSceneItemView::mouseDoubleClickEvent(QMouseEvent *event)
 
 bool PLSSceneItemView::eventFilter(QObject *object, QEvent *event)
 {
+	if (!event)
+		return false;
+
 	if ((object == ui->nameLineEdit || object == ui->lineEdit) && LineEditCanceled(event)) {
 		isFinishEditing = true;
 		OnFinishingEditName(true);
@@ -1066,8 +1175,31 @@ bool PLSSceneItemView::eventFilter(QObject *object, QEvent *event)
 		return true;
 	}
 
-	if ((object == ui->nameLabel || object == ui->modifyBtn || object == ui->renameBtn) && (event->type() == QEvent::MouseMove)) {
+	// Swallow MouseMove for nameLabel to avoid starting drag when pressing and moving on the name area.
+	if (object == ui->nameLabel && event->type() == QEvent::MouseMove) {
 		return true;
+	}
+
+	// modifyBtn: swallow MouseMove to avoid drag; drive hover by Enter/MouseMove/Leave.
+	if (object == ui->modifyBtn) {
+		QWidget *w = static_cast<QWidget *>(object);
+		const QEvent::Type t = event->type();
+		if (t == QEvent::Enter) {
+			setEnterPropertyState(true, w);
+		} else if (t == QEvent::Leave) {
+			setEnterPropertyState(false, w);
+		} else if (t == QEvent::MouseMove) {
+			const auto *me = static_cast<QMouseEvent *>(event);
+			setEnterPropertyState(me && w->rect().contains(me->pos()), w);
+			return true;
+		}
+	}
+	// renameBtn: not swallowing MouseMove so it keeps native :hover; list mode does not trigger drag from it.
+
+	if ((object == ui->modifyBtn || object == ui->renameBtn) && event->type() == QEvent::Show) {
+		PLS_UI_ACTION("PLSSceneItemView rename button Show");
+	} else if ((object == ui->lineEdit || object == ui->nameLineEdit) && event->type() == QEvent::Show) {
+		PLS_UI_ACTION("PLSSceneItemView name lineedit Show");
 	}
 	return QFrame::eventFilter(object, event);
 }
@@ -1081,24 +1213,32 @@ void PLSSceneItemView::resizeEvent(QResizeEvent *event)
 
 void PLSSceneItemView::enterEvent(QEnterEvent *event)
 {
-	bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
+	PLS_UI_ACTION("PLSSceneItemView enterEvent");
+	bool gridMode = (displayMethod == DisplayMethod::ThumbnailView);
 	gridMode ? EnterEventWithGridMode() : EnterEventWithListMode();
-
 	//PLS_ACTION_LOG(MAINFRAME_MODULE, QT_TO_UTF8(this->GetName()), "Mouse Enter");
 	QFrame::enterEvent(event);
 }
 
 void PLSSceneItemView::leaveEvent(QEvent *event)
 {
-	bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
+	bool gridMode = (displayMethod == DisplayMethod::ThumbnailView);
 	gridMode ? LeaveEventWithGridMode() : LeaveEventWithListMode();
 
 	//PLS_ACTION_LOG(MAINFRAME_MODULE, QT_TO_UTF8(this->GetName()), "Mouse Leave");
 	QFrame::leaveEvent(event);
 }
 
+void PLSSceneItemView::focusOutEvent(QFocusEvent *event)
+{
+	// Clear hover state when scene item view loses focus (e.g. user clicked another scene or elsewhere).
+	clearSceneItemHover();
+	QFrame::focusOutEvent(event);
+}
+
 void PLSSceneItemView::OnMouseButtonClicked()
 {
+	pls_uistep_v2(this, "Choose", "Scenes", GetName());
 	emit MouseButtonClicked(this);
 }
 
@@ -1112,12 +1252,13 @@ void PLSSceneItemView::OnModifyButtonClicked()
 void PLSSceneItemView::OnDeleteButtonClicked()
 {
 	QString controls = this->GetName().append(" Delete");
+	pls_uistep_v2(this, "Click", "Button", QStringLiteral("delete"));
 	emit DeleteButtonClicked(this);
 }
 
 void PLSSceneItemView::OnFinishingEditName(bool cancel)
 {
-	bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
+	bool gridMode = (displayMethod == DisplayMethod::ThumbnailView);
 	if (this->rect().contains(mapFromGlobal(QCursor::pos()))) {
 		gridMode ? EnterEventWithGridMode() : EnterEventWithListMode();
 	}
@@ -1178,24 +1319,32 @@ void PLSSceneItemView::CreateDrag(const QPoint &startPos_, const QImage &image)
 
 	auto drag = pls_new<QDrag>(this->parentWidget());
 	drag->setMimeData(mimeData);
-	bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
-
-	QPixmap pixmap(ui->display->width(), ui->display->height());
 	if (!image.isNull()) {
+		QPixmap pixmap(ui->display->width(), ui->display->height());
 		DrawScreenShot(pixmap, image);
-	} else {
-		pixmap = this->grab(gridMode ? ui->display->rect() : this->rect());
+		drag->setPixmap(pixmap);
+		drag->setHotSpot(QPoint(pixmap.width() / 2, pixmap.height() / 2));
 	}
+	// macOS: when in text view (no thumbnail image), we must set an explicit transparent pixmap.
+	// If no pixmap is set, macOS still shows a default drag image (e.g. a snapshot of the widget),
+	// which would display the list row and conflict with the design to hide the list image during
+	// source movement. A 1x1 transparent pixmap makes the drag cursor show no image on macOS.
+	// On Windows, leaving the pixmap unset does not show such a default image, so no extra handling.
+#ifdef Q_OS_MACOS
+	else {
+		QPixmap transparentPixmap(1, 1);
+		transparentPixmap.fill(Qt::transparent);
+		drag->setPixmap(transparentPixmap);
+	}
+#endif
 
-	drag->setHotSpot(QPoint(gridMode ? pixmap.width() / 2 : startPos_.x(), pixmap.height() / 2));
-	drag->setPixmap(pixmap);
 	drag->exec();
 	drag->deleteLater();
 }
 
 QString PLSSceneItemView::GetNameElideString() const
 {
-	bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
+	bool gridMode = (displayMethod == DisplayMethod::ThumbnailView);
 
 	const QLabel *label = nullptr;
 	gridMode ? label = ui->nameLabel : label = ui->label;
@@ -1225,7 +1374,6 @@ void PLSSceneItemView::EnterEventWithGridMode() const
 
 	if (isFinishEditing) {
 		ui->modifyBtn->show();
-		setEnterPropertyState(true, ui->modifyBtn);
 	}
 }
 
@@ -1331,12 +1479,14 @@ void PLSSceneItemView::RenameWithListMode() const
 	ui->lineEdit->show();
 	ui->label->hide();
 	ui->renameBtn->hide();
+	ui->deleteSceneBtn->hide();
 }
 
 void PLSSceneItemView::EnterEventWithListMode() const
 {
 	if (isFinishEditing) {
 		ui->renameBtn->show();
+		ui->deleteSceneBtn->show();
 		setEnterPropertyState(true, ui->renameBtn);
 		setEnterPropertyState(true, ui->listFrame);
 	}
@@ -1347,6 +1497,7 @@ void PLSSceneItemView::LeaveEventWithListMode() const
 	setEnterPropertyState(false, ui->listFrame);
 	setEnterPropertyState(false, ui->renameBtn);
 	ui->renameBtn->hide();
+	ui->deleteSceneBtn->hide();
 }
 
 void PLSSceneItemView::SetStatusBadge()
@@ -1446,6 +1597,23 @@ void PLSSceneItemView::OnCaptureImageFinished(const QImage &image)
 	CreateDrag(startPos, image);
 }
 
+void PLSSceneItemView::OnSizeChanged(int x, int y, int cx, int cy)
+{
+	auto dpi = devicePixelRatioF();
+	sceneDisplayMaskWidget->setPreviewRect(x / dpi, y / dpi, cx / dpi, cy / dpi);
+	sceneDisplayMaskWidget->update();
+}
+
+void PLSSceneItemView::HandleResizeTrackerBeginEvent()
+{
+	ui->display->hide();
+}
+
+void PLSSceneItemView::HandleResizeTrackerEndEvent()
+{
+	ui->display->show();
+}
+
 void PLSSceneItemView::OnCurrentItemChanged(bool state) const
 {
 	setEnterPropertyState(state, ui->editWidget);
@@ -1485,6 +1653,7 @@ void PLSSceneDisplay::RenderScene(void *data, uint32_t cx, uint32_t cy)
 
 	newCX = int(scale * float(targetCX));
 	newCY = int(scale * float(targetCY));
+	window->SizeChanged(x, y, newCX, newCY);
 
 	if (!window->GetRenderState()) {
 		startRegion(x, y, newCX, newCY, 0.0f, float(targetCX), 0.0f, float(targetCY));
@@ -1495,8 +1664,7 @@ void PLSSceneDisplay::RenderScene(void *data, uint32_t cx, uint32_t cy)
 		window->DrawOverlay();
 		goto CAPTURE_SCENE_IMG;
 	}
-
-	if (!window->GetRefreshThumbnail() && window->TestSceneDisplayMethod(DisplayMethod::ThumbnailView)) {
+	if (!window->getForceRealtimeRendering() && !window->GetRefreshThumbnail() && window->TestSceneDisplayMethod(DisplayMethod::ThumbnailView)) {
 		startRegion(x, y, newCX, newCY, 0.0f, float(targetCX), 0.0f, float(targetCY));
 		window->DrawSceneBackground();
 		window->DrawThumbnail();
@@ -1511,7 +1679,7 @@ void PLSSceneDisplay::RenderScene(void *data, uint32_t cx, uint32_t cy)
 	}
 
 	if (source) {
-		if (window->TestSceneDisplayMethod(DisplayMethod::ThumbnailView)) {
+		if (!window->getForceRealtimeRendering() && window->TestSceneDisplayMethod(DisplayMethod::ThumbnailView)) {
 			window->RenderSceneTexture(newCX, newCY, targetCX, targetCY);
 			window->SetRefreshThumbnail(false);
 

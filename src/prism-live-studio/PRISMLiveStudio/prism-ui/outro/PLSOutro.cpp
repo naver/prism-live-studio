@@ -15,7 +15,7 @@
 #define DEFAULT_DURATION_MS 3000
 #define USE_QT_DRAW_TEXT 1
 
-using obs_scene_add_func = obs_sceneitem_t *(*)(obs_scene_t *scene, obs_source_t *source);
+using obs_scene_add_func = obs_sceneitem_t *(*)(obs_scene_t * scene, obs_source_t *source);
 
 static obs_sceneitem_t *vertical_scene_add(obs_scene_t *scene, obs_source_t *source)
 {
@@ -475,8 +475,7 @@ private:
 
 		painter.drawText(pixmap.rect(), flags, text);
 
-		auto savedFileName =
-			PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/")) + (!use_for_vertical ? QStringLiteral("outro_text.png") : QStringLiteral("outro_text_v.png"));
+		auto savedFileName = PLS_RSM_getLibraryPolicy_Path(QStringLiteral("Library_Policy_PC/")) + (!use_for_vertical ? QStringLiteral("outro_text.png") : QStringLiteral("outro_text_v.png"));
 		bool resut = pixmap.save(savedFileName);
 		return resut ? savedFileName : QString();
 	}

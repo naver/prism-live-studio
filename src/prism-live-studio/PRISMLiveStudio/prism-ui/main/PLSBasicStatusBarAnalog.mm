@@ -214,7 +214,7 @@ void DNSServiceResolverSocket::onDisconnected()
 }
 void DNSServiceResolverSocket::onTextMessageReceived(QString message)
 {
-	NSString *tmpMsg = [NSString stringWithCString:message.toStdString().c_str() encoding:NSUTF8StringEncoding];
+	NSString *tmpMsg = [NSString stringWithCString:message.toUtf8().constData() encoding:NSUTF8StringEncoding];
 	messageDidReceive([tmpMsg dataUsingEncoding:NSUTF8StringEncoding]);
 }
 void DNSServiceResolverSocket::onBinaryMessageReceived(const QByteArray &message)

@@ -1,11 +1,23 @@
 #include "PLSPushButton.h"
+#include "libutils-api.h"
 #include <QPainter>
+#include <QStyle>
 
-void PLSPushButton::resizeEvent(QResizeEvent *event)
+QSize PLSPushButton::sizeHint() const
 {
-	QPushButton::setText(GetNameElideString());
+	return minimumSizeHint();
+}
 
-	QPushButton::resizeEvent(event);
+QSize PLSPushButton::minimumSizeHint() const
+{
+	QFont f = font();
+	f.setBold(true);
+	QFontMetrics fm(f);
+	auto s = fm.size(Qt::TextSingleLine, text);
+	QString langShort = pls_get_locale().section(QRegularExpression("\\W+"), 0, 0);
+	auto spacing = pls_is_equal(langShort, "ko") || pls_is_equal(langShort, "ja") ? 4 : 0;
+
+	return QSize(s.width(), s.height());
 }
 
 QString PLSPushButton::GetNameElideString() const
@@ -20,6 +32,11 @@ void PLSPushButton::setText(const QString &_text)
 {
 	text = _text;
 	QPushButton::setText(GetNameElideString());
+}
+
+QString PLSPushButton::getOriginalText()
+{
+	return text;
 }
 
 PLSIconButton::PLSIconButton(QWidget *parent) : QPushButton(parent)

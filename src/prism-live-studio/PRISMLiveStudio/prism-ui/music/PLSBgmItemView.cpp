@@ -11,6 +11,7 @@
 #include "obs-app.hpp"
 
 #include <QTime>
+#include <QVector>
 #include <QPainter>
 #include <QLabel>
 #include <QTimer>
@@ -147,38 +148,75 @@ void PLSBgmItemViewModel::doMediaStatusRole(const QModelIndex &index, const QVar
 	}
 }
 
+void PLSBgmItemViewModel::clearAllDropIndicators()
+{
+	if (datas.isEmpty()) {
+		return;
+	}
+	bool changed = false;
+	for (int i = 0; i < datas.count(); ++i) {
+		if (datas[i].dropIndicator != DropIndicator::None) {
+			datas[i].dropIndicator = DropIndicator::None;
+			changed = true;
+		}
+	}
+	if (!changed) {
+		return;
+	}
+	const QModelIndex topLeft = index(0, 0);
+	const QModelIndex bottomRight = index(datas.count() - 1, 0);
+	emit dataChanged(topLeft, bottomRight, QVector<int>() << (int)CustomDataRole::DropIndicatorRole);
+}
+
 bool PLSBgmItemViewModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
 	if (CustomDataRole::NeedPaintRole == (CustomDataRole)role) {
 		needPaint = value.toBool();
 	} else if (CustomDataRole::MediaStatusRole == (CustomDataRole)role) {
 		doMediaStatusRole(index, value);
+		if (index.isValid() && index.row() > -1 && index.row() < datas.count()) {
+			emit dataChanged(index, index, QVector<int>() << (int)CustomDataRole::MediaStatusRole);
+		}
 	} else if (CustomDataRole::DataRole == (CustomDataRole)role) {
 		int row = index.row();
 		if (row < 0) {
 			return false;
 		} else if (row >= datas.count()) {
+			const int newRow = datas.count();
+			beginInsertRows(QModelIndex(), newRow, newRow);
 			datas.push_back(value.value<PLSBgmItemData>());
+			endInsertRows();
 		} else {
 			datas[row] = value.value<PLSBgmItemData>();
+			emit dataChanged(index, index,
+					 QVector<int>() << (int)CustomDataRole::DataRole << (int)CustomDataRole::MediaStatusRole << (int)CustomDataRole::DropIndicatorRole);
 		}
 	} else if (CustomDataRole::DropIndicatorRole == (CustomDataRole)role) {
 		auto indicator = value.value<DropIndicator>();
 		int row = index.row();
 		if (row > -1 && row < datas.count()) {
+			if (datas[row].dropIndicator == indicator) {
+				return true;
+			}
 			datas[row].dropIndicator = indicator;
+			emit dataChanged(index, index, QVector<int>() << (int)CustomDataRole::DropIndicatorRole);
 		}
 	} else if (CustomDataRole::CoverPathRole == (CustomDataRole)role) {
 		auto coverPath = value.value<QString>();
 		int row = index.row();
 		if (row > -1 && row < datas.count()) {
 			datas[row].coverPath = coverPath;
+			emit dataChanged(index, index, QVector<int>() << (int)CustomDataRole::CoverPathRole);
 		}
 	} else if (CustomDataRole::RowStatusRole == (CustomDataRole)role) {
 		RowStatus rowStatus = value.value<RowStatus>();
 		int row = index.row();
 		if (row > -1 && row < datas.count()) {
+			if (datas[row].rowStatus == rowStatus) {
+				return true;
+			}
 			datas[row].rowStatus = rowStatus;
+			emit dataChanged(index, index, QVector<int>() << (int)CustomDataRole::RowStatusRole);
 		}
 	} else {
 		return QAbstractListModel::setData(index, value, role);

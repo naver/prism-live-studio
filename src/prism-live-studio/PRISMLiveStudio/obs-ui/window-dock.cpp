@@ -2,22 +2,24 @@
 #include "obs-app.hpp"
 #include "window-basic-main.hpp"
 #include "PLSAlertView.h"
+#include "PLSErrorHandler.h"
 
 void OBSDock::closeEvent(QCloseEvent *event)
 {
 	auto msgBox = []() {
 		pls_check_app_exiting();
-		auto result = PLSAlertView::information(pls_get_main_view(), QTStr("DockCloseWarning.Title"),
-							QTStr("DockCloseWarning.Text"), QTStr("DoNotShowAgain"),
-							PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
-		if (result.isChecked) {
+		auto result = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_DOCK_CLOSE_WARNING,
+								    PLSErrKeyAllAlert, {},
+								    PLSErrorHandler::ExtraData("OBSDock::closeEvent"),
+								    pls_get_main_view());
+		if (result.isCheckBoxClick) {
 			config_set_bool(App()->GetUserConfig(), "General", "WarnedAboutClosingDocks", true);
 			config_save_safe(App()->GetUserConfig(), "tmp", nullptr);
 		}
 	};
 
 	bool warned = config_get_bool(App()->GetUserConfig(), "General", "WarnedAboutClosingDocks");
-	if (!OBSBasic::Get()->Closing() && !warned) {
+	if (!OBSBasic::Get()->Closing() && !pls_get_app_exiting() && !warned) {
 		QMetaObject::invokeMethod(App(), "Exec", Qt::QueuedConnection, Q_ARG(VoidFunc, msgBox));
 	}
 
@@ -39,10 +41,10 @@ void OBSDockOri::closeEvent(QCloseEvent *event)
 {
 	auto msgBox = []() {
 		pls_check_app_exiting();
-		auto result = PLSAlertView::information(pls_get_main_view(), QTStr("DockCloseWarning.Title"),
-							QTStr("DockCloseWarning.Text"), QTStr("DoNotShowAgain"),
-							PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
-		if (result.isChecked) {
+		auto result = PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ALERT_DOCK_CLOSE_WARNING, PLSErrKeyAllAlert, {},
+			PLSErrorHandler::ExtraData("OBSDockOri::closeEvent"), pls_get_main_view());
+		if (result.isCheckBoxClick) {
 			config_set_bool(App()->GetUserConfig(), "General", "WarnedAboutClosingDocks", true);
 			config_save_safe(App()->GetUserConfig(), "tmp", nullptr);
 		}

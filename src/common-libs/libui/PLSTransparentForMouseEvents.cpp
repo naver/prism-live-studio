@@ -8,9 +8,15 @@
 #include <qabstractspinbox.h>
 #include <qabstractslider.h>
 #include <qframe.h>
-#include <QTextEdit>
+#include <qtextedit.h>
+#include <qlistview.h>
+#include <qstackedwidget.h>
+#include <qscrollarea.h>
 
 #include <libutils-api.h>
+
+#include "PLSCheckBox.h"
+#include "PLSRadioButton.h"
 
 #ifdef Q_OS_WIN
 #include <Windows.h>
@@ -19,30 +25,30 @@
 namespace pls {
 namespace ui {
 
-static CheckResult checkChild(QWidget *widget, const CustomChecker &customChecker)
+static bool isExclude(const QObjectList &children, const MoveExcludeChecker &excludeChecker, const QPoint &pos)
 {
-	QWidget *childWidget = QApplication::widgetAt(QCursor::pos());
-	if (!childWidget || widget == childWidget) {
-		return CheckResult::Include;
-	} else if (auto result = pls_invoke_safe(CheckResult::Unknown, customChecker, widget, childWidget); result != CheckResult::Unknown) {
-		return result;
+	for (auto i = children.rbegin(), e = children.rend(); i != e; ++i) {
+		if (auto object = *i; !object->isWidgetType())
+			continue;
+		else if (auto widget = static_cast<QWidget *>(object); !widget->isVisible())
+			continue;
+		else if (!widget->rect().contains(widget->mapFromGlobal(pos)))
+			continue;
+		else if (!excludeChecker(widget))
+			return isExclude(widget->children(), excludeChecker, pos);
+		else
+			return true;
 	}
-
-	if (QString excludeChildren = widget->property("excludeChildren").toString(); excludeChildren == QStringLiteral("All")) {
-		return CheckResult::Exclude;
-	} else if (QStringList excludeSpecChildren = widget->property("excludeSpecChildren").toStringList(); excludeSpecChildren.contains(childWidget->objectName())) {
-		return CheckResult::Exclude;
-	}
-	return CheckResult::Include;
+	return false;
 }
 
-LIBUI_API bool transparentForMouseEvents_nativeEvent(QWidget *widget, const QByteArray &eventType, void *message, qintptr *result, const CustomChecker &customChecker)
+LIBUI_API bool transparentForMouseEvents_nativeEvent(QWidget *widget, const QByteArray &eventType, void *message, qintptr *result, const MoveExcludeChecker &excludeChecker)
 {
 #ifdef Q_OS_WIN
 	PMSG msg = (PMSG)message;
 	switch (msg->message) {
 	case WM_NCHITTEST:
-		if (checkChild(widget, customChecker) == CheckResult::Include) {
+		if (!excludeChecker || !isExclude(widget->children(), excludeChecker, QCursor::pos())) {
 			*result = HTTRANSPARENT;
 			return true;
 		}
@@ -54,33 +60,19 @@ LIBUI_API bool transparentForMouseEvents_nativeEvent(QWidget *widget, const QByt
 	return false;
 }
 
-LIBUI_API bool transparentForMouseEvents_moveInContentIncludeChild(QWidget *parentWidget, QWidget *childWidget)
+LIBUI_API bool transparentForMouseEvents_moveExcludeChild(QWidget *child)
 {
-	auto mo = childWidget->metaObject();
-	if ((mo == &QLabel::staticMetaObject)    //
-	    || (mo == &QFrame::staticMetaObject) //
-	    || (mo == &QWidget::staticMetaObject)) {
-		for (QWidget *widget = childWidget->parentWidget(); widget && widget != parentWidget; widget = widget->parentWidget()) {
-			if (transparentForMouseEvents_moveInContentExcludeChild(parentWidget, widget)) {
-				return false;
-			}
-		}
-		return true;
-	}
-	return false;
-}
-LIBUI_API bool transparentForMouseEvents_moveInContentExcludeChild(QWidget *parentWidget, QWidget *childWidget)
-{
-	if (parentWidget == childWidget) {
-		return false;
-	}
-
-	auto mo = childWidget->metaObject();
-	if (mo->inherits(&QAbstractButton::staticMetaObject)     //
-	    || mo->inherits(&QLineEdit::staticMetaObject)        //
-	    || mo->inherits(&QComboBox::staticMetaObject)        //
-	    || mo->inherits(&QAbstractSpinBox::staticMetaObject) //
-	    || mo->inherits(&QAbstractSlider::staticMetaObject) || mo->inherits(&QTextEdit::staticMetaObject)) {
+	if (auto mo = child->metaObject(); mo->inherits(&QAbstractButton::staticMetaObject)     //
+					   || mo->inherits(&QLineEdit::staticMetaObject)        //
+					   || mo->inherits(&QComboBox::staticMetaObject)        //
+					   || mo->inherits(&QAbstractSpinBox::staticMetaObject) //
+					   || mo->inherits(&QAbstractSlider::staticMetaObject)  //
+					   || mo->inherits(&QTextEdit::staticMetaObject)        //
+					   || mo->inherits(&PLSCheckBox::staticMetaObject)      //
+					   || mo->inherits(&PLSRadioButton::staticMetaObject)   //
+					   || mo->inherits(&QListView::staticMetaObject)        //
+					   || mo->inherits(&QScrollArea::staticMetaObject)      //
+					   || mo->inherits(&QStackedWidget::staticMetaObject)) {
 		return true;
 	}
 	return false;

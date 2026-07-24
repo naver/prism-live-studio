@@ -1,35 +1,38 @@
 ResolutionGuidePage {
-    min-width: /*hdpi*/ 720px;
-    min-height: /*hdpi*/ 488px;
-    max-width: /*hdpi*/ 720px;
-    max-height: /*hdpi*/ 2250px;
-    margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
-    border: /*hdpi*/ none;
-    qproperty-hasHLine: /*hdpi*/ false;
+    qproperty-captionBarHeight: 0;
+    qproperty-captionHeight: 0;
+    min-width: 720px;
+    min-height: 488px;
+    max-width: 720px;
+    max-height: 2250px;
+    margin: 0px 0px 0px 0px;
+    border: none;
+    background: #272727;
+    qproperty-hasHLine: false;
 }
 
     ResolutionGuidePage #content {
         background: #272727;
-        border: /*hdpi*/ none;
-    }
-
-    ResolutionGuidePage #ContentFrame {
-        margin: /*hdpi*/ 0px;
-        padding: /*hdpi*/ 0px /*hdpi*/ 15px /*hdpi*/ 0px /*hdpi*/ 30px;
         border: none;
     }
 
- 
+    ResolutionGuidePage #ContentFrame {
+        margin: 0px;
+        padding: 0px 15px 0px 30px;
+        border: none;
+    }
+
+
     ResolutionGuidePage #ContentScrollArea, ResolutionGuidePage #B2BScrollArea {
-        min-width: /*hdpi*/ 660px;
-        max-width: /*hdpi*/ 660px;
+        min-width: 660px;
+        max-width: 660px;
     }
 
         ResolutionGuidePage #ContentScrollArea QScrollBar::handle:vertical, ResolutionGuidePage #B2BScrollArea QScrollBar::handle:vertical {
-            min-width: /*hdpi*/ 6px;
-            min-height: /*hdpi*/ 105px;
-            max-width: /*hdpi*/ 6px;
-            max-height: /*hdpi*/ 105px;
+            min-width: 6px;
+            min-height: 105px;
+            max-width: 6px;
+            max-height: 105px;
             border-radius: 3px;
             background-color: #444444;
         }
@@ -39,34 +42,32 @@ ResolutionGuidePage {
     }
 
     ResolutionGuidePage #MainTitleLabel {
-        margin-top: /*hdpi*/ 40px;
-        padding: /*hdpi*/ 0px;
-        font-size: /*hdpi*/ 20px;
+        padding: 0px;
+        font-size: 20px;
         font-weight: bold;
         font-style: normal;
         color: #effc35;
-        min-height: /*hdpi*/ 30px;
-        max-height: /*hdpi*/ 30px;
+        min-height: 30px;
+        max-height: 30px;
         border: none;
     }
 
 
     ResolutionGuidePage #SubtitleLabel {
-        margin: /*hdpi*/ 0px;
-        padding: /*hdpi*/ 0px;
-        font-size: /*hdpi*/ 12px;
+        margin: 0px;
+        padding: 0px;
+        font-size: 12px;
         font-weight: normal;
         font-style: normal;
         color: #bababa;
-        min-height: /*hdpi*/ 18px;
-        max-height: /*hdpi*/ 18px;
+        min-height: 18px;
+        max-height: 18px;
         border: none;
     }
 
     ResolutionGuidePage #TabFrame {
         border: none;
         border-bottom: 1px solid #323232;
-        margin-top: 25px;
         min-height: 35px;
         max-height: 35px;
         padding: 0;
@@ -74,8 +75,8 @@ ResolutionGuidePage {
     }
 
     ResolutionGuidePage #B2BTab {
-        qproperty-maximumSize: /*hdpi*/ 180px /*hdpi*/ 35px;
-        qproperty-minimumSize: /*hdpi*/ 180px /*hdpi*/ 35px;
+        qproperty-maximumSize: 180px 35px;
+        qproperty-minimumSize: 180px 35px;
         margin: 0;
         padding: 0;
         border: none;
@@ -94,7 +95,7 @@ ResolutionGuidePage {
         color: #BABABA;
         background-color: transparent;
         /*border: 1px solid yellow;*/
-        margin-bottom:5px;
+        margin-bottom: 5px;
     }
 
         ResolutionGuidePage #B2BServerName[slected = "true"] {
@@ -124,8 +125,8 @@ ResolutionGuidePage {
         }
 
     ResolutionGuidePage #otherTab {
-        qproperty-maximumSize: /*hdpi*/ 180px /*hdpi*/ 35px;
-        qproperty-minimumSize: /*hdpi*/ 180px /*hdpi*/ 35px;
+        qproperty-maximumSize: 180px 35px;
+        qproperty-minimumSize: 180px 35px;
         margin: 0;
         padding: 0;
         font-weight: normal;
@@ -144,74 +145,73 @@ ResolutionGuidePage {
         }
 
     ResolutionGuidePage #content #HeaderFrame, ResolutionGuidePage #content #B2BHeaderFrame {
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
-        min-width: /*hdpi*/ 600px;
-        max-width: /*hdpi*/ 600px;
+        min-height: 40px;
+        max-height: 40px;
+        min-width: 600px;
+        max-width: 600px;
         background-color: #363636;
-        border-radius: /*hdpi*/ 3px;
-        margin: /*hdpi*/ 0px;
-        margin-top: 30px;
-        padding: /*hdpi*/ 0px /*hdpi*/ 30px /*hdpi*/ 0px /*hdpi*/ 30px;
+        border-radius: 3px;
+        margin: 0px;
+        padding: 0px 30px 0px 30px;
         border: none;
     }
 
         ResolutionGuidePage #content #HeaderFrame QLabel, ResolutionGuidePage #content #B2BHeaderFrame QLabel {
-            margin: /*hdpi*/ 0px;
-            padding: /*hdpi*/ 0px;
+            margin: 0px;
+            padding: 0px;
             background-color: transparent;
-            font-size: /*hdpi*/ 12px;
+            font-size: 12px;
             font-weight: bold;
             font-style: normal;
             color: white;
         }
 
     ResolutionGuidePage #errorLabel {
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
         font-weight: normal;
         color: #BABABA;
     }
 
-    ResolutionGuidePage ResolutionGuideItem{
-        min-width: /*hdpi*/ 615px;
-        max-width: /*hdpi*/ 615px;
-        min-height: /*hdpi*/ 50px;
-        margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
-        padding: /*hdpi*/ 10px /*hdpi*/ 10px /*hdpi*/ 10px /*hdpi*/ 25px;
-        border-radius: /*hdpi*/ 3px;
+    ResolutionGuidePage ResolutionGuideItem {
+        min-width: 615px;
+        max-width: 615px;
+        min-height: 50px;
+        margin: 0px 0px 0px 0px;
+        padding: 10px 10px 10px 25px;
+        border-radius: 3px;
         background-color: #363636;
         /*border: 1px solid red;*/
     }
 
     ResolutionGuidePage B2BResolutionGuideItem {
-        min-width: /*hdpi*/ 600px;
-        max-width: /*hdpi*/ 600px;
-        min-height: /*hdpi*/ 50px;
-        Max-height: /*hdpi*/ 50px;
-        margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
-        padding: /*hdpi*/ 10px /*hdpi*/ 30px /*hdpi*/ 10px /*hdpi*/ 25px;
-        border-radius: /*hdpi*/ 3px;
+        min-width: 600px;
+        max-width: 600px;
+        min-height: 50px;
+        Max-height: 50px;
+        margin: 0px 0px 0px 0px;
+        padding: 10px 30px 10px 25px;
+        border-radius: 3px;
         background-color: #363636;
         /*border: 1px solid red;*/
     }
 
 
-        ResolutionGuidePage #IconFrame {
-            min-width: /*hdpi*/ 67px;
-            max-width: /*hdpi*/ 67px;
-            max-height: /*hdpi*/ 40px;
-            margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
-            padding: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
-            background-color: transparent;
-        }
+    ResolutionGuidePage #IconFrame {
+        min-width: 67px;
+        max-width: 67px;
+        max-height: 40px;
+        margin: 0px 0px 0px 0px;
+        padding: 0px 0px 0px 0px;
+        background-color: transparent;
+    }
 
     ResolutionGuidePage B2BResolutionGuideItem #IconFrame, ResolutionGuidePage #B2BIcon {
-        margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
-        padding: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+        margin: 0px 0px 0px 0px;
+        padding: 0px 0px 0px 0px;
         background-color: transparent;
-        min-width: /*hdpi*/ 67px;
-        max-width: /*hdpi*/ 67px;
-        max-height: /*hdpi*/ 40px;
+        min-width: 67px;
+        max-width: 67px;
+        max-height: 40px;
     }
 
     ResolutionGuidePage #B2BTemplateName {
@@ -224,29 +224,29 @@ ResolutionGuidePage {
     }
 
     ResolutionGuidePage #B2BFPS {
-        min-width: /*hdpi*/ 150px;
-        max-width: /*hdpi*/ 150px;
-        max-height: /*hdpi*/ 40px;
-        margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
-        padding: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+        min-width: 150px;
+        max-width: 150px;
+        max-height: 40px;
+        margin: 0px 0px 0px 0px;
+        padding: 0px 0px 0px 0px;
         background-color: transparent;
         /*border: 1px solid yellow;*/
     }
 
-    ResolutionGuidePage #B2BBitrate{
-        min-width: /*hdpi*/ 130px;
-        max-width: /*hdpi*/ 130px;
-        max-height: /*hdpi*/ 40px;
-        margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
-        padding: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+    ResolutionGuidePage #B2BBitrate {
+        min-width: 130px;
+        max-width: 130px;
+        max-height: 40px;
+        margin: 0px 0px 0px 0px;
+        padding: 0px 0px 0px 0px;
         background-color: transparent;
         /*border: 1px solid yellow;*/
     }
 
     ResolutionGuidePage #MiddleFrame {
-        min-width: /*hdpi*/ 163px;
-        max-width: /*hdpi*/ 163px;
-        max-height: /*hdpi*/ 40px;
+        min-width: 163px;
+        max-width: 163px;
+        max-height: 40px;
         margin: 0px;
         padding: 0px;
         background-color: transparent;
@@ -255,12 +255,12 @@ ResolutionGuidePage {
 
 
     ResolutionGuidePage #DescriptionLabel {
-        min-width: /*hdpi*/ 400px;
-        max-width: /*hdpi*/ 400px;
+        min-width: 400px;
+        max-width: 400px;
         margin: 0;
-        padding: /*hdpi*/ 0px;
+        padding: 0px;
         background-color: transparent;
-        font-size: /*hdpi*/ 12px;
+        font-size: 12px;
         font-weight: normal;
         font-style: normal;
         color: #bababa;
@@ -268,47 +268,48 @@ ResolutionGuidePage {
     }
 
     ResolutionGuidePage ResolutionGuideItem #blockLabel {
-        font-size: /*hdpi*/ 12px;
+        font-size: 12px;
         font-weight: normal;
         font-style: normal;
         color: #bababa;
         background-color: transparent;
         border: none;
-        min-width: /*hdpi*/ 385px;
-        max-width: /*hdpi*/ 385px;
+        min-width: 385px;
+        max-width: 385px;
     }
 
-    ResolutionGuidePage ResolutionGuideItem > #IconFrame{
-        max-height: /*hdpi*/ 46px;
-        margin-top: /*hdpi*/ 2px;
+    ResolutionGuidePage ResolutionGuideItem > #IconFrame {
+        max-height: 46px;
+        margin-top: 2px;
     }
 
     ResolutionGuidePage ResolutionGuideItem ComplexHeaderIcon, ResolutionGuidePage B2BResolutionGuideItem ComplexHeaderIcon {
-        margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
-        padding: /*hdpi*/ 0px;
-        qproperty-minimumSize: /*hdpi*/ 46px /*hdpi*/ 46px;
-        qproperty-maximumSize: /*hdpi*/ 46px /*hdpi*/ 46px;
+        margin: 0px 0px 0px 0px;
+        padding: 0px;
+        qproperty-minimumSize: 46px 46px;
+        qproperty-maximumSize: 46px 46px;
         background-color: transparent;
         color: transparent;
     }
 
     ResolutionGuidePage ResolutionGuideItem > #MiddleFrame {
-        margin-left: /*hdpi*/ 5px;
-        min-width: /*hdpi*/ 163px;
-        max-width: /*hdpi*/ 163px;
+        margin-left: 5px;
+        min-width: 163px;
+        max-width: 163px;
     }
+
     ResolutionGuidePage B2BResolutionGuideItem > #MiddleFrame {
-        min-width: /*hdpi*/ 153px;
-        max-width: /*hdpi*/ 153px;
+        min-width: 153px;
+        max-width: 153px;
     }
 
     ResolutionGuidePage ResolutionGuideItem #ResolutionApplyBtn, ResolutionGuidePage B2BResolutionGuideItem #ResolutionApplyBtn {
-        min-height: /*hdpi*/ 18px;
-        max-height: /*hdpi*/ 18px;
-        margin: /*hdpi*/ 0px;
-        padding: /*hdpi*/ 0px;
+        min-height: 18px;
+        max-height: 18px;
+        margin: 0px;
+        padding: 0px;
         background-color: transparent;
-        font-size: /*hdpi*/ 12px;
+        font-size: 12px;
         font-weight: normal;
         font-style: normal;
         text-align: left;
@@ -328,93 +329,97 @@ ResolutionGuidePage {
         }
 
     ResolutionGuidePage ResolutionGuideItem #ResolutionLabel {
-        min-height: /*hdpi*/ 18px;
-        margin: /*hdpi*/ 0px;
-        padding: /*hdpi*/ 0px;
+        min-height: 18px;
+        margin: 0px;
+        padding: 0px;
         background-color: transparent;
-        font-size: /*hdpi*/ 12px;
+        font-size: 12px;
         font-weight: normal;
         font-style: normal;
         color: #bababa;
         /*border: 1px solid red;*/
     }
+
     ResolutionGuidePage B2BResolutionGuideItem #templateName {
-        min-height: /*hdpi*/ 18px;
-        margin: /*hdpi*/ 0px;
-        padding: /*hdpi*/ 0px;
+        min-height: 18px;
+        margin: 0px;
+        padding: 0px;
         background-color: transparent;
-        font-size: /*hdpi*/ 12px;
+        font-size: 12px;
         font-weight: bold;
         font-style: normal;
         color: #bababa;
         min-width: 138px;
         max-width: 138px;
     }
+
     ResolutionGuidePage B2BResolutionGuideItem #output_FPS, ResolutionGuidePage B2BResolutionGuideItem #bitrate, ResolutionGuidePage B2BResolutionGuideItem #keyframeInterval {
-        min-height: /*hdpi*/ 18px;
-        margin: /*hdpi*/ 0px;
-        padding: /*hdpi*/ 0px;
+        min-height: 18px;
+        margin: 0px;
+        padding: 0px;
         background-color: transparent;
-        font-size: /*hdpi*/ 12px;
+        font-size: 12px;
         font-weight: normal;
         font-style: normal;
         color: #bababa;
         /*border: 1px solid red;*/
     }
+
     ResolutionGuidePage B2BResolutionGuideItem #output_FPS {
-        min-width: /*hdpi*/ 150px;
-        max-width: /*hdpi*/ 150px;
+        min-width: 150px;
+        max-width: 150px;
     }
+
     ResolutionGuidePage B2BResolutionGuideItem #bitrate {
-        min-width: /*hdpi*/ 130px;
-        max-width: /*hdpi*/ 130px;
+        min-width: 130px;
+        max-width: 130px;
     }
-    
-        ResolutionGuidePage #OtherInforFrame {
-            min-height: /*hdpi*/ 16px;
-            min-width: /*hdpi*/ 600px;
-            padding: /*hdpi*/ 8px /*hdpi*/ 0px /*hdpi*/ 40px /*hdpi*/ 0px;
-            margin: /*hdpi*/ 0px;
-            border: none;
-            background-color: transparent;
-        }
+
+    ResolutionGuidePage #OtherInforFrame {
+        min-height: 16px;
+        min-width: 600px;
+        padding: 8px 0px 40px 0px;
+        margin: 0px;
+        border: none;
+        background-color: transparent;
+    }
 
     ResolutionGuidePage #OtherLabel {
-        font-size: /*hdpi*/ 12px;
+        font-size: 12px;
         font-style: normal;
         font-weight: bold;
         color: #bababa;
         background-color: transparent;
-        max-height: /*hdpi*/ 16px;
+        max-height: 16px;
         border: none;
     }
 
     ResolutionGuidePage #OtherInforFrame #ResolutionOtherTipsLabel {
-        font-size: /*hdpi*/ 12px;
+        font-size: 12px;
         font-weight: normal;
         font-style: normal;
         color: #bababa;
         background-color: transparent;
-        max-height: /*hdpi*/ 16px;
+        max-height: 16px;
         border: none;
         margin: 0px;
         padding: 0px
     }
 
     ResolutionGuidePage #BottomFrame {
-        min-height: /*hdpi*/ 78px;
-        max-height: /*hdpi*/ 78px;
-        border-top: /*hdpi*/ 1px solid #111111;
+        min-height: 78px;
+        max-height: 78px;
+        border-top: 1px solid #111111;
     }
 
     ResolutionGuidePage #content #CloseBtn {
-        min-width: /*hdpi*/ 170px;
-        max-width: /*hdpi*/ 170px;
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
-        margin: /*hdpi*/ 0px;
-        padding: /*hdpi*/ 0px;
-        border-radius: /*hdpi*/ 3px;
+        min-width: 170px;
+        max-width: 170px;
+        min-height: 40px;
+        max-height: 40px;
+        margin: 0px;
+        padding: 0px;
+        border-radius: 3px;
         background-color: #444444;
     }
 
@@ -436,11 +441,11 @@ ResolutionGuidePage {
 
     ResolutionGuidePage #CannotTip {
         margin: 0px;
-        padding: /*hdpi*/ 11px /*hdpi*/ 20px /*hdpi*/ 14px /*hdpi*/ 20px;
+        padding: 11px 20px 14px 20px;
         background-color: rgba(30,30, 30, 0.95);
-        border: /*hdpi*/ 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: /*hdpi*/ 3px;
-        font-size: /*hdpi*/ 14px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        font-size: 14px;
         font-weight: normal;
         font-style: normal;
         color: #bababa;

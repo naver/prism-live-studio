@@ -30,8 +30,9 @@ public slots:
 
 signals:
 	void onJsonDownloaded() const;
-	void onItemDownloaded(const SceneTemplateItem &item) const;
+	void onItemDownloaded(const SceneTemplateItem &item, bool ok) const;
 	void onGroupDownloadFailed(const QString &groupId) const;
+	void onAllDownloaded(bool ok) const;
 
 private:
 	QMap<QPair<QString, QString>, int> m_mapOrder;

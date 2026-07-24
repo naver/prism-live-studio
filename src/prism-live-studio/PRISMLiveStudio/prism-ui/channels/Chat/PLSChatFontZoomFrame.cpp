@@ -20,17 +20,14 @@ PLSChatFontZoomFrame::PLSChatFontZoomFrame(QWidget *parent, QWidget *ignoreWidge
 		move(popLeftTop);
 	};
 	centerShow();
+	pls_uistep_v2_set_value(ui->pushButton_minus, QStringLiteral("clicked"), QStringLiteral("minus"));
+	pls_uistep_v2_set_value(ui->pushButton_plus, QStringLiteral("clicked"), QStringLiteral("plus"));
 
-	connect(ui->pushButton_minus, &QPushButton::clicked, this, [this]() {
-		PLS_UI_STEP(s_chatFontModuleName, "PLSChat Dialog font size minus", ACTION_CLICK);
-		fontChangeBtnClick(false);
-	});
-	connect(ui->pushButton_plus, &QPushButton::clicked, this, [this]() {
-		PLS_UI_STEP(s_chatFontModuleName, "PLSChat Dialog font size plus", ACTION_CLICK);
-		fontChangeBtnClick(true);
-	});
+	connect(ui->pushButton_minus, &QPushButton::clicked, this, [this]() { fontChangeBtnClick(false); });
+	connect(ui->pushButton_plus, &QPushButton::clicked, this, [this]() { fontChangeBtnClick(true); });
 	this->installEventFilter(this);
-	PLS_INFO(s_chatFontModuleName, "PLSChat Dialog font size frame shown");
+	pls_uistep_v2_set_title(this, "Chat Dock Font Size Popup");
+	pls_uistep_v2_set_custom_show_hide_name(this, "PLSChatFontZoomFrame");
 }
 
 PLSChatFontZoomFrame::~PLSChatFontZoomFrame()
@@ -71,6 +68,7 @@ void PLSChatFontZoomFrame::fontChangeBtnClick(bool isPlus)
 	auto newScale = PLS_CHAT_HELPER->getNextScaleSize(isPlus);
 	PLSChatHelper::sendWebChatFontSizeChanged(newScale);
 	updateUIWithScale(newScale);
+	PLS_UI_ACTION("PLSChatFontZoomFrame font changed to: %s", (isPlus ? "plus" : "mminus"));
 }
 
 void PLSChatFontZoomFrame::updateUIWithScale(int scale)

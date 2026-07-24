@@ -7,6 +7,7 @@
 #include "PLSNaverShoppingLIVEDataManager.h"
 #include "PLSLoadingView.h"
 #include "PLSAlertView.h"
+#include "PLSErrorHandler.h"
 #include "pls-common-define.hpp"
 #include "PLSLoadNextPage.h"
 
@@ -15,6 +16,7 @@
 #include <chrono>
 #include <QPainterPath>
 #include <QHBoxLayout>
+#include "libutils-api.h"
 #include "liblog.h"
 
 using namespace common;
@@ -89,6 +91,7 @@ void PLSLiveInfoNaverShoppingLIVEProductCountBadge::paintEvent(QPaintEvent * /*e
 
 PLSLiveInfoNaverShoppingLIVEProductList::PLSLiveInfoNaverShoppingLIVEProductList(QWidget *parent) : QWidget(parent)
 {
+	PLS_PERFORMANCE_GLOBAL_START("PLSLiveInfoNaverShoppingLIVEProductList::constructor", "PLSLiveInfoNaverShoppingLIVE::setupUi");
 	ui = pls_new<Ui::PLSLiveInfoNaverShoppingLIVEProductList>();
 
 	ui->setupUi(this);
@@ -99,7 +102,7 @@ PLSLiveInfoNaverShoppingLIVEProductList::PLSLiveInfoNaverShoppingLIVEProductList
 	auto lang = pls_get_current_language();
 	ui->ppAddButton->setProperty("lang", lang);
 	updateUIWhenSwitchScheduleList();
-	connect(ui->gotoNaverShoppingToolTipLabel1, &QLabel::linkActivated, this, [](const QString &) { QDesktopServices::openUrl(CHANNEL_NAVER_SHOPPING_LIVE_LOGIN); });
+	connect(ui->gotoNaverShoppingToolTipLabel1, &QLabel::linkActivated, this, [](const QString &) { pls_async_invoke([]() { QDesktopServices::openUrl(CHANNEL_NAVER_SHOPPING_LIVE_LOGIN); }); });
 
 	ui->nppAddButton->setProperty("lang", lang);
 	ui->noNetRetryButton->setProperty("lang", lang);
@@ -141,6 +144,7 @@ PLSLiveInfoNaverShoppingLIVEProductList::PLSLiveInfoNaverShoppingLIVEProductList
 	ui->mainProductBtn->setChecked(true);
 
 	ui->hline2->installEventFilter(this);
+	PLS_PERFORMANCE_GLOBAL_END("PLSLiveInfoNaverShoppingLIVEProductList::constructor");
 }
 
 PLSLiveInfoNaverShoppingLIVEProductList::~PLSLiveInfoNaverShoppingLIVEProductList()
@@ -838,9 +842,13 @@ bool PLSLiveInfoNaverShoppingLIVEProductList::checkAgeLimitProducts(QList<Produc
 
 	if (ageLimitProducts.isEmpty()) {
 		return false;
-	} else if (PLSAlertView::question(pls_get_toplevel_view(this), tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.RemoveAgeLimitProducts"),
-					  {{PLSAlertView::Button::Close, tr("Close")}, {PLSAlertView::Button::Apply, tr("Delete")}}) != PLSAlertView::Button::Apply) {
-		return false;
+	} else {
+		PLSErrorHandler::RetData ret = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPINGLIVE_LIVEINFO_REMOVEAGELIMITPRODUCTS, PLSErrKeyAllAlert, QString(),
+										     PLSErrorHandler::ExtraData(QStringLiteral("PLSLiveInfoNaverShoppingLIVEProductList::checkAgeLimitProducts")),
+										     pls_get_toplevel_view(this));
+		if (ret.clickedBtn != PLSAlertView::Button::Apply) {
+			return false;
+		}
 	}
 
 	for (const auto &product : ageLimitProducts) {
@@ -871,7 +879,8 @@ void PLSLiveInfoNaverShoppingLIVEProductList::onFixButtonClicked(PLSLiveInfoNave
 	auto fixedProductNos = getFixedOrUnfixedProductNos(getProductType(), true);
 	if (!itemView->isFixed()) {
 		if (fixedProductNos.count() >= PLSNaverShoppingLIVEDataManager::MAX_FIXED_PRODUCT_COUNT) {
-			PLSAlertView::information(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.FixProduct.Limit"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPINGLIVE_LIVEINFO_FIXPRODUCT_LIMIT, PLSErrKeyAllAlert, QString(),
+							      PLSErrorHandler::ExtraData(QStringLiteral("PLSLiveInfoNaverShoppingLIVEProductList::onFixButtonClicked")), this);
 		} else {
 			doProductFixed(itemView, true);
 		}
@@ -889,7 +898,8 @@ void PLSLiveInfoNaverShoppingLIVEProductList::onRemoveButtonClicked(const PLSLiv
 	}
 
 	if (isLiving && (getProductCount(PLSProductType::MainProduct) == PLSNaverShoppingLIVEDataManager::MIN_LIVEINFO_PRODUCT_COUNT)) {
-		pls_alert_error_message(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Product.AtLeastOne"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPINGLIVE_LIVEINFO_PRODUCT_ATLEASTONE, PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral("PLSLiveInfoNaverShoppingLIVEProductList::onRemoveButtonClicked")), this);
 	} else {
 		doProductRemoved(itemView);
 	}
@@ -964,7 +974,7 @@ void PLSLiveInfoNaverShoppingLIVEProductList::doProductRemoved(const PLSLiveInfo
 	if (getProductCount(getProductType()) == 0) {
 		showPage(false);
 	}
-
+	PLS_UI_ACTION("In [Live Information: Naver Shopping LIVE], remove product ui has been changed.");
 	emit productChangedOrUpdated(true);
 }
 
@@ -1019,6 +1029,7 @@ void PLSLiveInfoNaverShoppingLIVEProductList::showPage(bool hasProducts, bool sh
 		ui->products->setVisible(showProductList);
 		ui->productPage->show();
 	}
+	PLS_UI_ACTION("In [Live Information: Naver Shopping LIVE], Product ui has been changed.");
 }
 
 void PLSLiveInfoNaverShoppingLIVEProductList::productUpdateFinished()

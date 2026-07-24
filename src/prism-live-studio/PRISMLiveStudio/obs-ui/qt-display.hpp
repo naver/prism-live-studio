@@ -6,6 +6,13 @@
 
 #define GREY_COLOR_BACKGROUND 0xFF4C4C4C
 
+class OBSQTDisplayFailedView;
+
+#ifdef _WIN32
+#define USE_WIN32_HWND
+#define DISPLAY_CLASS_NAME L"prism_win32_preview_window"
+#endif
+
 class OBSQTDisplay : public QWidget {
 	Q_OBJECT
 	Q_PROPERTY(QColor displayBackgroundColor MEMBER backgroundColor READ GetDisplayBackgroundColor WRITE
@@ -13,7 +20,11 @@ class OBSQTDisplay : public QWidget {
 
 	OBSDisplay display;
 	bool destroying = false;
+
+	QWidget *textOverlay = nullptr;
 	QLabel *displayText;
+	OBSQTDisplayFailedView *failedView;
+
 	QMetaObject::Connection screenConnection;
 
 	virtual void paintEvent(QPaintEvent *event) override;
@@ -28,7 +39,8 @@ signals:
 
 public:
 	OBSQTDisplay(QWidget *parent = nullptr, Qt::WindowFlags flags = Qt::WindowFlags());
-	~OBSQTDisplay() { display = nullptr; }
+	~OBSQTDisplay();
+
 	virtual QSize GetWidgetSize();
 	virtual QPaintEngine *paintEngine() const override;
 
@@ -45,9 +57,28 @@ public:
 		display = nullptr;
 		destroying = true;
 	};
+	void ResizeDisplay();
 
 	void OnMove();
 	void OnDisplayChange();
 	void showGuideText(const QString &guideText);
 	void hideGuideText();
+	void setFailedText(const QString &failedText, bool needLoading);
+
+private:
+	void hideFailedText();
+	void showTextLabel(QWidget *label, bool isShow);
+
+protected:
+	/** Match obs_display (and Win32 preview HWND) to pixel size. If pixelWidth/pixelHeight are both <= 0, uses GetPixelSize(this). */
+	void syncObsDisplaySurfacePixels(int pixelWidth = -1, int pixelHeight = -1);
+
+#ifdef USE_WIN32_HWND
+public:
+	uint64_t hWndDisplay = 0;
+	bool CreatePreviewWindow();
+	bool CustomRegisterClass();
+	void OnWindowDestroy(uint64_t hWnd);
+	void ShowPreviewWindow(bool show);
+#endif
 };

@@ -2,17 +2,23 @@
 #define RESOLUTIONGUIDEPAGE_H
 
 #include <QFrame>
+#include <QList>
 #include "PLSDialogView.h"
 #include <QLabel>
 #include <QPointer>
 #include "PLSPressRestoreButton.hpp"
 #include "ui_ResolutionGuidePage.h"
 #include <memory>
+#include <QShowEvent>
 #include "libresource.h"
+#include "PLSErrorHandler.h"
 
 namespace Ui {
 class ResolutionGuidePage;
 }
+
+class ResolutionGuideItem;
+class PLSTextLoadingView;
 
 struct Resolution {
 	int width = 1280;
@@ -36,9 +42,8 @@ class ResolutionGuidePage : public PLSDialogView {
 
 public:
 	explicit ResolutionGuidePage(QWidget *parent = nullptr);
-	~ResolutionGuidePage() override;
+	~ResolutionGuidePage() override = default;
 	static ResolutionGuidePage *createInstance(QWidget *parent = nullptr);
-
 	//get data
 	static const QVariantList &getResolutionsList();
 	static QString getPreferResolutionStringOfPlatform(const QString &platform);
@@ -80,6 +85,7 @@ public:
 		auto layout = new QHBoxLayout();
 
 		auto txtButon = new PLSRestoreCheckBox(frame);
+		pls_uistep_v2_set_info(txtButon, "Output Resolution", PLS_UI_STEPS_V2_ATTR_VALUE_BUTTON);
 		txtButon->setObjectName("ToResolutionBtn");
 		txtButon->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 		// tr same as settings ,resolution guide page
@@ -116,14 +122,14 @@ public:
 
 		bool checkIsCanChange();
 		void updateUI(bool autoShow = true);
-		void updateText();
+		/** @return INVALID if no tip; otherwise the prism ErrCode for the blocked reason. */
+		PLSErrorHandler::ErrCode updateText();
 		void updateGeometry();
 	};
 
 	static CannotTipObject createCannotTipForWidget(QWidget *parentWidget, const QSize &fixSize, const QPoint &moveDistance);
 
 signals:
-	void visibilityChanged(bool isVisible);
 	void resolutionUpdated();
 	void sigSetResolutionFailed();
 	void downloadThumbnailFinish();
@@ -135,8 +141,10 @@ public slots:
 	void on_updateButton_clicked();
 
 protected:
+	void showEvent(QShowEvent *event) override;
 	void changeEvent(QEvent *e) override;
 	bool event(QEvent *event) override;
+	bool eventFilter(QObject *watcher, QEvent *event) override;
 
 private slots:
 	void on_CloseBtn_clicked();
@@ -144,9 +152,10 @@ private slots:
 	void updateSpace(bool isAdd = true);
 
 private:
-	void connectMainView();
-
 	void initialize();
+	void createResolutionItems();
+	void createResolutionItemsChunk();
+	void onCreateResolutionItemsFinished();
 	void loadSettings();
 	void saveSettings() const;
 
@@ -157,6 +166,8 @@ private:
 	void UpdateB2BUI();
 	QString getFilePath(const QString &fileName);
 	void handThumbnail();
+	void showPageTextLoading();
+	void hidePageTextLoading();
 	//private
 	std::unique_ptr<Ui::ResolutionGuidePage> ui = std::make_unique<Ui::ResolutionGuidePage>();
 	static QVariantList mResolutions;
@@ -170,6 +181,11 @@ private:
 	std::list<pls::rsm::UrlAndHowSave> m_urlAndHowSaves;
 	bool m_updateRequestExisted{false};
 	bool m_downLoadRequestExisted{false};
+	QList<ResolutionGuideItem *> m_commonItems;
+	bool m_resolutionItemsCreated = false;
+	int m_createResolutionItemIndex = 0;
+
+	QPointer<PLSTextLoadingView> m_pageTextLoading;
 };
 
 #endif // RESOLUTIONGUIDEPAGE_H

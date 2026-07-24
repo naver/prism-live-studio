@@ -320,5 +320,6 @@ constexpr auto FACEBOOK_SERVICE = "Facebook Live";
 
 //live start name
 constexpr auto NCP_LIVE_START_NAME = "NCP";
-
+constexpr auto APPLE_ID = "Apple";
+constexpr auto GOOGLE = "Google";
 #endif // !CHANNEL_CONST_H

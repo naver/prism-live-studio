@@ -92,6 +92,8 @@ void ScreenshotObj::Screenshot()
 
 	if (!cx || !cy) {
 		blog(LOG_WARNING, "Cannot screenshot, invalid target size");
+		screenshotFailed = true;
+		PLS_UI_ACTION("Screenshot aborted: invalid target size");
 		obs_remove_tick_callback(ScreenshotTick, this);
 		deleteLater();
 		return;
@@ -169,6 +171,12 @@ void ScreenshotObj::Copy()
 
 void ScreenshotObj::Save()
 {
+	PLS_PERFORMANCE_GLOBAL_END("WaitForTick"); // End wait from end of tick 2 to when Save() was invoked
+#if defined(PLS_PERFORMANCE_STATS)
+	const char *parent = m_performanceParent.empty() ? nullptr : m_performanceParent.c_str();
+	PLS_PERFORMANCE_GLOBAL_START("Save", parent);
+#endif
+
 	OBSBasic *main = OBSBasic::Get();
 	config_t *config = main->Config();
 
@@ -186,7 +194,7 @@ void ScreenshotObj::Save()
 	const char *ext = half_bytes.empty() ? "png" : "jxr";
 	path = GetOutputFilename(rec_path, ext, noSpace, overwriteIfExists,
 				 GetFormatString(filenameFormat, "Screenshot", nullptr).c_str());
-
+	PLS_PERFORMANCE_GLOBAL_START("MuxAndFinish", "Save");
 	th = std::thread([this] { MuxAndFinish(); });
 }
 
@@ -278,9 +286,25 @@ static HRESULT SaveJxr(LPCWSTR path, uint8_t *pixels, uint32_t cx, uint32_t cy)
 
 void ScreenshotObj::MuxAndFinish()
 {
-	if (half_bytes.empty()) {
-		image.save(QT_UTF8(path.c_str()));
+	bool savedAsPng = half_bytes.empty();
+	// PLS_UI_ACTION must be before image.save / SaveJxr (keep existing logic)
+	if (savedAsPng) {
 		blog(LOG_INFO, "Saved screenshot to '%s'", path.c_str());
+		PLS_UI_ACTION("Saved screenshot to '%s'", path.c_str());
+	} else {
+		blog(LOG_INFO, "Saved screenshot (JXR) finished.");
+		PLS_UI_ACTION("Saved screenshot (JXR) finished.");
+	}
+	// Performance END immediately after action log so both stats share the same end time
+	PLS_PERFORMANCE_GLOBAL_END("MuxAndFinish");
+	PLS_PERFORMANCE_GLOBAL_END("Save");
+#if defined(PLS_PERFORMANCE_STATS)
+	if (!m_performanceParent.empty())
+		PLS_PERFORMANCE_GLOBAL_END(m_performanceParent.c_str());
+#endif
+	// File write after action log
+	if (savedAsPng) {
+		image.save(QT_UTF8(path.c_str()));
 	} else {
 #ifdef _WIN32
 		wchar_t *path_w = nullptr;
@@ -299,6 +323,10 @@ void ScreenshotObj::Start(bool showTipOnFinished)
 {
 	showtips = showTipOnFinished;
 	obs_add_tick_callback(ScreenshotTick, this);
+#if defined(PLS_PERFORMANCE_STATS)
+	const char *parent = m_performanceParent.empty() ? nullptr : m_performanceParent.c_str();
+	PLS_PERFORMANCE_GLOBAL_START("WaitForTick", parent); // Wait from scene start to first tick
+#endif
 }
 
 /* ========================================================================= */
@@ -308,6 +336,14 @@ void ScreenshotObj::Start(bool showTipOnFinished)
 #define STAGE_COPY_AND_SAVE 2
 #define STAGE_FINISH 3
 
+#if defined(PLS_PERFORMANCE_STATS)
+static const char *const g_screenshotStageIds[] = {
+	"STAGE_SCREENSHOT",
+	"STAGE_DOWNLOAD",
+	"STAGE_COPY_AND_SAVE",
+};
+#endif
+
 static void ScreenshotTick(void *param, float)
 {
 	ScreenshotObj *data = reinterpret_cast<ScreenshotObj *>(param);
@@ -315,6 +351,17 @@ static void ScreenshotTick(void *param, float)
 	if (data->stage == STAGE_FINISH) {
 		return;
 	}
+
+	PLS_PERFORMANCE_GLOBAL_END("WaitForTick"); // End wait from previous segment (Start or end of last tick)
+
+#if defined(PLS_PERFORMANCE_STATS)
+	const char *parent = data->m_performanceParent.empty() ? nullptr : data->m_performanceParent.c_str();
+	const char *tickId =
+		(data->stage >= 0 && data->stage < (int)sizeof(g_screenshotStageIds) / sizeof(g_screenshotStageIds[0]))
+			? g_screenshotStageIds[data->stage]
+			: g_screenshotStageIds[STAGE_SCREENSHOT];
+	PLS_PERFORMANCE_GLOBAL_START(tickId, parent);
+#endif
 
 	obs_enter_graphics();
 
@@ -334,10 +381,25 @@ static void ScreenshotTick(void *param, float)
 
 	obs_leave_graphics();
 
+#if defined(PLS_PERFORMANCE_STATS)
+	PLS_PERFORMANCE_GLOBAL_END(tickId);
+#endif
+	if (data->screenshotFailed) {
+#if defined(PLS_PERFORMANCE_STATS)
+		if (!data->m_performanceParent.empty())
+			PLS_PERFORMANCE_GLOBAL_END(data->m_performanceParent.c_str());
+#endif
+		data->stage = STAGE_FINISH;
+		return;
+	}
+
 	data->stage++;
+#if defined(PLS_PERFORMANCE_STATS)
+	PLS_PERFORMANCE_GLOBAL_START("WaitForTick", parent); // Wait for next tick or for Save()
+#endif
 }
 
-void OBSBasic::Screenshot(OBSSource source, bool isVerticalPreview)
+void OBSBasic::Screenshot(OBSSource source, bool isVerticalPreview, const char *performanceParent)
 {
 	if (!!screenshotData) {
 		blog(LOG_WARNING, "Cannot take new screenshot, "
@@ -348,6 +410,10 @@ void OBSBasic::Screenshot(OBSSource source, bool isVerticalPreview)
 	screenshotData = new ScreenshotObj(source);
 	auto obj = qobject_cast<ScreenshotObj *>(screenshotData);
 	obj->isVerticalPreview = isVerticalPreview;
+#if defined(PLS_PERFORMANCE_STATS)
+	if (performanceParent)
+		obj->m_performanceParent = performanceParent;
+#endif
 	obj->Start();
 }
 
@@ -360,7 +426,12 @@ void OBSBasic::ScreenshotSelectedSource()
 	}
 
 	if (item) {
+#if defined(PLS_PERFORMANCE_STATS)
+		PLS_PERFORMANCE_GLOBAL_START("ScreenshotSource");
+		Screenshot(obs_sceneitem_get_source(item), false, "ScreenshotSource");
+#else
 		Screenshot(obs_sceneitem_get_source(item));
+#endif
 	} else {
 		blog(LOG_INFO, "Could not take a source screenshot: "
 			       "no source selected");
@@ -369,10 +440,20 @@ void OBSBasic::ScreenshotSelectedSource()
 
 void OBSBasic::ScreenshotProgram()
 {
-	Screenshot(GetProgramSource());
+#if defined(PLS_PERFORMANCE_STATS)
+	PLS_PERFORMANCE_GLOBAL_START("ScreenshotProgram");
+	Screenshot(GetProgramSource(), false, "ScreenshotProgram");
+#else
+	Screenshot(GetProgramSource(), false);
+#endif
 }
 
 void OBSBasic::ScreenshotScene()
 {
+#if defined(PLS_PERFORMANCE_STATS)
+	PLS_PERFORMANCE_GLOBAL_START("ScreenshotScene");
+	Screenshot(GetCurrentSceneSource(), getIsVerticalPreviewFromAction(), "ScreenshotScene");
+#else
 	Screenshot(GetCurrentSceneSource(), getIsVerticalPreviewFromAction());
+#endif
 }

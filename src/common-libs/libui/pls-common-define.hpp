@@ -99,8 +99,8 @@ constexpr auto LANGUAGE_KOREAN_TRANSLATE_PATH = "ko-kr/strings.xml";
 constexpr auto LANGUAGE_SETTING_ENGLISH = "en-US,en;q=0.9";
 constexpr auto LANGUAGE_SETTING_KOREAN = "ko-KR,ko;q=0.9";
 
-constexpr auto ENCODING_SETTINGS_GUIDE_EN_US_URL = "";
-constexpr auto ENCODING_SETTINGS_GUIDE_KO_KR_URL = "";
+constexpr auto ENCODING_SETTINGS_GUIDE_EN_US_URL = "http://prismlive.com/en_us/faq/faq.html?app=pcapp";
+constexpr auto ENCODING_SETTINGS_GUIDE_KO_KR_URL = "http://prismlive.com/ko_kr/faq/faq.html?app=pcapp";
 
 /*****************resources******************/
 constexpr auto RESOURCES_PATH = "resources/";
@@ -208,6 +208,9 @@ constexpr auto NEWFUNCTIONTIP_CONFIG = "NewFunctionTipConfig";
 constexpr auto CONFIG_DISPLAYVERISON = "DisplayVerison";
 constexpr auto CHAT_WIDGET_CONFIG = "ChatWidgetConfig";
 constexpr auto CHAT_WIDGET_NEW_BADGE = "ChatWidgetNewBadge";
+
+constexpr auto CONFIG_SECTION_RTMP_CHANNEL = "RTMPChannel";
+constexpr auto CONFIG_KEY_ONLY_PASTE_KEY = "OnlyPasteKey";
 
 /* **the keys of source settings need to be same with bgm source plugins ** */
 constexpr auto RANDOM_PLAY = "random play";
@@ -958,6 +961,14 @@ constexpr auto DEAW_PEN_ON_OVER = ":/images/draw-pen/ic-drawing-on-over.svg";
 constexpr auto DEAW_PEN_ON_CLICKED = ":/images/draw-pen/ic-drawing-on-click.svg";
 constexpr auto DEAW_PEN_ON_DISABLE = ":/images/draw-pen/ic-drawing-on-disable.svg";
 
+constexpr auto REMOTE_CONTROL_OFF_NORMAL = ":/images/remote-control/ic-remotecontrol-off-normal.svg";
+constexpr auto REMOTE_CONTROL_OFF_OVER = ":/images/remote-control/ic-remotecontrol-off-over.svg";
+constexpr auto REMOTE_CONTROL_OFF_CLICKED = ":/images/remote-control/ic-remotecontrol-off-click.svg";
+constexpr auto REMOTE_CONTROL_OFF_DISABLE = ":/images/remote-control/ic-remotecontrol-off-disable.svg";
+constexpr auto REMOTE_CONTROL_ON_NORMAL = ":/images/remote-control/ic-remotecontrol-on-normal.svg";
+constexpr auto REMOTE_CONTROL_ON_OVER = ":/images/remote-control/ic-remotecontrol-on-over.svg";
+constexpr auto REMOTE_CONTROL_ON_CLICKED = ":/images/remote-control/ic-remotecontrol-on-click.svg";
+constexpr auto REMOTE_CONTROL_ON_DISABLE = ":/images/remote-control/ic-remotecontrol-on-disable.svg";
 
 /************ app crash notice *********/
 constexpr auto IS_THIRD_PARTY_PLUGINS = "isThirdPartyPlugins";
@@ -970,7 +981,7 @@ constexpr auto IS_CRASHED = "crashed";
 constexpr auto VIDEO_ADAPTER = "videoAdapter";
 constexpr auto MODULES = "modules";
 
-constexpr auto LIVEINFO_STAR_HTML_TEMPLATE = "<html><head/><body><p style='white-space: pre-wrap;'>%1<span style='color:#c34151;font-weight:normal;'>*</span></p></body></html>";
+constexpr auto LIVEINFO_STAR_HTML_TEMPLATE = "<html><head/><body><p style='white-space: pre-wrap;'>%1<span style='color:#c34151;font-weight:normal;'> *</span></p></body></html>";
 
 //wizard
 constexpr auto PLS_BANNANR_PATH = "Cache/Banner";
@@ -1033,7 +1044,11 @@ constexpr auto TERM_WEBVIEW_CSS =
 	"body * {font-family: system-ui, Malgun Gothic, Dotum, Gulim, sans-serif, -apple-system, BlinkMacSystemFont !important; font-size: 14px !important; background-color: #1e1e1e !important; font-weight: 400 !important; color: #bababa !important; line-height: 20px !important; -webkit-font-smoothing: antialiased !important;} ::-webkit-scrollbar-track-piece {border-radius: 0} ::-webkit-scrollbar {width: 10px;height: 6px;background-color: #272727} ::-webkit-scrollbar-thumb:vertical {width: 6px;height: 50px;border: 2px solid #272727;background-color: #444;border-radius: 5px}";
 
 const int PUSHBUTTON_DELAY_RESPONSE_MS = 200;
-
+constexpr auto LOGIN_DEFAULT_ICON_SIZE = "iconSize";
+constexpr auto SNS_ACCESS_TOKEN = "sns_access_token";
+constexpr auto SNS_REFRESH_TOKEN = "sns_refresh_token";
+constexpr auto SNS_EXPIRED_IN = "sns_expires_in";
+constexpr auto SNS_TOKEN_TYPE = "sns_token_type";
 } // namespace common
 
 #endif // COMMON_COMMONDEFINE_H

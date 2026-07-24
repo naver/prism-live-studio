@@ -7,6 +7,7 @@
 #include "PLSLoadingView.h"
 #include "frontend-api.h"
 #include "liblog.h"
+#include "libutils-api.h"
 #include <QDesktopServices>
 
 using ItemViewCache = PLSNaverShoppingLIVEItemViewCache<PLSLiveInfoNaverShoppingLIVEProductItemView>;
@@ -22,7 +23,7 @@ void naverShoppingLIVEProductItemView_event(const QWidget *, const QWidget *, QE
 	case QEvent::MouseButtonRelease:
 		if (static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton) {
 			PLS_UI_STEP(isInLiveinfo ? MODULE_NAVER_SHOPPING_LIVE_LIVEINFO : MODULE_NAVER_SHOPPING_LIVE_PRODUCT_MANAGER, "Product Title", ACTION_CLICK);
-			QDesktopServices::openUrl(url);
+			pls_async_invoke([url]() { QDesktopServices::openUrl(url); });
 		}
 		break;
 	default:
@@ -50,6 +51,8 @@ PLSLiveInfoNaverShoppingLIVEProductItemView::PLSLiveInfoNaverShoppingLIVEProduct
 	ui->titleSpacer->installEventFilter(this);
 	ui->fixButton->setToolTip(tr("NaverShoppingLive.LiveInfo.FixButton.Tooltip"));
 	ui->removeButton->setToolTip(tr("Delete"));
+	pls_uistep_v2_set_custom_enter_leave_name(ui->fixButton, "Pin to screen");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->removeButton, "Delete");
 
 	connect(ui->fixButton, &QPushButton::clicked, this, [this]() { fixButtonClicked(this); });
 	connect(ui->removeButton, &QPushButton::clicked, this, [this]() { removeButtonClicked(this); });
@@ -163,6 +166,7 @@ void PLSLiveInfoNaverShoppingLIVEProductItemView::setFixed(bool fixed_)
 	fixed = fixed_;
 	product.represent = fixed_;
 	pls_flush_style(this->ui->fixButton, "fixed", fixed);
+	PLS_UI_ACTION("In [Live Information: Naver Shopping LIVE], Pin to screen ui has been changed.");
 }
 
 void PLSLiveInfoNaverShoppingLIVEProductItemView::updateAttachableUI()

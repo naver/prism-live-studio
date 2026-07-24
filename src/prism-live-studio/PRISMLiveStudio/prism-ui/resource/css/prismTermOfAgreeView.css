@@ -1,213 +1,190 @@
 #TermsOfAgreeView {
-	max-width:
-		/*hdpi*/
-		730px;
-	max-height:
-		/*hdpi*/
-		544px;
-	min-width:
-		/*hdpi*/
-		730px;
-	min-height:
-		/*hdpi*/
-		544px;
-	qproperty-hasHLine:
-		/*hdpi*/
-		false;
-	qproperty-hasMinButton:
-		/*hdpi*/
-		false;
-	qproperty-isMoveInContent:
-		/*hdpi*/
-		true;
-	qproperty-captionButtonMargin:
-		/*hdpi*/
-		10;
-	qproperty-captionBkgColor: #1e1e1f;
-	qproperty-contentBkgColor: #1e1e1f;
+    qproperty-captionHeight: 0;
+    qproperty-hasHLine: false;
+    qproperty-hasMinButton: false;
+    qproperty-titleBarBkgColor: #1e1e1f;
 }
 
-	#TermsOfAgreeView > #plsDialogViewBorderFrame > #titleBar,
-	#TermsOfAgreeView > #plsDialogViewBorderFrame > #titleBar > #titleLabel {
-		color: #1e1e1f;
-		background-color: #1e1e1f;
-	}
+    #TermsOfAgreeView > #titleBar,
+    #TermsOfAgreeView > #titleBar > #titleLabel {
+        color: #1e1e1f;
+        background-color: #1e1e1f;
+    }
 
-		#TermsOfAgreeView > #label,
-		#TermsOfAgreeView > #plsDialogViewBorderFrame > #titleBar > #min,
-		#TermsOfAgreeView > #plsDialogViewBorderFrame > #titleBar > #close {
-			background-color: #1e1e1f;
-		}
+        #TermsOfAgreeView > #label,
+        #TermsOfAgreeView > #titleBar > #min,
+        #TermsOfAgreeView > #close {
+            background-color: #1e1e1f;
+            border: none;
+        }
 
-#TermsOfAgreeView,
-#TermsOfAgreeView QWidget {
-	background-color: #1e1e1f;
+            #TermsOfAgreeView > #close:hover,
+            #TermsOfAgreeView > #close:pressed,
+            #TermsOfAgreeView > #close:disabled {
+                background-color: #1e1e1f;
+                border: none;
+            }
+
+#TermsOfAgreeView {
+    background-color: #1e1e1f;
 }
 
-#TermsOfAgreeView PLSBrowserView>#close,
-#TermsOfAgreeView PLSBrowserView QWidget {
-	background-color: #333333;
-}
+    #TermsOfAgreeView PLSBrowserView > #close,
+    #TermsOfAgreeView PLSBrowserView > QWidget {
+        background-color: #333333;
+    }
 
-#TermsOfAgreeView #titleLabel {
-	min-width:
-		/*hdpi*/
-		155px;
-	font-size:
-		/*hdpi*/
-		20px;
-	font-weight: bold;
-	color: #fff1fd56;
-	background-color: #1e1e1f;
-}
+    #TermsOfAgreeView #termTitleLabel {
+        min-width: 155px;
+        font-size: 20px;
+        font-weight: bold;
+        color: #fff1fd56;
+        background-color: transparent;
+    }
 
-#TermsOfAgreeView #label_14 {
-	font-size:
-		/*hdpi*/
-		14px;
-	font-weight: bold;
-	color: #258edd;
-	background-color: transparent;
-	outline-color: #258edd;
-	outline-width:
-		/*hdpi*/
-		1px;
-}
+    #TermsOfAgreeView #label_14 {
+        font-size: 14px;
+        font-weight: bold;
+        color: #258edd;
+        background-color: transparent;
+        outline-color: #258edd;
+        outline-width: 1px;
+    }
 
-#TermsOfAgreeView QTextEdit {
-	border:
-		/*hdpi*/
-		none;
-	background-color: #111111;
-}
+    #TermsOfAgreeView QTextEdit {
+        border: none;
+        background-color: #111111;
+    }
 
-#TermsOfAgreeView #backButton {
-	border:
-		/*hdpi*/
-		none;
-	min-width:
-		/*hdpi*/
-		42px;
-	min-height:
-		/*hdpi*/
-		14px;
-	max-height:
-		/*hdpi*/
-		14px;
-	font-size:
-		/*hdpi*/
-		14px;
-	font-weight: bold;
-	color: #ffeffc35;
-	border-image: none;
-}
+    #TermsOfAgreeView #backButton {
+        border: none;
+        min-width: 42px;
+        min-height: 14px;
+        max-height: 14px;
+        font-size: 14px;
+        font-weight: bold;
+        color: #ffeffc35;
+        border-image: none;
+    }
 
-#TermsOfAgreeView #backButton:hover {
-	border-image: none;
-}
+        #TermsOfAgreeView #backButton:hover {
+            border-image: none;
+        }
 
-#TermsOfAgreeView #backButton:pressed {
-	border-image: none;
-	color: #ff7C7F43;
-}
+        #TermsOfAgreeView #backButton:pressed {
+            border-image: none;
+            color: #ff7C7F43;
+        }
 
-#TermsOfAgreeView #agreeButton:hover[status="enable"] {
-	border-image: none;
-	background: #ffF1FA75;
-}
+    #TermsOfAgreeView #agreeButton:hover[status="enable"] {
+        border-image: none;
+        background: #ffF1FA75;
+    }
 
-#TermsOfAgreeView #agreeButton:pressed[status="enable"] {
-	border-image: none;
-	background: #ff7A7F34;
-}
+    #TermsOfAgreeView #agreeButton:pressed[status="enable"] {
+        border-image: none;
+        background: #ff7A7F34;
+    }
 
-#TermsOfAgreeView #agreeButton[status="enable"] {
-	qproperty-minimumSize:
-		/*hdpi*/
-		630px
-		/*hdpi*/
-		48px;
-	qproperty-maximumSize:
-		/*hdpi*/
-		630px
-		/*hdpi*/
-		48px;
-	border-radius:
-		/*hdpi*/
-		3px;
-	background: #ffeffc35;
-	font-size:
-		/*hdpi*/
-		14px;
-	font-weight: bold;
-	color: #ff000000;
-	border-image: none;
+    #TermsOfAgreeView #agreeButton[status="enable"] {
+        qproperty-minimumSize: 630px 48px;
+        qproperty-maximumSize: 630px 48px;
+        border-radius: 3px;
+        background: #ffeffc35;
+        font-size: 14px;
+        font-weight: bold;
+        color: #ff000000;
+        border-image: none;
+    }
 
-}
+    #TermsOfAgreeView #agreeButton[status="disable"] {
+        qproperty-minimumSize: 630px 48px;
+        qproperty-maximumSize: 630px 48px;
+        border-radius: 3px;
+        background: #ff363636;
+        font-size: 14px;
+        font-weight: bold;
+        color: #777777;
+        border-image: none;
+    }
 
-#TermsOfAgreeView #agreeButton[status="disable"] {
-	qproperty-minimumSize:
-		/*hdpi*/
-		630px
-		/*hdpi*/
-		48px;
-	qproperty-maximumSize:
-		/*hdpi*/
-		630px
-		/*hdpi*/
-		48px;
-	border-radius:
-		/*hdpi*/
-		3px;
-	background: #ff363636;
-	font-size:
-		/*hdpi*/
-		14px;
-	font-weight: bold;
-	color: #777777;
-	border-image: none;
+    #TermsOfAgreeView #termOfUserCheckBox {
+        font-size: 14px;
+    }
 
-}
+    #TermsOfAgreeView #InfoCheckBox {
+        font-size: 14px;
+    }
 
-#TermsOfAgreeView #termOfUserCheckBox {
-	font-size:
-		/*hdpi*/
-		14px;
-}
+    #TermsOfAgreeView #checkBox_14 {
+        font-size: 14px;
+    }
 
-#TermsOfAgreeView #InfoCheckBox {
-	font-size:
-		/*hdpi*/
-		14px;
-}
+    #TermsOfAgreeView #toolButton {
+        padding: 0px;
+        font-size: 14px;
+        font-weight: bold;
+        border: none;
+        color: #258edd;
+        text-decoration: underline;
+    }
 
-#TermsOfAgreeView #checkBox_14 {
-	font-size:
-		/*hdpi*/
-		14px;
-}
+        #TermsOfAgreeView #toolButton:hover {
+            color: white;
+        }
 
-#TermsOfAgreeView #toolButton {
-	padding:
-		/*hdpi*/
-		0px;
-	font-size:
-		/*hdpi*/
-		14px;
-	font-weight: bold;
-	border: none;
-	color: #258edd;
-	text-decoration: underline;
-}
+        #TermsOfAgreeView #toolButton:pressed {
+            color: white;
+        }
 
-#TermsOfAgreeView #toolButton:hover {
-	color: white;
-	
+    #TermsOfAgreeView #policyLabel {
+        font-size: 14px;
+        background-color: transparent;
+    }
 
-}
+    #TermsOfAgreeView #backButton {
+        background-color: transparent;
+    }
 
-#TermsOfAgreeView #toolButton:pressed {
-	color: white;
+    #TermsOfAgreeView #retryButton {
+        border: 1px solid #3D3D3D;
+        min-height: 25px;
+        max-height: 25px;
+        min-width:68px;
+        color: #BABABA;
+        background-color: transparent;
+        font-size: 12px;
+        font-weight: normal;
+        margin:0;
+        padding-left:10px;
+        padding-right:10px;
+    }
 
+        #TermsOfAgreeView #retryButton:hover {
+            background-color: transparent;
+            color: #FFFFFF;
+            border: 1px solid #FFFFFF;
+        }
 
-}
+        #TermsOfAgreeView #retryButton:pressed {
+            background-color: transparent;
+            color: #1E1E1E;
+            border: 1px solid #1E1E1E;
+        }
+
+    #TermsOfAgreeView #retryLabel {
+        background-color: transparent;
+        font-family: 'Malgun Gothic';
+        color: #666666;
+        background-color: transparent;
+        font-size: 12px;
+        font-weight: normal;
+    }
+    #TermsOfAgreeView #topWidget {
+        max-height:85px;
+        min-height:85px;
+    }
+    #TermsOfAgreeView #textEdit_agree_en {
+        min-height: 92px;
+        max-height: 92px;
+    }

@@ -60,16 +60,22 @@ static const int contentFmtPropertyKey = 22;
 static const int messageFmtPropertyValue = 111;
 static const int contentFmtPropertyValue = 222;
 
-PLSContactView::PLSContactView(const QString &message, const QString &additionalMessage, QWidget *parent) : PLSDialogView(parent), m_additionalMessage(additionalMessage)
+PLSContactView::PLSContactView(const QString &message, const QString &code, const QString &additionalMessage, QWidget *parent) : PLSDialogView(parent), m_additionalMessage(additionalMessage)
 {
 	ui = pls_new<Ui::PLSContactView>();
 	setupUi(ui);
 
+	for (auto i = 0; i < ui->horizontalLayout_3->count(); ++i) {
+		if (auto radioButton = qobject_cast<PLSRadioButton *>(ui->horizontalLayout_3->itemAt(i)->widget()); nullptr != radioButton) {
+			pls_uistep_v2_set_name(radioButton, QStringLiteral("Inquiry Type"));
+		}
+	}
+
 	if (auto index = ui->verticalLayout_3->indexOf(ui->horizontalLayout_3); -1 != index) {
-		auto flowLayout = pls_new<FlowLayout>(nullptr, 0, 6, 6);
+		auto flowLayout = pls_new<FlowLayout>(nullptr, 0, 6, 9);
 		flowLayout->setAlignment(Qt::AlignTop | Qt::AlignLeft);
 		flowLayout->setContentsMargins(0, 0, 0, 0);
-
+		flowLayout->setHorizontalSpacing(20);
 		flowLayout->addWidget(ui->radioButtonTypeError);
 		flowLayout->addWidget(ui->radioButtonTypeAdvice);
 		flowLayout->addWidget(ui->radioButtonTypeConsult);
@@ -95,80 +101,51 @@ PLSContactView::PLSContactView(const QString &message, const QString &additional
 
 	chooseFileDir = QStandardPaths::standardLocations(QStandardPaths::DesktopLocation).first();
 	setResizeEnabled(false);
-	setMoveInContent(true);
 	pls_add_css(this, {"PLSLoadingBtn", "PLSContactView"});
-	setFixedSize(480, 576);
+	setFixedWidth(480);
 	ui->sendButton->setEnabled(false);
-	ui->inquryTipLabel->setText("");
-	ui->tagTextEdit->setHidden(false);
 	ui->tagListWidget->setHidden(true);
 	ui->fileButton->setFileButtonEnabled(true);
-	ui->fileButton->setAutoDefault(false);
-	ui->fileButton->setDefault(false);
 	ui->cancelButton->setAutoDefault(false);
 	ui->cancelButton->setDefault(false);
 	ui->sendButton->setAutoDefault(false);
 	ui->sendButton->setDefault(false);
 	setupLineEdit();
-	QString usercode = pls_get_prism_usercode().prepend(" ");
-	ui->identificationLabel->setText(QTStr("Contact.Email.Report.ID.Prefix").append(usercode));
+	auto userID = pls_get_prism_usercode();
+	if (userID.isEmpty()) {
+		ui->identificationLabel->setVisible(false);
+		ui->copyUserID->setVisible(false);
+	} else {
+		ui->identificationLabel->setText(QTStr("Contact.Email.Report.ID.Prefix").append(" "));
+		ui->copyUserID->setText(userID);
+		ui->identificationLabel->setVisible(true);
+		ui->copyUserID->setVisible(true);
+	}
 	initConnect();
-
-	setupErrorMessageTextEdit(message);
+	m_errorMessage = message;
+	m_errorCode = code;
 #if defined(Q_OS_MACOS)
 	setWindowTitle(tr("Contact.Top.Window.Title"));
-	setProperty("type", "Mac");
-	ui->sendButton->setProperty("type", "MacOS");
-	ui->cancelButton->setProperty("type", "MacOS");
-#elif defined(Q_OS_WIN)
-	setProperty("type", "Win");
 #endif
 	QMargins margins = ui->horizontalLayout_12->contentsMargins();
 	margins.setRight(10);
 	ui->horizontalLayout_12->setContentsMargins(margins);
 	m_verticalScrollBar = ui->textEdit->verticalScrollBar();
 	m_verticalScrollBar->installEventFilter(this);
+#if defined(Q_OS_WIN)
+	ui->verticalLayout->removeWidget(ui->topFrame);
+	setTitleWidget(ui->topFrame);
+#endif
+
+	pls_uistep_v2_set_title(this, QStringLiteral("Contact US"));
+	pls_uistep_v2_set_name(ui->emailLineEdit, QStringLiteral("Title"));
+	pls_uistep_v2_set_name(ui->textEdit, QStringLiteral("Content"));
+	pls_uistep_v2_auto_bind(this);
 }
 
 PLSContactView::~PLSContactView()
 {
 	pls_delete(ui);
-}
-
-void PLSContactView::setupErrorMessageTextEdit(const QString &message)
-{
-	if (message.isEmpty()) {
-		return;
-	}
-
-	m_message = QString("%1\n").arg(message);
-	m_originMessage = message;
-	QSignalBlocker signalBlocker(ui->textEdit);
-	ui->textEdit->setText(m_message);
-
-	QTextCharFormat messageFmt;
-	QColor textColor("#bababa");
-	messageFmt.setForeground(textColor);
-	messageFmt.setProperty(messageFmtPropertyKey, messageFmtPropertyValue);
-
-	QTextCursor cursor = ui->textEdit->textCursor();
-	ui->textEdit->setFocus();
-	cursor.setPosition(0, QTextCursor::MoveAnchor);
-	cursor.setPosition(message.length(), QTextCursor::KeepAnchor);
-	cursor.mergeCharFormat(messageFmt);
-
-	QTextCharFormat contentFmt;
-	contentFmt.setForeground(Qt::white);
-	contentFmt.setProperty(contentFmtPropertyKey, contentFmtPropertyValue);
-	cursor.setPosition(message.length(), QTextCursor::MoveAnchor);
-	cursor.setPosition(message.length() + 1, QTextCursor::KeepAnchor);
-	cursor.mergeCharFormat(contentFmt);
-
-	cursor.movePosition(QTextCursor::End);
-	ui->textEdit->setTextCursor(cursor);
-
-	//update send button state
-	updateSendButtonState();
 }
 
 void PLSContactView::updateSendButtonState()
@@ -183,7 +160,7 @@ void PLSContactView::updateSendButtonState()
 	}
 
 	QString inquiryText = ui->textEdit->toPlainText();
-	if (m_fileLists.isEmpty() && inquiryText.isEmpty()) {
+	if (!checkMessageValid(inquiryText)) {
 		ui->sendButton->setEnabled(false);
 		return;
 	}
@@ -191,15 +168,33 @@ void PLSContactView::updateSendButtonState()
 	ui->sendButton->setEnabled(true);
 }
 
+bool PLSContactView::checkMessageValid(const QString &message)
+{
+	if (message.toUcs4().size() < 20) {
+		return false;
+	}
+	const QRegularExpression re(QStringLiteral("^[\\s\\p{P}\\p{S}"
+						   "\\x{2600}-\\x{26FF}"
+						   "\\x{2700}-\\x{27BF}"
+						   "\\x{1F300}-\\x{1F5FF}"
+						   "\\x{1F600}-\\x{1F64F}"
+						   "\\x{1F680}-\\x{1F6FF}"
+						   "\\x{1F900}-\\x{1F9FF}"
+						   "\\x{1FA70}-\\x{1FAFF}"
+						   "\\x{1F1E6}-\\x{1F1FF}"
+						   "\\x{FE00}-\\x{FE0F}"
+						   "\\x{200D}"
+						   "]+$"));
+	return !re.match(message).hasMatch();
+}
+
 void PLSContactView::updateItems(double dpi)
 {
 
 	//hidden listWidget view when item count is empty
 	if (m_fileLists.isEmpty()) {
-		ui->tagTextEdit->setHidden(false);
 		ui->tagListWidget->setHidden(true);
 	} else {
-		ui->tagTextEdit->setHidden(true);
 		ui->tagListWidget->setHidden(false);
 	}
 
@@ -275,6 +270,7 @@ void PLSContactView::initConnect() const
 	QObject::connect(ui->emailLineEdit, &QLineEdit::editingFinished, this, &PLSContactView::on_emailLineEdit_editingFinished);
 	QObject::connect(ui->emailLineEdit, &QLineEdit::textChanged, this, &PLSContactView::on_emailLineEdit_textChanged);
 	QObject::connect(ui->textEdit, &QTextEdit::textChanged, this, &PLSContactView::on_textEdit_textChanged, Qt::QueuedConnection);
+	connect(ui->fileButton, &PLSFileButton::fileSelected, this, &PLSContactView::on_fileButton_clicked);
 	connect(m_pInquireType, &PLSRadioButtonGroup::idClicked, this, &PLSContactView::updateSendButtonState);
 }
 
@@ -356,13 +352,12 @@ void PLSContactView::showLoading(QWidget *parent)
 	m_pWidgetLoadingBG->setObjectName("loadingBG");
 	m_pWidgetLoadingBG->setGeometry(parent->geometry());
 	m_pWidgetLoadingBG->show();
-
 	auto layout = pls_new<QHBoxLayout>(m_pWidgetLoadingBG);
 	auto loadingBtn = pls_new<QPushButton>(m_pWidgetLoadingBG);
+	pls_uistep_v2_set_custom_show_hide_name(loadingBtn, "PLSContactView loadingBtn");
 	layout->addWidget(loadingBtn);
 	loadingBtn->setObjectName("loadingBtn");
 	loadingBtn->show();
-
 	m_loadingEvent.startLoadingTimer(loadingBtn);
 	if (m_pWidgetLoadingBGParent) {
 		m_pWidgetLoadingBGParent->installEventFilter(this);
@@ -389,18 +384,20 @@ static bool LogSceneItem(obs_scene_t *, obs_sceneitem_t *item, void *param)
 	if (isGroup) {
 		space = "  ";
 	}
-	const obs_source_t *source = obs_sceneitem_get_source(item);
-	const char *name = obs_source_get_name(source);
-	const char *id = obs_source_get_id(source);
 	std::ofstream &file = *static_cast<std::ofstream *>(param);
+	if (const obs_source_t *source = obs_sceneitem_get_source(item)) {
+		const char *name = obs_source_get_name(source);
+		const char *id = obs_source_get_id(source);
+		file << space << "    source: " << name << "(" << id << ")" << std::endl;
 
-	file << space << "    source: " << name << "(" << id << ")" << std::endl;
-	const char *type = "None";
-	if (obs_monitoring_type monitorType = obs_source_get_monitoring_type(source); monitorType != OBS_MONITORING_TYPE_NONE) {
-		float volume = obs_source_get_volume(source);
-		type = (monitorType == OBS_MONITORING_TYPE_MONITOR_ONLY) ? "Monitor Only" : "Monitor and Output";
-		file << space << "    Audio Monitoring: " << type << ", Volume: " << obs_mul_to_db(volume) << " db" << std::endl;
+		const char *type = "None";
+		if (obs_monitoring_type monitorType = obs_source_get_monitoring_type(source); monitorType != OBS_MONITORING_TYPE_NONE) {
+			float volume = obs_source_get_volume(source);
+			type = (monitorType == OBS_MONITORING_TYPE_MONITOR_ONLY) ? "Monitor Only" : "Monitor and Output";
+			file << space << "    Audio Monitoring: " << type << ", Volume: " << obs_mul_to_db(volume) << " db" << std::endl;
+		}
 	}
+
 	if (obs_sceneitem_is_group(item)) {
 		isGroup = true;
 		obs_sceneitem_group_enum_items(item, LogSceneItem, &file);
@@ -440,9 +437,9 @@ QString PLSContactView::WriteUserDetailInfo() const
 {
 	QDir temp = QDir::temp();
 	QString filePath = temp.absoluteFilePath("userInfo.txt");
-	std::ofstream file(filePath.toStdString().c_str());
+	std::ofstream file(filePath.toUtf8().constData(), std::ios::out | std::ios::trunc);
 	if (!file) {
-		PLS_INFO(CONTACT_US_MODULE, "write userinfo to local file failed");
+		PLS_ERROR(CONTACT_US_MODULE, "write userinfo open failed, errno=%d (%s), path=%s", errno, std::strerror(errno), filePath.toUtf8().constData());
 		return "";
 	}
 
@@ -451,6 +448,8 @@ QString PLSContactView::WriteUserDetailInfo() const
 	writeDefaultAudioMixerInfo(file);
 	writeAudioMonitorDeviceInfo(file);
 	writeHardwareInfo(file);
+	writeErrorAlertInfo(file);
+
 	file.close();
 
 	return filePath;
@@ -462,37 +461,44 @@ void PLSContactView::writePrismVersionInfo(std::ofstream &file) const
 	file << "Base Info:" << std::endl;
 	std::string l_logUserID = PLSLoginUserInfo::getInstance()->getUserCode().toStdString();
 	file << "  PRISMLiveStudio Version: " << PLS_VERSION << std::endl;
-	file << "  UserId: " << l_logUserID.c_str() << std::endl;
 
-#ifdef _WIN32
-	file << "  Current Date/Time:" << CurrentDateTimeString().c_str() << std::endl;
+	pls_datetime_t time;
+	pls_get_current_datetime(time);
+	file << "  Current Date/Time: " << pls_datetime_to_string(time).toStdString() << std::endl;
 	bool browserHWAccel = config_get_bool(App()->GetUserConfig(), "General", "BrowserHWAccel");
 	std::string browserHWAccelStr = browserHWAccel ? "true" : "false";
-	file << "  Browser Hardware Acceleration: " << browserHWAccelStr << std::endl;
-#endif
 	std::string portableModeStr = GlobalVars::portable_mode ? "true" : "false";
 	file << "  Portable mode: " << portableModeStr << std::endl;
 
 	// session id
-	std::string neloSession = GlobalVars::prismSession;
-	file << "  NeloSession = " << neloSession.c_str() << std::endl;
+	file << "  PrismSession: " << GlobalVars::prismSession << std::endl;
+	file << "  PrismSubSession: " << GlobalVars::prismSubSession << std::endl;
+
+	if (!m_userInfoExtraLines.isEmpty()) {
+		for (const auto &line : m_userInfoExtraLines) {
+			file << line.toStdString() << std::endl;
+		}
+	}
 }
 
 void PLSContactView::writeCurrentSceneInfo(std::ofstream &file) const
 {
 	// current scene
-	obs_source_t *currentScene = obs_frontend_get_current_scene();
-	const char *currentSceneName = obs_source_get_name(currentScene);
-	obs_source_release(currentScene);
-
-	if (!currentScene) {
+	const char *currentSceneName = "";
+	if (obs_source_t *currentScene = obs_frontend_get_current_scene()) {
+		currentSceneName = obs_source_get_name(currentScene);
+		obs_source_release(currentScene);
+	} else {
 		PLSBasic *basic = PLSBasic::instance();
 		OBSScene scene = basic->GetCurrentScene();
-		const obs_source_t *source = obs_scene_get_source(scene);
-		currentSceneName = obs_source_get_name(source);
+		if (scene) {
+			const obs_source_t *source = obs_scene_get_source(scene);
+			if (source)
+				currentSceneName = obs_source_get_name(source);
+		}
 	}
 
-	file << "  CurrentSceneName = " << (currentSceneName ? currentSceneName : "") << std::endl;
+	file << "  CurrentSceneName: " << (currentSceneName ? currentSceneName : "") << std::endl;
 	file << std::endl;
 
 	// all scenes
@@ -564,7 +570,7 @@ void PLSContactView::writeAudioMonitorDeviceInfo(std::ofstream &file) const
 		file << "Video Settings:" << std::endl;
 		file << "  Base resolution: " << ovi.base_width << "x" << ovi.base_height << std::endl;
 		file << "  Output resolution: " << ovi.output_width << "x" << ovi.output_height << std::endl;
-		file << "  Downscale filter: " << ConvertScaleType(ovi.scale_type).toStdString().c_str() << std::endl;
+		file << "  Downscale filter: " << ConvertScaleType(ovi.scale_type).toUtf8().constData() << std::endl;
 		file << "  Fps: " << ovi.fps_num << "/" << ovi.fps_den << std::endl;
 		file << "  Format: " << get_video_format_name(ovi.output_format) << std::endl;
 
@@ -632,6 +638,17 @@ void PLSContactView::writeHardwareInfo(std::ofstream &file) const
 	//		}
 	//	}
 	//}
+}
+
+void PLSContactView::writeErrorAlertInfo(std::ofstream &file) const
+{
+	file << "Error Alert:" << std::endl;
+	if (!m_errorMessage.isEmpty()) {
+		file << "  Message: " << m_errorMessage.toUtf8().constData() << std::endl;
+	}
+	if (!m_errorCode.isEmpty()) {
+		file << "  Error Code: " << m_errorCode.toUtf8().constData() << std::endl;
+	}
 }
 
 void PLSContactView::closeEvent(QCloseEvent *event)
@@ -720,7 +737,6 @@ void PLSContactView::on_sendButton_clicked()
 
 	// write user info to local file
 	QString filePath = WriteUserDetailInfo();
-	auto tempPath = filePath.toStdString();
 	QFileInfo info(filePath);
 	QList<QFileInfo> fileLists = m_fileLists;
 	if (info.exists()) {
@@ -730,16 +746,19 @@ void PLSContactView::on_sendButton_clicked()
 	pls_upload_file_result_t chooseFileResult =
 		pls_upload_contactus_files(static_cast<PLS_CONTACTUS_QUESTION_TYPE>(m_pInquireType->checkedId()), ui->emailLineEdit->text(), textContent, fileLists);
 	hideLoading();
-	QFile::remove(filePath);
+	if (!filePath.isEmpty()) {
+		QFile::remove(filePath);
+	}
 	if (chooseFileResult != pls_upload_file_result_t::Ok && this->isVisible()) {
+		PLSErrorHandler::ExtraData extraData("PLSContactView");
 		if (chooseFileResult == pls_upload_file_result_t::NetworkError) {
-			PLSAlertView::warning(pls_get_main_view(), QTStr("Alert.Title"), QTStr("Contact.Check.Network.Error"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CONTACT_CHECK_NETWORK_ERROR, PLSErrKeyAllAlert, {}, extraData);
 		} else if (chooseFileResult == pls_upload_file_result_t::EmailFormatError) {
-			PLSAlertView::warning(pls_get_main_view(), QTStr("Alert.Title"), QTStr("Contact.Email.Format.Error"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CONTACT_EMAIL_FORMAT_ERROR, PLSErrKeyAllAlert, {}, extraData);
 		} else if (chooseFileResult == pls_upload_file_result_t::FileFormatError) {
-			PLSAlertView::warning(pls_get_main_view(), QTStr("Alert.Title"), QTStr("Contact.File.Format.Error"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CONTACT_FILE_FORMAT_ERROR, PLSErrKeyAllAlert, {}, extraData);
 		} else if (chooseFileResult == pls_upload_file_result_t::AttachUpToMaxFile) {
-			PLSAlertView::warning(pls_get_main_view(), QTStr("Alert.Title"), QTStr("Contact.File.Max.Count"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CONTACT_FILE_MAX_COUNT, PLSErrKeyAllAlert, {}, extraData);
 		} else {
 			PLS_WARN(CONTACT_US_MODULE, "pls_upload_contactus_files other error");
 		}
@@ -753,7 +772,6 @@ void PLSContactView::on_cancelButton_clicked()
 {
 	PLS_UI_STEP(CONTACT_US_MODULE, " PLSContactView cancelButton Button", ACTION_CLICK);
 	PLS_LOGEX(PLS_LOG_INFO, CONTACT_US_MODULE, {{"contactus-action", "cancel"}}, "Contact us user click action");
-	config_set_string(App()->GetUserConfig(), CONFIG_BASIC_WINDOW_MODULE, CONFIG_CONTACT_EMAIL_MODULE, ui->emailLineEdit->text().toUtf8().constData());
 	this->reject();
 }
 

@@ -9,6 +9,7 @@
 #include "graphics/graphics.h"
 #include "PLSDrawPenEffect.h"
 #include "PLSD2DRenderTarget.h"
+#include "PLSUndoRedoCache.h"
 
 class PLSDrawPenCore {
 public:
@@ -18,13 +19,18 @@ public:
 	void UpdateSharedTexture();
 	void ClearRenderTexture();
 
-	void StrokeRenderHighlighterCallback();
-	void StrokeBlendTexturesCallback();
-	void StrokeRenderCallback();
+	void HandlerStrokeRender();
 
 	void UpdateCanvasByVisible(bool visible);
 
+	PLSUndoRedoCache &UndoRedoCache() { return cacheStrokeImages; }
+
 private:
+	void StrokeRenderHighlighterCallback();
+	void StrokeBlendTexturesCallback();
+	void StrokeRenderCallback();
+	bool IsMaskTargetValid();
+
 	void DrawRender();
 	bool RenderDrawingToTarget(gs_texture_t *target);
 	void RenderStrokesToTarget(gs_texture_t *target);
@@ -39,15 +45,35 @@ private:
 	void CheckUpdateStrokesTexture();
 	void RenderCanvesTextureToTarget(gs_texture_t *target);
 
+	void DestroyTextures();
+
+	static void SaveTextureCallback(void *data);
+	static void ReadTextureCallback(void *data);
+
+	void SaveCacheImage(std::vector<Stroke> input);
+	void ReadTexture();
+	bool ReadCacheImage(gs_texture_t *target);
+	void WriteTexture();
+
 	HANDLE exitEvent;
 	std::thread renderThread;
 
+	gs_stagesurf_t *saveStage = nullptr;
+	gs_texture_t *syncTexture = nullptr;
 	gs_texture_t *strokesTexture = nullptr;
 	gs_texture_t *renderTexture = nullptr;
 	gs_texture_t *drawingTexture = nullptr;
 	gs_texture_t *tempTexture = nullptr;
 
+	PLSUndoRedoCache cacheStrokeImages;
+	CacheWriteInfo writeInfo;
+	CacheReadInfo readInfo;
+
+	uint32_t readBufferSize = 0;
+	std::shared_ptr<uint8_t> readBuffer = nullptr;
+
 	std::shared_ptr<PLSD2DRenderTarget> d2dRenderTarget = nullptr;
+	std::shared_ptr<PLSD2DRenderTarget> d2dRenderTargetGlowMask = nullptr;
 	std::shared_ptr<PLSDrawPenGlowEffect> glowEffect = nullptr;
 	std::shared_ptr<PLSDrawPenMixEffect> blendEffect = nullptr;
 	std::shared_ptr<PLSDrawPenHighlighterEffect> highlighterEffect = nullptr;
@@ -56,4 +82,5 @@ private:
 	uint32_t height = 0;
 
 	Stroke stroke;
+	bool maskReady = false;
 };

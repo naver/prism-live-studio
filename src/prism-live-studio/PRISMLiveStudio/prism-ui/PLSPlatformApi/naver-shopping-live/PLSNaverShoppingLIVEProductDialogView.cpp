@@ -10,6 +10,7 @@
 #include "PLSLoadNextPage.h"
 #include "PLSLoadingView.h"
 #include "PLSAlertView.h"
+#include "PLSErrorHandler.h"
 #include "frontend-api.h"
 #include "PLSShoppingRhythmicity.h"
 #include <QApplication>
@@ -434,6 +435,9 @@ PLSNaverShoppingLIVEProductDialogView::PLSNaverShoppingLIVEProductDialogView(PLS
 	ui->noSmartStoreButton->setProperty("lang", lang);
 	pls_flush_style(ui->recentNoNetRetryButton);
 
+	pls_uistep_v2_set_value(ui->storeSearchBarSearchButton, QStringLiteral("Search button"));
+	pls_uistep_v2_set_value(ui->storeSearchBarClearButton, QStringLiteral("Search clear button"));
+
 	listenVerticalScrollBar(recentProductVScrollBar, ui->recentScrollArea, ui->recentContentLayout, this);
 	listenVerticalScrollBar(storeProductVScrollBar, ui->storeScrollArea, ui->storeContentLayout, this);
 	listenVerticalScrollBar(searchProductVScrollBar, ui->searchScrollArea, ui->searchContentLayout, this);
@@ -444,6 +448,9 @@ PLSNaverShoppingLIVEProductDialogView::PLSNaverShoppingLIVEProductDialogView(PLS
 
 	connect(this, &PLSNaverShoppingLIVEProductDialogView::lineEditSetFocus, this, &PLSNaverShoppingLIVEProductDialogView::onLineEditSetFocus, Qt::QueuedConnection);
 	connect(this, &PLSNaverShoppingLIVEProductDialogView::flushLineEditStyle, this, &PLSNaverShoppingLIVEProductDialogView::onFlushLineEditStyle, Qt::QueuedConnection);
+	pls_uistep_v2_set_custom_show_hide_name(ui->recentPage, QByteArrayLiteral("Recent Page"));
+	pls_uistep_v2_set_custom_show_hide_name(ui->storePage, QByteArrayLiteral("Store Page"));
+	pls_uistep_v2_set_custom_show_hide_name(ui->searchPage, QByteArrayLiteral("Search Page"));
 
 	auto manager = PLSNaverShoppingLIVEDataManager::instance();
 	connect(ui->recentButton, &QPushButton::clicked, this, [this, manager]() {
@@ -1146,17 +1153,21 @@ void PLSNaverShoppingLIVEProductDialogView::onProductItemAddRemoveButtonClicked(
 	} else if (selectedProducts.count() < MAX_SELECTED_PRODUCT_COUNT) {
 		auto details = itemView->getDetails();
 		if (!details.attachable) {
-			PLSAlertView::warning(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Live.Products.Unattachable"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPINGLIVE_LIVEINFO_LIVE_PRODUCTS_UNATTACHABLE, PLSErrKeyAllAlert, QString(),
+							      PLSErrorHandler::ExtraData(QStringLiteral("PLSNaverShoppingLIVEProductDialogView::onProductItemAddRemoveButtonClicked.unattachable")),
+							      this);
 			return;
 		}
 
 		if (!details.isMinorPurchasable) {
-			pls_alert_error_message(this, tr("Alert.Title"), tr("navershopping.liveinfo.age.restrict.product"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPING_LIVEINFO_AGE_RESTRICT_PRODUCT, PLSErrKeyAllAlert, QString(),
+							      PLSErrorHandler::ExtraData(QStringLiteral("PLSNaverShoppingLIVEProductDialogView::onProductItemAddRemoveButtonClicked.age")), this);
 			return;
 		}
 
 		if (isOtherProductNo(productNo)) {
-			PLSAlertView::warning(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Live.Products.Existed"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPINGLIVE_LIVEINFO_LIVE_PRODUCTS_EXISTED, PLSErrKeyAllAlert, QString(),
+							      PLSErrorHandler::ExtraData(QStringLiteral("PLSNaverShoppingLIVEProductDialogView::onProductItemAddRemoveButtonClicked.existed")), this);
 			return;
 		}
 
@@ -1168,7 +1179,8 @@ void PLSNaverShoppingLIVEProductDialogView::onProductItemAddRemoveButtonClicked(
 	} else {
 		itemView->setSelected(false);
 		syncItemViewSelectedState(itemViews, productNo, false);
-		PLSAlertView::information(this, tr("Alert.Title"), tr("NaverShoppingLive.ProductDialog.AddProduct.Limit"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPINGLIVE_PRODUCTDIALOG_ADDPRODUCT_LIMIT, PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral("PLSNaverShoppingLIVEProductDialogView::onProductItemAddRemoveButtonClicked.limit")), this);
 	}
 
 	updateCountTip();
@@ -1295,6 +1307,7 @@ void PLSNaverShoppingLIVEProductDialogView::on_storeSearchBarSearchButton_clicke
 	ui->titleWidget->setFocus();
 
 	storeSearch(ui->storeSearchBarLineEdit->text());
+	PLS_UI_ACTION("My Store Search-Bar Search Finished.");
 }
 
 void PLSNaverShoppingLIVEProductDialogView::on_storeSearchBarLineEdit_textChanged(const QString &text)
@@ -1382,7 +1395,8 @@ void PLSNaverShoppingLIVEProductDialogView::on_okButton_clicked()
 	}
 
 	if (isLiving && selectedProducts.isEmpty() && productType == PLSProductType::MainProduct) {
-		pls_alert_error_message(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Product.AtLeastOne"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPINGLIVE_LIVEINFO_PRODUCT_ATLEASTONE, PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral("PLSNaverShoppingLIVEProductDialogView::on_okButton_clicked")), this);
 		return;
 	}
 	accept();
@@ -1483,8 +1497,9 @@ void PLSNaverShoppingLIVEProductDialogView::on_storeChangeStoreButton_clicked()
 {
 	PLS_UI_STEP(MODULE_NAVER_SHOPPING_LIVE_PRODUCT_MANAGER, "Change Store Button", ACTION_CLICK);
 
-	if (PLSAlertView::question(this, tr("Alert.Title"), tr("NaverShoppingLive.ProductDialog.Store.ChangeStoreAlert"), PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel,
-				   PLSAlertView::Button::Ok) != PLSAlertView::Button::Ok) {
+	if (PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAVERSHOPPINGLIVE_PRODUCTDIALOG_STORE_CHANGESTOREALERT, PLSErrKeyAllAlert, QString(),
+						  PLSErrorHandler::ExtraData(QStringLiteral("PLSNaverShoppingLIVEProductDialogView::on_storeChangeStoreButton_clicked")), this)
+		    .clickedBtn != PLSAlertView::Button::Ok) {
 		return;
 	}
 

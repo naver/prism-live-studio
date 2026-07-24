@@ -8,16 +8,6 @@ PLSLogo {
     border: none;
     margin:0;
 }
-PLSLogo[updateSize="true"] {
-    min-width: /*hdpi*/ 195px;
-    max-width: /*hdpi*/ 195px;
-
-}
-PLSLogo [updateSize="false"]{
-    min-width: /*hdpi*/ 140px;
-    max-width: /*hdpi*/ 140px;
-
-}
 
 PLSLogo:pressed {
     background-color: transparent;
@@ -38,6 +28,16 @@ PLSLogo #logo {
     max-height: /*hdpi*/ 18px;
     padding: 0;
     border: 0;
+}
+
+PLSLogo #separator_label,
+PLSLogo #version_label {
+    color: #bababa;
+    background-color: transparent;
+    font-size: /*hdpi*/ 12px;
+    padding: 0;
+    border: 0;
+    font-weight: normal;
 }
 
 PLSLogo #update_info {

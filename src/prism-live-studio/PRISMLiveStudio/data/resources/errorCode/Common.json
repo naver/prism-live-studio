@@ -1,0 +1,72 @@
+{
+    "data": [
+        {
+            "err": {
+                "prismCode": 10000,
+                "prismName": "COMMON_NETWORK_ERROR",
+                "msgKey": "Common.Network.Error",
+                "msgText": "A network error has occurred.\nPlease try again.",
+                "alertType": "Normal_Code_Blog"
+            },
+            "alert": {
+                "normal": {
+                    "blogText": "facebook.living.permissions.help",
+                    "blogLink": "https://guide.prismlive.com/desktop/guides/error-solution/others/handling-network-error"
+                }
+            }
+        },
+        {
+            "err": {
+                "prismCode": 10001,
+                "prismName": "COMMON_UNKNOWN_ERROR",
+                "msgKey": "Common.Unknown.Error",
+                "msgText": "An unknown error occurred. \nPlease try again later."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "401"
+            },
+            "err": {
+                "prismCode": 10002,
+                "prismName": "COMMON_TOKEN_EXPIRED_ERROR",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Expired",
+                "msgText": "Your %1 channel verification information has expired.",
+                "errorType": "TokenExpired",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "login,dashBoard",
+            "api": {
+                "$statusCode": "401"
+            },
+            "err": {
+                "prismCode": 10003,
+                "prismName": "COMMON_CHANNEL_LOGIN_TOKEN_EXPIRED_ERROR",
+                "msgKey": "Channels.expiredQuestion",
+                "msgText": "Your %1 account verification information has expired. You will be transferred to the login page.",
+                "errorType": "TokenExpired",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "login,dashBoard",
+            "err": {
+                "prismCode": 10004,
+                "prismName": "COMMON_CHANNEL_LOGIN_FAIL",
+                "msgKey": "Channels.Check.Login.Error",
+                "msgText": "Login failed. Please try again."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 10005,
+                "prismName": "COMMON_CHANNEL_EMPTYCHANNEL",
+                "msgKey": "Channels.EmptyChannelMessage",
+                "msgText": "Cannot load the channel list. Please check and refresh the list."
+            }
+        }
+    ]
+}

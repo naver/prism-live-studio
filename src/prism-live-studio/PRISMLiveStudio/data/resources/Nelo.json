@@ -1,0 +1,131 @@
+{
+	"version": 12,
+	"url": "",
+	"cn": {
+		"name": "",
+		"token": "",
+		"filters": [
+			"(.*)Error running the FX(.*)The effect has not been properly initialized",
+			"(.*)No JPEG data found in image",
+			"(.*)before any SOF(.*)",
+			"(.*)audio retrieval failed(.*)",
+			".*connect signal to callback(.*)",
+			".*platformName: YouTube\nerrorUrl: requestLiveStreamStatus([\\s\\S]*)",
+			"(.*)Could not update timestamps for discarded samples(.*)",
+			"(.*)juice: Send failed(.*)",
+			".*Analog msg content([\\s\\S]*)\"platformName\": \"YouTube\"([\\s\\S]*)\"url\": \"requestLiveStreamStatus\"([\\s\\S]*)",
+			".*obs.browser.*Error.*"
+		],
+		"duplicateLogFilters": [
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)YouTube start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)YouTube start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)Chzzk start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)Chzzk start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)navershopping start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)navershopping start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)afreecaTV start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)afreecaTV start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)facebook start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)facebook start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)Naver TV start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)Naver TV start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)twitch start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)twitch start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)band start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)band start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"liveAbort": "^live abort because obs error code:-3$"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"liveAbort": "^live abort because obs error code:-2$"
+				}
+			}
+		]
+	},
+	"kr": {
+		"name": "",
+		"token": "",
+		"filters": [
+			"(.*)No JPEG data found in image",
+			"(.*)Could not update timestamps for discarded samples(.*)",
+			"(.*)before any SOF(.*)"
+		]
+	}
+}

@@ -24,7 +24,9 @@ target_link_libraries(prism-sticker-source
 	FFmpeg::avformat
 	OBS::libobs
 	common-libs::utils-api
-	common-libs::log)
+	common-libs::log
+	prism::frontend-api
+	)
 
 if(OS_WINDOWS)
 	if(MSVC)

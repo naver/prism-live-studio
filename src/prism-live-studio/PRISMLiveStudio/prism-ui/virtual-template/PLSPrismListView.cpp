@@ -6,6 +6,7 @@
 #include <QTimer>
 #include "utils-api.h"
 #include "PLSAlertView.h"
+#include "PLSErrorHandler.h"
 #include "liblog.h"
 #include "log/module_names.h"
 #include "PLSBasic.h"
@@ -174,7 +175,8 @@ void PLSPrismListView::itemListFinished()
 
 	if (zero && retryClickedId == groupId) {
 		retryClickedId.clear();
-		PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), tr("Alert.Title"), tr("login.check.note.network"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LOGIN_CHECK_NOTE_NETWORK, PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral("PLSPrismListView::itemListFinished")), PLSBasic::instance()->GetPropertiesWindow());
 	}
 }
 

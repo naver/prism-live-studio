@@ -8,6 +8,11 @@
 #include "PLSSceneCollectionItem.h"
 #include "PLSLabel.h"
 
+// Scene collection popup menu: item height, total border width, top margin (defined in PLSSceneCollectionManagement.cpp)
+extern const int SCENE_COLLECTION_POPUP_ITEM_HEIGHT;
+extern const int SCENE_COLLECTION_POPUP_BORDER_WIDTH;
+extern const int SCENE_COLLECTION_POPUP_TOP_MARGIN;
+
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class PLSSceneCollectionManagement;
@@ -30,6 +35,7 @@ public:
 	void OnTriggerEnterEvent(const QString &name, const QString &path);
 
 protected:
+	void showEvent(QShowEvent *event) override;
 	bool eventFilter(QObject *obj, QEvent *event) override;
 signals:
 	void ShowSceneCollectionView();

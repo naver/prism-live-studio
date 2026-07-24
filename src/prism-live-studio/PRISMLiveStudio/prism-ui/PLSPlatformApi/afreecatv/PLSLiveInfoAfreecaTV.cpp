@@ -3,15 +3,17 @@
 #include "ChannelCommonFunctions.h"
 #include "PLSChannelDataAPI.h"
 #include "PLSLiveInfoBase.h"
-#include "PLSAlertView.h"
+#include "frontend-api.h"
 #include "log/log.h"
 #include "ui_PLSLiveInfoAfreecaTV.h"
 #include "libui.h"
 using namespace common;
 static const char *const liveInfoMoudule = "PLSLiveInfoAfreecaTV";
+const int SOOP_TITLE_LENGTH_LIMIT = 75;
 
 PLSLiveInfoAfreecaTV::PLSLiveInfoAfreecaTV(PLSPlatformBase *pPlatformBase, QWidget *parent) : PLSLiveInfoBase(pPlatformBase, parent)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	ui = pls_new<Ui::PLSLiveInfoAfreecaTV>();
 	PLS_INFO(liveInfoMoudule, "AfreecaTV liveinfo Will show");
 	pls_add_css(this, {"PLSLiveinfoAfreecaTV"});
@@ -39,6 +41,8 @@ PLSLiveInfoAfreecaTV::PLSLiveInfoAfreecaTV(PLSPlatformBase *pPlatformBase, QWidg
 		ui->bottomButtonWidget->layout()->addWidget(ui->cancelButton);
 	}
 #endif
+	pls_uistep_v2_bind(ui->lineEditTitle, ui->scheduleLabel);
+	pls_uistep_v2_set_title(this, QStringLiteral("SOOP Channel Live Info"));
 }
 
 PLSLiveInfoAfreecaTV::~PLSLiveInfoAfreecaTV()
@@ -92,13 +96,12 @@ void PLSLiveInfoAfreecaTV::doUpdateOkState()
 
 void PLSLiveInfoAfreecaTV::titleEdited()
 {
-	static const int TitleLengthLimit = 75;
 	QString newText = ui->lineEditTitle->text();
 
 	bool isLargeToMax = false;
-	if (newText.length() > TitleLengthLimit) {
+	if (newText.length() > SOOP_TITLE_LENGTH_LIMIT) {
 		isLargeToMax = true;
-		newText = newText.left(TitleLengthLimit);
+		newText = newText.left(SOOP_TITLE_LENGTH_LIMIT);
 	}
 
 	if (newText.compare(ui->lineEditTitle->text()) != 0) {
@@ -108,20 +111,19 @@ void PLSLiveInfoAfreecaTV::titleEdited()
 	doUpdateOkState();
 
 	if (isLargeToMax) {
-		const auto channelName = PLS_PLATFORM_AFREECATV->getInitData().value(ChannelData::g_channelName).toString();
-		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TitleLengthLimit).arg(channelName));
+		PLSErrorHandler::ExtraData extraData("SOOP live info title length max");
+		extraData.defaultArg = {QString::number(SOOP_TITLE_LENGTH_LIMIT), QString::fromUtf8(SOOP)};
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LIVEINFO_AFREECA_TV_TITLE_LENGTH_MAX, PLSErrKeyAllAlert, {}, extraData, this);
 	}
 }
 
 void PLSLiveInfoAfreecaTV::okButtonClicked()
 {
-	PLS_UI_STEP(liveInfoMoudule, "afreecatv liveinfo OK Button Click", ACTION_CLICK);
 	saveDateWhenClickButton();
 }
 
 void PLSLiveInfoAfreecaTV::cancelButtonClicked()
 {
-	PLS_UI_STEP(liveInfoMoudule, "afreecatv liveinfo Cancel Button Click", ACTION_CLICK);
 	reject();
 }
 

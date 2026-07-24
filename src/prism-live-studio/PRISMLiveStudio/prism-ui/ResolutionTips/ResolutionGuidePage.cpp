@@ -3,7 +3,8 @@
 #include "pls-channel-const.h"
 #include <QFile>
 #include <QJsonDocument>
-
+#include "libui.h"
+#include "PLSWatchers.h"
 #include "liblog.h"
 #include "window-basic-main.hpp"
 #include <QRegularExpression>
@@ -22,18 +23,30 @@
 #include "frontend-api.h"
 #include "PLSServerStreamHandler.hpp"
 #include "pls/pls-dual-output.h"
-#include "PLSLoginDataHandler.h"
+#include <QTimer>
+#include <QResizeEvent>
+#include <QPushButton>
+#include <QHBoxLayout>
+#include "libutils-api.h"
+#include "PLSTextLoadingView.h"
 
 const char ResolutionGroup[] = "resolution";
 const char ResolutionGeo[] = "resolutionGeo";
 
+static constexpr int kResolutionItemsPerEventLoopTick = 4;
+
 QVariantList ResolutionGuidePage::mResolutions = QVariantList();
 
-ResolutionGuidePage::ResolutionGuidePage(QWidget *parent) : PLSDialogView(parent)
+ResolutionGuidePage::ResolutionGuidePage(QWidget *parent) : PLSDialogView(parent, {}, CreateWinId::Create)
 {
+	PLS_PERFORMANCE_FUNCTION("ResolutionGuidePage Constructor");
+	PLS_DISABLE_UISTEP_V2(this);
 	pls_add_css(this, {"ResolutionGuidePage"});
+	getResolutionsList();
+	PLS_PERFORMANCE_START(setupUi);
 	setupUi(ui);
-	setMoveInContent(true);
+	PLS_PERFORMANCE_END(setupUi);
+	PLS_PERFORMANCE_START(setWindow);
 	initSize(720, 488);
 	connect(
 		this, &ResolutionGuidePage::sigSetResolutionFailed, this,
@@ -49,13 +62,18 @@ ResolutionGuidePage::ResolutionGuidePage(QWidget *parent) : PLSDialogView(parent
 		mB2BLogin = true;
 		ui->MainTitleLabel->setText(tr("ResolutionGuide.NCP.MainTitle"));
 	}
-
+#if defined(Q_OS_WIN)
+	setResizeEnabled(false);
+	ui->verticalLayout_4->removeWidget(ui->TopFrame);
+	setTitleWidget(ui->TopFrame);
+#endif
+	PLS_PERFORMANCE_END(setWindow);
 	initialize();
-}
-
-ResolutionGuidePage::~ResolutionGuidePage()
-{
-	emit visibilityChanged(false);
+	pls_uistep_v2_tab({ui->B2BTab, ui->otherTab}, QStringLiteral("clicked"));
+	pls_uistep_v2_set_value(ui->updateButton, QStringLiteral("*"), QStringLiteral("Update Button"));
+	pls_uistep_v2_set_custom_show_hide_name(ui->B2BPage, "B2B Page");
+	pls_uistep_v2_set_custom_show_hide_name(ui->commonPage, "Common Page");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->updateButton, "Refresh Button");
 }
 
 ResolutionGuidePage *ResolutionGuidePage::createInstance(QWidget *parent)
@@ -70,17 +88,13 @@ ResolutionGuidePage *ResolutionGuidePage::createInstance(QWidget *parent)
 	}
 	page = new ResolutionGuidePage(parent);
 	page->setAttribute(Qt::WA_DeleteOnClose);
-	page->connectMainView();
 
 #if defined(Q_OS_MACOS)
 	page->setHasCloseButton(false);
 	page->setHasMinButton(false);
 	page->setHasMaxResButton(false);
 	page->setWindowTitle(QTStr("ResolutionGuide.MainTitle"));
-#else
-	page->setHasCaption(false);
 #endif
-	page->setMoveInContent(true);
 
 	return page;
 }
@@ -94,19 +108,25 @@ void ResolutionGuidePage::saveSettings() const
 
 void ResolutionGuidePage::adjustLayout()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (mB2BLogin) {
 		auto buttonGroup = pls_new<QButtonGroup>();
 		buttonGroup->addButton(ui->B2BTab, 0);
 		buttonGroup->addButton(ui->otherTab, 1);
 		initializeB2BItem();
 	} else {
+		PLS_PERFORMANCE_START(TabFrameHide);
 		ui->TabFrame->hide();
+		PLS_PERFORMANCE_END(TabFrameHide);
+		PLS_PERFORMANCE_START(setCurrentIndex);
 		ui->stackedWidget->setCurrentIndex(1);
+		PLS_PERFORMANCE_END(setCurrentIndex);
 	}
 }
 
 bool ResolutionGuidePage::initializeB2BItem()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	ui->errorLabel->hide();
 	ui->B2BHeaderFrame->hide();
 	on_updateButton_clicked();
@@ -160,6 +180,7 @@ void ResolutionGuidePage::handThumbnail()
 		PLS_INFO("ResolutionGuidePage", "save tagIcon is %s", isSuccess ? "true" : "false");
 	}
 	downloadThumbnailFinish();
+	hidePageTextLoading();
 }
 
 QList<B2BResolutionPara> ResolutionGuidePage::parseServiceStreamingPreset(QJsonObject &object)
@@ -215,7 +236,7 @@ QList<B2BResolutionPara> ResolutionGuidePage::parseServiceStreamingPreset(QJsonO
 void ResolutionGuidePage::UpdateB2BUI()
 {
 	ui->B2BHeaderFrame->show();
-	ui->B2BHeaderFrame->setContentsMargins(30, 30, 0, 0);
+	ui->B2BHeaderFrame->setContentsMargins(30, 0, 0, 0);
 	ui->errorLabel->hide();
 	ui->B2BScrollLayout->setContentsMargins(0, 0, 0, 30);
 	ui->B2BScrollLayout->setAlignment(Qt::AlignTop);
@@ -285,17 +306,67 @@ const QVariantList &ResolutionGuidePage::getResolutionsList()
 
 void ResolutionGuidePage::initialize()
 {
-	const auto &resolutions = getResolutionsList();
-	for (const auto &varmap : resolutions) {
+	PLS_PERFORMANCE_FUNCTION("ResolutionGuidePage Initialize");
+	connect(PLSPlatformApi::instance(), &PLSPlatformApi::outputStateChanged, this, &ResolutionGuidePage::updateItemsState);
+	adjustLayout();
+}
+
+void ResolutionGuidePage::showEvent(QShowEvent *event)
+{
+	PLSDialogView::showEvent(event);
+
+	if (!m_resolutionItemsCreated) {
+		m_resolutionItemsCreated = true;
+		showPageTextLoading();
+		pls_async_call(this, [this]() {
+			if (!mB2BLogin) {
+				ui->ContentScrollArea->hide();
+			}
+			pls_async_call(this, [this]() { createResolutionItems(); });
+		});
+	}
+}
+
+void ResolutionGuidePage::createResolutionItems()
+{
+	m_commonItems.clear();
+	m_createResolutionItemIndex = 0;
+	createResolutionItemsChunk();
+}
+
+void ResolutionGuidePage::createResolutionItemsChunk()
+{
+	PLS_PERFORMANCE_FUNCTION();
+	const int total = mResolutions.size();
+	int processedInTick = 0;
+	while (m_createResolutionItemIndex < total && processedInTick < kResolutionItemsPerEventLoopTick) {
+		const auto &varmap = mResolutions[m_createResolutionItemIndex];
+		PLS_PERFORMANCE_START(Initialize_item);
 		auto item = new ResolutionGuideItem(this);
 		ui->ScrollWidgetLayOut->insertWidget(ui->ScrollWidgetLayOut->count() - 1, item);
 		item->initialize(varmap.toMap());
 		connect(item, &ResolutionGuideItem::sigResolutionSelected, this, &ResolutionGuidePage::onUserSelectedResolution);
+		m_commonItems.append(item);
+		PLS_PERFORMANCE_END(Initialize_item);
+		++m_createResolutionItemIndex;
+		++processedInTick;
 	}
+	if (m_createResolutionItemIndex < total) {
+		pls_async_call(this, [this]() { createResolutionItemsChunk(); });
+	} else {
+		onCreateResolutionItemsFinished();
+	}
+}
 
-	connect(PLSPlatformApi::instance(), &PLSPlatformApi::outputStateChanged, this, &ResolutionGuidePage::updateItemsState);
-	adjustLayout();
+void ResolutionGuidePage::onCreateResolutionItemsFinished()
+{
+	if (!mB2BLogin) {
+		ui->ContentScrollArea->show();
+	}
 	updateItemsState();
+	if (!m_updateRequestExisted && !m_downLoadRequestExisted) {
+		hidePageTextLoading();
+	}
 }
 
 ResolutionGuidePage::CannotTipObject ResolutionGuidePage::createCannotTipForWidget(QWidget *parentWidget, const QSize &fixSize, const QPoint &moveDistance)
@@ -326,31 +397,31 @@ bool ResolutionGuidePage::CannotTipObject::checkIsCanChange()
 	return isCanChange;
 }
 
-void ResolutionGuidePage::CannotTipObject::updateText()
+PLSErrorHandler::ErrCode ResolutionGuidePage::CannotTipObject::updateText()
 {
 	mText.clear();
 
 	auto outputState = ResolutionGuidePage::getCurrentOutputState();
 	if (outputState == OutputState::OuputIsOff) {
-		return;
+		return PLSErrorHandler::INVALID;
 	}
 
 	if (outputState.testFlag(OutputState::StreamIsOn) || outputState.testFlag(OutputState::ReplayBufferIsOn) || outputState.testFlag(OutputState::RecordIsOn)) {
-
 		mText = tr("Resolution.InputIsActived");
-		return;
+		return PLSErrorHandler::ALERT_RESOLUTION_GUIDE_SET_FAILED_STREAM_RECORD;
 	}
-	if (mText.isEmpty() && outputState.testFlag(OutputState::VirtualCamIsOn)) {
-
+	if (outputState.testFlag(OutputState::VirtualCamIsOn)) {
 		mText = tr("Resolution.VirtualCamIsActived");
-		return;
+		return PLSErrorHandler::ALERT_RESOLUTION_GUIDE_SET_FAILED_VIRTUALCAM;
 	}
 
 	auto iCount = pls_get_active_output_count();
 	if (iCount > 0) {
 		auto name = pls_get_active_output_name(0);
 		mText = tr("Resolution.OtherPluginOutputActived").arg(name);
+		return PLSErrorHandler::ALERT_RESOLUTION_GUIDE_SET_FAILED_PLUGIN_OUTPUT;
 	}
+	return PLSErrorHandler::INVALID;
 }
 
 void ResolutionGuidePage::CannotTipObject::updateGeometry()
@@ -391,9 +462,10 @@ void ResolutionGuidePage::updateItemsState()
 	if (obs_video_active()) {
 		isCanChange = false;
 	}
-	auto items = this->findChildren<ResolutionGuideItem *>();
-	for (auto item : items) {
-		item->setLinkEnanled(isCanChange);
+	for (auto item : m_commonItems) {
+		if (item) {
+			item->setLinkEnanled(isCanChange);
+		}
 	}
 
 	auto B2Bitems = this->findChildren<B2BResolutionGuideItem *>();
@@ -405,10 +477,9 @@ void ResolutionGuidePage::updateItemsState()
 		mCannotTip = createCannotTipForWidget(this, QSize(660, 0), QPoint(30, -90));
 	}
 
-	mCannotTip.updateUI();
-
 	QTimer::singleShot(500, this, [this]() {
 		PLS_INFO("ResolutionGuidePage", "singleShot updateItemsState");
+		mCannotTip.updateUI();
 		updateSpace(mCannotTip.mTip && mCannotTip.mTip->isVisibleTo(this));
 	});
 }
@@ -431,6 +502,27 @@ void ResolutionGuidePage::updateSpace(bool isAdd)
 	}
 }
 
+void ResolutionGuidePage::showPageTextLoading()
+{
+	hidePageTextLoading();
+	m_pageTextLoading = pls_new<PLSTextLoadingView>(tr("ResolutionGuide.LoadingMessage"), ui->stackedWidget);
+	m_pageTextLoading->setGeometry(ui->stackedWidget->rect());
+	m_pageTextLoading->show();
+	m_pageTextLoading->raise();
+	ui->stackedWidget->installEventFilter(this);
+}
+
+void ResolutionGuidePage::hidePageTextLoading()
+{
+	if (m_pageTextLoading && ui && ui->stackedWidget) {
+		ui->stackedWidget->removeEventFilter(this);
+	}
+	if (m_pageTextLoading) {
+		pls_delete(m_pageTextLoading);
+		m_pageTextLoading = nullptr;
+	}
+}
+
 void ResolutionGuidePage::CannotTipObject::updateUI(bool autoShow)
 {
 	checkIsCanChange();
@@ -445,11 +537,10 @@ extern QString translatePlatformName(const QString &platformName);
 
 bool ResolutionGuidePage::isAcceptToChangeResolution(const QString &platform, const QString &resolution)
 {
-	auto questionContent = tr("ResolutionGuide.QuestionContent").arg(translatePlatformName(platform)).arg(resolution);
-	auto ret = PLSAlertView::question(pls_get_main_view(), tr("Confirm"), questionContent,
-					  {{PLSAlertView::Button::Yes, tr("ResolutionGuide.ApplyNowBtn")}, {PLSAlertView::Button::Cancel, tr("Cancel")}});
-
-	return (ret == PLSAlertView::Button::Yes);
+	PLSErrorHandler::ExtraData extraData("Resolution guide apply recommended resolution confirm");
+	extraData.defaultArg = {translatePlatformName(platform), resolution};
+	auto retData = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_RESOLUTION_GUIDE_APPLY_RECOMMENDED_CONFIRM, PLSErrKeyAllAlert, {}, extraData, pls_get_main_view());
+	return retData.clickedBtn == QDialogButtonBox::Yes;
 }
 
 void ResolutionGuidePage::onUserSelectedResolution(const QString &txt)
@@ -464,8 +555,10 @@ void ResolutionGuidePage::onUserSelectedResolution(const QString &txt)
 	const auto &resolution = infoLst[1];
 	bool bVerticalOutput = false;
 	if (pls_is_dual_output_on()) {
-		auto questionContent = tr("ResolutionGuide.QuestionContent").arg(translatePlatformName(platform)).arg(resolution);
-		auto ret = PLSAlertView::dualOutputApplyResolutionWarn(pls_get_main_view(), tr("Confirm"), questionContent,
+		PLSErrorHandler::ExtraData extraData("Resolution guide dual output apply resolution warn");
+		extraData.defaultArg = {translatePlatformName(platform), resolution};
+		auto msgRet = PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::ALERT_RESOLUTION_GUIDE_APPLY_RECOMMENDED_CONFIRM, PLSErrKeyAllAlert, {}, extraData);
+		auto ret = PLSAlertView::dualOutputApplyResolutionWarn(pls_get_main_view(), tr("Confirm"), msgRet.alertMsg,
 								       {{PLSAlertView::Button::Ok, tr("ResolutionGuide.ApplyNowBtn")}, {PLSAlertView::Button::Cancel, tr("Cancel")}},
 								       tr("ResolutionGuide.HorizontalApply"), tr("ResolutionGuide.VerticalApply"), bVerticalOutput);
 		if (ret == PLSAlertView::Button::Cancel) {
@@ -481,7 +574,6 @@ void ResolutionGuidePage::onUserSelectedResolution(const QString &txt)
 	if (platform.contains(NAVER_SHOPPING_LIVE, Qt::CaseInsensitive)) {
 		resolutionData.bitrate = 2500;
 	}
-	bool applyB2BItem = false;
 	if (mB2BLogin && infoLst.size() == 4) {
 		QString strBitrate = infoLst[2];
 		QRegularExpression re("^(\\d+)");
@@ -491,7 +583,6 @@ void ResolutionGuidePage::onUserSelectedResolution(const QString &txt)
 			resolutionData.bitrate = numberStr.toInt();
 		}
 		resolutionData.keyframeInterval = infoLst[3].toInt();
-		applyB2BItem = true;
 	}
 
 	if (!setResolution(resolutionData, true, bVerticalOutput)) {
@@ -503,14 +594,6 @@ void ResolutionGuidePage::onUserSelectedResolution(const QString &txt)
 		onUpdateResolution();
 	}
 
-	QVariantMap uploadVariantMap;
-	uploadVariantMap.insert("platform", platform);
-	if (applyB2BItem) {
-		uploadVariantMap.insert("platform", "NCP");
-		uploadVariantMap.insert("serviceName", ui->B2BServerName->text());
-		uploadVariantMap.insert("outputParam", platform);
-	}
-	pls_send_analog(AnalogType::ANALOG_PLATFORM_OUTPUTGUIDE, uploadVariantMap);
 	this->accept();
 }
 
@@ -550,15 +633,21 @@ void ResolutionGuidePage::on_updateButton_clicked()
 		return;
 	}
 
+	showPageTextLoading();
+
 	auto okCallback = [this](const QJsonObject &data) {
 		QJsonObject serviceStreamingPreset = data.value("serviceStreamingPreset").toObject();
 		if (serviceStreamingPreset.isEmpty()) {
 			PLS_WARN("ResolutionGuidePage", "There was no ResolutionGuidePage field value was retrieved from the api.");
 			showB2BErrorLabel(EmptyList);
+			hidePageTextLoading();
 		} else {
 			parseServiceStreamingPreset(serviceStreamingPreset);
 			UpdateB2BUI();
 			updateItemsState();
+			if (!m_downLoadRequestExisted) {
+				hidePageTextLoading();
+			}
 		}
 		m_updateRequestExisted = false;
 	};
@@ -570,10 +659,12 @@ void ResolutionGuidePage::on_updateButton_clicked()
 			showB2BErrorLabel(ReturnFail);
 		}
 		m_updateRequestExisted = false;
+		hidePageTextLoading();
 		PLS_WARN("ResolutionGuidePage", "get serviceStreamingPreset error code is %d", retData.prismCode);
 	};
 	m_updateRequestExisted = true;
 	PLSLoginDataHandler::instance()->getNCB2BServiceResFromRemote(okCallback, failCallback, this);
+	PLS_UI_ACTION("Refresh B2B Resolution Finished");
 }
 
 void ResolutionGuidePage::changeEvent(QEvent *e)
@@ -590,54 +681,33 @@ void ResolutionGuidePage::changeEvent(QEvent *e)
 
 bool ResolutionGuidePage::event(QEvent *event)
 {
-
 	switch (event->type()) {
-	case QEvent::Show:
-		emit visibilityChanged(true);
-		break;
-	case QEvent::Hide:
-		emit visibilityChanged(false);
-		this->setModal(false);
-
-		break;
-	case QEvent::Close:
-		this->accept();
-		return true;
-
 	case QEvent::Resize:
 		mCannotTip.updateGeometry();
 		break;
 	default:
-
 		break;
 	}
 	return PLSDialogView::event(event);
 }
 
-void ResolutionGuidePage::connectMainView()
+bool ResolutionGuidePage::eventFilter(QObject *watcher, QEvent *event)
 {
-	/*const PLSMainView *View = dynamic_cast<PLSMainView *>(pls_get_main_view());
-	QObject::connect(this, &ResolutionGuidePage::visibilityChanged, View, &PLSMainView::toggleResolutionButton, Qt::ConnectionType(Qt::QueuedConnection | Qt::UniqueConnection));
+	if (event->type() == QEvent::Resize && m_pageTextLoading && ui && watcher == ui->stackedWidget) {
+		const auto *resizeEvent = static_cast<QResizeEvent *>(event);
+		m_pageTextLoading->setGeometry(0, 0, resizeEvent->size().width(), resizeEvent->size().height());
+	}
 
-	connect(
-		View, &PLSMainView::isshowSignal, this,
-		[this](bool visible) {
-			if (!visible) {
-				this->close();
-			}
-		},
-		Qt::DirectConnection);*/
+	return PLSDialogView::eventFilter(watcher, event);
 }
 
 void ResolutionGuidePage::on_CloseBtn_clicked()
 {
-	PLS_UI_STEP("ResolutionGuide", (" ResolutionGuide close button "), "Clicked");
 	this->close();
 }
 
 void ResolutionGuidePage::showResolutionGuideCloseAfterChange(QWidget *parent)
 {
-	PLS_UI_STEP("ResolutionGuide", QString(parent->objectName() + " Resolution button ").toUtf8().constData(), "Clicked");
 	setVisibleOfGuide(parent, [parent]() {
 		parent->hide();
 		parent->deleteLater();
@@ -777,14 +847,16 @@ void ResolutionGuidePage::setVisibleOfGuide(QWidget *parent, const UpdateCallbac
 	if (parent == nullptr) {
 		parent = mianView;
 	}
-
+	PLS_PERFORMANCE_GLOBAL_START("BulidResolutionGuidePage", "ShowResolutionGuidAllTime");
 	auto page = createInstance(parent);
-
+	PLS_PERFORMANCE_GLOBAL_END("BulidResolutionGuidePage");
 	auto setvisibleOf = [page, callback, agreeFun, mianView](bool isVisibleL) {
 		if (isVisibleL) {
 
 			page->setUpdateResolutionFunction(callback);
 			page->setAgreeFunction(agreeFun);
+			PLS_PERFORMANCE_GLOBAL_START("ResolutionGuidExec", "ShowResolutionGuidAllTime");
+			PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(page, PLS_PERFORMANCE_GLOBAL_END("ResolutionGuidExec"); PLS_PERFORMANCE_GLOBAL_END("ShowResolutionGuidAllTime"));
 			page->exec();
 			mianView->setResolutionBtnCheck(false);
 			return;
@@ -884,6 +956,14 @@ bool ResolutionGuidePage::setVideoBitrateAndKeyFrameInterval(int bitrate, int ke
 void ResolutionGuidePage::showAlertOnSetResolutionFailed()
 {
 	CannotTipObject obj;
-	obj.updateText();
-	QMetaObject::invokeMethod(pls_get_main_view(), [obj]() { pls_alert_error_message(pls_get_main_view(), tr("Notice"), obj.mText); }, Qt::QueuedConnection);
+	const PLSErrorHandler::ErrCode prismCode = obj.updateText();
+	if (prismCode == PLSErrorHandler::INVALID) {
+		return;
+	}
+	PLSErrorHandler::ExtraData extraData("Resolution guide set resolution failed output busy");
+	if (prismCode == PLSErrorHandler::ALERT_RESOLUTION_GUIDE_SET_FAILED_PLUGIN_OUTPUT) {
+		extraData.defaultArg = {pls_get_active_output_name(0)};
+	}
+	QWidget *mainView = pls_get_main_view();
+	QMetaObject::invokeMethod(mainView, [prismCode, extraData, mainView]() { PLSErrorHandler::showAlertByPrismCode(prismCode, PLSErrKeyAllAlert, {}, extraData, mainView); }, Qt::QueuedConnection);
 }

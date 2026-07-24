@@ -4,31 +4,41 @@
         <file>resource/images/add-source-view/chat_en.png</file>
         <file>resource/images/add-source-view/chat_ko.png</file>
         <file>resource/images/add-source-view/giphy.gif</file>
-        <file>resource/images/add-source-view/ic-addsource-appaudio.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-audioinput.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-audiooutput.svg</file>
+        <file>resource/images/add-source-view/ic-addsource-appaudio.png</file>
+        <file>resource/images/add-source-view/ic-addsource-audiooutput.png</file>
+        <file>resource/images/add-source-view/ic-addsource-audiov.png</file>
+        <file>resource/images/add-source-view/ic-addsource-camera.png</file>
+        <file>resource/images/add-source-view/ic-addsource-capturecard.png</file>
+        <file>resource/images/add-source-view/ic-addsource-chzzksponsor.png</file>
+        <file>resource/images/add-source-view/ic-addsource-color.png</file>
+        <file>resource/images/add-source-view/ic-addsource-display.png</file>
+        <file>resource/images/add-source-view/ic-addsource-displayall.png</file>
+        <file>resource/images/add-source-view/ic-addsource-game.png</file>
+        <file>resource/images/add-source-view/ic-addsource-giphy.png</file>
+        <file>resource/images/add-source-view/ic-addsource-group.png</file>
+        <file>resource/images/add-source-view/ic-addsource-image.png</file>
+        <file>resource/images/add-source-view/ic-addsource-slideshow.png</file>
+        <file>resource/images/add-source-view/ic-addsource-livecaption.png</file>
+        <file>resource/images/add-source-view/ic-addsource-mac.png</file>
+        <file>resource/images/add-source-view/ic-addsource-media.png</file>
+        <file>resource/images/add-source-view/ic-addsource-audioinput.png</file>
+        <file>resource/images/add-source-view/ic-addsource-plugin.png</file>
+        <file>resource/images/add-source-view/ic-addsource-prismlens.png</file>
+        <file>resource/images/add-source-view/ic-addsource-prismmobile.png</file>
+        <file>resource/images/add-source-view/ic-addsource-prismsticker.png</file>
+        <file>resource/images/add-source-view/ic-addsource-scene.png</file>
+        <file>resource/images/add-source-view/ic-addsource-spout2.png</file>
+        <file>resource/images/add-source-view/ic-addsource-text.png</file>
+        <file>resource/images/add-source-view/ic-addsource-timer.png</file>
+        <file>resource/images/add-source-view/ic-addsource-browser.png</file>
+        <file>resource/images/add-source-view/ic-addsource-viewercount.png</file>
+        <file>resource/images/add-source-view/ic-addsource-virtualbackground.png</file>
+        <file>resource/images/add-source-view/ic-addsource-window.png</file>
         <file>resource/images/add-source-view/ic-addsource-bgm.png</file>
-        <file>resource/images/add-source-view/ic-addsource-bgm.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-browser.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-camera.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-capturecard.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-color.svg</file>
         <file>resource/images/add-source-view/ic-addsource-decklinkinput.svg</file>
         <file>resource/images/add-source-view/ic-addsource-default.png</file>
-        <file>resource/images/add-source-view/ic-addsource-default.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-game.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-group.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-image.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-media.svg</file>
         <file>resource/images/add-source-view/ic-addsource-monitor.svg</file>
         <file>resource/images/add-source-view/ic-addsource-ndi.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-plugin.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-prismmobile.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-scene.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-slideshow.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-text.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-window.svg</file>
-        <file>resource/images/add-source-view/ic-addsource-spout2.svg</file>
         <file>resource/images/add-source-view/ic-badge-new.svg</file>
         <file>resource/images/add-source-view/icon-source-appaudio-normal.svg</file>
         <file>resource/images/add-source-view/icon-source-appaudio-select.svg</file>
@@ -97,13 +107,15 @@
         <file>resource/images/add-source-view/icon-source-spout2-normal.svg</file>
         <file>resource/images/add-source-view/icon-source-spout2-select.svg</file>
         <file>resource/images/add-source-view/prismsticker.png</file>
-        <file>resource/images/add-source-view/textmotion_en.png</file>
-        <file>resource/images/add-source-view/textmotion_ko.png</file>
+        <file>resource/images/add-source-view/textmotion_en.mp4</file>
+        <file>resource/images/add-source-view/textmotion_ko.mp4</file>
         <file>resource/images/add-source-view/timer.png</file>
         <file>resource/images/add-source-view/viewercount.png</file>
         <file>resource/images/add-source-view/virtualbackground.png</file>
         <file>resource/images/add-source-view/prismlens.png</file>
         <file>resource/images/add-source-view/prismmobile.png</file>
+        <file>resource/images/add-source-view/img_search_empty.svg</file>
+        <file>resource/images/add-source-view/ic_next_normal.svg</file>
         <file>resource/images/collection/btn-add-playlist-done-click.svg</file>
         <file>resource/images/collection/btn-add-playlist-done-disable.svg</file>
         <file>resource/images/collection/btn-add-playlist-done-normal.svg</file>
@@ -138,8 +150,6 @@
         <file>resource/images/collection/ic-rename-disable.svg</file>
         <file>resource/images/collection/ic-rename-normal.svg</file>
         <file>resource/images/collection/ic-rename-over.svg</file>
-        <file>resource/images/collection/ic-scene-arrow-normal.svg</file>
-        <file>resource/images/collection/ic-scene-arrow-over.svg</file>
         <file>resource/images/collection/ic-scene-delete-click.svg</file>
         <file>resource/images/collection/ic-scene-delete-disable.svg</file>
         <file>resource/images/collection/ic-scene-delete-normal.svg</file>

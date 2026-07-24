@@ -1,0 +1,1934 @@
+{
+    "buildDate": 1688525046000,
+    "connection": {
+        "apis": {
+            "fallback": {
+                "ssl": "",
+                "url": ""
+            },
+            "ssl": "",
+            "url": ""
+        }
+    },
+    "optional": {
+        "blacklist": {
+            "3rdPlugins": {
+                "Processing.NDI.Lib.x64.dll": {
+                },
+                "Processing.NDI.Plugins.IPCam.x64.dll": {
+                },
+                "advanced-scene-switcher.dll": {
+                },
+                "bongobs-cat.dll": {
+                },
+                "laboratory-win-capture-audio.dll": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "logi_obs_plugin_x64.dll": {
+                },
+                "obs-transition-matrix.dll": {
+                },
+                "obs-virtualoutput.dll": {
+                },
+                "obs-virtualsource.dll": {
+                },
+                "obs_google_caption_plugin.dll": {
+                },
+                "own3d.dll": {
+                },
+                "prism-test-source.dll": {
+                }
+            },
+            "3rdPrograms": {
+                "BLGraphicLib_x64.dll": {
+                },
+                "BMSMMDrv_x64.dll": {
+                },
+                "BMServ2Dll_x64.dll": {
+                },
+                "Bridger64.dll": {
+                },
+                "DBROverlayIconBackuped.dll": {
+                },
+                "FTLPTP.dll": {
+                },
+                "GPP64.dll": {
+                },
+                "GTII-OSD64.dll": {
+                },
+                "GoogleInputTools.ime": {
+                },
+                "MMDevAPI.dll": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "NkdPTP.dll": {
+                },
+                "RTSSHooks64.dll": {
+                },
+                "SS2OSD.dll": {
+                },
+                "T_Prevent64.dll": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "axTotalConverter64.dll": {
+                },
+                "dxgi.dll": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "explorerframe.dll": {
+                },
+                "fdk-aac.dll": {
+                },
+                "frida-agent.dll": {
+                },
+                "jsonWrapper.dll": {
+                },
+                "libcrypto-1_1-x64.dll": {
+                },
+                "libcurl.dll": {
+                },
+                "libdshowcapture.dll": {
+                },
+                "libmbedcrypto.dll": {
+                },
+                "libogg-0.dll": {
+                },
+                "libopus-0.dll": {
+                },
+                "libpng16-16.dll": {
+                },
+                "libsrt.dll": {
+                },
+                "libvorbis-0.dll": {
+                },
+                "libvorbisenc-2.dll": {
+                },
+                "libvorbisfile-3.dll": {
+                },
+                "libvpx-1.dll": {
+                },
+                "libx264-161.dll": {
+                },
+                "lua51.dll": {
+                },
+                "mfplat.dll": {
+                },
+                "npggNT64.des": {
+                },
+                "r3ldp64.dll": {
+                },
+                "st_mobile.dll": {
+                },
+                "websockets.dll": {
+                },
+                "windows.storage.dll": {
+                },
+                "wslbscr64.dll": {
+                },
+                "wslbscrwh64.dll": {
+                },
+                "zlib.dll": {
+                }
+            },
+            "DefaultUrl": {
+                "en-US": "",
+                "ko-KR": ""
+            },
+            "customType": {
+                "Elgato": {
+                    "ElgatoVirtualCapture.ax": {
+                        "en-US": "",
+                        "ko-KR": ""
+                    },
+                    "VideoCaptureFilter.ax": {
+                        "en-US": "",
+                        "ko-KR": ""
+                    }
+                },
+                "Fasoo": {
+                    "f_sps.dll": {
+                        "en-US": "",
+                        "ko-KR": ""
+                    }
+                }
+            },
+            "deviceDrivers": {
+                "AvtakeVideoS4.dll": {
+                },
+                "DeckLink64.dll": {
+                },
+                "DeckLinkAvStreamPlugIn64.ax": {
+                },
+                "Etprop64.ax": {
+                },
+                "FTLPTP.dll": {
+                },
+                "FlyCapture2DirectShowSource_v100.ax": {
+                },
+                "GOPROW~1.DLL": {
+                },
+                "GoProWebcam.dll": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "HncShellExt64.dll": {
+                },
+                "IntelCameraPlugin64.dll": {
+                },
+                "LogiCam.dll": {
+                },
+                "MevoWebcam-DirectShowFilter-x64.dll": {
+                },
+                "NahimicOSD.dll": {
+                },
+                "NvVirtualCameraFilter_x64.dll": {
+                },
+                "PropPage_FX3_x64.ax": {
+                },
+                "SpITDevMft64.dll": {
+                },
+                "UnityCaptureFilter64bit.dll": {
+                },
+                "VCamPPage_x64.dll": {
+                },
+                "VSFilter.dll": {
+                },
+                "VideoCaptureApi.dll": {
+                },
+                "VysorCamera.dll": {
+                },
+                "avfcp.ax": {
+                },
+                "avmC835devicecontrol_X64.dll": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "avmC875devicecontrol_X64.dll": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "avmlgmse.ax": {
+                },
+                "avmlgp2audiose.ax": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "avmlguvse.ax": {
+                },
+                "avmvirtualcamera.ax": {
+                },
+                "ca_core.dll": {
+                },
+                "douwan-virtualcam64.dll": {
+                },
+                "druver64.dll": {
+                },
+                "eos-webcam-utility-beta-x64.ax": {
+                },
+                "ff_vfw.dll": {
+                },
+                "fujivcam.dll": {
+                },
+                "hcphfilter.dll": {
+                },
+                "ksproxy.ax": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "lvcod64.dll": {
+                },
+                "obs-virtualcam-module64.dll": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "vMixAudio.ax": {
+                },
+                "vMixVideo.ax": {
+                },
+                "video64.dll": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "wdmaud.drv": {
+                },
+                "winepulse.drv": {
+                },
+                "wuta_vcam64.dll": {
+                },
+                "x64-release-virtualcamera-addition-win32.ax": {
+                }
+            },
+            "exceptionTypes": {
+                "Out of Memory": "blacklist.crashed.outofmemory"
+            },
+            "gpuModels": [
+                "AMD FirePro 2460",
+                "AMD FirePro D300 (FireGL V)",
+                "AMD FirePro M3900",
+                "AMD FirePro M4000",
+                "AMD FirePro M4000 Mobility Pro Graphics",
+                "AMD Firepro M4100",
+                "AMD FirePro M4150",
+                "AMD FirePro M4170",
+                "AMD FirePro M5100 FireGL V",
+                "AMD FirePro V4900 (FireGL V) Graphics Adapter",
+                "AMD FirePro V5900 (FireGL V) Graphics Adapter",
+                "AMD FirePro W2100",
+                "AMD FirePro W4170M (FireGL V)",
+                "AMD FirePro W5100",
+                "AMD FirePro W5170M",
+                "AMD Mobility Radeon HD 5000",
+                "AMD Mobility Radeon HD 5000 Series",
+                "AMD Mobility Radeon HD 5800 Series",
+                "AMD Radeon (TM) 530",
+                "AMD Radeon (TM) 620",
+                "AMD Radeon (TM) 625",
+                "AMD Radeon (TM) 630",
+                "AMD Radeon (TM) HD 8500M/8700M",
+                "AMD Radeon (TM) HD 8750M",
+                "AMD Radeon (TM) R5 340",
+                "AMD Radeon (TM) R5 M315",
+                "AMD Radeon (TM) R5 M320",
+                "AMD Radeon (TM) R5 M330",
+                "AMD Radeon (TM) R5 M335",
+                "AMD Radeon (TM) R5 M430",
+                "AMD Radeon (TM) R6 Graphics",
+                "AMD Radeon (TM) R7 300 Series",
+                "AMD Radeon (TM) R7 350",
+                "AMD Radeon (TM) R7 360 Series",
+                "AMD Radeon (TM) R7 370 Series",
+                "AMD Radeon (TM) R7 370 Series Graphics",
+                "AMD Radeon (TM) R7 450",
+                "AMD Radeon (TM) R7 M340",
+                "AMD Radeon (TM) R7 M350",
+                "AMD Radeon (TM) R7 M360",
+                "AMD Radeon (TM) R7 M370",
+                "AMD Radeon (TM) R9 370",
+                "AMD Radeon (TM) R9 370 Series",
+                "AMD Radeon 540X",
+                "AMD Radeon 550X",
+                "AMD Radeon 610 Series",
+                "AMD Radeon 630",
+                "AMD Radeon 6600M and 6700M Series",
+                "AMD Radeon HD 5450",
+                "AMD Radeon HD 5500 Series",
+                "AMD Radeon HD 5570",
+                "AMD Radeon HD 5600/5700",
+                "AMD Radeon HD 5670",
+                "AMD Radeon HD 5700 Series",
+                "AMD Radeon HD 5800 Series",
+                "AMD Radeon HD 6250 Graphics",
+                "AMD Radeon HD 6290 Graphics",
+                "AMD Radeon HD 6300 series Graphics",
+                "AMD Radeon HD 6300M Series",
+                "AMD Radeon HD 6310 Graphics",
+                "AMD Radeon HD 6310M",
+                "AMD Radeon HD 6320 Graphics",
+                "AMD RADEON HD 6350",
+                "AMD Radeon HD 6410D",
+                "AMD Radeon HD 6450",
+                "AMD Radeon HD 6470M",
+                "AMD Radeon HD 6480G",
+                "AMD Radeon HD 6500 Series",
+                "AMD Radeon HD 6520G",
+                "AMD Radeon HD 6530D",
+                "AMD Radeon HD 6550D",
+                "AMD Radeon HD 6570",
+                "AMD Radeon HD 6600A Series",
+                "AMD Radeon HD 6620G",
+                "AMD Radeon HD 6670",
+                "AMD Radeon HD 6700 Series",
+                "AMD Radeon HD 6700M Series",
+                "AMD Radeon HD 6800 Series",
+                "AMD Radeon HD 6900 Series",
+                "AMD Radeon HD 6900M Series",
+                "AMD Radeon HD 6950",
+                "AMD Radeon HD 6970",
+                "AMD Radeon HD 7000 series",
+                "AMD Radeon HD 7290 Graphics",
+                "AMD Radeon HD 7290M",
+                "AMD Radeon HD 7300 Series",
+                "AMD Radeon HD 7310 Graphics",
+                "AMD Radeon HD 7340 Graphics",
+                "AMD Radeon HD 7350",
+                "AMD Radeon HD 7400 Series",
+                "AMD Radeon HD 7400G",
+                "AMD Radeon HD 7400M Series",
+                "AMD Radeon HD 7420G",
+                "AMD Radeon HD 7450",
+                "AMD Radeon HD 7470",
+                "AMD Radeon HD 7480D",
+                "AMD Radeon HD 7500 Series",
+                "AMD Radeon HD 7500/7600 Series",
+                "AMD Radeon HD 7500G",
+                "AMD Radeon HD 7500M/7600M Series",
+                "AMD Radeon HD 7520G",
+                "AMD Radeon HD 7540D",
+                "AMD Radeon HD 7560D",
+                "AMD Radeon HD 7570",
+                "AMD Radeon HD 7570M",
+                "AMD Radeon HD 7600 Series",
+                "AMD Radeon HD 7600A Series",
+                "AMD Radeon HD 7600G",
+                "AMD Radeon HD 7600M Series",
+                "AMD Radeon HD 7620G",
+                "AMD Radeon HD 7640G",
+                "AMD Radeon HD 7640G + 8600/8700M Dual Graphics",
+                "AMD Radeon HD 7640G + HD 8600/8700M Dual Graphics",
+                "AMD Radeon HD 7650A",
+                "AMD Radeon HD 7650M",
+                "AMD Radeon HD 7660D",
+                "AMD Radeon HD 7660G",
+                "AMD Radeon HD 7660G + HD 7600M Dual Graphics",
+                "AMD Radeon HD 7670",
+                "AMD Radeon HD 7670M",
+                "AMD Radeon HD 7690M",
+                "AMD Radeon HD 7700 Series",
+                "AMD Radeon HD 7700M Series",
+                "AMD Radeon HD 7730M",
+                "AMD Radeon HD 7770 GHz Edition",
+                "AMD Radeon HD 7800 Series",
+                "AMD Radeon HD 7800M Series",
+                "AMD Radeon HD 8180",
+                "AMD Radeon HD 8200 / R3 Series",
+                "AMD Radeon HD 8210",
+                "AMD Radeon HD 8210 (Engineering Sample - WDDM v2.0)",
+                "AMD Radeon HD 8240",
+                "AMD Radeon HD 8250",
+                "AMD Radeon HD 8280",
+                "AMD Radeon HD 8330",
+                "AMD Radeon HD 8370D",
+                "AMD Radeon HD 8400",
+                "AMD Radeon HD 8400 / R3 Series",
+                "AMD Radeon HD 8450G",
+                "AMD Radeon HD 8470",
+                "AMD Radeon HD 8470 Graphics",
+                "AMD Radeon HD 8470D",
+                "AMD Radeon HD 8490",
+                "AMD Radeon HD 8500M",
+                "AMD Radeon HD 8500M Series",
+                "AMD Radeon HD 8510G",
+                "AMD Radeon HD 8550G",
+                "AMD Radeon HD 8550G + HD 8670M Dual Graphics",
+                "AMD Radeon HD 8570D",
+                "AMD Radeon HD 8570M",
+                "AMD Radeon HD 8600/8700M",
+                "AMD Radeon HD 8600M Series",
+                "AMD Radeon HD 8610G",
+                "AMD Radeon HD 8650G",
+                "AMD Radeon HD 8650G + HD 8600M Dual Graphics",
+                "AMD Radeon HD 8650G + HD 8670M Dual Graphics",
+                "AMD Radeon HD 8670D",
+                "AMD Radeon HD 8670M",
+                "AMD Radeon HD 8690M",
+                "AMD Radeon HD 8700M Series",
+                "AMD Radeon HD 8730M",
+                "AMD Radeon HD 8750M",
+                "AMD Radeon HD 8770",
+                "AMD Radeon HD 8790M",
+                "AMD Radeon HD 8800M Series",
+                "AMD Radeon HD 8850M",
+                "AMD Radeon HD 8870",
+                "AMD Radeon HD 8950",
+                "AMD Radeon HD HD7850M",
+                "AMD RADEON HD5450",
+                "AMD RADEON HD8450",
+                "AMD Radeon Pro 450",
+                "AMD Radeon Pro 455",
+                "AMD Radeon Pro 460",
+                "AMD Radeon R2",
+                "AMD Radeon R5",
+                "AMD Radeon R5 200 Series",
+                "AMD Radeon R5 220",
+                "AMD Radeon R5 230",
+                "AMD Radeon R5 310",
+                "AMD Radeon R5 330",
+                "AMD Radeon R5 430",
+                "AMD Radeon R5 A240",
+                "AMD Radeon R5 Graphics",
+                "AMD Radeon R5 M200 / HD 8500M Series",
+                "AMD Radeon R5 M200 Series",
+                "AMD Radeon R5 M230",
+                "AMD Radeon R5 M240",
+                "AMD Radeon R5 M255",
+                "AMD Radeon R5 M330",
+                "AMD Radeon R5 M335",
+                "AMD Radeon R5 M420",
+                "AMD Radeon R5 M435",
+                "AMD Radeon R6",
+                "AMD Radeon R6 Graphics",
+                "AMD Radeon R7 200 Series",
+                "AMD Radeon R7 240",
+                "AMD Radeon R7 240 Series",
+                "AMD Radeon R7 250 Series",
+                "AMD Radeon R7 350 Series",
+                "AMD Radeon R7 430",
+                "AMD Radeon R7 430 Series",
+                "AMD Radeon R7 A265",
+                "AMD Radeon R7 A360",
+                "AMD Radeon R7 Graphics",
+                "AMD Radeon R7 Graphics + R7 200 Dual Graphics",
+                "AMD Radeon R7 M260",
+                "AMD Radeon R7 M260 Series",
+                "AMD Radeon R7 M260X",
+                "AMD Radeon R7 M265",
+                "AMD Radeon R7 M265 Series",
+                "AMD Radeon R7 M270",
+                "AMD Radeon R7 M340",
+                "AMD Radeon R7 M360",
+                "AMD Radeon R7 M370",
+                "AMD Radeon R7 M440",
+                "AMD Radeon R7 M460",
+                "AMD Radeon R7 Series",
+                "AMD Radeon R7 Series / HD 9000 Series",
+                "AMD Radeon RX 550",
+                "AMD Radeon(TM) 530",
+                "AMD Radeon(TM) 530 series",
+                "AMD Radeon(TM) 535",
+                "AMD Radeon(TM) 540 Graphics",
+                "AMD Radeon(TM) 540X",
+                "AMD Radeon(TM) Graphics",
+                "AMD Radeon(TM) HD 6470M",
+                "AMD Radeon(TM) HD 6480G",
+                "AMD Radeon(TM) HD 6520G",
+                "AMD Radeon(TM) HD 7450",
+                "AMD Radeon(TM) HD 7650A Graphics",
+                "AMD Radeon(TM) HD 8490",
+                "AMD Radeon(TM) HD 8510G",
+                "AMD Radeon(TM) HD 8610G",
+                "AMD Radeon(TM) HD8490",
+                "AMD Radeon(TM) R2 Graphics",
+                "AMD Radeon(TM) R3 Graphics",
+                "AMD Radeon(TM) R4 Graphics",
+                "AMD Radeon(TM) R5 230 series",
+                "AMD Radeon(TM) R5 240",
+                "AMD Radeon(TM) R5 340X",
+                "AMD Radeon(TM) R5 Graphics",
+                "AMD Radeon(TM) R5 M330",
+                "AMD Radeon(TM) R5 M420",
+                "AMD Radeon(TM) R5 M430",
+                "AMD Radeon(TM) R5E Graphics",
+                "AMD Radeon(TM) R6",
+                "AMD Radeon(TM) R6 Graphics",
+                "AMD Radeon(TM) R7 250",
+                "AMD Radeon(TM) R7 360 Series",
+                "AMD Radeon(TM) R7 430",
+                "AMD Radeon(TM) R7 Graphics",
+                "AMD Radeon(TM) R7 Graphics (Engineering Sample - WDDM v2.0)",
+                "AMD Radeon(TM) R7 M360",
+                "AMD Radeon(TM) R7 M440",
+                "AMD Radeon(TM) R9 270",
+                "AMD Radeon(TM) R9 370 Series",
+                "AMD Radeon(TM) R9 M375",
+                "AMD Radeon(TM) RX 560 Series",
+                "AMD Radeon(TM) RX Vega 10 Graphics",
+                "AMD Radeon(TM) RX Vega 11 Graphics",
+                "AMD Radeon(TM) RX Vega 11 Graphics PRD",
+                "AMD Radeon(TM) RX Vega11 Graphics",
+                "AMD Radeon(TM) RX540",
+                "AMD Radeon(TM) Vega 10 Graphics",
+                "AMD Radeon(TM) Vega 10 Mobile Graphics",
+                "AMD Radeon(TM) Vega 11 Graphics",
+                "AMD Radeon(TM) Vega 2 Graphics",
+                "AMD Radeon(TM) Vega 3 Graphics",
+                "AMD Radeon(TM) Vega 3 Mobile Graphics",
+                "AMD Radeon(TM) Vega 6 Graphics",
+                "AMD Radeon(TM) Vega 8 Graphics",
+                "AMD Radeon(TM) Vega 8 Mobile Graphics",
+                "AMD Radeon(TM) Vega 9 Graphics",
+                "ASUS EAH5450 Series",
+                "ASUS EAH6850 Series",
+                "ASUS Radeon RX 550 Series",
+                "ATI FirePro 3800 (FireGL) Graphics Adapter",
+                "ATI FirePro V (FireGL V) Graphics Adapter",
+                "ATI FirePro V4800 (FireGL V)",
+                "ATI FirePro V4800 (FireGL) Graphics Adapter",
+                "ATI Mobility Radeon HD 2400",
+                "ATI Mobility Radeon HD 2400 XT",
+                "ATI Mobility Radeon HD 2600",
+                "ATI Mobility Radeon HD 3400 Series",
+                "ATI Mobility Radeon HD 3650",
+                "ATI Mobility Radeon HD 3670",
+                "ATI Mobility Radeon HD 4200 Series",
+                "ATI Mobility Radeon HD 4300 Series",
+                "ATI Mobility Radeon HD 4300/4500 Series",
+                "ATI Mobility Radeon HD 4500 Series",
+                "ATI Mobility Radeon HD 4650",
+                "ATI Mobility Radeon HD 4670",
+                "ATI Radeon 3000 Graphics",
+                "ATI Radeon 3100 Graphics",
+                "ATI Radeon 3100 Graphics (Engineering Sample - WDDM v1.1)",
+                "ATI Radeon HD 2400 PRO",
+                "ATI Radeon HD 2600 XT",
+                "ATI Radeon HD 2900 XT",
+                "ATI Radeon HD 3200 Graphics",
+                "ATI Radeon HD 3450",
+                "ATI Radeon HD 3470",
+                "ATI Radeon HD 3470 (Engineering Sample - WDDM v1.1)",
+                "ATI Radeon HD 3600 Series",
+                "ATI Radeon HD 3850",
+                "ATI Radeon HD 3870",
+                "ATI Radeon HD 4200",
+                "ATI Radeon HD 4250",
+                "ATI Radeon HD 4290",
+                "ATI Radeon HD 4300/4500 Series",
+                "ATI Radeon HD 4550",
+                "ATI Radeon HD 4600 Series",
+                "ATI Radeon HD 4600 Series (Engineering Sample - WDDM v1.1)",
+                "ATI Radeon HD 4650",
+                "ATI Radeon HD 4770",
+                "ATI Radeon HD 4800 Series",
+                "ATI Radeon HD 5400 Series",
+                "ATI Radeon HD 5450",
+                "ATI Radeon HD 5570",
+                "ATI Radeon HD 5600 Series",
+                "ATI Radeon HD 5670",
+                "Intel Coffee Lake UHD Graphics",
+                "Intel(R)  G35 Express Chipset Family (Microsoft Corporation - WDDM 1.1)",
+                "Intel(R) 4 Series Internal Chipset",
+                "Intel(R) 4 Series Internal Chipset (Microsoft Corporation - WDDM 1.1)",
+                "Intel(R) G41 Express Chipset",
+                "Intel(R) G41 Express Chipset (Microsoft Corporation - WDDM 1.1)",
+                "Intel(R) G45/G43",
+                "Intel(R) G45/G43 Express Chipset (Microsoft Corporation - WDDM 1.1)",
+                "Intel(R) Graphics Media Accelerator HD",
+                "Intel(R) HD Graphics",
+                "Intel(R) HD Graphics (PHDGD IvyDrive 3.0)",
+                "Intel(R) HD Graphics 3000",
+                "Intel(R) HD Graphics 4000",
+                "Intel(R) HD Graphics 4400",
+                "Intel(R) HD Graphics 4600",
+                "Intel(R) HD Graphics 500",
+                "Intel(R) HD Graphics 5000",
+                "Intel(R) HD Graphics 505",
+                "Intel(R) HD Graphics 510",
+                "Intel(R) HD Graphics 515",
+                "Intel(R) HD Graphics 520",
+                "Intel(R) HD Graphics 530",
+                "Intel(R) HD Graphics 5300",
+                "Intel(R) HD Graphics 5500",
+                "Intel(R) HD Graphics 5600",
+                "Intel(R) HD Graphics 6000",
+                "Intel(R) HD Graphics 610",
+                "Intel(R) HD Graphics 615",
+                "Intel(R) HD Graphics 620",
+                "Intel(R) HD Graphics 630",
+                "Intel(R) HD Graphics Family",
+                "Intel(R) HD Graphics P3000",
+                "Intel(R) HD Graphics P4600/P4700",
+                "Intel(R) HD Graphics P530",
+                "Intel(R) HD Graphics P630",
+                "Intel(R) Iris(R) Graphics 540",
+                "Intel(R) Iris(R) Graphics 550",
+                "Intel(R) Iris(R) Plus Graphics",
+                "Intel(R) Iris(R) Plus Graphics 640",
+                "Intel(R) Iris(R) Plus Graphics 645",
+                "Intel(R) Iris(R) Plus Graphics 650",
+                "Intel(R) Iris(R) Plus Graphics 655",
+                "Intel(R) Iris(R) Pro Graphics 580",
+                "Intel(R) Iris(R) Xe Graphics",
+                "Intel(R) Iris(R) Xe MAX Graphics",
+                "Intel(R) Iris(TM) Graphics 5100",
+                "Intel(R) Iris(TM) Graphics 540",
+                "Intel(R) Iris(TM) Graphics 550",
+                "Intel(R) Iris(TM) Graphics 6100",
+                "Intel(R) Iris(TM) Graphics 640",
+                "Intel(R) Iris(TM) Plus Graphics 640",
+                "Intel(R) Iris(TM) Plus Graphics 650",
+                "Intel(R) Iris(TM) Pro Graphics 5200",
+                "Intel(R) Q45/Q43 Express Chipset",
+                "Intel(R) Q45/Q43 Express Chipset (Microsoft Corporation - WDDM 1.1)",
+                "Intel(R) UHD Graphics",
+                "Intel(R) UHD Graphics 600",
+                "Intel(R) UHD Graphics 605",
+                "Intel(R) UHD Graphics 610",
+                "Intel(R) UHD Graphics 615",
+                "Intel(R) UHD Graphics 615 gfx-driver-user-comp_display-24051 DCH",
+                "Intel(R) UHD Graphics 617",
+                "Intel(R) UHD Graphics 620",
+                "Intel(R) UHD Graphics 630",
+                "Intel(R) UHD Graphics 730",
+                "Intel(R) UHD Graphics 750",
+                "Intel(R) UHD Graphics P630",
+                "Microsoft Basic Render Driver",
+                "Mobile Intel(R) 4 Series Express Chipset Family",
+                "Mobile Intel(R) 4 Series Express Chipset Family (Microsoft Corporation - WDDM 1.1)",
+                "Mobile Intel(R) 4 Series Express Chipset Family (Microsoft Corporation- WDDM 1.1)",
+                "Mobile Intel(R) 965 Express Chipset Family",
+                "Mobile Intel(R) 965 Express Chipset Family (Microsoft Corporation - WDDM 1.1)",
+                "NVIDIA GeForce  GTX 555",
+                "NVIDIA GeForce 210",
+                "NVIDIA GeForce 310",
+                "NVIDIA GeForce 310M",
+                "NVIDIA GeForce 315",
+                "NVIDIA GeForce 315M",
+                "NVIDIA GeForce 320M",
+                "NVIDIA GeForce 405",
+                "NVIDIA GeForce 410M",
+                "NVIDIA GeForce 510",
+                "NVIDIA GeForce 605",
+                "NVIDIA GeForce 610M",
+                "NVIDIA GeForce 615",
+                "NVIDIA GeForce 705M",
+                "NVIDIA GeForce 710A",
+                "NVIDIA GeForce 710M",
+                "NVIDIA GeForce 720A",
+                "NVIDIA GeForce 730A",
+                "NVIDIA GeForce 800M",
+                "NVIDIA GeForce 810A",
+                "NVIDIA GeForce 810M",
+                "NVIDIA GeForce 8200M G",
+                "NVIDIA GeForce 820A",
+                "NVIDIA GeForce 820M",
+                "NVIDIA GeForce 830A",
+                "NVIDIA GeForce 830M",
+                "NVIDIA GeForce 8400 GS",
+                "NVIDIA GeForce 8400GS",
+                "NVIDIA GeForce 8400M GS",
+                "NVIDIA GeForce 840M",
+                "NVIDIA GeForce 8500 GT",
+                "NVIDIA GeForce 8600 GS",
+                "NVIDIA GeForce 8600 GT",
+                "NVIDIA GeForce 8600M GS",
+                "NVIDIA GeForce 8800 GT",
+                "NVIDIA GeForce 8800 GTS 512",
+                "NVIDIA GeForce 8800 GTX",
+                "NVIDIA GeForce 9100",
+                "NVIDIA GeForce 9100M G",
+                "NVIDIA GeForce 910M",
+                "NVIDIA GeForce 9200M GS",
+                "NVIDIA GeForce 920A",
+                "NVIDIA GeForce 920M",
+                "NVIDIA GeForce 920MX",
+                "NVIDIA GeForce 9300 GS",
+                "NVIDIA GeForce 9300M GS",
+                "NVIDIA GeForce 930M",
+                "NVIDIA GeForce 930MX",
+                "NVIDIA GeForce 9400",
+                "NVIDIA GeForce 9400 GT",
+                "NVIDIA GeForce 9400M",
+                "NVIDIA GeForce 9400M G",
+                "NVIDIA GeForce 940M",
+                "NVIDIA GeForce 940MX",
+                "NVIDIA GeForce 9500 GS",
+                "NVIDIA GeForce 9500 GT",
+                "NVIDIA GeForce 9500M GS",
+                "NVIDIA GeForce 9600 GSO",
+                "NVIDIA GeForce 9600 GT",
+                "NVIDIA GeForce 9600M GS",
+                "NVIDIA GeForce 9600M GT",
+                "NVIDIA GeForce 9700M GTS",
+                "NVIDIA GeForce 9800 GT",
+                "NVIDIA GeForce G 105M",
+                "NVIDIA GeForce G102M",
+                "NVIDIA GeForce G105M",
+                "NVIDIA GeForce G205M",
+                "NVIDIA GeForce G210",
+                "NVIDIA GeForce G210M",
+                "NVIDIA GeForce GPU",
+                "NVIDIA GeForce GT 1030",
+                "NVIDIA GeForce GT 120",
+                "NVIDIA GeForce GT 130M",
+                "NVIDIA GeForce GT 220",
+                "NVIDIA GeForce GT 220M",
+                "NVIDIA GeForce GT 230",
+                "NVIDIA GeForce GT 230M",
+                "NVIDIA GeForce GT 240",
+                "NVIDIA GeForce GT 240M",
+                "NVIDIA GeForce GT 320",
+                "NVIDIA GeForce GT 320M",
+                "NVIDIA GeForce GT 330",
+                "NVIDIA GeForce GT 330M",
+                "NVIDIA GeForce GT 335M",
+                "NVIDIA GeForce GT 415M",
+                "NVIDIA GeForce GT 420",
+                "NVIDIA GeForce GT 420M",
+                "NVIDIA GeForce GT 425M",
+                "NVIDIA GeForce GT 430",
+                "NVIDIA GeForce GT 435M",
+                "NVIDIA GeForce GT 440",
+                "NVIDIA GeForce GT 520",
+                "NVIDIA GeForce GT 520M",
+                "NVIDIA GeForce GT 520MX",
+                "NVIDIA GeForce GT 525M",
+                "NVIDIA GeForce GT 530",
+                "NVIDIA GeForce GT 540M",
+                "NVIDIA GeForce GT 545",
+                "NVIDIA GeForce GT 550M",
+                "NVIDIA GeForce GT 555M",
+                "NVIDIA GeForce GT 610",
+                "NVIDIA GeForce GT 620",
+                "NVIDIA GeForce GT 620M",
+                "NVIDIA GeForce GT 625",
+                "NVIDIA GeForce GT 625 (OEM)",
+                "NVIDIA GeForce GT 625M",
+                "NVIDIA GeForce GT 630",
+                "NVIDIA GeForce GT 630M",
+                "NVIDIA GeForce GT 635",
+                "NVIDIA GeForce GT 635M",
+                "NVIDIA GeForce GT 640",
+                "NVIDIA GeForce GT 640M",
+                "NVIDIA GeForce GT 640M LE",
+                "NVIDIA GeForce GT 645M",
+                "NVIDIA GeForce GT 650M",
+                "NVIDIA GeForce GT 705",
+                "NVIDIA GeForce GT 710",
+                "NVIDIA GeForce GT 710M",
+                "NVIDIA GeForce GT 720",
+                "NVIDIA GeForce GT 720M",
+                "NVIDIA GeForce GT 730",
+                "NVIDIA GeForce GT 730M",
+                "NVIDIA GeForce GT 735M",
+                "NVIDIA GeForce GT 740",
+                "NVIDIA GeForce GT 740M",
+                "NVIDIA GeForce GT 745M",
+                "NVIDIA GeForce GT 750M",
+                "NVIDIA GeForce GT 755M",
+                "NVIDIA GeForce GT 820M",
+                "NVIDIA GeForce GT625M",
+                "NVIDIA GeForce GTS 240",
+                "NVIDIA GeForce GTS 250",
+                "NVIDIA GeForce GTS 360M",
+                "NVIDIA GeForce GTS 450",
+                "NVIDIA GeForce GTX 1050",
+                "NVIDIA GeForce GTX 260",
+                "NVIDIA GeForce GTX 280",
+                "NVIDIA GeForce GTX 460",
+                "NVIDIA GeForce GTX 460 SE",
+                "NVIDIA GeForce GTX 460 v2",
+                "NVIDIA GeForce GTX 460M",
+                "NVIDIA GeForce GTX 470",
+                "NVIDIA GeForce GTX 480",
+                "NVIDIA GeForce GTX 550 Ti",
+                "NVIDIA GeForce GTX 560",
+                "NVIDIA GeForce GTX 560 SE",
+                "NVIDIA GeForce GTX 560 Ti",
+                "NVIDIA GeForce GTX 560M",
+                "NVIDIA GeForce GTX 570",
+                "NVIDIA GeForce GTX 580",
+                "NVIDIA GeForce GTX 645",
+                "NVIDIA GeForce GTX 650",
+                "NVIDIA GeForce GTX 650 Ti",
+                "NVIDIA GeForce GTX 650 Ti BOOST",
+                "NVIDIA GeForce GTX 660",
+                "NVIDIA GeForce GTX 660 Ti",
+                "NVIDIA GeForce GTX 660M",
+                "NVIDIA GeForce GTX 670",
+                "NVIDIA GeForce GTX 670M",
+                "NVIDIA GeForce GTX 670MX",
+                "NVIDIA GeForce GTX 675M",
+                "NVIDIA GeForce GTX 745",
+                "NVIDIA GeForce GTX 750",
+                "NVIDIA GeForce GTX 750 Ti",
+                "NVIDIA GeForce GTX 760",
+                "NVIDIA GeForce GTX 760 (192-bit)",
+                "NVIDIA GeForce GTX 760M",
+                "NVIDIA GeForce GTX 765M",
+                "NVIDIA GeForce GTX 850M",
+                "NVIDIA GeForce GTX 860M",
+                "NVIDIA GeForce GTX 950",
+                "NVIDIA GeForce GTX 950M",
+                "NVIDIA GeForce GTX 960M",
+                "NVIDIA GeForce MX110",
+                "NVIDIA GeForce MX130",
+                "NVIDIA GeForce MX150",
+                "NVIDIA GeForce MX230",
+                "NVIDIA GeForce MX250",
+                "NVIDIA GeForce MX330",
+                "NVIDIA ION",
+                "NVIDIA NVS 300",
+                "NVIDIA NVS 310",
+                "NVIDIA NVS 3100M",
+                "NVIDIA NVS 315",
+                "NVIDIA NVS 4200M",
+                "NVIDIA NVS 510",
+                "NVIDIA NVS 5100M",
+                "NVIDIA NVS 5200M",
+                "NVIDIA NVS 5400M",
+                "NVIDIA Quadro 1000M",
+                "NVIDIA Quadro 2000",
+                "NVIDIA Quadro 2000M",
+                "NVIDIA Quadro 400",
+                "NVIDIA Quadro 4000",
+                "NVIDIA Quadro 4000M",
+                "NVIDIA Quadro 410",
+                "NVIDIA Quadro 5000",
+                "NVIDIA Quadro 600",
+                "NVIDIA Quadro FX 1700",
+                "NVIDIA Quadro FX 1800",
+                "NVIDIA Quadro FX 1800M",
+                "NVIDIA Quadro FX 2800M",
+                "NVIDIA Quadro FX 370",
+                "NVIDIA Quadro FX 380 LP",
+                "NVIDIA Quadro FX 3800",
+                "NVIDIA Quadro FX 4800",
+                "NVIDIA Quadro FX 570",
+                "NVIDIA Quadro FX 580",
+                "NVIDIA Quadro FX 770M",
+                "NVIDIA Quadro FX 880M",
+                "NVIDIA Quadro K1000M",
+                "NVIDIA Quadro K1100M",
+                "NVIDIA Quadro K1200",
+                "NVIDIA Quadro K2000",
+                "NVIDIA Quadro K2000D",
+                "NVIDIA Quadro K2000M",
+                "NVIDIA Quadro K2100M",
+                "NVIDIA Quadro K2200",
+                "NVIDIA Quadro K2200M",
+                "NVIDIA Quadro K3000M",
+                "NVIDIA Quadro K3100M",
+                "NVIDIA Quadro K4000",
+                "NVIDIA Quadro K4100M",
+                "NVIDIA Quadro K420",
+                "NVIDIA Quadro K4200",
+                "NVIDIA Quadro K5000",
+                "NVIDIA Quadro K5100M",
+                "NVIDIA Quadro K510M",
+                "NVIDIA Quadro K5200",
+                "NVIDIA Quadro K600",
+                "NVIDIA Quadro K620",
+                "NVIDIA Quadro K620M",
+                "NVIDIA Quadro M1000M",
+                "NVIDIA Quadro M1200",
+                "NVIDIA Quadro M2000",
+                "NVIDIA Quadro M600M",
+                "NVIDIA Quadro M620",
+                "NVIDIA Quadro NVS 150M",
+                "NVIDIA Quadro NVS 160M",
+                "NVIDIA Quadro NVS 290",
+                "NVIDIA Quadro NVS 295",
+                "NVIDIA Quadro P1000",
+                "NVIDIA Quadro P400",
+                "NVIDIA Quadro P520",
+                "NVIDIA Quadro P600",
+                "NVIDIA Quadro P620",
+                "Parallels Display Adapter (WDDM)",
+                "Radeon (TM) 520",
+                "Radeon (TM) 530",
+                "Radeon (TM) 535",
+                "Radeon (TM) 540X",
+                "Radeon (TM) HD 8670M",
+                "Radeon (TM) R5 M420",
+                "Radeon (TM) R5 M430",
+                "Radeon (TM) R7 M440",
+                "Radeon (TM) R7 M445",
+                "Radeon 500 Series",
+                "Radeon 520",
+                "Radeon 520 Series",
+                "Radeon 530",
+                "Radeon 530 Series",
+                "Radeon 535 Series",
+                "Radeon 540X Series",
+                "Radeon 550 Series",
+                "Radeon 620 Series",
+                "Radeon RX Vega 8 Graphics",
+                "Radeon RX Vega M GH Graphics",
+                "Radeon RX Vega M GL Graphics",
+                "Radeon RX550/550 Series",
+                "Radeon(TM) 520",
+                "Radeon(TM) 530",
+                "Radeon(TM) 540 Graphics",
+                "Radeon(TM) 540X",
+                "Radeon(TM) R7 M465",
+                "Radeon(TM) R7 M520 (R17M-M1-30)",
+                "Radeon(TM) RX 460 Graphics",
+                "Radeon(TM) Vega 3 Graphics",
+                "Radeon(TM) Vega 8 Graphics",
+                "Unknown",
+                "VisionTek Radeon HD 5450",
+                "VMware SVGA 3D"
+            ],
+            "graphicsDrivers": {
+                "amdocl64.dll": {
+                },
+                "amdxx64.dll": {
+                },
+                "amfrtdrv64.dll": {
+                },
+                "aticfx64.dll": {
+                },
+                "atidxx64.dll": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "atiumd6a.dll": {
+                },
+                "igc64.dll": {
+                },
+                "igd10iumd64.dll": {
+                },
+                "igd10umd64.dll": {
+                },
+                "igdusc64.dll": {
+                },
+                "libmfxhw64.dll": {
+                },
+                "nvcuvid.dll": {
+                },
+                "nvumdshimx.dll": {
+                },
+                "nvwgf2umx.dll": {
+                }
+            },
+            "injectBlackList": [
+                "graphics-hook64.dll",
+                "graphics-hook32.dll",
+                "RTSSHooks64.dll.dll",
+                "RTSSHooks32.dll.dll",
+                "ltc_game64-119906.dll.dll",
+                "ltc_game32-119906.dll.dll",
+                "f_sps.dll.dll"
+            ],
+            "vstPlugins": {
+                "AmpliTube 4.vpa": {
+                },
+                "Auburn Sounds Graillon 2-64.dll": {
+                },
+                "BC Flanger 3 VST(Stereo).dll": {
+                },
+                "BC Triple EQ 4 VST(Stereo).dll": {
+                },
+                "BL-Denoiser.dll": {
+                },
+                "BLACK GURU.dll": {
+                },
+                "Cymatics Space Lite.dll": {
+                },
+                "ERA6_AudioCleanUpAssistant.dll": {
+                    "en-US": "",
+                    "ko-KR": ""
+                },
+                "EchoBoy.dll": {
+                },
+                "Equalizer 601 Mono.dll": {
+                },
+                "FL Studio VSTi (Multi).dll": {
+                },
+                "FLEngine_x64.dll": {
+                },
+                "Fruity Delay Bank_x64.dll": {
+                },
+                "FuzzPlus3.dll": {
+                },
+                "GEQ_VST2_64_FREE.dll": {
+                },
+                "Groove Agent SE.dll": {
+                },
+                "Guitar Rig 6.dll": {
+                },
+                "HALion Sonic SE.dll": {
+                },
+                "IL Minihost Modular (FX).dll": {
+                },
+                "IL Minihost Modular.dll": {
+                },
+                "Kontakt.dll": {
+                },
+                "Lisp x64.dll": {
+                },
+                "Lurssen Mastering Console.dll": {
+                },
+                "MeldaProductionAudioPluginKernelV1164.dll": {
+                },
+                "Microtonic Multi.dll": {
+                },
+                "Nova67P-x64.dll": {
+                },
+                "OrilRiver.dll": {
+                },
+                "Pitchwheel.dll": {
+                },
+                "RX 8 Voice De-noise.dll": {
+                },
+                "ReverbSolo.dll": {
+                },
+                "SSL Native Vocalstrip 2.dll": {
+                },
+                "SonoBus.dll": {
+                },
+                "T-RackS CS CSR Hall.vpa64": {
+                },
+                "T-RackS CS CSR Room.vpa64": {
+                },
+                "TDR Molotok.dll": {
+                },
+                "UVIWorkstationVSTx64.dll": {
+                },
+                "ValhallaRoom_x64.dll": {
+                },
+                "VariMoon_x64.dll": {
+                },
+                "Vocal Finalizer x64.dll": {
+                },
+                "WaveShell2-VST 12.0_x64.dll": {
+                },
+                "WaveShell6-VST 11.0_x64.dll": {
+                },
+                "Youlean Loudness Meter 2.dll": {
+                },
+                "dsp_ippv2_x64.dll": {
+                },
+                "iZNectar3.dll": {
+                },
+                "iZOzone9.dll": {
+                },
+                "iZRX8VoiceDe-noise.dll": {
+                },
+                "nvoglv64.dll": {
+                },
+                "obs-vst.dll": {
+                },
+                "pitchproof-x64.dll": {
+                },
+                "reacomp-standalone.dll": {
+                },
+                "reacontrolmidi-standalone.dll": {
+                },
+                "reaeq-standalone.dll": {
+                },
+                "reastream-standalone-16.dll": {
+                },
+                "reastream-standalone-32.dll": {
+                }
+            }
+        },
+        "buffered_duration_ms": 3000,
+        "camera_auto_restart_times": 3,
+        "common": {
+            "deviceType": "mac",
+            "regionCode": "",
+            "stage": "real",
+            "tag": "j"
+        },
+        "deviceNames": {
+            "Mac13,1": "Mac Studio (2022)",
+            "Mac14,10": "MacBook Pro (16-inch, 2023)",
+            "Mac14,2": "MacBook Air (M2, 2022)",
+            "Mac14,5": "MacBook Pro (14-inch, 2023)",
+            "Mac14,6": "MacBook Pro (16-inch, 2023)",
+            "Mac14,7": "MacBook Pro (13-inch, M2, 2022)",
+            "Mac14,9": "MacBook Pro (14-inch, 2023)",
+            "MacBook10,1": "MacBook (Retina, 12-inch, 2017)",
+            "MacBook5,2": "MacBook (13-inch, Early 2009)",
+            "MacBook6,1": "MacBook (13-inch, Late 2009)",
+            "MacBook7,1": "MacBook (13-inch, Mid 2010)",
+            "MacBook8,1": "MacBook (Retina, 12-inch, Early 2015)",
+            "MacBook9,1": "MacBook (Retina, 12-inch, Early 2016)",
+            "MacBookAir10,1": "MacBook Air (M1, 2020)",
+            "MacBookAir2,1": "MacBook Air (Mid 2009)",
+            "MacBookAir3,1": "MacBook Air (11-inch, Late 2010)",
+            "MacBookAir3,2": "MacBook Air (13-inch, Late 2010)",
+            "MacBookAir4,1": "MacBook Air (11-inch, Mid 2011)",
+            "MacBookAir4,2": "MacBook Air (13-inch, Mid 2011)",
+            "MacBookAir5,1": "MacBook Air (11-inch, Mid 2012)",
+            "MacBookAir5,2": "MacBook Air (13-inch, Mid 2012)",
+            "MacBookAir6,1": "MacBook Air (11-inch, Mid 2013)",
+            "MacBookAir6,2": "MacBook Air (13-inch, Mid 2013)",
+            "MacBookAir7,1": "MacBook Air (11-inch, Early 2015)",
+            "MacBookAir7,2": "MacBook Air (13-inch, Early 2015)",
+            "MacBookAir8,1": "MacBook Air (Retina, 13-inch, 2018)",
+            "MacBookAir8,2": "MacBook Air (Retina, 13-inch, 2019)",
+            "MacBookAir9,1": "MacBook Air (Retina, 13-inch, 2020)",
+            "MacBookPro10,1": "MacBook Pro (Retina, 15-inch, Mid 2012)",
+            "MacBookPro10,2": "MacBook Pro (Retina, 13-inch, Late 2012)",
+            "MacBookPro11,1": "MacBook Pro (Retina, 13-inch, Late 2013)",
+            "MacBookPro11,2,": "MacBook Pro (Retina, 15-inch, Late 2013)",
+            "MacBookPro11,4": "MacBook Pro (Retina, 15-inch, Mid 2015)",
+            "MacBookPro11,5": "MacBook Pro (Retina, 15-inch, Mid 2015)",
+            "MacBookPro12,1": "MacBook Pro (Retina, 13-inch, Early 2015)",
+            "MacBookPro13,1": "MacBook Pro (13-inch, 2016, Two Thunderbolt 3 ports)",
+            "MacBookPro13,2": "MacBook Pro (13-inch, 2016, Four Thunderbolt 3 ports)",
+            "MacBookPro13,3": "MacBook Pro (15-inch, 2016)",
+            "MacBookPro14,1": "MacBook Pro (13-inch, 2017, Two Thunderbolt 3 ports)",
+            "MacBookPro14,2": "MacBook Pro (13-inch, 2017, Four Thunderbolt 3 ports)",
+            "MacBookPro14,3": "MacBook Pro (15-inch, 2017)",
+            "MacBookPro15,1": "MacBook Pro (15-inch, 2018)",
+            "MacBookPro15,1,": "MacBook Pro (15-inch, 2019)",
+            "MacBookPro15,2": "MacBook Pro (13-inch, 2018, Four Thunderbolt 3 ports)",
+            "MacBookPro15,4": "MacBook Pro (13-inch, 2019, Two Thunderbolt 3 ports)",
+            "MacBookPro16,1": "MacBook Pro (16-inch, 2019)",
+            "MacBookPro16,2": "MacBook Pro (13-inch, 2020, Four Thunderbolt 3 ports)",
+            "MacBookPro16,3": "MacBook Pro (13-inch, 2020, Two Thunderbolt 3 ports)",
+            "MacBookPro16,4": "MacBook Pro (16-inch, 2019)",
+            "MacBookPro17,1 ": "MacBook Pro (13-inch, M1, 2020)",
+            "MacBookPro18,1": "MacBook Pro (16-inch, 2021)",
+            "MacBookPro18,2": "MacBook Pro (16-inch, 2021)",
+            "MacBookPro18,3": "MacBook Pro (14-inch, 2021)",
+            "MacBookPro18,4": "MacBook Pro (14-inch, 2021)",
+            "MacBookPro4,1": "MacBook Pro (15-inch, Early 2008)",
+            "MacBookPro5,1": "MacBook Pro (15-inch, Late 2008)",
+            "MacBookPro5,2": "MacBook Pro (17-inch, Early 2009)",
+            "MacBookPro5,3": "MacBook Pro (15-inch, 2.53GHz, Mid 2009)",
+            "MacBookPro5,5": "MacBook Pro (13-inch, Mid 2009)",
+            "MacBookPro6,1": "MacBook Pro (17-inch, Mid 2010)",
+            "MacBookPro6,2": "MacBook Pro (15-inch, Mid 2010)",
+            "MacBookPro7,1": "MacBook Pro (13-inch, Mid 2010)",
+            "MacBookPro8,1": "MacBook Pro (13-inch, Early 2011)",
+            "MacBookPro8,2": "MacBook Pro (15-inch, Early 2011)",
+            "MacBookPro8,3": "MacBook Pro (17-inch, Early 2011)",
+            "MacBookPro9,1": "MacBook Pro (15-inch, Mid 2012)",
+            "MacBookPro9,2": "MacBook Pro (13-inch, Mid 2012)",
+            "MacPro4,1": "Mac Pro (Early 2009)",
+            "MacPro5,1": "Mac Pro Server (Mid 2010)",
+            "MacPro6,1": "Mac Pro (Late 2013)",
+            "MacPro7,1": "Mac Pro (Rack, 2019)",
+            "Macmini3,1": "Mac mini (Early 2009)",
+            "Macmini4,1": "Mac mini (Mid 2010)",
+            "Macmini5,1": "Mac mini (Mid 2011)",
+            "Macmini5,2": "Mac mini (Mid 2011)",
+            "Macmini6,1": "Mac mini (Late 2012)",
+            "Macmini7,1": "Mac mini (Late 2014)",
+            "Macmini8,1": "Mac mini (2018)",
+            "Macmini9,1": "Mac mini (M1, 2020)",
+            "iMac10,1": "iMac (21.5-inch, Late 2009)",
+            "iMac11,2": "iMac (21.5-inch, Mid 2010)",
+            "iMac11,3": "iMac (27-inch, Mid 2010)",
+            "iMac12,1": "iMac (21.5-inch, Mid 2011)",
+            "iMac12,2": "iMac (27-inch, Mid 2011)",
+            "iMac13,1": "iMac (21.5-inch, Late 2012)",
+            "iMac14,1": "iMac (21.5-inch, Late 2013)",
+            "iMac14,2": "iMac (27-inch, Late 2013)",
+            "iMac14,4": "iMac (21.5-inch, Mid 2014)",
+            "iMac15,1": "iMac (Retina 5K, 27-inch, Late 2014)",
+            "iMac16,1": "iMac (21.5-inch, Late 2015)",
+            "iMac16,2": "iMac (Retina 4K, 21.5-inch, Late 2015)",
+            "iMac17,1": "iMac (Retina 5K, 27-inch, Late 2015)",
+            "iMac18,1": "iMac (21.5-inch, 2017)",
+            "iMac18,2": "iMac (Retina 4K, 21.5-inch, 2017)",
+            "iMac18,3": "iMac (Retina 5K, 27-inch, 2017)",
+            "iMac19,1": "iMac (Retina 5K, 27-inch, 2019)",
+            "iMac19,2": "iMac (Retina 4K, 21.5-inch, 2019)",
+            "iMac20,1": "iMac (Retina 5K, 27-inch, 2020)",
+            "iMac20,2": "iMac (Retina 5K, 27-inch, 2020)",
+            "iMac21,1": "iMac (24-inch, M1, 2021)",
+            "iMac9,1": "iMac (20-inch, Early 2009)",
+            "iMacPro1,1": "iMac Pro (2017)"
+        },
+        "drop_encoding_frame_precent_threshold": 0.5,
+        "drop_network_frame_precent_threshold": 0.5,
+        "drop_rendering_frame_precent_threshold": 0.5,
+        "facebook_show_gametag": false,
+        "h265": "true",
+        "launcher_wait_prism_timer": {
+            "prism_no_response_time": 100000,
+            "prism_no_response_timer_enable": true,
+            "prism_start_time_exceed": 60000,
+            "prism_start_time_exceed_timer_enable": false,
+            "prism_startup_prompt_time": 30000,
+            "prism_startup_prompt_timer_enable": true
+        },
+        "mac": {
+            "initialData": {
+                "NaverPlatformWhitelist": [
+                    "rtmp://*.livecloud.naver.com",
+                    "rtmp://*.livecloud.line.me"
+                ],
+                "NaverShoppingLiveServiceNotes": {
+                    "v1.0.0": ""
+                },
+                "NaverShoppingLiveServiceTermsOfUse": {
+                    "v1.0.0": ""
+                },
+                "NaverShoppingNoticeOnAutomaticExtractionOfProductSections": {
+                    "BR": "",
+                    "ES": "",
+                    "ID": "",
+                    "KR": "",
+                    "US": "",
+                    "VN": ""
+                },
+                "NaverShoppingOperationPolicy": {
+                    "v1.0.0": ""
+                },
+                "NaverShoppingVoluntaryReviewProducts": {
+                    "BR": "",
+                    "ES": "",
+                    "ID": "",
+                    "KR": "",
+                    "US": "",
+                    "VN": ""
+                },
+                "openSourceLicense": {
+                    "v2.1.2": ""
+                },
+                "platformLiveTimeLimit": {
+                    "directLive": {
+                        "band": {
+                            "countdownReminderMinutesList": [
+                                10,
+                                1,
+                                0
+                            ],
+                            "maxLiveMinutes": 120
+                        },
+                        "general": {
+                            "maxLiveMinutes": -1
+                        },
+                        "navershopping": {
+                            "countdownReminderMinutesList": [
+                                10,
+                                1,
+                                0
+                            ],
+                            "maxLiveMinutes": 120
+                        }
+                    },
+                    "inDirectLive": {
+                        "band": {
+                            "countdownReminderMinutesList": [
+                                10,
+                                1,
+                                0
+                            ],
+                            "maxLiveMinutes": 120
+                        },
+                        "general": {
+                            "countdownReminderMinutesList": [
+                                10,
+                                1,
+                                0
+                            ],
+                            "maxLiveMinutes": 2880
+                        },
+                        "navershopping": {
+                            "countdownReminderMinutesList": [
+                                10,
+                                1,
+                                0
+                            ],
+                            "maxLiveMinutes": 120
+                        }
+                    }
+                },
+                "rtmpDestination": [
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": false,
+                        "id": "twitch",
+                        "order": 1,
+                        "rtmpUrl": "rtmp://live-sel.twitch.tv/app/",
+                        "streamName": "Twitch"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": false,
+                        "id": "youtube",
+                        "order": 2,
+                        "rtmpUrl": "rtmp://a.rtmp.youtube.com/live2",
+                        "streamName": "YouTube"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": false,
+                        "id": "facebook",
+                        "order": 3,
+                        "rtmpUrl": "rtmps://live-api-s.facebook.com:443/rtmp/",
+                        "streamName": "Facebook"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": true,
+                        "id": "navershoppinglive",
+                        "order": 4,
+                        "resolutionFps": {
+                            "1080x1920": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "1280x720": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "1920x1080": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "240x480": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "360x640": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "480x240": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "480x854": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "640x360": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "720x1280": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "854x480": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ]
+                        },
+                        "rtmpUrl": "",
+                        "streamName": "NAVER Shopping LIVE"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": true,
+                        "id": "navertv",
+                        "order": 5,
+                        "resolutionFps": {
+                            "1280x720": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ],
+                            "1600x900": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ],
+                            "1920x1080": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ],
+                            "426x240": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ],
+                            "640x360": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ],
+                            "854x480": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ]
+                        },
+                        "rtmpUrl": "rtmp://global-rtmp.livecloud.naver.com:8080/relay/",
+                        "streamName": "NAVER TV"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": true,
+                        "id": "band",
+                        "order": 6,
+                        "resolutionFps": {
+                            "1280x720": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "426x240": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "640x360": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "854x480": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ]
+                        },
+                        "rtmpUrl": "",
+                        "streamName": "BAND"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": true,
+                        "id": "now",
+                        "order": 7,
+                        "resolutionFps": {
+                            "1280x720": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "1600x900": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "1920x1080": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "426x240": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "640x360": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "854x480": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ]
+                        },
+                        "rtmpUrl": "",
+                        "streamName": "NOW"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": false,
+                        "id": "NAVER Cloud Platform",
+                        "order": 8,
+                        "rtmpUrl": "rtmp://rtmp-ls2-k1.video.media.ntruss.com:8080/relay/",
+                        "streamName": "NAVER Cloud Platform"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": true,
+                        "id": "afreecatv",
+                        "order": 9,
+                        "resolutionFps": {
+                            "1280x720": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ],
+                            "1600x900": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ],
+                            "1920x1080": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ],
+                            "426x240": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ],
+                            "640x360": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ],
+                            "854x480": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30",
+                                "48",
+                                "50",
+                                "50 PAL",
+                                "59.94",
+                                "60"
+                            ]
+                        },
+                        "rtmpUrl": "rtmp://rtmpmanager-freecat.afreeca.tv/app/",
+                        "streamName": "afreecaTV"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": false,
+                        "id": "kakaotv",
+                        "order": 10,
+                        "rtmpUrl": "rtmp://rtmp.play.kakao.com/kakaotv/",
+                        "streamName": "kakaoTV"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": false,
+                        "id": "DLive",
+                        "order": 11,
+                        "rtmpUrl": "rtmp://stream.dlive.tv/live/",
+                        "streamName": "DLive"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": false,
+                        "id": "Instagram",
+                        "order": 12,
+                        "rtmpUrl": "rtmps://live-upload.instagram.com:443/rtmp/",
+                        "streamName": "Instagram"
+                    },
+                    {
+                        "exposure": false,
+                        "hasResolutionLimit": true,
+                        "id": "vlive",
+                        "order": 13,
+                        "resolutionFps": {
+                            "1280x720": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ],
+                            "1920x1080": [
+                                "10",
+                                "20",
+                                "24",
+                                "24 NTSC",
+                                "25",
+                                "25 PAL",
+                                "29.97",
+                                "30"
+                            ]
+                        },
+                        "rtmpUrl": "",
+                        "streamName": "VLIVE"
+                    },
+                    {
+                        "exposure": false,
+                        "hasResolutionLimit": false,
+                        "id": "periscope",
+                        "order": 14,
+                        "rtmpUrl": "rtmp://kr.pscp.tv:80/x",
+                        "streamName": "Periscope"
+                    },
+                    {
+                        "exposure": true,
+                        "hasResolutionLimit": false,
+                        "id": "Trovo",
+                        "order": 15,
+                        "rtmpUrl": "rtmp://livepush.trovo.live/live/",
+                        "streamName": "Trovo"
+                    }
+                ],
+                "snsCallbackUrls": {
+                    "facebook": "",
+                    "google": "",
+                    "line": "",
+                    "naver": "",
+                    "twitch": "",
+                    "twitter": "",
+                    "whalespace": ""
+                }
+            },
+            "logLevel": "INFO",
+            "multiplePlatformMaxBitrate": 10000,
+            "requiredVersion": {
+                "afreecatv": {
+                    "needForceUpdate": false,
+                    "version": "1.0.0"
+                },
+                "band": {
+                    "needForceUpdate": false,
+                    "version": "1.0.0"
+                },
+                "facebook": {
+                    "needForceUpdate": false,
+                    "version": "1.0.0"
+                },
+                "navershoppinglive": {
+                    "needForceUpdate": false,
+                    "version": "1.0.0"
+                },
+                "navertv": {
+                    "needForceUpdate": false,
+                    "version": "1.0.0"
+                },
+                "twitch": {
+                    "needForceUpdate": false,
+                    "version": "1.0.0"
+                },
+                "vlive": {
+                    "needForceUpdate": false,
+                    "version": "1.0.0"
+                },
+                "youtube": {
+                    "needForceUpdate": false,
+                    "version": "1.0.0"
+                }
+            },
+            "version": "1.0.0"
+        },
+        "nelo_log_url": "",
+        "prism_auto_restart_times": 1,
+        "prism_initial_failed_auto_exit_time": 30000,
+        "streamService": {
+            "BAND": {
+                "name": [
+                ]
+            },
+            "Custom RTMP": {
+                "name": [
+                ]
+            },
+            "Facebook": {
+                "name": [
+                    "Facebook Live"
+                ]
+            },
+            "NAVER TV": {
+                "name": [
+                ]
+            },
+            "Naver Shopping LIVE": {
+                "name": [
+                ]
+            },
+            "Twitch": {
+                "name": [
+                    "Twitch"
+                ]
+            },
+            "YouTube": {
+                "name": [
+                    "YouTube - RTMPS",
+                    "YouTube - HLS"
+                ]
+            },
+            "afreecaTV": {
+                "name": [
+                    "AfreecaTV"
+                ]
+            }
+        },
+        "ui_blocking_time_s": 10,
+        "uwp_borderless_enable": "false"
+    }
+}

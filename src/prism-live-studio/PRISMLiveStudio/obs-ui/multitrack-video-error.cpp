@@ -21,11 +21,24 @@ MultitrackVideoError MultitrackVideoError::cancel()
 bool MultitrackVideoError::ShowDialog(QWidget *parent, const QString &multitrack_video_name) const
 {
 	if (type == Type::Warning) {
-		return PLSAlertView::question(parent, QTStr("Output.StartStreamFailed"),
-					      error + QTStr("FailedToStartStream.WarningRetryNonMultitrackVideo")
-							      .arg(multitrack_video_name)) == PLSAlertView::Button::Yes;
+
+		PLSErrorHandler::ExtraData extraData;
+		extraData.defaultArg = {multitrack_video_name}; 
+		auto retData = PLSErrorHandler::getAlertStringByPrismCode(
+			PLSErrorHandler::ALERT_MULTITRACKVIDEO_WARNING_MESSAGE, PLSErrKeyAllAlert, "", extraData);
+		
+		PLSErrorHandler::ExtraData extraData2("MultitrackVideoError_Warning");
+		extraData2.pathValueMap["errorMsg"] = error + retData.alertMsg;
+		auto retData2 = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_MULTITRACKVIDEO_WARNING,
+								      PLSErrKeyAllAlert, {}, extraData2, parent);
+		if (retData2.clickedBtn == PLSAlertView::Button::Yes)
+			return true;
+
 	} else if (type == Type::Critical) {
-		pls_alert_error_message(parent, QTStr("Output.StartStreamFailed"), error);
+		PLSErrorHandler::ExtraData extraData("MultitrackVideoError_Critical");
+		extraData.pathValueMap["errorReason"] = error;
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_MULTITRACKVIDEO_ERROR, PLSErrKeyAllAlert,
+						      {}, extraData, parent);
 	}
 
 	return false;

@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <QApplication>
 #include "libui.h"
+#include "liblog.h"
 
 PLSSearchCombobox::PLSSearchCombobox(QWidget *parent) : QLineEdit(parent)
 {
@@ -46,10 +47,15 @@ PLSSearchCombobox::PLSSearchCombobox(QWidget *parent) : QLineEdit(parent)
 	});
 	connect(this, &QLineEdit::textChanged, this, &PLSSearchCombobox::onTextChanged, Qt::QueuedConnection);
 
-	connect(pushButtonClear, &QPushButton::clicked, this, [this]() { this->setText(QString()); });
+	connect(pushButtonClear, &QPushButton::clicked, this, [this]() {
+		this->setText(QString());
+		PLS_UI_ACTION("Widget PLSSearchCombobox Clear Button Deal Done");
+	});
 	connect(pushButtonSearch, &QPushButton::clicked, this, [this]() {
 		if (!this->text().isEmpty()) {
 			startSearch(false);
+		} else {
+			PLS_UI_ACTION("Widget PLSSearchCombobox Ignore Search");
 		}
 	});
 
@@ -62,6 +68,7 @@ PLSSearchCombobox::PLSSearchCombobox(QWidget *parent) : QLineEdit(parent)
 				pushButtonClear->show();
 			}
 			if (m_listWidget->currentDataSize() > 0) {
+				PLS_UI_ACTION("Widget %s Serch Lineedit focused", pls_uistep_v2_get_title(this).toUtf8().constData());
 				showListWidget(true);
 			} else if (m_isFirstSearch) {
 				receiveSearchData({m_selectData}, text());
@@ -87,18 +94,25 @@ void PLSSearchCombobox::setupListUI()
 	m_listWidget->setObjectName("searchList");
 	m_listWidget->setWindowFlags(Qt::SubWindow | Qt::FramelessWindowHint | Qt::WindowDoesNotAcceptFocus);
 	m_listWidget->setAttribute(Qt::WA_ShowWithoutActivating, true);
+	pls_uistep_v2_set_custom_show_hide_name(m_listWidget, "PLSLiveInfoSearchListWidget");
 	showListWidget(false);
 
 	connect(m_listWidget, &QListWidget::itemClicked, this, [this](const QListWidgetItem *item) {
 		PLSSearchData data = item->data(Qt::UserRole).value<PLSSearchData>();
-		showListWidget(false, true);
 		if (data.id.isEmpty()) {
+			showListWidget(false, true);
 			m_selectData.resetData();
 			return;
 		}
 		setSelectData(data);
 		emit itemSelect(data);
+		showListWidget(false, true);
 	});
+
+	pls_uistep_v2_custom(this, QStringLiteral("itemSelect"), PLS_UI_STEPS_V2_ACTION_CHOOSE, "Category Menu", [this]() -> QString { return m_selectData.name; });
+
+	pls_uistep_v2_set_name(pushButtonClear, QStringLiteral("Clear"));
+	pls_uistep_v2_set_name(pushButtonSearch, QStringLiteral("Search"));
 }
 void PLSSearchCombobox::showEvent(QShowEvent *event)
 {
@@ -181,9 +195,18 @@ void PLSSearchCombobox::setSelectData(const PLSSearchData &data)
 	pls_flush_style(this, "showPlaceholder", text().isEmpty());
 	blockSignals(false);
 }
+
 PLSSearchData PLSSearchCombobox::getSelectData()
 {
 	return m_selectData;
+}
+
+bool PLSSearchCombobox::isValidInput()
+{
+	if (text().isEmpty()) {
+		return true;
+	}
+	return !m_selectData.id.isEmpty();
 }
 
 void PLSSearchCombobox::startSearch(bool immediately)
@@ -196,11 +219,13 @@ void PLSSearchCombobox::startSearch(bool immediately)
 	} else {
 		m_timer->start();
 	}
+	PLS_UI_ACTION("Widget PLSSearchCombobox Start To Search");
 }
 
 PLSLiveInfoSearchListWidget::PLSLiveInfoSearchListWidget(QWidget *parent) : QListWidget(parent)
 {
 	pls_add_css(this, {"PLSSearchCombobox"});
+	pls_uistep_v2_enable(this, false);
 }
 
 void PLSLiveInfoSearchListWidget::showList(const std::vector<PLSSearchData> &datas, const QString &emptyShowMsg)

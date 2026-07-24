@@ -17,6 +17,7 @@
 #include "ChannelCommonFunctions.h"
 #include "libresource.h"
 #include "libutils-api.h"
+#include "pls-performance.h"
 
 constexpr auto LABORATORY_DIR = "PRISMLiveStudio/laboratory/";
 constexpr auto LAB_JSON_NAME = "Laboratory.json";
@@ -74,6 +75,7 @@ void PLSLaboratoryManage::requestLabJsonData()
 
 void PLSLaboratoryManage::checkLabDllUpdate()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	requestLabJsonData();
 	initLaboratoryData();
 	loadDownloadLabCache();
@@ -82,6 +84,7 @@ void PLSLaboratoryManage::checkLabDllUpdate()
 
 void PLSLaboratoryManage::checkLabZipUpdate()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (m_LaboratoryInfos.isEmpty()) {
 		return;
 	}
@@ -389,7 +392,7 @@ bool PLSLaboratoryManage::isPrismLowVersion(const QString &labId) const
 	QVariantMap labInfoMap = m_LaboratoryInfos.value(labId);
 	QString labVersion = labInfoMap.value(laboratory_data::g_laboratoryPrismVersion).toString();
 	//1 means the lab version is greater than the Prism software version
-	if (compareVersion(labVersion, PLS_VERSION) == 1) {
+	if (pls_compare_version(labVersion, PLS_VERSION) == 1) {
 		printLog(QString("The Prism version requested by the lab is too high, lab prism version is %1 ,current prism version: %2").arg(labVersion).arg(PLS_VERSION));
 		return true;
 	}
@@ -422,22 +425,6 @@ void PLSLaboratoryManage::getFilePathListRecursive(const QString &dirPath, QStri
 			filePathList.append(fileInfo.absoluteFilePath());
 		}
 	}
-}
-
-int PLSLaboratoryManage::compareVersion(const QString &v1, const QString &v2) const
-{
-	QStringList v1List = v1.split(".");
-	QStringList v2List = v2.split(".");
-	auto len1 = v1List.count();
-	auto len2 = v2List.count();
-	for (int i = 0; i < qMin(len1, len2); i++) {
-		if (v1List.at(i).toUInt() > v2List.at(i).toUInt()) {
-			return 1;
-		} else if (v1List.at(i).toUInt() < v2List.at(i).toUInt()) {
-			return -1;
-		}
-	}
-	return 0;
 }
 
 void PLSLaboratoryManage::deleteOrUpdateAppDllFolder()

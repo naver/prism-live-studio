@@ -34,7 +34,7 @@ PLSMotionItemView::PLSMotionItemView(QWidget *parent) : QLabel(parent), m_data()
 	ui->closeButton->setHidden(true);
 	ui->verticalLayout->setContentsMargins(0, 4, 4, 0);
 	setProperty("showHandCursor", true);
-
+	pls_uistep_v2_set_name(ui->closeButton, "Delete File Button");
 	connect(ui->closeButton, &QPushButton::clicked, this, [this] { emit deleteFileButtonClicked(m_data); });
 }
 

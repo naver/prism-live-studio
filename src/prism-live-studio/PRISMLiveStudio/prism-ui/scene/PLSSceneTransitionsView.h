@@ -21,13 +21,14 @@ public:
 	explicit PLSSceneTransitionsView(QWidget *parent = nullptr);
 	virtual ~PLSSceneTransitionsView();
 
-	void InitLoadTransition(obs_data_array_t *transitions, obs_source_t *fadeTransition, const int &transitionDuration, const QString &crrentTransition, obs_load_source_cb cb, void *private_data);
+	void InitLoadTransition(obs_data_array_t *transitions, obs_source_t *fadeTransition, const int &transitionDuration, const QString &currentTransition, obs_load_source_cb cb, void *private_data);
 	void InitTransition(const obs_source_t *transition);
 	obs_source_t *FindTransition(const char *name);
 	OBSSource GetCurrentTransition() const;
 	OBSSource GetTransitionByIndex(const int &index) const;
 	obs_data_array_t *SaveTransitions();
 	void LoadTransitions(obs_data_array_t *transitions, obs_load_source_cb cb, void *private_data);
+	void MergeSavedTransitions(obs_data_array_t *saved, obs_load_source_cb cb, void *private_data);
 
 	void AddTransition();
 	void RenameTransition();
@@ -54,6 +55,8 @@ protected:
 	void showEvent(QShowEvent *event) override;
 
 private:
+	void mergeOneSavedTransitionItem(obs_data_t *item, obs_load_source_cb cb, void *private_data);
+
 	Ui::PLSSceneTransitionsView *ui;
 	PLSBasic *main{};
 	bool initTransitionDuration{false};

@@ -15,6 +15,7 @@ target_sources(
     properties-view.moc.hpp
     spinbox-ignorewheel.cpp
     spinbox-ignorewheel.hpp
+    properties-view2.cpp
 )
 target_include_directories(properties-view INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 

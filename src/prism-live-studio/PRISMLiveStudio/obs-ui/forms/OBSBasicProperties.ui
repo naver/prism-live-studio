@@ -46,18 +46,12 @@
      <property name="childrenCollapsible">
       <bool>false</bool>
      </property>
-     <widget class="QFrame" name="previewFrame">
+     <widget class="PLSPreviewMaskWidget" name="previewFrame" native="true">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>1</verstretch>
        </sizepolicy>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::NoFrame</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Plain</enum>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_7">
        <property name="spacing">
@@ -188,6 +182,12 @@
    <class>OBSQTDisplay</class>
    <extends>QWidget</extends>
    <header>qt-display.hpp</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>PLSPreviewMaskWidget</class>
+   <extends>QWidget</extends>
+   <header>PLSPreviewMaskWidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

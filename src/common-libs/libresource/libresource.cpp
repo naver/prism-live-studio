@@ -10,6 +10,7 @@
 #include <qurl.h>
 #include <qdir.h>
 #include <liblog.h>
+#include <network-state.h>
 
 #if defined(Q_OS_WIN)
 #include <Windows.h>
@@ -56,9 +57,9 @@ const QString PRISM_SYNC_GATEWAY_REAL = "";
 #define CallMgrMethod(return, method, ...) \
 	auto mgr = getResourceManager();   \
 	return mgr->method(this->categoryId(mgr) __VA_ARGS__)
-#define PRISM_PC_HMAC_KEY (pls_prism_is_dev() ? PRISM_PC_HMAC_KEY_DEV : PRISM_PC_HMAC_KEY_REAL)
-#define PRISM_HOST (pls_prism_is_dev() ? PRISM_HOST_DEV : PRISM_HOST_REAL)
-#define PRISM_SYNC_GATEWAY (pls_prism_is_dev() ? PRISM_SYNC_GATEWAY_DEV : PRISM_SYNC_GATEWAY_REAL)
+#define PRISM_PC_HMAC_KEY (pls_is_dev() ? PRISM_PC_HMAC_KEY_DEV : PRISM_PC_HMAC_KEY_REAL)
+#define PRISM_HOST (pls_is_dev() ? PRISM_HOST_DEV : PRISM_HOST_REAL)
+#define PRISM_SYNC_GATEWAY (pls_is_dev() ? PRISM_SYNC_GATEWAY_DEV : PRISM_SYNC_GATEWAY_REAL)
 #define CATEGORY_URL (PRISM_HOST + PRISM_SYNC_GATEWAY + QStringLiteral(""))
 
 State loadState(State state)
@@ -376,17 +377,71 @@ struct CategoryImpl {
 	std::map<QString, GroupImplPtr> m_allGroups;
 	std::map<QString, ItemImplPtr> m_allItems;
 
-	explicit CategoryImpl(int version, const QString &categoryId, const QJsonObject &json) : m_version(version), m_categoryId(categoryId), m_categoryIdUtf8(categoryId.toUtf8()), m_json(json) {}
+	FnLessGroup m_lessGroup;
+	FnLessItem m_lessItem;
+
+	explicit CategoryImpl(int version, const QString &categoryId, const QJsonObject &json, FnLessGroup &&lessGroup, FnLessItem &&lessItem)
+		: m_version(version), m_categoryId(categoryId), m_categoryIdUtf8(categoryId.toUtf8()), m_json(json), m_lessGroup(std::move(lessGroup)), m_lessItem(std::move(lessItem))
+	{
+	}
 
 	std::list<Group> groups() const { return groups(m_groups); }
 	std::list<Group> groups(const QStringList &groupIds) const
 	{
-		return pls_map<StdList>(groupIds, [this](const QString &groupId) -> Group { return findGroup(groupId); });
+		std::list<Group> groups;
+		if (!m_lessGroup) {
+			for (const auto &groupId : groupIds)
+				if (auto group = findGroup(groupId); group)
+					groups.push_back(group);
+		} else {
+			getSortedGroups(groups, groupIds);
+		}
+		return groups;
+	}
+	void getSortedGroups(std::list<Group> &groups, const QStringList &groupIds) const
+	{
+		int index = 0;
+		std::list<std::pair<int, Group>> unsortedGroups;
+		for (const auto &groupId : groupIds)
+			if (auto group = findGroup(groupId); group)
+				unsortedGroups.push_back({++index, group});
+
+		if (unsortedGroups.empty())
+			return;
+
+		unsortedGroups.sort([this](const std::pair<int, Group> &a, const std::pair<int, Group> &b) { return m_lessGroup(a.second, b.second).value_or(a.first < b.first); });
+
+		for (auto unsortedGroup : unsortedGroups)
+			groups.push_back(unsortedGroup.second);
 	}
 	std::list<Item> items() const { return items(m_items); }
 	std::list<Item> items(const QStringList &itemIds) const
 	{
-		return pls_map<StdList>(itemIds, [this](const QString &itemId) -> Item { return findItem(itemId); });
+		std::list<Item> items;
+		if (!m_lessItem) {
+			for (const auto &itemId : itemIds)
+				if (auto item = findItem(itemId); item)
+					items.push_back(item);
+		} else {
+			getSortedItems(items, itemIds);
+		}
+		return items;
+	}
+	void getSortedItems(std::list<Item> &items, const QStringList &itemIds) const
+	{
+		int index = 0;
+		std::list<std::pair<int, Item>> unsortedItems;
+		for (const auto &itemId : itemIds)
+			if (auto item = findItem(itemId); item)
+				unsortedItems.push_back({++index, item});
+
+		if (unsortedItems.empty())
+			return;
+
+		unsortedItems.sort([this](const std::pair<int, Item> &a, const std::pair<int, Item> &b) { return m_lessItem(a.second, b.second).value_or(a.first < b.first); });
+
+		for (auto unsortedItem : unsortedItems)
+			items.push_back(unsortedItem.second);
 	}
 
 	GroupImplPtr findGroup(const QString &groupId) const { return pls_get_value(m_allGroups, groupId, nullptr); }
@@ -416,10 +471,6 @@ struct CategoryImpl {
 	}
 };
 
-Category::Category() : Category(std::make_shared<CategoryImpl>(0, QString(), QJsonObject())) {}
-
-Category::Category(std::nullptr_t) : Category(std::make_shared<CategoryImpl>(0, QString(), QJsonObject())) {}
-
 ////////////////////////////////////////////////////////////////////////////////
 // struct Category
 Category::Category(CategoryImplPtr categoryImpl) : m_impl(categoryImpl) {}
@@ -445,7 +496,7 @@ CategoryImpl *Category::operator->() const
 	return m_impl.operator->();
 }
 
-const QJsonObject& Category::json() const
+const QJsonObject &Category::json() const
 {
 	return m_impl->m_json;
 }
@@ -502,8 +553,8 @@ struct GroupImpl {
 	const QByteArray &idUtf8() const { return m_groupIdUtf8; }
 	std::optional<QUrl> url(const QStringList &names) const { return pls_get_attr(m_attrs, names, PLS_GET_ATTR_STRING_CB(QUrl)); }
 
-	QVariant attr(const QString &name, const QVariant &defval) const { return m_attrs.value(name, defval); }
-	QVariant attr(const QStringList &names, const QVariant &defval) const { return pls_get_attr(m_attrs, names).value_or(defval); }
+	std::optional<QVariant> attr(const QString &name) const { return pls_get_attr(m_attrs, name); }
+	std::optional<QVariant> attr(const QStringList &names) const { return pls_get_attr(m_attrs, names); }
 
 	void addItem(const QString &itemId)
 	{
@@ -520,10 +571,6 @@ struct GroupImpl {
 			m_items.append(itemId);
 	}
 };
-
-Group::Group() : Group(std::make_shared<GroupImpl>(QString(), QVariantHash())) {}
-
-Group::Group(std::nullptr_t) : Group(std::make_shared<GroupImpl>(QString(), QVariantHash())) {}
 
 Group::Group(GroupImplPtr groupImpl) : m_impl(groupImpl) {}
 
@@ -599,11 +646,20 @@ std::list<Item> Group::items() const
 
 QVariant Group::attr(const QString &name, const QVariant &defval) const
 {
-	return m_impl->attr(name, defval);
+	return getAttr(name).value_or(defval);
 }
 QVariant Group::attr(const QStringList &names, const QVariant &defval) const
 {
-	return m_impl->attr(names, defval);
+	return getAttr(names).value_or(defval);
+}
+
+std::optional<QVariant> Group::getAttr(const QString &name) const
+{
+	return m_impl->attr(name);
+}
+std::optional<QVariant> Group::getAttr(const QStringList &names) const
+{
+	return m_impl->attr(names);
 }
 
 bool Group::isUniqueId(const UniqueId &uniqueId) const
@@ -676,13 +732,9 @@ struct ItemImpl {
 	const QByteArray &idUtf8() const { return m_itemIdUtf8; }
 	std::optional<QUrl> url(const QStringList &names) const { return pls_get_attr(m_attrs, names, PLS_GET_ATTR_STRING_CB(QUrl)); }
 
-	QVariant attr(const QString &name, const QVariant &defval) const { return m_attrs.value(name, defval); }
-	QVariant attr(const QStringList &names, const QVariant &defval) const { return pls_get_attr(m_attrs, names).value_or(defval); }
+	std::optional<QVariant> attr(const QString &name) const { return pls_get_attr(m_attrs, name); }
+	std::optional<QVariant> attr(const QStringList &names) const { return pls_get_attr(m_attrs, names); }
 };
-
-Item::Item() : Item(std::make_shared<ItemImpl>(0, QString(), QVariantHash())) {}
-
-Item::Item(std::nullptr_t) : Item(std::make_shared<ItemImpl>(0, QString(), QVariantHash())) {}
 
 Item::Item(ItemImplPtr itemImpl) : m_impl(itemImpl) {}
 
@@ -756,11 +808,20 @@ std::list<Group> Item::groups() const
 
 QVariant Item::attr(const QString &name, const QVariant &defval) const
 {
-	return m_impl->attr(name, defval);
+	return getAttr(name).value_or(defval);
 }
 QVariant Item::attr(const QStringList &names, const QVariant &defval) const
 {
-	return m_impl->attr(names, defval);
+	return getAttr(names).value_or(defval);
+}
+
+std::optional<QVariant> Item::getAttr(const QString &name) const
+{
+	return m_impl->attr(name);
+}
+std::optional<QVariant> Item::getAttr(const QStringList &names) const
+{
+	return m_impl->attr(names);
 }
 
 bool Item::isUniqueId(const UniqueId &uniqueId) const
@@ -1095,6 +1156,10 @@ size_t ICategory::useMaxCount(IResourceManager *mgr) const
 {
 	return 30;
 }
+bool ICategory::needSaveUsedItems(IResourceManager *mgr) const
+{
+	return true;
+}
 
 // json downloaded
 void ICategory::jsonDownloaded(IResourceManager *mgr, const DownloadResult &result) {}
@@ -1106,6 +1171,21 @@ bool ICategory::groupNeedLoad(IResourceManager *mgr, Group group) const
 bool ICategory::itemNeedLoad(IResourceManager *mgr, Item item) const
 {
 	return true;
+}
+
+bool ICategory::itemFilterServiceList(IResourceManager *mgr, Item item) const
+{
+	auto serviceList = item.getAttr("serviceList");
+	if (!serviceList.has_value()) {
+		return true;
+	}
+	auto serviceListValue = serviceList.value().toJsonArray();
+	for (const auto &service : serviceListValue) {
+		if (pls_is_equal(service.toString(), "prism", Qt::CaseInsensitive)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 // download ok, load json
@@ -1142,10 +1222,15 @@ QString ICategory::getGroupHomeDir(IResourceManager *mgr, Group group) const
 }
 void ICategory::getGroupDownloadUrlAndHowSaves(IResourceManager *mgr, std::list<UrlAndHowSave> &urlAndHowSaves, Group group) const {}
 void ICategory::groupDownloaded(IResourceManager *mgr, Group group, bool ok, const std::list<DownloadResult> &results) const {}
+void ICategory::groupDownloaded(IResourceManager *mgr, Group group, State state, const std::list<DownloadResult> &results) const {}
 void ICategory::getCustomGroupExtras(qsizetype &pos, bool &archive, IResourceManager *mgr, Group group) const
 {
 	pos = -1;
 	archive = false;
+}
+FnLessGroup ICategory::getLessGroup(IResourceManager *mgr) const
+{
+	return nullptr;
 }
 
 bool ICategory::itemNeedDownload(IResourceManager *mgr, Item item) const
@@ -1168,13 +1253,30 @@ QString ICategory::getItemHomeDir(IResourceManager *mgr, Item item) const
 }
 void ICategory::getItemDownloadUrlAndHowSaves(IResourceManager *mgr, std::list<UrlAndHowSave> &urlAndHowSaves, Item item) const {}
 void ICategory::itemDownloaded(IResourceManager *mgr, Item item, bool ok, const std::list<DownloadResult> &results) const {}
+void ICategory::itemDownloaded(IResourceManager *mgr, Item item, State state, const std::list<DownloadResult> &results) const {}
 void ICategory::getCustomItemExtras(qsizetype &pos, bool &archive, IResourceManager *mgr, Item item) const
 {
 	pos = -1;
 	archive = false;
 }
+FnLessItem ICategory::getLessItem(IResourceManager *mgr) const
+{
+	return [](Item itema, Item itemb) -> std::optional<bool> {
+		if (auto itemNoA = itema.getAttr({QStringLiteral("properties"), QStringLiteral("itemNo")}); !itemNoA)
+			return std::nullopt;
+		else if (auto itemNoB = itemb.getAttr({QStringLiteral("properties"), QStringLiteral("itemNo")}); !itemNoB)
+			return std::nullopt;
+		else
+			return itemNoA.value().toString().toInt() < itemNoB.value().toString().toInt();
+	};
+}
 
+bool ICategory::resumeNetworkAutoRetry(IResourceManager *mgr, bool defaultValue) const
+{
+	return defaultValue;
+}
 void ICategory::allDownload(IResourceManager *mgr, bool ok) {}
+void ICategory::allDownload(IResourceManager *mgr, State state) {}
 
 DownloadResult::DownloadResult(const UrlAndHowSave &urlAndHowSave, State state) //
 	: m_urlAndHowSave(urlAndHowSave), m_state(state)
@@ -1309,9 +1411,13 @@ public:
 		bool expired() const
 		{
 			std::lock_guard guard(m_mutex);
-			if ((m_expired <= 0) || (m_lastUsed <= 0))
+			return isExpired(m_expired);
+		}
+		bool isExpired(qint64 expired) const
+		{
+			if ((expired <= 0) || (m_lastUsed <= 0))
 				return false;
-			else if (auto used = QDateTime::currentSecsSinceEpoch() - m_lastUsed; used <= m_expired)
+			else if (auto used = QDateTime::currentSecsSinceEpoch() - m_lastUsed; used <= expired)
 				return false;
 			return true;
 		}
@@ -1348,7 +1454,7 @@ public:
 		void clear(qint64 expired = -1, State state = State::Failed)
 		{
 			std::lock_guard guard(m_mutex);
-			if (!m_filePath.isEmpty())
+			if (!m_filePath.isEmpty() && isExpired(expired))
 				pls_remove_file(m_filePath);
 
 			m_curState = m_state = state;
@@ -1553,7 +1659,7 @@ public:
 #elif defined(Q_OS_MACOS)
 		headers[QStringLiteral("X-prism-device")] = QStringLiteral("Mac OS");
 #endif
-		headers[QStringLiteral("Accept-Language")] = pls_prism_get_locale();
+		headers[QStringLiteral("Accept-Language")] = pls_get_locale();
 		headers[QStringLiteral("X-prism-appversion")] = pls_get_prism_version_string();
 		headers[QStringLiteral("X-prism-ip")] = pls_get_local_ip();
 		headers[QStringLiteral("X-prism-os")] = pls_get_os_ver_string();
@@ -1650,11 +1756,11 @@ public:
 	}
 };
 
-class ResourceManager : public IResourceManager {
+struct ResourceManager : public IResourceManager {
 	using FileState = Downloader::FileState;
 
 	class DownloadingContext {
-		using FinishedCb = std::function<void(bool ok, const std::list<DownloadResult> &results)>;
+		using FinishedCb = std::function<void(State state, const std::list<DownloadResult> &results)>;
 
 		QByteArray m_type;
 		QStringList m_categories;
@@ -1662,6 +1768,7 @@ class ResourceManager : public IResourceManager {
 		QStringList m_items;
 
 		bool m_ok = true;
+		bool m_partialOk = false;
 		bool m_invoked = false;
 		std::list<DownloadResult> m_results;
 		FinishedCb m_finishedCb;
@@ -1696,20 +1803,20 @@ class ResourceManager : public IResourceManager {
 			return create(itemImpl->m_itemIdUtf8, QStringList(), QStringList(), {itemImpl->m_itemId}, std::move(finishedCb));
 		}
 
-		void removeCategory(const QString &categoryId, bool ok) { remove(m_categories, categoryId, ok, {}); }
-		void removeGroup(const QString &groupId, bool ok, const std::list<DownloadResult> &results = {}) { remove(m_groups, groupId, ok, results); }
-		void removeItem(const QString &itemId, bool ok, const std::list<DownloadResult> &results = {}) { remove(m_items, itemId, ok, results); }
-		static void removeCategoryAll(const QString &categoryId, bool ok)
+		void removeCategory(const QString &categoryId, State state) { remove(m_categories, categoryId, state, {}); }
+		void removeGroup(const QString &groupId, State state, const std::list<DownloadResult> &results = {}) { remove(m_groups, groupId, state, results); }
+		void removeItem(const QString &itemId, State state, const std::list<DownloadResult> &results = {}) { remove(m_items, itemId, state, results); }
+		static void removeCategoryAll(const QString &categoryId, State state)
 		{
-			remove(categoryId, ok, {}, [](auto ctx) { return &ctx->m_categories; });
+			remove(categoryId, state, {}, [](auto ctx) { return &ctx->m_categories; });
 		}
-		static void removeGroupAll(const QString &groupId, bool ok, const std::list<DownloadResult> &results)
+		static void removeGroupAll(const QString &groupId, State state, const std::list<DownloadResult> &results)
 		{
-			remove(groupId, ok, results, [](auto ctx) { return &ctx->m_groups; });
+			remove(groupId, state, results, [](auto ctx) { return &ctx->m_groups; });
 		}
-		static void removeItemAll(const QString &itemId, bool ok, const std::list<DownloadResult> &results)
+		static void removeItemAll(const QString &itemId, State state, const std::list<DownloadResult> &results)
 		{
-			remove(itemId, ok, results, [](auto ctx) { return &ctx->m_items; });
+			remove(itemId, state, results, [](auto ctx) { return &ctx->m_items; });
 		}
 
 		DownloadingContext(const QByteArray &type, const QStringList &categories, const QStringList &groups, const QStringList &items, FinishedCb &&finishedCb) //
@@ -1717,18 +1824,20 @@ class ResourceManager : public IResourceManager {
 		{
 		}
 
-		template<typename GetList> static void remove(const QString &id, bool ok, const std::list<DownloadResult> &results, GetList getList)
+		template<typename GetList> static void remove(const QString &id, State state, const std::list<DownloadResult> &results, GetList getList)
 		{
 			auto &dcs = all();
 			dcs.remove_if([](auto dc) { return dc->m_invoked; });
 			for (auto dc : pls_copy(dcs))
-				dc->remove(*getList(dc), id, ok, results);
+				dc->remove(*getList(dc), id, state, results);
 		}
-		void remove(QStringList &list, const QString &id, bool ok, const std::list<DownloadResult> &results)
+		void remove(QStringList &list, const QString &id, State state, const std::list<DownloadResult> &results)
 		{
-			if (list.removeOne(id)) {
+			if (auto ok = state == State::Ok; list.removeOne(id)) {
 				if (m_ok && !ok)
 					m_ok = false;
+				if (!m_partialOk && ok)
+					m_partialOk = true;
 				if (!ok && m_results.empty() && !results.empty())
 					m_results = results;
 			}
@@ -1737,9 +1846,9 @@ class ResourceManager : public IResourceManager {
 				return;
 
 			PLS_LOGEX(m_ok ? PLS_LOG_INFO : PLS_LOG_ERROR, LIBRESOURCE_MODULE, neloFields({{"rsmType", m_type.constData()}}), "download context %s finished %s", m_type.constData(),
-				  m_ok ? "ok" : "failed");
+				  m_ok ? "ok" : (m_partialOk ? "partial failed" : "failed"));
 			m_invoked = true;
-			pls_invoke_safe(m_finishedCb, m_ok, m_results);
+			pls_invoke_safe(m_finishedCb, m_ok ? State::Ok : (m_partialOk ? State::PartialFailed : State::Failed), m_results);
 		}
 	};
 	class DownloadAllContext {
@@ -1817,6 +1926,8 @@ class ResourceManager : public IResourceManager {
 		std::map<QString, CigiState> m_itemStates;
 		std::map<QString, std::list<Item>> m_usedItems; // group -> items
 
+		bool m_needSaveUsedItems = true;
+
 		explicit CategoryItem(const QJsonObject &obj)
 		{
 			m_categoryId = obj[QStringLiteral("categoryId")].toString();
@@ -1889,14 +2000,26 @@ class ResourceManager : public IResourceManager {
 		{
 			if (Group group = findGroup(groupId); group) {
 				bool ok = true;
+				bool partialOk = false;
 				for (auto item : group.items()) {
 					if (auto is = itemState(item->m_itemId); is == State::Downloading) {
 						return State::Downloading;
-					} else if (ok && is != State::Ok) {
+					} else if (is == State::Ok) {
+						partialOk = true;
+					} else if (ok) {
 						ok = false;
 					}
+
+					if (!ok && partialOk) {
+						break;
+					}
 				}
-				return ok ? State::Ok : State::Failed;
+
+				if (ok)
+					return State::Ok;
+				else if (partialOk)
+					return State::PartialFailed;
+				return State::Failed;
 			}
 			return State::Failed;
 		}
@@ -2302,6 +2425,9 @@ class ResourceManager : public IResourceManager {
 
 			m_usedItems.clear();
 
+			if (!m_needSaveUsedItems)
+				return;
+
 			QJsonObject obj;
 			if (!pls_read_json(obj, rsm::getAppDataPath(m_categoryId + QStringLiteral("/usedItems.json")))) {
 				return;
@@ -2324,6 +2450,9 @@ class ResourceManager : public IResourceManager {
 		}
 		void saveUsedItems() const
 		{
+			if (!m_needSaveUsedItems)
+				return;
+
 			QJsonObject obj;
 			for (const auto &[group, items] : m_usedItems) {
 				QJsonArray arr;
@@ -2350,6 +2479,8 @@ class ResourceManager : public IResourceManager {
 	std::map<QString, CategoryItemPtr> m_categoryItems;
 	std::map<QString, State> m_states;
 
+	bool m_resumeNetworkAutoRetry = false;
+
 public:
 	static ResourceManager *instance()
 	{
@@ -2358,7 +2489,15 @@ public:
 	}
 
 public:
-	ResourceManager() = default;
+	ResourceManager()
+	{
+		QObject::connect(pls::NetworkState::instance(), &pls::NetworkState::stateChanged, [this](bool available) {
+			if (available && m_resumeNetworkAutoRetry) {
+				PLS_INFO(LIBRESOURCE_MODULE, "Resources will automatically re-download after the network is restored.");
+				downloadAll(nullptr, true);
+			}
+		});
+	}
 	~ResourceManager() override = default;
 
 	bool hasICategories() const { return !m_icategories.empty(); }
@@ -2397,9 +2536,10 @@ public:
 		}
 	}
 
+	bool isState(const QString &key, State state) const { return pls_get_value(m_states, key, State::Initialized) == state; }
 	bool startDownload(const QString &key)
 	{
-		if (pls_get_value(m_states, key, State::Initialized) == State::Downloading)
+		if (isState(key, State::Downloading))
 			return false;
 		m_states[key] = State::Downloading;
 		return true;
@@ -2462,9 +2602,9 @@ public:
 		m_states.clear();
 	}
 
-	void downloadAll(const std::function<void()> &complete) // download all resource
+	void downloadAll(const std::function<void()> &complete, bool retry) // download all resource
 	{
-		asyncCall([this, complete]() {
+		asyncCall([this, complete, retry]() {
 			PLS_INFO(LIBRESOURCE_MODULE, "download all");
 
 			if (!startDownload(DOWNLOAD_ALL)) {
@@ -2473,11 +2613,12 @@ public:
 				return;
 			}
 
-			downloadCategoryDotJson([this, complete](bool ok) {
+			downloadCategoryDotJson(true, [this, complete, retry](bool ok) {
 				if (ok) {
-					auto dc = DownloadingContext::create(pls_get_keys<QList>(m_categoryItems), [this](bool ok1, const std::list<DownloadResult> &) {
+					auto dc = DownloadingContext::create(pls_get_keys<QList>(m_categoryItems), [this](State state, const std::list<DownloadResult> &) {
+						auto ok1 = state == State::Ok;
 						PLS_LOGEX(ok1 ? PLS_LOG_INFO : PLS_LOG_ERROR, LIBRESOURCE_MODULE, neloFields({}), "download all finished %s", ok1 ? "ok" : "failed");
-						setState(DOWNLOAD_ALL, ok1 ? State::Ok : State::Failed);
+						setState(DOWNLOAD_ALL, state);
 					});
 					auto dac = std::make_shared<DownloadAllContext>(pls_get_keys<QList>(m_categoryItems), [complete]() {
 						PLS_LOGEX(PLS_LOG_INFO, LIBRESOURCE_MODULE, neloFields({}), "download all json download finished");
@@ -2486,9 +2627,9 @@ public:
 					for (const auto &[_, categoryItem] : m_categoryItems) {
 						if (auto icategory = getICategory(categoryItem->m_categoryId); icategory) {
 							downloadCategoryItem(
-								categoryItem, icategory, false, [categoryItem, dc](bool ok2) { dc->removeCategory(categoryItem->m_categoryId, ok2); }, dac);
+								retry, categoryItem, icategory, false, [categoryItem, dc](State state) { dc->removeCategory(categoryItem->m_categoryId, state); }, dac);
 						} else {
-							dc->removeCategory(categoryItem->m_categoryId, true);
+							dc->removeCategory(categoryItem->m_categoryId, State::Ok);
 							dac->remove(categoryItem->m_categoryId);
 						}
 					}
@@ -2515,9 +2656,10 @@ public:
 					return;
 				}
 
-				downloadCategoryDotJson([this, categoryId, icategory, key](bool ok) {
+				// false: do not re-fetch category.json and replace all CategoryItems (see downloadCategoryGroup).
+				downloadCategoryDotJson(false, [this, categoryId, icategory, key](bool ok) {
 					if (ok) {
-						downloadCategoryItem(categoryId, icategory, true, [this, key](bool ok1) { setState(key, ok1 ? State::Ok : State::Failed); });
+						downloadCategoryItem(false, categoryId, icategory, true, [this, key](State state) { setState(key, state); });
 					} else {
 						setState(key, State::Failed);
 					}
@@ -2539,7 +2681,7 @@ public:
 				return;
 			}
 
-			downloadCategoryDotJson([this, categoryId, groupId, key](bool ok) {
+			downloadCategoryDotJson(false, [this, categoryId, groupId, key](bool ok) {
 				if (!ok) {
 					setState(key, State::Failed);
 				} else if (auto icategory = getICategory(categoryId); !icategory) {
@@ -2547,7 +2689,7 @@ public:
 				} else if (auto categoryItem = getCategoryItem(categoryId); !categoryItem) {
 					setState(key, State::Failed);
 				} else if (auto group = categoryItem->findGroup(groupId); group) {
-					downloadCategoryItemGroup(categoryItem, icategory, group, true, [this, key](bool ok1) { setState(key, ok1 ? State::Ok : State::Failed); });
+					downloadCategoryItemGroup(categoryItem, icategory, group, true, [this, key](State state) { setState(key, state); });
 				}
 			});
 		});
@@ -2566,7 +2708,7 @@ public:
 				return;
 			}
 
-			downloadCategoryDotJson([this, categoryId, itemId, key](bool ok) {
+			downloadCategoryDotJson(false, [this, categoryId, itemId, key](bool ok) {
 				if (!ok) {
 					setState(key, State::Failed);
 				} else if (auto icategory = getICategory(categoryId); !icategory) {
@@ -2574,7 +2716,7 @@ public:
 				} else if (auto categoryItem = getCategoryItem(categoryId); !categoryItem) {
 					setState(key, State::Failed);
 				} else if (auto item = categoryItem->findItem(itemId); item) {
-					downloadCategoryItemItem(categoryItem, icategory, item, true, [this, key](bool ok1) { setState(key, ok1 ? State::Ok : State::Failed); });
+					downloadCategoryItemItem(categoryItem, icategory, item, true, [this, key](State state) { setState(key, state); });
 				}
 			});
 		});
@@ -2610,8 +2752,10 @@ public:
 				state = gs;
 			} else if (auto giss = categoryItem->groupItemsState(groupId); giss == State::Downloading) {
 				state = State::Downloading;
-			} else if (gs == State::Ok && giss == State::Ok) {
-				state = State::Ok;
+			} else if (gs == State::Ok) {
+				state = giss;
+			} else if (giss == State::PartialFailed) {
+				state = State::PartialFailed;
 			} else {
 				state = State::Failed;
 			}
@@ -2657,6 +2801,18 @@ public:
 				pls_invoke_safe(result, icategory, categoryItem, nullptr);
 			}
 		});
+	}
+
+	Category getDefaultCategory(const QString &categoryId) const override
+	{
+		if (auto icategory = getICategory(categoryId); !icategory)
+			return nullptr;
+		else if (auto defaultJsonPath = icategory->defaultJsonPath(pls_ptr(this)); defaultJsonPath.isEmpty())
+			return nullptr;
+		else if (QJsonObject obj; readJson(obj, false, defaultJsonPath))
+			return from(icategory, obj, categoryId);
+		else
+			return nullptr;
 	}
 
 	Category getCategory(const QString &categoryId) const override
@@ -3181,12 +3337,12 @@ public:
 	}
 
 private:
-	template<typename ResultCb> void downloadCategoryDotJson(ResultCb resultCb)
+	template<typename ResultCb> void downloadCategoryDotJson(bool reload, ResultCb resultCb)
 	{
 		if (!hasICategories()) {
 			PLS_LOGEX(PLS_LOG_ERROR, LIBRESOURCE_MODULE, neloFields({}), "No category id registered.");
 			resultCb(false);
-		} else if (hasCategoryItems()) {
+		} else if (!reload && hasCategoryItems()) {
 			PLS_INFO(LIBRESOURCE_MODULE, "category.json loaded");
 			resultCb(true);
 		} else if (startDownload(CATEGORY_DOT_JSON, resultCb, false)) {
@@ -3214,8 +3370,12 @@ private:
 							  if (QJsonArray categories; result.json(categories)) {
 								  PLS_INFO(LIBRESOURCE_MODULE, "load category.json ok");
 								  dynamicAddCategoryItem(categories); // use for add local category item
-								  for (auto cv : categories)
-									  addCategoryItem(std::make_shared<CategoryItem>(cv.toObject()));
+								  for (auto cv : categories) {
+									  auto categoryItem = std::make_shared<CategoryItem>(cv.toObject());
+									  if (auto icategory = getICategory(categoryItem->m_categoryId); icategory)
+										  categoryItem->m_needSaveUsedItems = icategory->needSaveUsedItems(this);
+									  addCategoryItem(categoryItem);
+								  }
 								  asyncCall(resultCb, true);
 							  } else {
 								  PLS_LOGEX(PLS_LOG_ERROR, LIBRESOURCE_MODULE, neloFields({}), "load category.json failed");
@@ -3226,10 +3386,7 @@ private:
 	}
 	template<typename ResultCb> void downloadCategoryItemDotJson(CategoryItemPtr categoryItem, ICategory *icategory, ResultCb resultCb)
 	{
-		if (categoryItem->isLoaded()) {
-			PLS_INFO(LIBRESOURCE_MODULE, "%s.json is loaded", categoryItem->m_categoryIdUtf8.constData());
-			resultCb(true);
-		} else if (QString fileName = categoryItem->m_categoryId + QStringLiteral(".json"); startDownload(fileName, resultCb, false)) {
+		if (QString fileName = categoryItem->m_categoryId + QStringLiteral(".json"); startDownload(fileName, resultCb, State::Failed)) {
 			PLS_INFO(LIBRESOURCE_MODULE, "downloading %s", fileName.toUtf8().constData());
 
 			UrlAndHowSave urlAndHowSave;
@@ -3254,7 +3411,7 @@ private:
 							  asyncCall([this, icategory, categoryItem, result]() { icategory->jsonDownloaded(this, result); });
 							  if (!result.hasFilePath()) {
 								  PLS_LOGEX(PLS_LOG_ERROR, LIBRESOURCE_MODULE, nfields, "categoryId json %s not found", fileName.toUtf8().constData());
-								  asyncCall(resultCb, false);
+								  asyncCall(resultCb, State::Failed);
 								  return;
 							  }
 
@@ -3264,52 +3421,58 @@ private:
 								  asyncCall([this, icategory, categoryItem, category = from(icategory, obj, categoryItem->m_categoryId), resultCb]() {
 									  categoryItem->setCategory(this, icategory, category);
 									  icategory->jsonLoaded(this, category);
-									  resultCb(true);
+									  resultCb(State::Ok);
 								  });
 							  } else {
 								  PLS_LOGEX(PLS_LOG_ERROR, LIBRESOURCE_MODULE, nfields, "load categoryId json %s failed", fileName.toUtf8().constData());
-								  asyncCall(resultCb, false);
+								  asyncCall(resultCb, State::Failed);
 							  }
 						  });
 		}
 	}
 
-	template<typename ResultCb> void downloadCategoryItem(const QString &categoryId, ICategory *icategory, bool manualDownload, ResultCb resultCb)
+	template<typename ResultCb> void downloadCategoryItem(bool retry, const QString &categoryId, ICategory *icategory, bool manualDownload, ResultCb resultCb)
 	{
 		if (auto categoryItem = pls_get_value(m_categoryItems, categoryId, nullptr); categoryItem) {
-			downloadCategoryItem(categoryItem, icategory, manualDownload, resultCb);
+			downloadCategoryItem(retry, categoryItem, icategory, manualDownload, resultCb);
 		} else {
-			resultCb(false);
+			resultCb(State::Failed);
 		}
 	}
 	template<typename ResultCb>
-	void downloadCategoryItem(CategoryItemPtr categoryItem, ICategory *icategory, bool manualDownload, ResultCb resultCb, std::shared_ptr<DownloadAllContext> dac = nullptr)
+	void downloadCategoryItem(bool retry, CategoryItemPtr categoryItem, ICategory *icategory, bool manualDownload, ResultCb resultCb, std::shared_ptr<DownloadAllContext> dac = nullptr)
 	{
-		if (startDownload(categoryItem->m_categoryId, resultCb, false)) {
-			downloadCategoryItemDotJson(categoryItem, icategory, [this, icategory, categoryItem, manualDownload, resultCb, dac](bool ok) { //
+		if (retry && !icategory->resumeNetworkAutoRetry(this, m_resumeNetworkAutoRetry)) {
+			asyncCall(resultCb, isState(categoryItem->m_categoryId, State::Ok) ? State::Ok : State::Failed);
+			return;
+		} else if (startDownload(categoryItem->m_categoryId, resultCb, State::Failed)) {
+			downloadCategoryItemDotJson(categoryItem, icategory, [this, icategory, categoryItem, manualDownload, resultCb, dac, retry](State state) { //
 				if (dac) {
 					dac->remove(categoryItem->m_categoryId);
 				}
 
-				if (!ok) {
-					setState(categoryItem->m_categoryId, State::Failed, resultCb, false);
+				if (state != State::Ok) {
+					setState(categoryItem->m_categoryId, state, resultCb, state);
 					return;
 				}
 
 				PLS_INFO(LIBRESOURCE_MODULE, "downloading category [%s]'s groups and items", categoryItem->m_categoryIdUtf8.constData());
-				auto context = DownloadingContext::create(categoryItem->m_category, [this, categoryItem, icategory, resultCb](bool ok1, const std::list<DownloadResult> &) {
+				auto context = DownloadingContext::create(categoryItem->m_category, [this, categoryItem, icategory, resultCb](State state, const std::list<DownloadResult> &) {
+					auto ok1 = state == State::Ok;
 					PLS_LOGEX(ok1 ? PLS_LOG_INFO : PLS_LOG_ERROR, LIBRESOURCE_MODULE, neloFields({{"categoryId", categoryItem->m_categoryIdUtf8.constData()}}),
-						  "category [%s] downloaded %s", categoryItem->m_categoryIdUtf8.constData(), ok1 ? "ok" : "failed");
-					setState(categoryItem->m_categoryId, ok1 ? State::Ok : State::Failed);
+						  "category [%s] downloaded %s", categoryItem->m_categoryIdUtf8.constData(),
+						  ok1 ? "ok" : ((state == State::PartialFailed) ? "partial failed" : "failed"));
+					setState(categoryItem->m_categoryId, state);
 					icategory->allDownload(this, ok1);
-					resultCb(ok1);
-					DownloadingContext::removeCategoryAll(categoryItem->m_categoryId, ok1);
+					icategory->allDownload(this, state);
+					resultCb(state);
+					DownloadingContext::removeCategoryAll(categoryItem->m_categoryId, state);
 				});
 				pls_for_each(categoryItem->m_category->m_groups, [this, categoryItem, icategory, manualDownload, context](const auto &groupId) {
-					downloadCategoryItemGroup(categoryItem, icategory, groupId, manualDownload, [context, groupId](bool ok2) { context->removeGroup(groupId, ok2); });
+					downloadCategoryItemGroup(categoryItem, icategory, groupId, manualDownload, [context, groupId](State state) { context->removeGroup(groupId, state); });
 				});
 				pls_for_each(categoryItem->m_category->m_items, [this, categoryItem, icategory, manualDownload, context](const auto &itemId) {
-					downloadCategoryItemItem(categoryItem, icategory, itemId, manualDownload, [context, itemId](bool ok3) { context->removeItem(itemId, ok3); });
+					downloadCategoryItemItem(categoryItem, icategory, itemId, manualDownload, [context, itemId](State state) { context->removeItem(itemId, state); });
 				});
 			});
 		} else if (dac) {
@@ -3321,7 +3484,7 @@ private:
 		if (auto group = categoryItem->findGroup(groupId); group) {
 			downloadCategoryItemGroup(categoryItem, icategory, group, manualDownload, resultCb);
 		} else {
-			resultCb(false);
+			resultCb(State::Failed);
 		}
 	}
 	template<typename ResultCb> void downloadCategoryItemGroup(CategoryItemPtr categoryItem, ICategory *icategory, GroupImplPtr groupImpl, bool manualDownload, ResultCb resultCb)
@@ -3331,22 +3494,24 @@ private:
 		if (!icategory->groupNeedDownload(this, groupImpl)) {
 			PLS_INFO(LIBRESOURCE_MODULE, "category [%s] group [%s] does not need to be downloaded", categoryItem->m_categoryIdUtf8.constData(), groupImpl->m_groupIdUtf8.constData());
 			setState(key, State::Initialized);
-			resultCb(true);
+			resultCb(State::Ok);
 			return;
 		} else if (!manualDownload && icategory->groupManualDownload(this, groupImpl)) {
 			PLS_INFO(LIBRESOURCE_MODULE, "category [%s] group [%s] need to be downloaded manually", categoryItem->m_categoryIdUtf8.constData(), groupImpl->m_groupIdUtf8.constData());
 			setState(key, State::Failed);
-			resultCb(false);
+			resultCb(State::Failed);
 			return;
 		}
 
 		PLS_INFO(LIBRESOURCE_MODULE, "downloading category [%s] group [%s]", categoryItem->m_categoryIdUtf8.constData(), groupImpl->m_groupIdUtf8.constData());
 
-		auto context = DownloadingContext::create(groupImpl, [this, icategory, key, groupImpl, resultCb](bool ok, const std::list<DownloadResult> &results) {
-			setState(key, ok ? State::Ok : State::Failed);
+		auto context = DownloadingContext::create(groupImpl, [this, icategory, key, groupImpl, resultCb](State state, const std::list<DownloadResult> &results) {
+			auto ok = state == State::Ok;
+			setState(key, state);
 			icategory->groupDownloaded(this, groupImpl, ok, results);
-			resultCb(ok);
-			DownloadingContext::removeGroupAll(groupImpl->m_groupId, ok, results);
+			icategory->groupDownloaded(this, groupImpl, state, results);
+			resultCb(state);
+			DownloadingContext::removeGroupAll(groupImpl->m_groupId, state, results);
 		});
 
 		std::list<UrlAndHowSave> urlAndHowSaves;
@@ -3355,11 +3520,11 @@ private:
 		groupImpl->m_urlAndHowSaves = urlAndHowSaves;
 
 		pls_for_each(groupImpl->m_items, [this, categoryItem, icategory, manualDownload, context](const auto &itemId) {
-			downloadCategoryItemItem(categoryItem, icategory, itemId, manualDownload, [context, itemId](bool ok) { context->removeItem(itemId, ok); });
+			downloadCategoryItemItem(categoryItem, icategory, itemId, manualDownload, [context, itemId](State state) { context->removeItem(itemId, state); });
 		});
 
 		if (auto state = categoryItem->checkGroup(this, icategory, groupImpl, true); state == State::Ok) {
-			context->removeGroup(groupImpl->m_groupId, true, {});
+			context->removeGroup(groupImpl->m_groupId, State::Ok, {});
 			return;
 		} else if (state == State::Downloading) {
 			return;
@@ -3369,7 +3534,7 @@ private:
 			asyncCall([categoryItem, groupImpl, results, context]() {
 				auto ok = std::ranges::all_of(results, [](const DownloadResult &result) { return result.isOk(); });
 				categoryItem->endDownloadGroup(groupImpl, ok, results);
-				context->removeGroup(groupImpl->m_groupId, ok, results);
+				context->removeGroup(groupImpl->m_groupId, ok ? State::Ok : State::Failed, results);
 			});
 		});
 	}
@@ -3378,32 +3543,40 @@ private:
 		if (auto item = categoryItem->findItem(itemId); item) {
 			downloadCategoryItemItem(categoryItem, icategory, item, manualDownload, resultCb);
 		} else {
-			resultCb(false);
+			resultCb(State::Failed);
 		}
 	}
 	template<typename ResultCb> void downloadCategoryItemItem(CategoryItemPtr categoryItem, ICategory *icategory, ItemImplPtr itemImpl, bool manualDownload, ResultCb resultCb)
 	{
 		auto key = categoryItem->m_categoryId + '/' + itemImpl->m_itemId;
 
-		if (!icategory->itemNeedDownload(this, itemImpl)) {
+		if (!icategory->itemFilterServiceList(this, itemImpl)) {
+			PLS_INFO(LIBRESOURCE_MODULE, "category [%s] item [%s] does not need to be downloaded because prism is not included in the service list.",
+				 categoryItem->m_categoryIdUtf8.constData(), itemImpl->m_itemIdUtf8.constData());
+			setState(key, State::Initialized);
+			resultCb(State::Ok);
+			return;
+		} else if (!icategory->itemNeedDownload(this, itemImpl)) {
 			PLS_INFO(LIBRESOURCE_MODULE, "category [%s] item [%s] does not need to be downloaded", categoryItem->m_categoryIdUtf8.constData(), itemImpl->m_itemIdUtf8.constData());
 			setState(key, State::Initialized);
-			resultCb(true);
+			resultCb(State::Ok);
 			return;
 		} else if (!manualDownload && icategory->itemManualDownload(this, itemImpl)) {
 			PLS_INFO(LIBRESOURCE_MODULE, "category [%s] item [%s] need to be downloaded manually", categoryItem->m_categoryIdUtf8.constData(), itemImpl->m_itemIdUtf8.constData());
 			setState(key, State::Failed);
-			resultCb(false);
+			resultCb(State::Failed);
 			return;
 		}
 
 		PLS_INFO(LIBRESOURCE_MODULE, "downloading category [%s] item [%s]", categoryItem->m_categoryIdUtf8.constData(), itemImpl->m_itemIdUtf8.constData());
 
-		auto context = DownloadingContext::create(itemImpl, [this, icategory, key, itemImpl, resultCb](bool ok, const std::list<DownloadResult> &results) {
-			setState(key, ok ? State::Ok : State::Failed);
+		auto context = DownloadingContext::create(itemImpl, [this, icategory, key, itemImpl, resultCb](State state, const std::list<DownloadResult> &results) {
+			auto ok = state == State::Ok;
+			setState(key, state);
 			icategory->itemDownloaded(this, itemImpl, ok, results);
-			resultCb(ok);
-			DownloadingContext::removeItemAll(itemImpl->m_itemId, ok, results);
+			icategory->itemDownloaded(this, itemImpl, state, results);
+			resultCb(state);
+			DownloadingContext::removeItemAll(itemImpl->m_itemId, state, results);
 		});
 
 		std::list<UrlAndHowSave> urlAndHowSaves;
@@ -3412,7 +3585,7 @@ private:
 		itemImpl->m_urlAndHowSaves = urlAndHowSaves;
 
 		if (auto state = categoryItem->checkItem(this, icategory, itemImpl, true); state == State::Ok) {
-			context->removeItem(itemImpl->m_itemId, true, {});
+			context->removeItem(itemImpl->m_itemId, State::Ok, {});
 			return;
 		} else if (state == State::Downloading) {
 			return;
@@ -3422,14 +3595,14 @@ private:
 			asyncCall([this, icategory, categoryItem, itemImpl, results, context]() {
 				auto ok = std::ranges::all_of(results, [](const DownloadResult &result) { return result.isOk(); });
 				categoryItem->endDownloadItem(itemImpl, ok, results);
-				context->removeItem(itemImpl->m_itemId, ok, results);
+				context->removeItem(itemImpl->m_itemId, ok ? State::Ok : State::Failed, results);
 			});
 		});
 	}
 
 	CategoryImplPtr from(ICategory *icategory, const QJsonObject &obj, const QString &categoryId) const
 	{
-		auto category = std::make_shared<CategoryImpl>(obj[QStringLiteral("version")].toInt(), categoryId, obj);
+		auto category = std::make_shared<CategoryImpl>(obj[QStringLiteral("version")].toInt(), categoryId, obj, icategory->getLessGroup(pls_ptr(this)), icategory->getLessItem(pls_ptr(this)));
 		parseGroups(icategory, category, obj[QStringLiteral("group")].toArray());
 		parseItems(icategory, category, obj[QStringLiteral("items")].toArray());
 		return category;
@@ -3462,7 +3635,11 @@ private:
 				}
 
 				auto item = std::make_shared<ItemImpl>(io[QStringLiteral("version")].toInt(), itemId, io.toVariantHash());
-				if (!icategory->itemNeedLoad(pls_ptr(this), item)) {
+				if (!icategory->itemFilterServiceList(pls_ptr(this), item)) {
+					PLS_INFO(LIBRESOURCE_MODULE, "category [%s] item [%s] does not need to be loaded because prism is not included in the service list.",
+						 category->m_categoryIdUtf8.constData(), itemId.toUtf8().constData());
+					continue;
+				} else if (!icategory->itemNeedLoad(pls_ptr(this), item)) {
 					PLS_INFO(LIBRESOURCE_MODULE, "category [%s] item [%s] does not need to be loaded", category->m_categoryIdUtf8.constData(), itemId.toUtf8().constData());
 					continue;
 				}
@@ -3481,17 +3658,23 @@ private:
 		for (auto iv : items) {
 			auto io = iv.toObject();
 			auto itemId = io[QStringLiteral("itemId")].toString();
-			category->m_items.append(itemId);
-			if (category->m_allItems.contains(itemId))
+			if (category->m_allItems.contains(itemId)) {
+				category->m_items.append(itemId);
 				continue;
+			}
 
 			auto item = std::make_shared<ItemImpl>(io[QStringLiteral("version")].toInt(), itemId, io.toVariantHash());
-			if (!icategory->itemNeedLoad(pls_ptr(this), item)) {
+			if (!icategory->itemFilterServiceList(pls_ptr(this), item)) {
+				PLS_INFO(LIBRESOURCE_MODULE, "category [%s] item [%s] does not need to be loaded because prism is not included in the service list.",
+					 category->m_categoryIdUtf8.constData(), itemId.toUtf8().constData());
+				continue;
+			} else if (!icategory->itemNeedLoad(pls_ptr(this), item)) {
 				PLS_INFO(LIBRESOURCE_MODULE, "category [%s] item [%s] does not need to be loaded", category->m_categoryIdUtf8.constData(), itemId.toUtf8().constData());
 				continue;
 			}
 
 			item->m_category = category;
+			category->m_items.append(itemId);
 			category->m_allItems[itemId] = item;
 			item->m_uniqueId = icategory->getItemUniqueId(pls_ptr(this), item).m_id;
 			item->m_homeDir = icategory->getItemHomeDir(pls_ptr(this), item);
@@ -3543,7 +3726,7 @@ private:
 	}
 	void dynamicAddCategoryItem(QJsonArray &categories) const
 	{
-		if (auto json = pls_prism_get_qsetting_value(QStringLiteral("ExtraCategorieItems")).toString(); json.isEmpty()) {
+		if (auto json = pls_get_qsetting_value(QStringLiteral("ExtraCategorieItems")).toString(); json.isEmpty()) {
 			return;
 		} else if (QJsonDocument doc; !pls_parse_json(doc, json.toUtf8())) {
 			return;
@@ -3566,6 +3749,7 @@ public:
 	Initializer()
 	{
 		pls_qapp_construct_add_cb([]() {
+			qRegisterMetaType<pls::rsm::State>("pls::rsm::State");
 			Downloader::instance()->initialize();
 			ResourceManager::instance()->initialize();
 		});
@@ -3586,27 +3770,37 @@ LIRESOURCE_API IResourceManager *getResourceManager()
 {
 	return ResourceManager::instance();
 }
-LIRESOURCE_API void downloadAll(const std::function<void()> &complete)
+LIRESOURCE_API void downloadAll(const std::function<void()> &complete, bool resumeNetworkAutoRetry)
 {
-	ResourceManager::instance()->downloadAll(complete);
+	auto rm = ResourceManager::instance();
+	rm->m_resumeNetworkAutoRetry = resumeNetworkAutoRetry;
+	rm->downloadAll(complete, false);
 }
 LIRESOURCE_API QString getDataPath(const QString &subpath)
 {
+	if (subpath.isEmpty())
+		return pls_get_app_data_path_pn(QStringLiteral("/resources"));
 #if defined(Q_OS_WIN)
-	if (!subpath.isEmpty())
-		return pls_get_app_dir() + QStringLiteral("/../../data/prism-studio/resources/") + subpath;
-	return pls_get_app_dir() + QStringLiteral("/../../data/prism-studio/resources");
+	else if (subpath.startsWith('/') || subpath.startsWith('\\'))
 #elif defined(Q_OS_MACOS)
-	if (!subpath.isEmpty())
-		return pls_get_app_resource_dir() + QStringLiteral("/data/prism-studio/resources/") + subpath;
-	return pls_get_app_resource_dir() + QStringLiteral("/data/prism-studio/resources");
+	else if (subpath.startsWith('/'))
 #endif
+		return pls_get_app_data_path_pn(QStringLiteral("/resources")) + subpath;
+	else
+		return pls_get_app_data_path_pn(QStringLiteral("/resources/")) + subpath;
 }
 LIRESOURCE_API QString getAppDataPath(const QString &subpath)
 {
-	if (!subpath.isEmpty())
-		return pls_get_app_data_dir_pn(QStringLiteral("resources/")) + subpath;
-	return pls_get_app_data_dir_pn(QStringLiteral("resources"));
+	if (subpath.isEmpty())
+		return pls_get_app_user_data_dir_path_pn(QStringLiteral("/resources"));
+#if defined(Q_OS_WIN)
+	else if (subpath.startsWith('/') || subpath.startsWith('\\'))
+#elif defined(Q_OS_MACOS)
+	else if (subpath.startsWith('/'))
+#endif
+		return pls_get_app_user_data_dir_path_pn(QStringLiteral("/resources")) + subpath;
+	else
+		return pls_get_app_user_data_dir_path_pn(QStringLiteral("/resources/")) + subpath;
 }
 // base dir PRISMLiveStudio/resources/{categoryId}/xxx
 LIRESOURCE_API QString getItemPath(const QString &categoryId, const UniqueId &uniqueId, const QString &subpath)

@@ -18,6 +18,7 @@
 #include "pls/pls-source.h"
 #include "pls/pls-properties.h"
 #include "pls/pls-obs-api.h"
+#include "pls/pls-action-util.h"
 #include <qdebug.h>
 
 static const char *const s_moduleName = "PRISMTimer";
@@ -225,6 +226,7 @@ static void init_web_source(timer_source *timerSource)
 
 	obs_source_inc_active(timerSource->config.web);
 	obs_source_inc_showing(timerSource->config.web);
+	pls_set_action_parent(timerSource->config.web, timerSource->config.source);
 }
 
 static void mediaStateChanged(obs_media_state state, void *data, calldata_t *cb)
@@ -494,7 +496,7 @@ void timer_source::dispatahControlJsToWeb()
 	auto _bArray = QJsonDocument(root).toJson(QJsonDocument::Compact);
 	QString _log = QString("timer Log control:").append(_bArray);
 	PLS_INFO(s_moduleName, _log.toUtf8().constData());
-
+	PLS_UI_ACTION("timer_source send control:%s", qUtf8Printable(actionStr));
 	if (this->config.web) {
 		pls_source_dispatch_cef_js(this->config.web, "timerClockWidget", _bArray.constData());
 	}
@@ -961,15 +963,27 @@ static void timer_source_render(void *data, gs_effect_t *gs)
 	const gs_effect_t *def_effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	gs_technique_t *tech = gs_effect_get_technique(def_effect, "Draw");
 
+	const bool nonlinear_fade = gs_get_color_space() == GS_CS_SRGB;
+	const bool previous = gs_framebuffer_srgb_enabled();
+	gs_enable_framebuffer_srgb(!nonlinear_fade);
+
 	gs_technique_begin(tech);
 	gs_technique_begin_pass(tech, 0);
-	gs_effect_set_texture(gs_effect_get_param_by_name(def_effect, "image"), context->config.web_source_tex);
+
+	auto param = gs_effect_get_param_by_name(def_effect, "image");
+	if (nonlinear_fade) {
+		gs_effect_set_texture(param, context->config.web_source_tex);
+	} else {
+		gs_effect_set_texture_srgb(param, context->config.web_source_tex);
+	}
+
 	gs_draw_sprite(context->config.web_source_tex, 0, 0, 0);
 
 	gs_technique_end_pass(tech);
 	gs_technique_end(tech);
 
 	gs_blend_state_pop();
+	gs_enable_framebuffer_srgb(previous);
 }
 
 static void timer_source_tick(void *data, float)
@@ -1188,7 +1202,7 @@ static bool template_changed(void *data, obs_properties_t *props, obs_property_t
 	obs_property_set_description(obs_properties_get(props, s_list_corlors_6), source->getColorTitle());
 	set_hotkey_visible(source);
 	source->updateControlButtons(source->config.mStaus, props, true, false);
-	return false;
+	return true;
 }
 
 static bool top_buttons_changed(void *data, obs_properties_t *props, obs_property_t *p, obs_data_t *settings)
@@ -1419,8 +1433,8 @@ static obs_properties_t *timer_source_getproperties(void *data)
 	pls_property_image_group_add_item(p, "template_btn_two", ":/timer-source/resource/images/Round.png", 1, nullptr);
 	pls_property_image_group_add_item(p, "template_btn_three", ":/timer-source/resource/images/Flip.png", 2, nullptr);
 	pls_property_image_group_add_item(p, "template_btn_four", messageIcon.toUtf8().constData(), 3, nullptr);
-	pls_property_image_group_add_item(p, "template_btn_five", ":/timer-source/resource/images/timer_digital_thumb.png", 0, nullptr);
-	pls_property_image_group_add_item(p, "template_btn_six", ":/timer-source/resource/images/countdown_thumb.png", 0, nullptr);
+	pls_property_image_group_add_item(p, "template_btn_five", ":/timer-source/resource/images/timer_digital_thumb.png", 4, nullptr);
+	pls_property_image_group_add_item(p, "template_btn_six", ":/timer-source/resource/images/countdown_thumb.png", 5, nullptr);
 
 	obs_property_set_modified_callback2(p, template_changed, s);
 
@@ -1774,8 +1788,6 @@ void timer_source::propertiesEditStart()
 	auto templateType = static_cast<TemplateType>(obs_data_get_int(config.settings, s_template_list));
 	auto allSeconds = getCountTime(templateType);
 	obs_data_set_int(config.settings, s_timer_all_seconds, allSeconds);
-
-	QMetaObject::invokeMethod(this, [this]() { updateControlButtons(config.mStaus, nullptr, true); }, Qt::QueuedConnection);
 }
 
 void timer_source::propertiesEditEnd(bool isSaveClick)

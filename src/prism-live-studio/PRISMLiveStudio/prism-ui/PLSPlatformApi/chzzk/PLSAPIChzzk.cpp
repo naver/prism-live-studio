@@ -77,7 +77,7 @@ void requestChannelList(const QObject *receiver, PLSPlatformChzzk *platform, con
 			PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed, platform] {
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, CZ_API_GetChannelList.toUtf8());
 		QString url = QString("%1/partner/naver/service/chzzk/channel/list").arg(_getNCPHost());
 		_request.method(pls::http::Method::Get) //
@@ -94,7 +94,7 @@ void requestChannelOrLiveInfo(const QObject *receiver, bool isChannel, PLSPlatfo
 {
 
 	auto _getNetworkReply = [receiver, onSucceed, onFailed, platform, isChannel] {
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, isChannel ? CZ_API_GetChannelInfo.toUtf8() : CZ_API_GetLiveInfo.toUtf8());
 		QString url;
 		if (isChannel) {
@@ -124,9 +124,10 @@ void requestUpdateLiveInfo(const QObject *receiver, const PLSChzzkLiveinfoData &
 		extra["paidPromotion"] = data.isNeedMoney;
 		extra["chatAvailableGroup"] = data.chatPermission;
 		extra["clipActive"] = data.clipActive;
+		extra["categoryType"] = data.categoryData.type;
 		object["extraFields"] = extra;
 
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, CZ_API_PutLiveInfo.toUtf8());
 		QString url = QString("%1/partner/naver/service/chzzk/live/%2").arg(_getNCPHost()).arg(data._id);
 
@@ -144,7 +145,7 @@ void requestSearchCategory(const QObject *receiver, const QString &keyword, PLSP
 			   PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, keyword, onSucceed, onFailed, platform] {
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, CZ_API_GetCategories.toUtf8());
 		QString url = QString("%1/partner/naver/service/chzzk/search/categories").arg(_getNCPHost());
 		_request.method(pls::http::Method::Get) //
@@ -172,9 +173,10 @@ void requestCreateLive(const QObject *receiver, const PLSChzzkLiveinfoData &data
 		extra["paidPromotion"] = data.isNeedMoney;
 		extra["chatAvailableGroup"] = data.chatPermission;
 		extra["clipActive"] = data.clipActive;
+		extra["categoryType"] = data.categoryData.type;
 		object["extraFields"] = extra;
 
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, CZ_API_PostLiveInfo.toUtf8());
 		QString url = QString("%1/partner/naver/service/chzzk/%2/live").arg(_getNCPHost()).arg(platform->subChannelID());
 		_request.method(pls::http::Method::Post) //
@@ -191,7 +193,7 @@ void uploadImage(const QObject *receiver, const PLSChzzkLiveinfoData &data, cons
 		 const PLSAPICommon::errorCallback &onFailed)
 {
 	auto _getNetworkReply = [receiver, data, onSucceed, onFailed, platform, imageFilePath] {
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, CZ_API_PostThumbnail.toUtf8(), false);
 		QString url = QString("%1/partner/naver/service/chzzk/live/%2/thumbnail").arg(_getNCPHost()).arg(data._id);
 
@@ -209,7 +211,7 @@ void uploadImage(const QObject *receiver, const PLSChzzkLiveinfoData &data, cons
 void deleteImage(const QObject *receiver, const PLSChzzkLiveinfoData &data, PLSPlatformChzzk *platform, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed)
 {
 	auto _getNetworkReply = [receiver, data, onSucceed, onFailed, platform] {
-		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+		const auto _request = pls::http::Request();
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, CZ_API_DeleteThumbnail.toUtf8(), false);
 
 		QString url = QString("%1/partner/naver/service/chzzk/live/%2/thumbnail").arg(_getNCPHost()).arg(data._id);

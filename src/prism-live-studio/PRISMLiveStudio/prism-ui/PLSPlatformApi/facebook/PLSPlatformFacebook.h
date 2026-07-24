@@ -1,7 +1,6 @@
 /*
 * @file		PLSPlatformFacebook.h
 * @brief	All facebook relevant api is implemented in this file
-* @author	wu.longyue@navercorp.com
 * @date		2020-01-06
 */
 
@@ -48,6 +47,7 @@ public:
 	void getLongLivedUserAccessToken(const MyRequestTypeFunction &onFinished);
 	void getUserInfo(const MyRequestTypeFunction &onFinished);
 	void getUserInfoSuccess(const QString &userId, const QString &username, const QString &imagePath);
+	QString getUserId() const;
 	void getMyGroupListRequestAndCheckPermission(const MyRequestTypeFunction &onFinished, QWidget *parent);
 	void getMyPageListRequestAndCheckPermission(const MyRequestTypeFunction &onFinished, QWidget *parent);
 	void getGameTagListByKeyword(const MyRequestTypeFunction &onFinished, const QString &keyword);
@@ -73,6 +73,8 @@ public:
 	void currentPrivacyInconsistentDisplay(const QString &privacyId);
 	QString getServiceLiveLink() override;
 	void setPrivacyToTimeline();
+	void onResumeStreaming(const QMap<QString, QVariant> &params) override;
+	QMap<QString, QVariant> getResumeStreamingParams() const override;
 
 signals:
 	void privateChatChanged(bool oldPrivate, bool newPrivate);

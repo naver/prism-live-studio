@@ -15,7 +15,7 @@ OutputTimer *ot;
 
 OutputTimer::OutputTimer(QWidget *parent) : PLSDialogView(parent), ui(new Ui_OutputTimer)
 {
-
+	PLS_DISABLE_UISTEP_V2(this);
 #if defined(Q_OS_MACOS)
 	ui->setupUi(content());
 	QMetaObject::connectSlotsByName(this);
@@ -32,6 +32,8 @@ OutputTimer::OutputTimer(QWidget *parent) : PLSDialogView(parent), ui(new Ui_Out
 	QObject::connect(ui->buttonBox->button(QDialogButtonBox::Close), &QPushButton::clicked, this, &OutputTimer::hide);
 	ui->streamingLabel->setWordWrap(true);
 	ui->recordingLabel->setWordWrap(true);
+	pls_uistep_v2_set_value(ui->outputTimerStream, PLS_UI_STEPS_V2_SIGNAL_CLICKED, [this]() -> QString { return streamingTimer->isActive() ? "Stop Stream" : "Start Stream"; });
+	pls_uistep_v2_set_value(ui->outputTimerRecord, PLS_UI_STEPS_V2_SIGNAL_CLICKED, [this]() -> QString { return recordingTimer->isActive() ? "Stop Rec" : "Start Rec"; });
 	streamingTimer = new QTimer(this);
 	streamingTimerDisplay = new QTimer(this);
 
@@ -42,6 +44,15 @@ OutputTimer::OutputTimer(QWidget *parent) : PLSDialogView(parent), ui(new Ui_Out
 	QObject::connect(streamingTimerDisplay, &QTimer::timeout, this, &OutputTimer::UpdateStreamTimerDisplay);
 	QObject::connect(recordingTimer, &QTimer::timeout, this, &OutputTimer::EventStopRecording);
 	QObject::connect(recordingTimerDisplay, &QTimer::timeout, this, &OutputTimer::UpdateRecordTimerDisplay);
+
+	pls_uistep_v2_set_name(ui->streamingTimerHours, "Streaming Timer Hours");
+	pls_uistep_v2_set_name(ui->streamingTimerMinutes, "Streaming Timer Minutes");
+	pls_uistep_v2_set_name(ui->streamingTimerSeconds, "Streaming Timer Seconds");
+	pls_uistep_v2_set_name(ui->recordingTimerHours, "Recording Timer Hours");
+	pls_uistep_v2_set_name(ui->recordingTimerMinutes, "Recording Timer Minutes");
+	pls_uistep_v2_set_name(ui->recordingTimerSeconds, "Recording Timer Seconds");
+
+	pls_uistep_v2_auto_bind(this);
 }
 
 void OutputTimer::showEvent(QShowEvent *event)

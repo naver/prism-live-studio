@@ -11,13 +11,20 @@ PLSSearchLineEdit::PLSSearchLineEdit(QWidget *parent) : QLineEdit(parent)
 {
 	pls_add_css(this, {"PLSSearchLineEdit"});
 
-	connect(this, &QLineEdit::textChanged, this, [this]() { updatePlaceHolderColor(); });
+	connect(this, &QLineEdit::textChanged, this, [this]() {
+		PLS_UI_ACTION("In search line edit, the line edit text changed.");
+		updatePlaceHolderColor();
+		if (property("usedFor").toString() == QStringLiteral("addsource")) {
+			SetDeleteBtnVisible(!text().isEmpty());
+		}
+	});
 
-	QHBoxLayout *searchLayout = pls_new<QHBoxLayout>(this);
+	searchLayout = pls_new<QHBoxLayout>(this);
 	searchLayout->setContentsMargins(0, 8, 9, 10);
 	searchLayout->setSpacing(0);
 
 	deleteBtn = pls_new<QPushButton>(this);
+	pls_uistep_v2_set_value(deleteBtn, QStringLiteral("Delete"));
 	deleteBtn->setObjectName("deleteBtn");
 	deleteBtn->setVisible(false);
 	deleteBtn->setAutoDefault(false);
@@ -26,17 +33,17 @@ PLSSearchLineEdit::PLSSearchLineEdit(QWidget *parent) : QLineEdit(parent)
 	connect(deleteBtn, &QPushButton::clicked, this, [this]() {
 		clear();
 		deleteBtn->setVisible(false);
+		PLS_UI_ACTION("In search line edit, the detele button has been closed.");
 	});
 
 	toolBtnSearch = pls_new<QToolButton>(this);
+	pls_uistep_v2_set_value(toolBtnSearch, QStringLiteral("Search"));
 	connect(toolBtnSearch, &QToolButton::clicked, this, [this]() { emit SearchIconClicked(text()); });
 	toolBtnSearch->setObjectName("toolBtnSearch");
 	toolBtnSearch->setProperty("searchOn", false);
 	pls_flush_style(toolBtnSearch);
-	searchLayout->addStretch();
-	searchLayout->addWidget(deleteBtn);
-	searchLayout->addSpacing(7);
-	searchLayout->addWidget(toolBtnSearch);
+
+	updateLayout();
 
 	updatePlaceHolderColor();
 }
@@ -44,6 +51,52 @@ PLSSearchLineEdit::PLSSearchLineEdit(QWidget *parent) : QLineEdit(parent)
 void PLSSearchLineEdit::SetDeleteBtnVisible(bool visible)
 {
 	deleteBtn->setVisible(visible);
+}
+
+void PLSSearchLineEdit::setSearchButtonPosition(SearchButtonPosition position)
+{
+	if (m_searchButtonPosition == position) {
+		return;
+	}
+	m_searchButtonPosition = position;
+	updateLayout();
+}
+
+void PLSSearchLineEdit::updateLayout()
+{
+	QLayoutItem *item;
+	while ((item = searchLayout->takeAt(0)) != nullptr) {
+		if (item->spacerItem()) {
+			delete item;
+		} else if (item->widget() == nullptr) {
+			delete item;
+		} else {
+			searchLayout->removeWidget(item->widget());
+			delete item;
+		}
+	}
+
+	int leftMargin = property("leftMargin").toInt();
+	if (leftMargin > 0) {
+		searchLayout->setContentsMargins(leftMargin, 8, 9, 10);
+	} else {
+		searchLayout->setContentsMargins(0, 8, 9, 10);
+	}
+
+	if (m_searchButtonPosition == SearchButtonLeft) {
+		searchLayout->addWidget(toolBtnSearch);
+		searchLayout->addSpacing(7);
+		searchLayout->addStretch();
+		searchLayout->addWidget(deleteBtn);
+		setProperty("searchButtonPosition", "left");
+	} else {
+		searchLayout->addStretch();
+		searchLayout->addWidget(deleteBtn);
+		searchLayout->addSpacing(7);
+		searchLayout->addWidget(toolBtnSearch);
+		setProperty("searchButtonPosition", "right");
+	}
+	pls_flush_style(this);
 }
 
 void PLSSearchLineEdit::updatePlaceHolderColor()

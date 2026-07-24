@@ -1,0 +1,862 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SettingOutputSimplePage</class>
+ <widget class="QWidget" name="SettingOutputSimplePage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QScrollArea" name="simpleOutScroll">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Ignored">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::Shape::NoFrame</enum>
+     </property>
+     <property name="widgetResizable">
+      <bool>true</bool>
+     </property>
+     <widget class="QWidget" name="scrollAreaWidgetContents_3">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>800</width>
+        <height>600</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_52">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>25</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QGroupBox" name="simpleStreamingGroupBox">
+         <property name="title">
+          <string>Basic.Settings.Output.Adv.Streaming</string>
+         </property>
+         <layout class="QFormLayout" name="simpleStreamingLayout">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+          </property>
+          <property name="horizontalSpacing">
+           <number>20</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>10</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="simpleOutputVBitrateLabel">
+            <property name="text">
+             <string>Basic.Settings.Output.VideoBitrate</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="PLSSpinBox" name="simpleOutputVBitrate">
+            <property name="minimum">
+             <number>200</number>
+            </property>
+            <property name="maximum">
+             <number>1000000</number>
+            </property>
+            <property name="value">
+             <number>2000</number>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="simpleOutputABitrateLabel">
+            <property name="text">
+             <string>Basic.Settings.Output.AudioBitrate</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="PLSComboBox" name="simpleOutputABitrate">
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <item>
+             <property name="text">
+              <string notr="true">32</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string notr="true">48</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string notr="true">64</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string notr="true">80</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string notr="true">96</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string notr="true">112</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string notr="true">128</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string notr="true">160</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string notr="true">192</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string notr="true">256</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string notr="true">320</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="simpleOutStrEncoderLabel">
+            <property name="text">
+             <string>Basic.Settings.Output.Encoder.Video</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="PLSComboBox" name="simpleOutStrEncoder"/>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="simpleOutPresetLabel">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="text">
+             <string>Basic.Settings.Output.EncoderPreset</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="PLSComboBox" name="simpleOutPreset"/>
+          </item>
+          <item row="5" column="1">
+           <widget class="PLSCheckBox" name="simpleOutAdvanced">
+            <property name="text">
+             <string>Basic.Settings.Output.Advanced</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="simpleOutCustomLabel">
+            <property name="text">
+             <string>Basic.Settings.Output.CustomEncoderSettings</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="PLSLineEdit" name="simpleOutCustom"/>
+          </item>
+          <item row="7" column="0">
+           <widget class="QLabel" name="simpleOutStrAEncoderLabel">
+            <property name="text">
+             <string>Basic.Settings.Output.Encoder.Audio</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="1">
+           <widget class="PLSComboBox" name="simpleOutStrAEncoder">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="simpleRecordingGroupBox">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="title">
+          <string>Basic.Settings.Output.Adv.Recording</string>
+         </property>
+         <layout class="QFormLayout" name="formLayout_6">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+          </property>
+          <property name="horizontalSpacing">
+           <number>20</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>10</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_18">
+            <property name="minimumSize">
+             <size>
+              <width>170</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Basic.Settings.Output.Simple.SavePath</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <layout class="QHBoxLayout" name="horizontalLayout_5">
+            <property name="spacing">
+             <number>10</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QLineEdit" name="simpleOutputPath">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="simpleOutputBrowse">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="text">
+               <string>Browse</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="1" column="1">
+           <widget class="PLSCheckBox" name="simpleNoSpace">
+            <property name="text">
+             <string>Basic.Settings.Output.NoSpaceFileName</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label_26">
+            <property name="text">
+             <string>Basic.Settings.Output.Simple.RecordingQuality</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="PLSComboBox" name="simpleOutRecQuality"/>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="simpleOutRecFormatLabel">
+            <property name="text">
+             <string>Basic.Settings.Output.Format</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="PLSComboBox" name="simpleOutRecFormat">
+            <property name="currentIndex">
+             <number>-1</number>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="simpleOutRecEncoderLabel">
+            <property name="text">
+             <string>Basic.Settings.Output.Encoder.Video</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="PLSComboBox" name="simpleOutRecEncoder"/>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="simpleOutRecAEncoderLabel">
+            <property name="text">
+             <string>Basic.Settings.Output.Encoder.Audio</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string>FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="PLSComboBox" name="simpleOutRecAEncoder"/>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="simplerectrack_label">
+            <property name="text">
+             <string>Basic.Settings.Output.Simple.RecAudioTrack</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <layout class="QVBoxLayout" name="verticalLayout_85">
+            <item>
+             <widget class="QStackedWidget" name="simpleRecTrackWidget">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <widget class="QWidget" name="simpleRecTracks">
+               <property name="enabled">
+                <bool>true</bool>
+               </property>
+               <layout class="QHBoxLayout" name="horizontalLayoutSimpleTracks">
+                <property name="spacing">
+                 <number>10</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="PLSCheckBox" name="simpleOutRecTrack1">
+                  <property name="enabled">
+                   <bool>true</bool>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">1</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="PLSCheckBox" name="simpleOutRecTrack2">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">2</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="PLSCheckBox" name="simpleOutRecTrack3">
+                  <property name="enabled">
+                   <bool>true</bool>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">3</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="PLSCheckBox" name="simpleOutRecTrack4">
+                  <property name="enabled">
+                   <bool>true</bool>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">4</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="PLSCheckBox" name="simpleOutRecTrack5">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">5</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="PLSCheckBox" name="simpleOutRecTrack6">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">6</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+              <widget class="QWidget" name="simpleFlvTracks">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="styleSheet">
+                <string notr="true"/>
+               </property>
+               <layout class="QHBoxLayout" name="horizontalLayoutSimpleFLVTracks">
+                <property name="spacing">
+                 <number>10</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="PLSRadioButton" name="simpleFlvTrack1">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">1</string>
+                  </property>
+                  <property name="checked">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="PLSRadioButton" name="simpleFlvTrack2">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">2</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="PLSRadioButton" name="simpleFlvTrack3">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">3</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="PLSRadioButton" name="simpleFlvTrack4">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">4</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="PLSRadioButton" name="simpleFlvTrack5">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">5</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="PLSRadioButton" name="simpleFlvTrack6">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string notr="true">6</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="7" column="0">
+           <widget class="QLabel" name="label_420">
+            <property name="text">
+             <string>Basic.Settings.Output.CustomMuxerSettings</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="1">
+           <widget class="PLSLineEdit" name="simpleOutMuxCustom"/>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="simpleReplayBuf">
+         <property name="title">
+          <string>ReplayBuffer</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <layout class="QFormLayout" name="formLayout_24">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+          </property>
+          <property name="horizontalSpacing">
+           <number>20</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>10</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_35">
+            <property name="text">
+             <string>Basic.Settings.Output.ReplayBuffer.SecondsMax</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="PLSSpinBox" name="simpleRBSecMax">
+            <property name="suffix">
+             <string notr="true"> sec</string>
+            </property>
+            <property name="minimum">
+             <number>5</number>
+            </property>
+            <property name="maximum">
+             <number>21600</number>
+            </property>
+            <property name="value">
+             <number>15</number>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="simpleRBMegsMaxLabel">
+            <property name="text">
+             <string>Basic.Settings.Output.ReplayBuffer.MegabytesMax</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="PLSSpinBox" name="simpleRBMegsMax">
+            <property name="suffix">
+             <string notr="true"> MB</string>
+            </property>
+            <property name="minimum">
+             <number>20</number>
+            </property>
+            <property name="maximum">
+             <number>8192</number>
+            </property>
+            <property name="value">
+             <number>512</number>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLabel" name="simpleRBEstimate">
+            <property name="text">
+             <string notr="true"/>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label"/>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PLSComboBox</class>
+   <extends>QComboBox</extends>
+   <header>PLSComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSCheckBox</class>
+   <extends>QCheckBox</extends>
+   <header>PLSCheckBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSSpinBox</class>
+   <extends>QSpinBox</extends>
+   <header>PLSSpinBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header location="global">PLSEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSRadioButton</class>
+   <extends>QRadioButton</extends>
+   <header>PLSRadioButton.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>simpleOutAdvanced</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>simpleOutCustomLabel</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>520</x>
+     <y>158</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>132</x>
+     <y>188</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>simpleOutAdvanced</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>simpleOutCustom</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>520</x>
+     <y>158</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>520</x>
+     <y>188</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

@@ -8,8 +8,8 @@ struct PLSAfreecaTVLiveinfoData {
 
 	QString user_id;
 
-	bool broad_pwd_chk{false}; //is contain password (from  requestMainHtml)
-	QString access_code;       //password  (from  requestMainHtml)
+	bool broad_pwd_chk{false}; // set from GET broad/pc/external-device/settings (root is_password)
+	QString access_code;       // broad_info.broad_pwd from GET broad/pc/external-device/settings
 
 	QString categoryID; //from "category": "00360030",
 	QString categoryStr;
@@ -24,6 +24,13 @@ struct PLSAfreecaTVLiveinfoData {
 	QString broad_hidden;
 	QString broad_tune_out;
 	QString paid_promotion;
+
+	// SOOP api-broadcast GET broad/pc/external-device/settings -> broad_info (used by POST broad/setting)
+	QString is_wait;
+	QString waiting_time;
+	QString water_mark;
+	QString ending_msg;
+	QString strm_lang_type;
 };
 
 struct PLSAfreecaTVCategory {

@@ -13,6 +13,7 @@
 
 PLSSearchPopupMenu::PLSSearchPopupMenu(QWidget *parent) : QFrame(parent)
 {
+	pls_uistep_v2_set_custom_show_hide_name(this, "Search Popup Menu");
 	setAttribute(Qt::WA_NativeWindow);
 	ui = pls_new<Ui::PLSSearchPopupMenu>();
 	ui->setupUi(this);
@@ -115,7 +116,7 @@ void RecommendSearchList::AddListData(const QStringList &words)
 		QPushButton *item = pls_new<QPushButton>(word, this);
 		item->setFocusPolicy(Qt::NoFocus);
 		connect(item, &QPushButton::clicked, [this, word, item]() {
-			QString key = QString::asprintf("Recommend search word '%s'", word.toStdString().c_str());
+			QString key = QString::asprintf("Recommend search word '%s'", word.toUtf8().constData());
 			PLS_UI_STEP(MAIN_GIPHY_STICKER_MODULE, key.toUtf8().constData(), ACTION_CLICK);
 			emit RecommendItemClicked(item->text());
 		});
@@ -145,6 +146,7 @@ HistorySearchItem::HistorySearchItem(QWidget *parent) : QFrame(parent)
 	QPushButton *btn_delete = pls_new<QPushButton>(this);
 	btn_delete->setFocusPolicy(Qt::NoFocus);
 	connect(btn_delete, &QPushButton::clicked, [this]() { emit Deleted(this); });
+	pls_uistep_v2_set_value(btn_delete, "clicked", "delete history search item");
 	btn_delete->setObjectName("buttonDelete");
 
 	contentLabel = pls_new<QPushButton>(this);
@@ -208,7 +210,7 @@ void HistorySearchList::AddItem(const QString &content)
 	HistorySearchItem *item = pls_new<HistorySearchItem>(this);
 	item->SetContent(content);
 	connect(item, &HistorySearchItem::Clicked, [this](const QString &word) {
-		QString key = QString::asprintf("history search word: %s", word.toStdString().c_str());
+		QString key = QString::asprintf("history search word: %s", word.toUtf8().constData());
 		PLS_UI_STEP(MAIN_GIPHY_STICKER_MODULE, key.toUtf8().constData(), ACTION_CLICK);
 		emit Clicked(word);
 	});

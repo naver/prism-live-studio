@@ -14,6 +14,8 @@
 #include <QPainter>
 #include "pls-common-define.hpp"
 #include "PLSBasic.h"
+#include "PLSErrorHandler.h"
+#include "libui.h"
 
 using namespace std;
 using namespace common;
@@ -59,16 +61,17 @@ static inline bool IsSourceUnassigned(obs_source_t *source)
 static void ShowUnassignedWarning(const char *name)
 {
 	auto msgBox = [=]() {
-		auto ret = PLSAlertView::information(App()->getMainView(), QTStr("Alert.Title"),
-						     QTStr("audio.mixer.unassigned.warning.text").arg(name),
-						     QTStr("DoNotShowAgain"));
+		PLSErrorHandler::ExtraData extraData(QStringLiteral("ShowUnassignedWarning"));
+		extraData.defaultArg = QStringList{QString::fromUtf8(name)};
+		auto ret = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_AUDIO_MIXER_UNASSIGNED_WARNING,
+								 PLSErrKeyAllAlert, QString(), extraData);
 
-		if (ret.isChecked) {
+		if (ret.isCheckBoxClick) {
 			config_set_bool(App()->GetUserConfig(), "General", "WarnedAboutUnassignedSources", true);
 			config_save_safe(App()->GetUserConfig(), "tmp", nullptr);
 		}
 	};
-	bool warned = config_get_bool(App()->GetUserConfig(), "General", "WarnedAboutClosingDocks");
+	bool warned = config_get_bool(App()->GetUserConfig(), "General", "WarnedAboutUnassignedSources");
 	if (!warned) {
 		QMetaObject::invokeMethod(App(), "Exec", Qt::QueuedConnection, Q_ARG(VoidFunc, msgBox));
 	}
@@ -266,6 +269,12 @@ void VolControl::MonitorStateChange(int state)
 	blog(LOG_INFO, "%s", qUtf8Printable(log));
 }
 
+void VolControl::MuteStateChanged(int state)
+{
+	bool checked = mute->checkState() == Qt::Checked;
+	mute->setToolTip(checked ? QTStr("Basic.Main.UnmuteAudioControl") : QTStr("Basic.Main.MuteAudioControl"));
+}
+
 void VolControl::LogVolumeChanged()
 {
 	if (slider->maximum() > slider->minimum()) {
@@ -307,6 +316,7 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 	volLabel->setAlignment(Qt::AlignCenter);
 
 	monitor = new PLSSwitchButton();
+
 	nameLabel->setObjectName("nameLabel");
 	nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	volLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -332,7 +342,7 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 
 		config->setAccessibleName(QTStr("VolControl.Properties").arg(sourceName));
 		config->setObjectName("volumeMenuButton");
-
+		config->setToolTip(tr("Dock.Advance.More"));
 		connect(config, &QAbstractButton::clicked, this, &VolControl::EmitConfigClicked);
 	}
 
@@ -348,6 +358,7 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 
 		volMeter = new VolumeMeter(nullptr, obs_volmeter, true);
 		slider = new VolumeSlider(obs_fader, Qt::Vertical);
+		slider->setWheelEventEnabled(true);
 		slider->setLayoutDirection(Qt::LeftToRight);
 		slider->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 		volMeter->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
@@ -412,6 +423,7 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 
 		volMeter = new VolumeMeter(nullptr, obs_volmeter, false);
 		slider = new VolumeSlider(obs_fader, Qt::Horizontal);
+		slider->setWheelEventEnabled(true);
 		slider->setLayoutDirection(Qt::LeftToRight);
 
 		auto spacer = pls_new<QLabel>();
@@ -463,10 +475,22 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 
 	slider->setMinimum(0);
 	slider->setMaximum(int(FADER_PRECISION));
+	pls_uistep_v2_set_name(monitor, "*", QString("%1 SwitchButton").arg(sourceName));
+	pls_uistep_v2_set_name(slider, "*", QString("%1 Volumn Slider").arg(sourceName));
+	pls_uistep_v2_set_name(mute, "*", QString("%1 Mute CheckBox").arg(sourceName));
+	pls_uistep_v2_set_name(config, "*", QString("%1 PopupButton").arg(sourceName));
+	pls_uistep_v2_set_value(config, "*", "Config");
+
+	pls_uistep_v2_set_custom_enter_leave_name(config, [this]() {
+		return "Audio Mixer Single Audio's More Button";
+	});
 
 	bool muted = obs_source_muted(source);
 	bool unassigned = IsSourceUnassigned(source);
 	mute->setCheckState(GetCheckState(muted, unassigned));
+	bool checked = mute->checkState() == Qt::Checked;
+	mute->setToolTip(checked ? QTStr("Basic.Main.UnmuteAudioControl") : QTStr("Basic.Main.MuteAudioControl"));
+
 	volMeter->muted = muted || unassigned;
 	mute->setAccessibleName(QTStr("VolControl.Mute").arg(sourceName));
 	obs_fader_add_callback(obs_fader, OBSVolumeChanged, this);
@@ -480,6 +504,7 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 
 	QWidget::connect(slider, &VolumeSlider::valueChanged, this, &VolControl::SliderChanged);
 	QWidget::connect(mute, &MuteCheckBox::clicked, this, &VolControl::SetMuted);
+	QWidget::connect(mute, &MuteCheckBox::stateChanged, this, &VolControl::MuteStateChanged);
 
 	MonitorStateChangeFromAdv(static_cast<Qt::CheckState>(obs_source_get_monitoring_type(source)));
 	monitor->setObjectName("volumeMonitorCheck");
@@ -1647,7 +1672,6 @@ void VolControl::MonitorStateChangeFromAdv(Qt::CheckState state)
 	case Qt::Checked:
 		monitor->setChecked(true);
 		monitor->setToolTip(QTStr("audio.mixer.monitor.off"));
-
 		break;
 	case Qt::Unchecked:
 		monitor->setChecked(false);
@@ -1672,8 +1696,31 @@ void VolControl::setClickState(bool clicked)
 void VolControl::updateMouseState(bool hover)
 {
 	setProperty("hover", hover);
-	pls_flush_style(this);
-	pls_flush_style(volMeter);
+
+	// Use delayed calls to avoid operations when the style system is unstable
+	QTimer::singleShot(0, this, [this, hover]() {
+		if (isStyleStable(this)) {
+			pls_flush_style(this);
+			if (isStyleStable(volMeter)) {
+				pls_flush_style(volMeter);
+			}
+		}
+	});
+}
+
+bool VolControl::isStyleStable(QWidget *widget)
+{
+	// Check the widget itself
+	if (!widget || !widget->style()) {
+		return false;
+	}
+
+	// Returns during program exit
+	if (pls_is_app_exiting()) {
+		return false;
+	}
+
+	return true;
 }
 
 bool VolControl::eventFilter(QObject *watched, QEvent *e)

@@ -26,8 +26,18 @@
    <property name="bottomMargin">
     <number>0</number>
    </property>
-   <item alignment="Qt::AlignLeft|Qt::AlignTop">
+   <item alignment="Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop">
     <widget class="QLabel" name="labelAIBadge">
+     <property name="text">
+      <string notr="true"/>
+     </property>
+     <property name="scaledContents">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item alignment="Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop">
+    <widget class="QLabel" name="labelPlusBadge">
      <property name="text">
       <string notr="true"/>
      </property>
@@ -39,7 +49,7 @@
    <item>
     <spacer name="horizontalSpacer">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
      <property name="sizeHint" stdset="0">
       <size>
@@ -49,7 +59,7 @@
      </property>
     </spacer>
    </item>
-   <item alignment="Qt::AlignRight|Qt::AlignBottom">
+   <item alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignBottom">
     <widget class="QLabel" name="sceneNameRoundLabel"/>
    </item>
   </layout>

@@ -165,9 +165,11 @@
         <file>resource/images/toolbar/ic-toolbar-repeat-disable.svg</file>
         <file>resource/images/toolbar/ic-toolbar-repeat-normal.svg</file>
         <file>resource/images/toolbar/ic-toolbar-repeat-over.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-repeat-click.svg</file>
         <file>resource/images/toolbar/ic-toolbar-repeat-select-disable.svg</file>
         <file>resource/images/toolbar/ic-toolbar-repeat-select-normal.svg</file>
         <file>resource/images/toolbar/ic-toolbar-repeat-select-over.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-repeat-select-click.svg</file>
         <file>resource/images/ic_trash_click.svg</file>
         <file>resource/images/ic_trash_disable.svg</file>
         <file>resource/images/ic_trash_normal.svg</file>
@@ -192,10 +194,10 @@
         <file>resource/images/icon-source/ic_prismLens_off_disable.svg</file>
         <file>resource/images/icon-source/ic_prismLens_off_normal.svg</file>
         <file>resource/images/icon-source/ic_prismLens_off_over.svg</file>
-        <file>resource/images/icon-source/ic_prismLens_on_click.svg</file>
-        <file>resource/images/icon-source/ic_prismLens_on_disable.svg</file>
-        <file>resource/images/icon-source/ic_prismLens_on_normal.svg</file>
-        <file>resource/images/icon-source/ic_prismLens_on_over.svg</file>
+        <file>resource/images/icon-source/ic_prismLens_connected_on_click.svg</file>
+        <file>resource/images/icon-source/ic_prismLens_connected_on_disable.svg</file>
+        <file>resource/images/icon-source/ic_prismLens_connected_on_normal.svg</file>
+        <file>resource/images/icon-source/ic_prismLens_connected_on_hover.svg</file>
         <file>resource/images/ic_fre_normal.svg</file>
         <file>resource/images/ic_fre_over.svg</file>
         <file>resource/images/ic_fre_click.svg</file>
@@ -224,6 +226,14 @@
         <file>resource/images/scene-template/ic_arrow_scenetemplate_normal.svg</file>
         <file>resource/images/scene-template/ic_scene_help_hover.svg</file>
         <file>resource/images/scene-template/ic_scene_help_normal.svg</file>
+        <file>resource/images/scene-template/BG.png</file>
+        <file>resource/images/scene-template/btn_refresh_normal.svg</file>
+        <file>resource/images/scene-template/btn_refresh_hover.svg</file>
+        <file>resource/images/scene-template/btn_refresh_click.svg</file>
+        <file>resource/images/scene-template/btn_close_normal.svg</file>
+        <file>resource/images/scene-template/btn_close_over.svg</file>
+        <file>resource/images/scene-template/btn_close_click.svg</file>
+        <file>resource/images/scene-template/btn_close_disable.svg</file>
         <file>resource/images/navershopping/badge_introducing.svg</file>
         <file>resource/images/toolbar/ic-toolbar-rec-play.svg</file>
         <file>resource/images/toolbar/ic-toolbar-rec-stop.svg</file>
@@ -259,9 +269,11 @@
         <file>resource/images/toolbar/ic-toolbar-shuffle-disable.svg</file>
         <file>resource/images/toolbar/ic-toolbar-shuffle-normal.svg</file>
         <file>resource/images/toolbar/ic-toolbar-shuffle-over.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-shuffle-click.svg</file>
         <file>resource/images/toolbar/ic-toolbar-shuffle-select-disable.svg</file>
         <file>resource/images/toolbar/ic-toolbar-shuffle-select-normal.svg</file>
         <file>resource/images/toolbar/ic-toolbar-shuffle-select-over.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-shuffle-select-click.svg</file>
         <file>resource/images/scene-template/ic_scene_badge_ai.svg</file>
         <file>resource/images/scene-template/ic_scene_badge_ai_en.svg</file>
         <file>resource/images/scene-template/ic_scene_badge_ai_es.svg</file>
@@ -329,5 +341,34 @@
         <file>resource/images/dual-output/ic_preview_h_disabled.svg</file>
         <file>resource/images/dual-output/ic_preview_v.svg</file>
         <file>resource/images/dual-output/ic_preview_v_disabled.svg</file>
+        <file>resource/images/onboarding_bg.png</file>
+        <file>resource/images/onboarding_lens_setting_mac.png</file>
+        <file>resource/images/onboarding_lens_setting_win.png</file>
+        <file>resource/images/onboarding_combine.png</file>
+        <file>resource/images/onboarding_connectedlens.png</file>
+        <file>resource/images/onboarding_ic_outlink_normal.png</file>
+        <file>resource/images/toolbar/ic-toolbar-repeatone-select-normal.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-repeatone-select-over.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-repeatone-select-disable.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-repeatone-select-click.svg</file>
+        <file>resource/images/bgm/btn_music_disable.svg</file>
+        <file>resource/images/bgm/ic_music_editlist_normal.svg</file>
+        <file>resource/images/bgm/ic_music_editlist_click.svg</file>
+        <file>resource/images/bgm/ic_music_editlist_disable.svg</file>
+        <file>resource/images/bgm/ic_music_editlist_hover.svg</file>
+        <file>resource/images/drag.png</file>
+        <file>resource/images/mobile-source/ic-dot.svg</file>
+        <file>resource/images/hover.png</file>
+        <file>resource/images/grab.png</file>
+        <file>resource/images/ncp/ic_fre_click.svg</file>
+        <file>resource/images/ncp/ic_fre_disable.svg</file>
+        <file>resource/images/ncp/ic_fre_normal.svg</file>
+        <file>resource/images/ncp/ic_fre_over.svg</file>
+        <file>resource/images/ncp/ic_next_click.svg</file>
+        <file>resource/images/ncp/ic_next_disable.svg</file>
+        <file>resource/images/ncp/ic_next_normal.svg</file>
+        <file>resource/images/ncp/ic_next_over.svg</file>
+        <file>resource/images/collection/ic_Scene_edit_hover.svg</file>
+        <file>resource/images/collection/ic_Scene_edit_normal.svg</file>
     </qresource>
 </RCC>

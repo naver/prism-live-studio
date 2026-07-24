@@ -15,40 +15,10 @@
 #include <iomanip>
 #include <sstream>
 #include <time.h>
+#include "PLSDialogView.h"
 
 using namespace common;
 using namespace std;
-
-namespace {
-template<typename Result> class PLSAPICommonSyncResult {
-	QEventLoop m_eventLoop;
-	Result m_result;
-
-public:
-	PLSAPICommonSyncResult() = default;
-	explicit PLSAPICommonSyncResult(const Result &result) : m_result(result) {}
-	explicit PLSAPICommonSyncResult(int count, const Result &result = Result())
-	{
-		for (int i = 0; i < count; ++i) {
-			m_result.append(result);
-		}
-	}
-
-	template<typename... Args> static std::shared_ptr<PLSAPICommonSyncResult> create(Args &&...args) { return std::make_shared<PLSAPICommonSyncResult<Result>>(std::forward<Args>(args)...); }
-
-	Result get()
-	{
-		m_eventLoop.exec();
-		return m_result;
-	}
-
-	void set(const Result &result)
-	{
-		m_result = result;
-		m_eventLoop.quit();
-	}
-};
-}
 
 static std::string http_gmtime()
 {
@@ -86,12 +56,11 @@ void PLSAPICommon::downloadImageAsync(const QObject *receiver, const QString &im
 		.url(imageUrl)
 		.withLog(pls_masking_person_info(imageUrl))
 		.receiver(receiver)
-		.workInMainThread()
 		.forDownload(true)
 		.timeout(PRISM_NET_DOWNLOAD_TIMEOUT)
-		.result([callback](const pls::http::Reply &reply) {
+		.result([callback, receiver](const pls::http::Reply &reply) {
 			if (callback) {
-				callback(reply.isDownloadOk(), reply.downloadFilePath());
+				pls_async_call(receiver, [callback, ok = reply.isDownloadOk(), path = reply.downloadFilePath()]() { callback(ok, path); });
 			}
 		});
 	if (saveFilePath.isEmpty()) {
@@ -100,30 +69,6 @@ void PLSAPICommon::downloadImageAsync(const QObject *receiver, const QString &im
 		_request.saveFilePath(saveFilePath);
 	}
 	pls::http::request(_request);
-}
-
-QPair<bool, QString> PLSAPICommon::downloadImageSync(const QObject *receiver, const QString &url)
-{
-	if (url.isEmpty()) {
-		PLS_INFO(MODULE_PlatformService, "%s url is empty", __FUNCTION__);
-		return QPair<bool, QString>(false, QString());
-	}
-	auto syncResult = PLSAPICommonSyncResult<QPair<bool, QString>>::create();
-	auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-	_request.method(pls::http::Method::Get)
-		.url(url)
-		.withLog(pls_masking_person_info(url))
-		.receiver(receiver)
-		.workInMainThread()
-		.timeout(PRISM_NET_DOWNLOAD_TIMEOUT)
-		.forDownload(true)
-		.saveDir(getTmpCacheDir())
-		.result([syncResult](const pls::http::Reply &reply) {
-			pls_check_app_exiting();
-			syncResult->set({reply.isDownloadOk(), reply.downloadFilePath()});
-		});
-	pls::http::request(_request);
-	return syncResult->get();
 }
 
 void PLSAPICommon::maskingUrlKeys(const pls::http::Request &_request, const QStringList &keys)
@@ -201,7 +146,7 @@ void PLSAPICommon::downloadChannelImageAsync(const QString &platformName)
 	}
 }
 
-int PLSAPICommon::findLabelPosition(QLabel *targetLabel, QFormLayout *layout)
+static int findLabelPosition(QLabel *targetLabel, QFormLayout *layout)
 {
 	for (int i = 0; i < layout->rowCount(); ++i) {
 		QLayoutItem *labelItem = layout->itemAt(i, QFormLayout::LabelRole);
@@ -212,7 +157,7 @@ int PLSAPICommon::findLabelPosition(QLabel *targetLabel, QFormLayout *layout)
 	return -1;
 }
 
-int PLSAPICommon::calculateWrappedLabelWidth(QLabel *label)
+static int calculateWrappedLabelWidth(QLabel *label)
 {
 	QFont font = label->font();
 	QFontMetrics fontMetrics(font);
@@ -237,4 +182,54 @@ int PLSAPICommon::calculateWrappedLabelWidth(QLabel *label)
 	}
 	textLayout.endLayout();
 	return static_cast<int>(totalWidth);
+}
+
+void PLSAPICommon::createHelpIconWidget(QLabel *originalLabel, const QString &tooltip, QFormLayout *formLayout, PLSDialogView *sender)
+{
+	auto idx = findLabelPosition(originalLabel, formLayout);
+	if (idx == -1) {
+		return;
+	}
+	auto oldParent = originalLabel->parentWidget();
+	originalLabel->setParent(nullptr);
+
+	QWidget *formLeftWidget = new QWidget(oldParent);
+	formLeftWidget->setObjectName("formLeftWidget");
+	QHBoxLayout *horizontalLayout = new QHBoxLayout(formLeftWidget);
+	horizontalLayout->setSpacing(0);
+	horizontalLayout->setContentsMargins(0, 0, 23, 0);
+
+	originalLabel->setIndent(-1);
+	originalLabel->setWordWrap(true);
+	originalLabel->setObjectName("formLeftWidget_title");
+
+	QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	sizePolicy.setHorizontalStretch(0);
+	sizePolicy.setVerticalStretch(0);
+	sizePolicy.setHeightForWidth(originalLabel->sizePolicy().hasHeightForWidth());
+	originalLabel->setSizePolicy(sizePolicy);
+
+	horizontalLayout->addWidget(originalLabel);
+
+	PLSHelpIcon *help = new PLSHelpIcon(formLeftWidget);
+	help->setReleateText(originalLabel->text());
+
+	help->setObjectName("formLeftWidget_icon");
+	help->setToolTip(tooltip);
+
+	formLayout->setWidget(idx, QFormLayout::LabelRole, formLeftWidget);
+
+	auto positionFunction = [left = QPointer<QLabel>(originalLabel), rigth = QPointer<QLabel>(help)]() {
+		if (!left || !rigth) {
+			return;
+		}
+		int actualWidth = calculateWrappedLabelWidth(left);
+		auto x = qMin(actualWidth + 5, left->parentWidget()->width() + left->parentWidget()->x() - rigth->width());
+		rigth->move(x, (left->height() - rigth->height()) * 0.5);
+	};
+	if (sender->isVisible()) {
+		pls_async_call_mt(positionFunction);
+	} else {
+		QObject::connect(sender, &PLSDialogView::shown, sender, positionFunction, Qt::SingleShotConnection);
+	}
 }

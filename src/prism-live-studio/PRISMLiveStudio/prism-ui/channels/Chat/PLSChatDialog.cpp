@@ -23,6 +23,7 @@
 
 #include "PLSWatchers.h"
 #include "libbrowser.h"
+#include "libutils-api.h"
 #include "prism/PLSPlatformPrism.h"
 #include "ui_PLSChatDialog.h"
 #include "window-basic-main.hpp"
@@ -110,6 +111,7 @@ protected:
 		case QEvent::MouseButtonRelease:
 			setState("pressed", pressed, false);
 			if (rect().contains(dynamic_cast<QMouseEvent *>(event)->pos())) {
+				pls_uistep_v2(this, "Click", "button", "Add Chat Source");
 				clicked();
 			}
 			break;
@@ -201,18 +203,8 @@ PLSChatDialog::~PLSChatDialog()
 void PLSChatDialog::quitAppToReleaseCefData()
 {
 	PLS_INFO(s_chatModuleName, "PLSChat quit to release cef data");
-
-	ui->titleWidget->setHidden(true);
-
 	for (int i = 0; i < m_vecChatDatas.size(); i++) {
 		channelRemoveToDeleteCef(i);
-	}
-	changedSelectIndex(ChatPlatformIndex::RTMP);
-	for (int i = 0; i < m_vecChatDatas.size(); i++) {
-		if (m_vecChatDatas[i].widget == nullptr) {
-			continue;
-		}
-		m_vecChatDatas[i].button->setHidden(m_selectIndex != i);
 	}
 }
 
@@ -247,10 +239,10 @@ void PLSChatDialog::setupFirstUI()
 		auto smallName = PLS_CHAT_HELPER->getString(i, true);
 		QString objectName = QString(smallName).append("btn");
 		tapButton->setObjectName(objectName);
+		pls_uistep_v2_set_value(tapButton, smallName);
 		connect(tapButton, &QPushButton::clicked, [this, i]() {
-			auto _index = i;
-			PLS_UI_STEP(s_chatModuleName, QString("PLSChat Dialog Tab Click To Index %1").arg(PLS_CHAT_HELPER->getString(_index)).toUtf8().constData(), ACTION_CLICK);
-			changedSelectIndex(_index, true);
+			changedSelectIndex(i, true);
+			PLS_UI_ACTION(QString("PLSChat Dialog Tab Switch To Index %1").arg(PLS_CHAT_HELPER->getString(i, true)).toUtf8().constData());
 		});
 		ui->scrollAreaWidgetContents->layout()->addWidget(tapButton);
 		tapButton->setHidden(true);
@@ -466,6 +458,7 @@ void PLSChatDialog::setupFirstRtmpUI(QWidget *parent)
 	m_fontChangeBtn->setObjectName("fontChangeBtn");
 	m_fontChangeBtn->setProperty("isKR", IS_KR());
 	m_fontChangeBtn->setMouseTracking(true);
+	pls_uistep_v2_set_value(m_fontChangeBtn, QStringLiteral("clicked"), QStringLiteral("fontChangeBtn"));
 	connect(m_fontChangeBtn, &QPushButton::clicked, this, &PLSChatDialog::fontZoomButtonClicked);
 	ui->horizontalLayoutTitleWidget->addWidget(m_fontChangeBtn);
 	m_fontChangeBtn->installEventFilter(this);
@@ -538,7 +531,8 @@ PLSQCefWidget *PLSChatDialog::createANewCefWidget(const string &url, int index)
 		PLS_INFO(s_chatModuleName, "PLSChat Dialog %s create cef with new url, but failed, the cef is nullptr", PLS_CHAT_HELPER->getString(index).toUtf8().constData());
 		return nullptr;
 	}
-	PLS_INFO(s_chatModuleName, "PLSChat Dialog %s create cef with new url", PLS_CHAT_HELPER->getString(index).toUtf8().constData());
+	auto indexName = PLS_CHAT_HELPER->getString(index).toUtf8();
+	PLS_INFO(s_chatModuleName, "PLSChat Dialog %s create cef with new url", indexName.constData());
 
 	PLSQCefWidget *cefWidget = nullptr;
 
@@ -547,7 +541,9 @@ PLSQCefWidget *PLSChatDialog::createANewCefWidget(const string &url, int index)
 		name = ALL_CHAT;
 	}
 	chat_panel_cookies = PLSBasic::getBrowserPannelCookieMgr(name);
-	cefWidget = static_cast<PLSQCefWidget *>(plsCef->create_widget(nullptr, url, PLSChatHelper::getDispatchJS(index, QString::fromStdString(url)).toStdString(), chat_panel_cookies, {}, false, QColor(30, 30, 31), {}, true));
+	cefWidget = static_cast<PLSQCefWidget *>(
+		plsCef->create_widget(nullptr, url, PLSChatHelper::getDispatchJS(index, QString::fromStdString(url)).toStdString(), chat_panel_cookies, {}, false, QColor(30, 30, 31), {}, true));
+	PLS_INFO(s_chatModuleName, "PLSChat Dialog %s create cef widget: %p", indexName.constData(), cefWidget);
 
 	if (PLS_CHAT_HELPER->isLocalHtmlPage(index)) {
 		cefWidget->installEventFilter(this);
@@ -570,7 +566,8 @@ void PLSChatDialog::channelRemoveToDeleteCef(int index)
 	if (!pls_object_is_valid(data.widget)) {
 		return;
 	}
-	PLS_INFO(s_chatModuleName, "PLSChat Dialog channelRemoveToDeleteCef index:%s", PLS_CHAT_HELPER->getString(index).toUtf8().constData());
+	auto indexName = PLS_CHAT_HELPER->getString(index).toUtf8();
+	PLS_INFO(s_chatModuleName, "PLSChat Dialog channelRemoveToDeleteCef index:%s start", indexName.constData());
 	data.url = PLS_CHAT_HELPER->getChatUrlWithIndex(index, QVariantMap());
 	auto ce = getCefWidgetByWidget(data);
 	if (ce) {
@@ -579,6 +576,7 @@ void PLSChatDialog::channelRemoveToDeleteCef(int index)
 	data.isWebLoaded = false;
 	ui->stackedWidget->removeWidget(data.widget);
 	pls_delete(data.widget);
+	PLS_INFO(s_chatModuleName, "PLSChat Dialog channelRemoveToDeleteCef index:%s done", indexName.constData());
 }
 
 void PLSChatDialog::showEvent(QShowEvent *event)
@@ -896,17 +894,12 @@ void PLSChatDialog::chatSourceButtonClicked() const
 
 void PLSChatDialog::fontZoomButtonClicked()
 {
-	auto showDialog = [this]() {
-		PLS_INFO(s_chatModuleName, "PLSChat Dialog fontZoomButtonClicked singleShot");
-		if (!m_fontChangeBtn)
-			return;
-		auto *dialog = pls_new<PLSChatFontZoomFrame>(m_fontChangeBtn, ui->stackedWidget);
-		dialog->setAttribute(Qt::WA_DeleteOnClose, true);
-		dialog->setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
-		connect(this, &PLSChatDialog::fontBtnDisabled, dialog, &PLSChatFontZoomFrame::close);
-		dialog->show();
-	};
-	QTimer::singleShot(200, this, showDialog);
+	PLS_INFO(s_chatModuleName, "PLSChat Dialog fontZoomButtonClicked singleShot");
+	auto *dialog = pls_new<PLSChatFontZoomFrame>(m_fontChangeBtn, ui->stackedWidget);
+	dialog->setAttribute(Qt::WA_DeleteOnClose, true);
+	dialog->setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
+	connect(this, &PLSChatDialog::fontBtnDisabled, dialog, &PLSChatFontZoomFrame::close);
+	dialog->show();
 }
 
 void PLSChatDialog::updateFontBtnStatus()
@@ -970,7 +963,8 @@ void PLSChatDialog::youtubePrivateChange()
 void PLSChatDialog::recvLocalChatWebMsg(const QString &type, const QString &msg)
 {
 	if (type == "open_browser") {
-		QDesktopServices::openUrl(QUrl(msg));
+		const QUrl url(msg);
+		pls_async_invoke([url]() { QDesktopServices::openUrl(url); });
 		return;
 	}
 	if (type != "menu_show") {

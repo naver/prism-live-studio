@@ -12,11 +12,9 @@
 #include "PLSMainView.hpp"
 #include "obs-app.hpp"
 #include "pls-common-define.hpp"
-#include "PLSAction.h"
 #include "PLSPlatformApi.h"
 #include "pls/pls-source.h"
 #include "PLSPushButton.h"
-
 #include <QDesktopServices>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -28,11 +26,12 @@
 #include <QRandomGenerator>
 #include <QStandardPaths>
 #include <QWindow>
+#include <QMetaEnum>
 #include <ctime>
 #include <sstream>
+#include "libui.h"
 
 using namespace common;
-using namespace action;
 
 extern std::vector<QString> musicFormat;
 
@@ -49,13 +48,16 @@ static const int FLOW_LAYOUT_V_SPACING = 22;
 static const int LoadingTimeoutMS = 10000;
 const static int COVER_WIDTH = 130;
 
-PLSBackgroundMusicView::PLSBackgroundMusicView(DialogInfo info, QWidget *parent) : PLSSideBarDialogView(info, parent)
+PLSBackgroundMusicView::PLSBackgroundMusicView(QWidget *parent) : QWidget(parent)
 {
 	ui = pls_new<Ui::PLSBackgroundMusicView>();
+	ui->setupUi(this);
 	pls_add_css(this, {"PLSBackgroundMusicView", "PLSToastMsgFrame"});
 	qRegisterMetaType<obs_media_state>("obs_media_state");
 
 	initUI();
+	pls_uistep_v2_set_name(ui->loopBtn, "Loop Button");
+	pls_uistep_v2_set_name(ui->refreshBtn, "Mode Button");
 
 	sliderTimer = pls_new<QTimer>(this);
 	connect(sliderTimer, &QTimer::timeout, this, &PLSBackgroundMusicView::SetSliderPos, Qt::QueuedConnection);
@@ -66,13 +68,11 @@ PLSBackgroundMusicView::PLSBackgroundMusicView(DialogInfo info, QWidget *parent)
 	connect(ui->nextBtn, &PLSDelayResponseButton::buttonClicked, this, &PLSBackgroundMusicView::OnNextButtonClicked);
 	connect(ui->refreshBtn, &QPushButton::clicked, this, &PLSBackgroundMusicView::OnRefreshButtonClicked);
 
-	connect(ui->loopBtn, &QRadioButton::clicked, this, [this](bool checked) { OnLoopBtnClicked(currentSceneItem, checked); });
+	connect(ui->loopBtn, &QRadioButton::clicked, this, [this](bool) { OnLoopBtnClicked(currentSceneItem); });
 	connect(ui->addSourceBtn, &QPushButton::clicked, this, &PLSBackgroundMusicView::OnAddSourceBtnClicked);
 	connect(ui->addMusicBtn, &QPushButton::clicked, this, &PLSBackgroundMusicView::OnAddMusicBtnClicked);
 	connect(ui->coverLabel, &PLSBgmItemCoverView::CoverPressed, this, [this](const QPoint &point) { move(this->frameGeometry().topLeft() + point); });
-	connect(ui->noSongLabel, &DragLabel::CoverPressed, this, [this](const QPoint &point) { move(this->frameGeometry().topLeft() + point); });
-
-	connect(ui->playListWidget, &PLSBgmDragView::MouseDoublePressedSignal, this, &PLSBackgroundMusicView::OnPlayListItemDoublePressed);
+	connect(ui->playListWidget, &PLSBgmDragView::MousePressedSignal, this, &PLSBackgroundMusicView::OnPlayListItemPressed);
 	connect(ui->playListWidget, &PLSBgmDragView::RowChanged, this, &PLSBackgroundMusicView::OnPlayListItemRowChanged);
 	connect(ui->playListWidget, &PLSBgmDragView::AudioFileDraggedIn, this, &PLSBackgroundMusicView::OnAudioFileDraggedIn);
 	connect(ui->playListWidget, &PLSBgmDragView::DelButtonClickedSignal, this, &PLSBackgroundMusicView::OnDelButtonClicked);
@@ -96,7 +96,12 @@ PLSBackgroundMusicView::PLSBackgroundMusicView(DialogInfo info, QWidget *parent)
 
 	obs_frontend_add_event_callback(PLSFrontendEvent, this);
 
-	pls_network_state_monitor([this](bool accsible) { networkAvailable = accsible; });
+	pls_network_state_monitor([pthis = QPointer<PLSBackgroundMusicView>(this)](bool available) {
+		if (!pls_object_is_valid(pthis)) {
+			return;
+		}
+		pthis->onNetworkChanged(available);
+	});
 }
 
 PLSBackgroundMusicView::~PLSBackgroundMusicView()
@@ -158,7 +163,7 @@ void PLSBackgroundMusicView::RemoveBgmSourceList(const BgmSourceVecType &sourceL
 
 void PLSBackgroundMusicView::InitSourceSettingsData(const QString &sourceName, const quint64 &sceneItem, bool createNew, bool)
 {
-	OBSSource source = pls_get_source_by_name(sourceName.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(sourceName.toUtf8().constData());
 	if (!source) {
 		return;
 	}
@@ -201,7 +206,7 @@ void PLSBackgroundMusicView::OnCurrentPageChanged(int index)
 
 void PLSBackgroundMusicView::SliderClicked()
 {
-	OBSSource source = pls_get_source_by_name(currentSourceName.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(currentSourceName.toUtf8().constData());
 	if (!source) {
 		return;
 	}
@@ -221,7 +226,7 @@ void PLSBackgroundMusicView::SliderClicked()
 
 void PLSBackgroundMusicView::SliderReleased()
 {
-	OBSSource source = pls_get_source_by_name(currentSourceName.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(currentSourceName.toUtf8().constData());
 	if (!source) {
 		return;
 	}
@@ -252,13 +257,13 @@ void PLSBackgroundMusicView::SliderMoved(int val)
 void PLSBackgroundMusicView::SetSliderPos()
 {
 	pls_check_app_exiting();
-	OBSSource source = pls_get_source_by_name(currentSourceName.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(currentSourceName.toUtf8().constData());
 	if (!source) {
 		return;
 	}
 
 	obs_media_state state = obs_source_media_get_state(source);
-	bool visible = obs_sceneitem_visible(pls_get_sceneitem_by_pointer_address((void *)currentSceneItem));
+	bool visible = isSceneitemVisible(currentSceneItem);
 	if ((state != OBS_MEDIA_STATE_PLAYING && state != OBS_MEDIA_STATE_PAUSED) || !visible) {
 		return;
 	}
@@ -279,7 +284,7 @@ void PLSBackgroundMusicView::SetSliderPos()
 void PLSBackgroundMusicView::SeekTimerCallback()
 {
 	if (lastSeek != seek) {
-		OBSSource source = pls_get_source_by_name(currentSourceName.toStdString().c_str());
+		OBSSource source = pls_get_source_by_name(currentSourceName.toUtf8().constData());
 		if (source) {
 			obs_source_media_set_time(source, GetSliderTime(seek));
 		}
@@ -315,13 +320,18 @@ void PLSBackgroundMusicView::UpdateUIBySourceSettings(obs_data_t *settings, OBSS
 		SetCurrentPlayMode(PlayMode::InOrderMode);
 	}
 
-	bool isLoop = true;
+	LoopMode loopMode = LoopMode::LoopAll;
 	if (!createNew) {
-		isLoop = obs_data_get_bool(settings, IS_LOOP);
+		if (auto isLoop = obs_data_get_bool(settings, IS_LOOP); isLoop) {
+			if (auto loopModeStr = obs_data_get_string(settings, "loopMode"); !pls_is_empty(loopModeStr)) {
+				loopMode = static_cast<LoopMode>(QMetaEnum::fromType<LoopMode>().keyToValue(loopModeStr));
+			}
+		} else {
+			loopMode = LoopMode::NoLoop;
+		}
 	}
 
-	ui->loopBtn->setChecked(isLoop);
-	SetLoop(sceneItem, isLoop);
+	SetLoop(sceneItem, loopMode);
 	AddPlayListUI(sceneItem);
 }
 
@@ -383,16 +393,16 @@ void PLSBackgroundMusicView::UpdateLoadingEndState(const QString &sourceName)
 	if (-1 != row) {
 		StopLoadingTimer();
 
-		obs_source_t *source = pls_get_source_by_name(sourceName.toStdString().c_str());
+		obs_source_t *source = pls_get_source_by_name(sourceName.toUtf8().constData());
 		obs_media_state state = obs_source_media_get_state(source);
 		if (state == OBS_MEDIA_STATE_PLAYING) {
 			indexLoading = row;
 			PLSBgmItemDelegate::totalFrame(21);
 			PLSBgmItemDelegate::setCurrentFrame(1);
-			ui->playListWidget->SetMediaStatus(row, MediaStatus::statePlaying);
+			ui->playListWidget->SetMediaStatus(row, isSceneitemVisible(currentSceneItem) ? MediaStatus::statePlaying : MediaStatus::stateCurrentInvisible);
 			StartLoadingTimer(100);
 		} else if (state == OBS_MEDIA_STATE_PAUSED) {
-			ui->playListWidget->SetMediaStatus(row, MediaStatus::statePause);
+			ui->playListWidget->SetMediaStatus(row, isSceneitemVisible(currentSceneItem) ? MediaStatus::statePause : MediaStatus::stateCurrentInvisible);
 		}
 	}
 	SetPlayerControllerStatus(currentSceneItem);
@@ -400,7 +410,7 @@ void PLSBackgroundMusicView::UpdateLoadingEndState(const QString &sourceName)
 
 void PLSBackgroundMusicView::OnMediaStateChanged(const QString &name, obs_media_state state)
 {
-	OBSSource source = pls_get_source_by_name(name.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(name.toUtf8().constData());
 	if (!source) {
 		return;
 	}
@@ -431,7 +441,7 @@ void PLSBackgroundMusicView::OnMediaStateChanged(const QString &name, obs_media_
 
 void PLSBackgroundMusicView::OnLoopStateChanged(const QString &name)
 {
-	OBSSource source = pls_get_source_by_name(name.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(name.toUtf8().constData());
 	if (!source) {
 		return;
 	}
@@ -441,18 +451,18 @@ void PLSBackgroundMusicView::OnLoopStateChanged(const QString &name)
 	}
 
 	OBSDataAutoRelease settings = obs_source_get_private_settings(source);
-	bool loop = obs_data_get_bool(settings, IS_LOOP);
-	if (ui->loopBtn->isChecked() == loop) {
+	auto loopStr = obs_data_get_string(settings, "loopMode");
+	auto loop = static_cast<LoopMode>(QMetaEnum::fromType<LoopMode>().keyToValue(loopStr));
+	if (m_loopMode == loop) {
 		return;
 	}
-
-	ui->loopBtn->setChecked(loop);
-	pls_flush_style(ui->loopBtn, STATUS_PRESSED, loop);
+	m_loopMode = loop;
+	SetLoop(source, loop);
 }
 
 void PLSBackgroundMusicView::OnModeStateChanged(const QString &name)
 {
-	OBSSource source = pls_get_source_by_name(name.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(name.toUtf8().constData());
 	if (!source) {
 		return;
 	}
@@ -486,7 +496,7 @@ void PLSBackgroundMusicView::UpdatePlayingUIState(const QString &name)
 		indexLoading = row;
 		PLSBgmItemDelegate::totalFrame(21);
 		PLSBgmItemDelegate::setCurrentFrame(1);
-		ui->playListWidget->SetMediaStatus(row, MediaStatus::statePlaying);
+		ui->playListWidget->SetMediaStatus(row, isSceneitemVisible(currentSceneItem) ? MediaStatus::statePlaying : MediaStatus::stateCurrentInvisible);
 		StartLoadingTimer(100);
 		ui->playingSlider->setEnabled(true);
 	}
@@ -508,7 +518,7 @@ void PLSBackgroundMusicView::UpdatePauseUIState(const QString &name)
 	StopLoadingTimer();
 	int row = ui->playListWidget->GetCurrentRow();
 	if (-1 != row) {
-		ui->playListWidget->SetMediaStatus(row, MediaStatus::statePause);
+		ui->playListWidget->SetMediaStatus(row, isSceneitemVisible(currentSceneItem) ? MediaStatus::statePause : MediaStatus::stateCurrentInvisible);
 	}
 	SetPlayerControllerStatus(currentSceneItem);
 	ShowCoverGif(false);
@@ -517,7 +527,7 @@ void PLSBackgroundMusicView::UpdatePauseUIState(const QString &name)
 void PLSBackgroundMusicView::UpdateStopUIState(const QString &name)
 {
 	if (!SameWithCurrentSource(name)) {
-		OBSSource source = pls_get_source_by_name(name.toStdString().c_str());
+		OBSSource source = pls_get_source_by_name(name.toUtf8().constData());
 		if (!source) {
 			return;
 		}
@@ -551,11 +561,7 @@ void PLSBackgroundMusicView::UpdateStopUIState(const QString &name)
 	pls_flush_style(ui->playBtn, STATUS_STATE, STATUS_PLAY);
 	ui->playBtn->setToolTip(QTStr("Bgm.Play"));
 
-	int row = ui->playListWidget->GetCurrentRow();
-	if (-1 != row) {
-		ui->playListWidget->SetMediaStatus(row, MediaStatus::stateNormal);
-	}
-
+	setCurrentRow(pls_get_source_by_name(name.toUtf8().constData()));
 	SetPlayerControllerStatus(currentSceneItem);
 	ShowCoverGif(false);
 }
@@ -580,7 +586,7 @@ void PLSBackgroundMusicView::UpdateErrorUIState(const QString &name, bool gotoNe
 
 void PLSBackgroundMusicView::OnUpdateOpeningUIState(const QString &name)
 {
-	OBSSource source = pls_get_source_by_name(name.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(name.toUtf8().constData());
 	if (source) {
 		obs_data_t *settings = obs_data_create();
 		obs_data_set_string(settings, "method", "bgm_get_opening");
@@ -592,29 +598,7 @@ void PLSBackgroundMusicView::OnUpdateOpeningUIState(const QString &name)
 		return;
 	}
 
-	if (!coverThreadObj) {
-		coverThreadObj = pls_new<GetCoverThread>();
-		coverThreadObj->moveToThread(&coverThread);
-		connect(coverThreadObj, &GetCoverThread::Finished, this, &PLSBackgroundMusicView::UpdateBgmCoverPath, Qt::QueuedConnection);
-		connect(
-			coverThreadObj, &GetCoverThread::GetPreviewImage, this,
-			[this](const QImage &image, const PLSBgmItemData &data) {
-				PLSBgmItemData curData = GetCurrentPlayListData();
-				if (curData.id != data.id || curData.GetUrl(curData.id) != data.GetUrl(data.id)) {
-					return;
-				}
-				if (image.isNull()) {
-					PLSBgmItemData temp = data;
-					temp.coverPath = DEFAULT_COVER_IMAGE;
-					ui->coverLabel->SetCoverPath(temp.coverPath, !temp.isLocalFile);
-					UpdateBgmCoverPath(temp);
-				} else {
-					ui->coverLabel->SetImage(image);
-				}
-			},
-			Qt::QueuedConnection);
-		coverThread.start();
-	}
+	createGetCoverThread();
 
 	if (IsSameState(source, OBS_MEDIA_STATE_PLAYING) || IsSameState(source, OBS_MEDIA_STATE_PAUSED)) {
 		return;
@@ -626,26 +610,22 @@ void PLSBackgroundMusicView::OnUpdateOpeningUIState(const QString &name)
 	}
 
 	PLSBgmItemData data = GetCurrentPlayListDataBySettings();
+	if (!data.title.isEmpty()) {
+		ui->playingSlider->setEnabled(false);
+		ui->playingSlider->setValue(0);
+		ui->currentTimeLabel->setText("00:00");
+		ui->coverLabel->SetMusicInfo(data.title, data.producer);
+		ui->playListWidget->SetCurrentRow(data);
 
-	ui->playingSlider->setEnabled(false);
-	ui->playingSlider->setValue(0);
-	ui->currentTimeLabel->setText("00:00");
-	ui->coverLabel->SetMusicInfo(data.title, data.producer);
-	ui->playListWidget->SetCurrentRow(data);
-
-	ShowCoverGif(false);
-	ShowCoverImage(data);
-	SetPlayerControllerStatus(currentSceneItem);
+		ShowCoverGif(false);
+		ShowCoverImage(data);
+		SetPlayerControllerStatus(currentSceneItem);
+	}
 }
 
 void PLSBackgroundMusicView::UpdateStatuPlayling(const QString &name)
 {
 	UpdatePlayingUIState(name);
-	PLSBgmItemData data = GetCurrentPlayListDataBySettings(name);
-	if (!data.title.isEmpty()) {
-		action::SendActionLog(action::ActionInfo(EVENT_PLAY, EVENT_PRISM_MUSIC, EVENT_PLAYED, data.title));
-		action::SendPropToNelo(BGM_SOURCE_ID, "played", qUtf8Printable(data.title));
-	}
 }
 
 int PLSBackgroundMusicView::GetDelayResponseIntervalMs()
@@ -656,6 +636,13 @@ int PLSBackgroundMusicView::GetDelayResponseIntervalMs()
 	}
 
 	return config_get_int(App()->GetUserConfig(), "General", "DelayIntervalMs");
+}
+
+void PLSBackgroundMusicView::onNetworkChanged(bool available)
+{
+	networkAvailable = available;
+	OnRetryNetwork();
+	UpdateCurrentPlayStatus(currentSourceName);
 }
 
 void PLSBackgroundMusicView::UpdateLoadUIState(const QString &name, bool load, bool)
@@ -690,7 +677,7 @@ void PLSBackgroundMusicView::SetCurrentPlayMode(PlayMode mode_)
 		pls_flush_style(ui->refreshBtn, "playMode", "random");
 	}
 
-	OBSSource source = pls_get_source_by_name(currentSourceName.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(currentSourceName.toUtf8().constData());
 	if (!source) {
 		return;
 	}
@@ -700,16 +687,17 @@ void PLSBackgroundMusicView::SetCurrentPlayMode(PlayMode mode_)
 	obs_data_set_bool(settings, RANDOM_PLAY, mode == PlayMode::RandomMode);
 	pls_source_set_private_data(source, settings);
 	obs_data_release(settings);
+	PLS_UI_ACTION("In Background Music, the play mode has been changed: %s.", QMetaEnum::fromType<PlayMode>().valueToKey(static_cast<int>(mode)));
 }
 
-void PLSBackgroundMusicView::SetSourceSelect(const QString &sourceName, quint64 sceneItem, bool)
+void PLSBackgroundMusicView::SetSourceSelect(const QString &sourceName, quint64 sceneItem, bool selectd)
 {
 	PLSBasic *main = PLSBasic::instance();
 	if (!main) {
 		return;
 	}
-	const obs_sceneitem_t *sceneitem = pls_get_sceneitem_by_pointer_address(main->GetCurrentScene(), (void *)sceneItem);
-	if (!sceneitem || !obs_sceneitem_visible(sceneitem)) {
+	obs_sceneitem_t *sceneitem = pls_get_sceneitem_by_pointer_address(main->GetCurrentScene(), (void *)sceneItem);
+	if (!sceneitem) {
 		return;
 	}
 
@@ -726,6 +714,11 @@ void PLSBackgroundMusicView::SetSourceSelect(const QString &sourceName, quint64 
 	currentSceneItem = sceneItem;
 	ui->sourceNameLabel->SetText(currentSourceName);
 	ui->stackedWidget->setCurrentWidget(ui->playListPage);
+
+	if (selectd && !obs_sceneitem_visible(sceneitem)) {
+		checkSceneitemEnableToastDisplayed(sceneitem);
+	}
+
 	UpdatePlayListUI(sceneItem);
 	SetPlayerControllerStatus(sceneItem);
 	PLSBgmItemData data = GetCurrentPlayListDataBySettings(sourceName);
@@ -733,17 +726,27 @@ void PLSBackgroundMusicView::SetSourceSelect(const QString &sourceName, quint64 
 	SetPlayListStatus(data);
 }
 
-void PLSBackgroundMusicView::SetSourceVisible(const QString &, quint64, bool)
+void PLSBackgroundMusicView::SetSourceVisible(const QString &sourceName, quint64 sceneitem, bool visible)
 {
 	UpdateSourceSelectUI();
+	UpdateCurrentPlayStatus(currentSourceName);
+	if (sceneitem == currentSceneItem && !visible) {
+		checkSceneitemEnableToastDisplayed(sceneitem, true);
+	}
+	OBSSource source = pls_get_source_by_name(sourceName.toUtf8().constData());
+	if (!source) {
+		return;
+	}
+	pls_on_source_property_changed(source, "loop");
+	OBSDataAutoRelease data = obs_data_create();
+	obs_data_set_string(data, "method", "bgm_visible");
+	obs_data_set_bool(data, "visible", visible);
+	pls_source_set_private_data(source, data);
 }
 
 void PLSBackgroundMusicView::UpdateSourceList(const QString &sourceName, quint64 sceneItem, const BgmSourceVecType &sourceList)
 {
 	for (auto &bgm : sourceList) {
-		if (!obs_sceneitem_visible(pls_get_sceneitem_by_pointer_address((void *)sceneItem))) {
-			continue;
-		}
 		AddSource(bgm.first, bgm.second, false);
 	}
 
@@ -769,21 +772,30 @@ void PLSBackgroundMusicView::closeEvent(QCloseEvent *event)
 
 void PLSBackgroundMusicView::showEvent(QShowEvent *event)
 {
-	PLSSideBarDialogView::showEvent(event);
+	QWidget::showEvent(event);
+	App()->getMainView()->updateSideBarButtonStyle(ConfigId::BgmConfig, true);
+	// Real show logic runs in OnDockReallyShown() when the dock is truly shown (connected from PLSBasic).
+}
+
+void PLSBackgroundMusicView::OnDockReallyShown()
+{
 	OnRetryNetwork();
 	UpdateSourceSelectUI();
-	App()->getMainView()->updateSideBarButtonStyle(ConfigId::BgmConfig, true);
+	UpdateCurrentPlayStatus(currentSourceName);
+	if (currentSceneItem && !isSceneitemVisible(currentSceneItem)) {
+		pls_async_call(this, [this]() { checkSceneitemEnableToastDisplayed(currentSceneItem, true); });
+	}
 }
 
 void PLSBackgroundMusicView::hideEvent(QHideEvent *event)
 {
-	PLSSideBarDialogView::hideEvent(event);
+	QWidget::hideEvent(event);
 	App()->getMainView()->updateSideBarButtonStyle(ConfigId::BgmConfig, false);
 }
 
 void PLSBackgroundMusicView::resizeEvent(QResizeEvent *event)
 {
-	PLSSideBarDialogView::resizeEvent(event);
+	QWidget::resizeEvent(event);
 	if (toastView.isVisible()) {
 		pls_async_call(this, [this]() { ResizeToastView(); });
 	}
@@ -806,9 +818,8 @@ void PLSBackgroundMusicView::OnDelButtonClicked(const PLSBgmItemData &data)
 	ui->playListWidget->update(index);
 	obs_data_t *delData = obs_data_create();
 	obs_data_set_string(delData, "method", "bgm_remove");
-	obs_data_set_string(delData, "remove_url", data.GetUrl(data.id).toStdString().c_str());
-	obs_data_set_string(delData, BGM_DURATION_TYPE, QString::number(data.id).toStdString().c_str());
-
+	obs_data_set_string(delData, "remove_url", data.GetUrl(data.id).toUtf8().constData());
+	obs_data_set_string(delData, BGM_DURATION_TYPE, QString::number(data.id).toUtf8().constData());
 	pls_source_set_private_data(source, delData);
 	obs_data_release(delData);
 
@@ -816,6 +827,7 @@ void PLSBackgroundMusicView::OnDelButtonClicked(const PLSBgmItemData &data)
 	UpdatePlayListUI(currentSceneItem);
 	Save();
 	RefreshPropertyWindow();
+	PLS_UI_ACTION("In Music Playlist, the music play list has been changed when deleted.");
 }
 
 void PLSBackgroundMusicView::OnNoNetwork(const QString &toast, const PLSBgmItemData &data_, bool gotoNext)
@@ -838,18 +850,18 @@ void PLSBackgroundMusicView::OnNoNetwork(const QString &toast, const PLSBgmItemD
 		data.isCurrent = false;
 		ui->playListWidget->UpdataData(row, data);
 		ui->playListWidget->SetMediaStatus(row, MediaStatus::stateInvalid);
-		data.isLocalFile ? ShowToastView(QTStr("Bgm.Songs.Invalid.Toast").arg(data.title)) : ShowToastView(toast.arg(data.title));
+		data.isLocalFile ? ShowToastView(QTStr("Bgm.Songs.Invalid.Toast").arg(data.title)) : ShowToastView(toast);
 		StopSliderPlayingTimer();
 		StopLoadingTimer();
 		OnInvalidSongs(currentSourceName, true);
 	} else {
-		ResetControlView();
+		setCurrentRow(source);
 	}
 }
 
 void PLSBackgroundMusicView::OnInvalidSongs(const QString &name, bool gotoNext) const
 {
-	OBSSource source = pls_get_source_by_name(name.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(name.toUtf8().constData());
 	if (!source) {
 		return;
 	}
@@ -857,8 +869,8 @@ void PLSBackgroundMusicView::OnInvalidSongs(const QString &name, bool gotoNext) 
 	PLSBgmItemData data = GetCurrentPlayListDataBySettings(name);
 	obs_data_t *settings = obs_data_create();
 	obs_data_set_string(settings, "method", "bgm_disable");
-	obs_data_set_string(settings, BGM_URL, data.GetUrl(data.id).toStdString().c_str());
-	obs_data_set_string(settings, BGM_DURATION_TYPE, QString::number(data.id).toStdString().c_str());
+	obs_data_set_string(settings, BGM_URL, data.GetUrl(data.id).toUtf8().constData());
+	obs_data_set_string(settings, BGM_DURATION_TYPE, QString::number(data.id).toUtf8().constData());
 	obs_data_set_bool(settings, "goto_next_songs", gotoNext);
 
 	pls_source_set_private_data(source, settings);
@@ -899,21 +911,28 @@ void PLSBackgroundMusicView::OnRetryNetwork()
 	Save();
 }
 
-void PLSBackgroundMusicView::OnPlayListItemDoublePressed(const QModelIndex &index)
+void PLSBackgroundMusicView::OnPlayListItemPressed(const QModelIndex &index)
 {
-	PLS_INFO(MAIN_BGM_MODULE, "music play list double clicked.");
+	PLS_INFO(MAIN_BGM_MODULE, "music play list clicked.");
 
 	PLSBgmItemData data = ui->playListWidget->GetData(index);
 	obs_source_t *source = GetSource(currentSceneItem);
 	if (!source) {
 		return;
 	}
+	pls_on_source_property_changed(source, "play");
 
 	if (data.isDisable) {
 		return;
 	}
 
-	PLS_INFO(MAIN_BGM_MODULE, "switch to next music: %s", data.title.toStdString().c_str());
+	if (!isSceneitemVisible(currentSceneItem)) {
+		setCurrentRow(source, data);
+		return;
+	}
+
+	PLS_INFO(MAIN_BGM_MODULE, "switch to next music: %s", data.title.toUtf8().constData());
+	pls_uistep_v2(this, "Double click", "Button", data.title);
 	SetUrlInfo(source, data);
 }
 
@@ -938,9 +957,10 @@ void PLSBackgroundMusicView::OnPlayListItemRowChanged(const int &srcIndex, const
 	QVector<PLSBgmItemData> datas = GetPlayListData(settings);
 	obs_data_release(settings);
 
-	ui->playListWidget->UpdateWidget(datas);
-
 	PLSBgmItemData data = GetCurrentPlayListData();
+	ui->playListWidget->UpdateWidget(datas);
+	ui->playListWidget->SetCurrentRow(data);
+
 	SetPlayListStatus(data);
 	SetPlayerControllerStatus(currentSceneItem);
 	UpdateCurrentPlayStatus(currentSourceName);
@@ -981,7 +1001,7 @@ void PLSBackgroundMusicView::OnAudioFileDraggedIn(const QStringList &paths)
 	if (paths.empty()) {
 		return;
 	}
-	PLS_INFO(MAIN_BGM_MODULE, QString("Add %1 Local Songs").arg(paths.size()).toStdString().c_str());
+	PLS_INFO(MAIN_BGM_MODULE, QString("Add %1 Local Songs").arg(paths.size()).toUtf8().constData());
 
 	bool existedSameUrl = false;
 	QVector<PLSBgmItemData> datas;
@@ -999,7 +1019,7 @@ void PLSBackgroundMusicView::OnAudioFileDraggedIn(const QStringList &paths)
 
 		media_info_t media_info;
 		memset(&media_info, 0, sizeof(media_info_t));
-		bool open = mi_open(&media_info, path.toStdString().c_str(), MI_OPEN_DIRECTLY);
+		bool open = mi_open(&media_info, path.toUtf8().constData(), MI_OPEN_DIRECTLY);
 		if (open && 0 == path.right(3).toLower().compare("mp3")) {
 			data.title = mi_get_string(&media_info, "title");
 			data.producer = mi_get_string(&media_info, "artist");
@@ -1058,6 +1078,15 @@ void PLSBackgroundMusicView::OnAddCachePlayList(const QVector<PLSBgmItemData> &d
 	obs_data_release(settings);
 
 	ui->playListWidget->InsertWidget(datas);
+
+	if (!datas.isEmpty()) {
+		auto data = GetCurrentPlayListDataBySettings();
+		if (data.title.isEmpty()) {
+			setCurrentRow(source, datas.first());
+		} else {
+			SetPlayListStatus(data);
+		}
+	}
 	UpdateCurrentPlayStatus(currentSourceName);
 	UpdatePlayListUI(currentSceneItem);
 	Save();
@@ -1066,7 +1095,7 @@ void PLSBackgroundMusicView::OnAddCachePlayList(const QVector<PLSBgmItemData> &d
 
 void PLSBackgroundMusicView::OnPlayButtonClicked() const
 {
-	OBSSource source = pls_get_source_by_name(currentSourceName.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(currentSourceName.toUtf8().constData());
 	if (!source) {
 		return;
 	}
@@ -1075,12 +1104,15 @@ void PLSBackgroundMusicView::OnPlayButtonClicked() const
 	case OBS_MEDIA_STATE_STOPPED:
 	case OBS_MEDIA_STATE_ENDED:
 	case OBS_MEDIA_STATE_NONE:
+		pls_on_source_property_changed(source, "play");
 		obs_source_media_restart(source);
 		break;
 	case OBS_MEDIA_STATE_PLAYING:
+		pls_on_source_property_changed(source, "pause");
 		obs_source_media_play_pause(source, true);
 		break;
 	case OBS_MEDIA_STATE_PAUSED:
+		pls_on_source_property_changed(source, "play");
 		obs_source_media_play_pause(source, false);
 		break;
 	default:
@@ -1094,7 +1126,7 @@ void PLSBackgroundMusicView::OnPreButtonClicked()
 	if (!source) {
 		return;
 	}
-
+	pls_on_source_property_changed(source, "previous");
 	obs_source_media_previous(source);
 }
 
@@ -1104,13 +1136,21 @@ void PLSBackgroundMusicView::OnNextButtonClicked()
 	if (!source) {
 		return;
 	}
-
+	pls_on_source_property_changed(source, "next");
 	obs_source_media_next(source);
 }
 
-void PLSBackgroundMusicView::OnLoopBtnClicked(const quint64 &sceneItem, bool checked)
+void PLSBackgroundMusicView::OnLoopBtnClicked(const quint64 &sceneItem)
 {
-	SetLoop(sceneItem, checked);
+	LoopMode mode;
+	if (m_loopMode == LoopMode::LoopAll) {
+		mode = LoopMode::LoopOne;
+	} else if (m_loopMode == LoopMode::LoopOne) {
+		mode = LoopMode::NoLoop;
+	} else {
+		mode = LoopMode::LoopAll;
+	}
+	SetLoop(sceneItem, mode);
 }
 
 void PLSBackgroundMusicView::OnLocalFileBtnClicked()
@@ -1134,15 +1174,20 @@ void PLSBackgroundMusicView::OnLocalFileBtnClicked()
 
 void PLSBackgroundMusicView::OnLibraryBtnClicked()
 {
+	PLS_PERFORMANCE_GLOBAL_START("showsPLSBgmLibraryView");
+	PLS_PERFORMANCE_GLOBAL_START("Bulid PLSBgmLibraryView", "showsPLSBgmLibraryView");
 	auto libraryView_ = pls_new<PLSBgmLibraryView>(this);
+	PLS_PERFORMANCE_GLOBAL_END("Bulid PLSBgmLibraryView");
 
 #if defined(Q_OS_MACOS)
-	libraryView_->initSize(720, 610);
+	libraryView_->initSize(720, 650 - PLS_TITLE_BAR_HEIGHT);
 #elif defined(Q_OS_WIN)
 	libraryView_->initSize(720, 650);
 #endif
 	libraryView_->setAttribute(Qt::WA_DeleteOnClose);
 	connect(libraryView_, &PLSBgmLibraryView::AddCachePlayList, this, &PLSBackgroundMusicView::OnAddCachePlayList);
+	PLS_PERFORMANCE_GLOBAL_START("PLSBgmLibraryView Exec", "showsPLSBgmLibraryView");
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(libraryView_, PLS_PERFORMANCE_GLOBAL_END("PLSBgmLibraryView Exec"); PLS_PERFORMANCE_GLOBAL_END("showsPLSBgmLibraryView"));
 	libraryView_->exec();
 }
 
@@ -1169,6 +1214,8 @@ void PLSBackgroundMusicView::OnAddMusicBtnClicked()
 	popup.addAction(addLocalAction);
 	popup.addAction(addLibraryAction);
 
+	PLS_UI_ACTION("In Background Music, the menu has been displayed when clicked add music button.");
+
 	popup.exec(QCursor::pos());
 }
 
@@ -1189,7 +1236,6 @@ void PLSBackgroundMusicView::OnRefreshButtonClicked()
 
 void PLSBackgroundMusicView::initUI()
 {
-	setupUi(ui);
 	ui->currentTimeLabel->setText("00:00");
 	ui->stackedWidget->setCurrentWidget(ui->noSourcePage);
 	ui->addSourceBtn->setVisible(true);
@@ -1202,18 +1248,19 @@ void PLSBackgroundMusicView::initUI()
 	ui->noticeLabel->setContentsMargins(20, 0, 20, 0);
 	ui->preBtn->setToolTip(QTStr("Bgm.Previous"));
 	ui->nextBtn->setToolTip(QTStr("Bgm.Next"));
-	ui->loopBtn->setToolTip(QTStr("Bgm.Repeat"));
 	SetCurrentPlayMode(PlayMode::InOrderMode);
 	ResetControlView();
 	InitToast();
 	pls_flush_style(ui->playBtn, STATUS_STATE, STATUS_PLAY);
 	ui->playBtn->setToolTip(QTStr("Bgm.Play"));
-	this->setAttribute(Qt::WA_AlwaysShowToolTips, true);
+	pls_uistep_v2_set_custom_enter_leave_name(ui->playBtn, "Play/Pause Button");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->loopBtn, "Loop Mode Button");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->preBtn, "Pre Button");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->nextBtn, "Next Button");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->refreshBtn, "Play Mode Button");
 
 	ui->preBtn->setDelayRespInterval(GetDelayResponseIntervalMs());
 	ui->nextBtn->setDelayRespInterval(GetDelayResponseIntervalMs());
-
-	setHasMaxResButton(true);
 	setWindowTitle(QTStr("Bgm.Title"));
 
 	connect(&timerLoading, &QTimer::timeout, [this]() {
@@ -1224,7 +1271,7 @@ void PLSBackgroundMusicView::initUI()
 			ui->playListWidget->update(index);
 			if (data == MediaStatus::stateLoading && ((os_gettime_ns() - loadingTimeout) / 1000000 >= LoadingTimeoutMS)) {
 				PLSBgmItemData data_ = ui->playListWidget->Get(indexLoading);
-				PLS_INFO(MAIN_BGM_MODULE, "Loading [%s] timeout.", data_.title.toStdString().c_str());
+				PLS_INFO(MAIN_BGM_MODULE, "Loading [%s] timeout.", data_.title.toUtf8().constData());
 				OnLoadFailed(currentSourceName);
 			}
 		}
@@ -1252,19 +1299,45 @@ void PLSBackgroundMusicView::Save() const
 	}
 }
 
-void PLSBackgroundMusicView::SetLoop(const quint64 &sceneItem, bool checked)
+void PLSBackgroundMusicView::SetLoop(const quint64 &sceneItem, LoopMode mode)
 {
-	pls_flush_style(ui->loopBtn, STATUS_PRESSED, checked);
+	this->m_loopMode = mode;
 
-	OBSData settings = obs_data_create();
 	obs_source_t *source = GetSource(sceneItem);
 	if (!source) {
 		return;
 	}
+	SetLoop(source, mode);
+}
+
+void PLSBackgroundMusicView::SetLoop(OBSSource source, LoopMode mode)
+{
+	if (!source) {
+		return;
+	}
+	OBSData settings = obs_data_create();
 	obs_data_set_string(settings, "method", "bgm_loop");
-	obs_data_set_bool(settings, IS_LOOP, checked);
+	obs_data_set_bool(settings, IS_LOOP, m_loopMode == LoopMode::LoopAll || m_loopMode == LoopMode::LoopOne);
+	obs_data_set_string(settings, "loopMode", QMetaEnum::fromType<LoopMode>().valueToKey(static_cast<int>(m_loopMode)));
 	pls_source_set_private_data(source, settings);
 	obs_data_release(settings);
+
+	refreshLoopUi();
+	PLS_UI_ACTION("In Background Music, the loop mode has been changed: %s.", QMetaEnum::fromType<LoopMode>().valueToKey(static_cast<int>(m_loopMode)));
+}
+
+void PLSBackgroundMusicView::refreshLoopUi()
+{
+	if (m_loopMode == LoopMode::LoopAll) {
+		ui->loopBtn->setToolTip(QTStr("Bgm.Repeat"));
+		pls_flush_style(ui->loopBtn, "loopMode", QMetaEnum::fromType<LoopMode>().valueToKey(static_cast<int>(LoopMode::LoopAll)));
+	} else if (m_loopMode == LoopMode::LoopOne) {
+		ui->loopBtn->setToolTip(QTStr("Bgm.Repeat.One"));
+		pls_flush_style(ui->loopBtn, "loopMode", QMetaEnum::fromType<LoopMode>().valueToKey(static_cast<int>(LoopMode::LoopOne)));
+	} else {
+		ui->loopBtn->setToolTip(QTStr("Bgm.No.Repeat"));
+		pls_flush_style(ui->loopBtn, "loopMode", QMetaEnum::fromType<LoopMode>().valueToKey(static_cast<int>(LoopMode::NoLoop)));
+	}
 }
 
 void PLSBackgroundMusicView::CreateCheckValidThread()
@@ -1288,6 +1361,34 @@ void PLSBackgroundMusicView::CreateCheckValidThread()
 	}
 }
 
+void PLSBackgroundMusicView::createGetCoverThread()
+{
+	if (coverThreadObj) {
+		return;
+	}
+	coverThreadObj = pls_new<GetCoverThread>();
+	coverThreadObj->moveToThread(&coverThread);
+	connect(coverThreadObj, &GetCoverThread::Finished, this, &PLSBackgroundMusicView::UpdateBgmCoverPath, Qt::QueuedConnection);
+	connect(
+		coverThreadObj, &GetCoverThread::GetPreviewImage, this,
+		[this](const QImage &image, const PLSBgmItemData &data) {
+			PLSBgmItemData curData = GetCurrentPlayListData();
+			if (curData.id != data.id || curData.GetUrl(curData.id) != data.GetUrl(data.id)) {
+				return;
+			}
+			if (image.isNull()) {
+				PLSBgmItemData temp = data;
+				temp.coverPath = DEFAULT_COVER_IMAGE;
+				ui->coverLabel->SetCoverPath(temp.coverPath, !temp.isLocalFile);
+				UpdateBgmCoverPath(temp);
+			} else {
+				ui->coverLabel->SetImage(image);
+			}
+		},
+		Qt::QueuedConnection);
+	coverThread.start();
+}
+
 obs_source_t *PLSBackgroundMusicView::GetSource(const quint64 &sceneItem)
 {
 	PLSBasic *main = PLSBasic::instance();
@@ -1300,12 +1401,36 @@ obs_source_t *PLSBackgroundMusicView::GetSource(const quint64 &sceneItem)
 
 bool PLSBackgroundMusicView::SameWithCurrentSource(const QString &sourceName)
 {
-	return pls_get_source_by_name(sourceName.toStdString().c_str()) == GetSource(currentSceneItem);
+	return pls_get_source_by_name(sourceName.toUtf8().constData()) == GetSource(currentSceneItem);
 }
 
 bool PLSBackgroundMusicView::SameWithCurrentSource(const quint64 &sceneItem)
 {
 	return GetSource(sceneItem) == GetSource(currentSceneItem);
+}
+
+bool PLSBackgroundMusicView::isSceneitemVisible(const quint64 &sceneItem)
+{
+	return obs_sceneitem_visible(pls_get_sceneitem_by_pointer_address((void *)sceneItem));
+}
+
+void PLSBackgroundMusicView::checkSceneitemEnableToastDisplayed(const quint64 &sceneitem, bool alwaysShowToast)
+{
+	auto item = pls_get_sceneitem_by_pointer_address(PLSBasic::instance()->GetCurrentScene(), (void *)sceneitem);
+	if (!item) {
+		return;
+	}
+	return checkSceneitemEnableToastDisplayed(item, alwaysShowToast);
+}
+
+void PLSBackgroundMusicView::checkSceneitemEnableToastDisplayed(OBSSceneItem sceneitem, bool alwaysShowToast)
+{
+	OBSDataAutoRelease data = obs_sceneitem_get_private_settings(sceneitem);
+	bool needShowToast = alwaysShowToast || !obs_data_get_bool(data, "enableToastDisplayed");
+	if (needShowToast) {
+		obs_data_set_bool(data, "enableToastDisplayed", true);
+		ShowToastView(networkAvailable ? tr("Bgm.Enable.Playlist") : tr("Bgm.No.Network.Toast"));
+	}
 }
 
 bool PLSBackgroundMusicView::IsSameState(OBSSource source, obs_media_state state)
@@ -1397,7 +1522,7 @@ PLSBgmItemData PLSBackgroundMusicView::GetCurrentPlayListDataBySettings()
 
 PLSBgmItemData PLSBackgroundMusicView::GetCurrentPlayListDataBySettings(const QString &name) const
 {
-	OBSSource source = pls_get_source_by_name(name.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(name.toUtf8().constData());
 	if (!source) {
 		return PLSBgmItemData();
 	}
@@ -1409,6 +1534,11 @@ PLSBgmItemData PLSBackgroundMusicView::GetCurrentPlayListDataBySettings(const QS
 	obs_data_release(settings);
 
 	return bgmData;
+}
+
+PLSBgmItemData PLSBackgroundMusicView::getCurrentRow() const
+{
+	return ui->playListWidget->GetCurrent();
 }
 
 int PLSBackgroundMusicView::GetCurrentPlayListDataSize() const
@@ -1453,9 +1583,7 @@ void PLSBackgroundMusicView::UpdateSourceSelectUI()
 	}
 	QString name{};
 	quint64 item{};
-	bool selectBgm = false;
-	selectBgm = main->GetSelectBgmSourceName(name, item);
-	selectBgm = selectBgm && obs_sceneitem_visible(pls_get_sceneitem_by_pointer_address(main->GetCurrentScene(), (void *)item));
+	bool selectBgm = main->GetSelectBgmSourceName(name, item);
 
 	BgmSourceVecType sourceList = main->GetCurrentSceneBgmSourceList();
 	if (0 == sourceList.size()) {
@@ -1468,10 +1596,6 @@ void PLSBackgroundMusicView::UpdateSourceSelectUI()
 		for (const auto &iter : sourceList) {
 			const obs_sceneitem_t *sceneitem = pls_get_sceneitem_by_pointer_address(main->GetCurrentScene(), (void *)iter.second);
 			if (!sceneitem) {
-				continue;
-			}
-			bool visible = obs_sceneitem_visible(sceneitem);
-			if (!visible) {
 				continue;
 			}
 			SetSourceSelect(iter.first, iter.second, true);
@@ -1569,28 +1693,11 @@ void PLSBackgroundMusicView::AddPlayListUI(const quint64 &sceneItem)
 	int currentRow = ui->playListWidget->GetCurrentRow();
 	if (!currentBgmData.isCurrent || -1 == currentRow) {
 		StopLoadingTimer();
+		setCurrentRow(source);
 		return;
 	}
 	if (isVisible()) {
 		ui->playListWidget->scrollTo(ui->playListWidget->GetModelIndex(currentRow));
-	}
-	indexLoading = currentRow;
-	if (state == OBS_MEDIA_STATE_PLAYING || state == OBS_MEDIA_STATE_OPENING) {
-		//if (obs_source_media_is_update_done(source)) {
-		isLoading = false;
-		PLSBgmItemDelegate::totalFrame(21);
-		PLSBgmItemDelegate::setCurrentFrame(1);
-		ui->playListWidget->SetMediaStatus(currentRow, MediaStatus::statePlaying);
-		StartLoadingTimer();
-		//} else {
-		//isLoading = true;
-		//PLSBgmItemDelegate::totalFrame(8);
-		//PLSBgmItemDelegate::setCurrentFrame(1);
-		//ui->playListWidget->SetMediaStatus(currentRow, MediaStatus::stateLoading);
-		//StartLoadingTimer();
-		//	}
-	} else {
-		StopLoadingTimer();
 	}
 	SetPlayerControllerStatus(sceneItem, true);
 }
@@ -1607,14 +1714,17 @@ void PLSBackgroundMusicView::SetPlayerControllerStatus(const quint64 &sceneItem,
 		return;
 	}
 
-	bool visible = obs_sceneitem_visible(pls_get_sceneitem_by_pointer_address((void *)sceneItem));
+	bool visible = isSceneitemVisible(sceneItem);
 	obs_media_state state = obs_source_media_get_state(source);
-	if ((state == OBS_MEDIA_STATE_NONE || state == OBS_MEDIA_STATE_ENDED) || !visible) {
-		ResetControlView();
-		return;
+	PLSBgmItemData data;
+	if (!visible) {
+		data = GetCurrentPlayListData();
+	} else if (state == OBS_MEDIA_STATE_ENDED || state == OBS_MEDIA_STATE_STOPPED || state == OBS_MEDIA_STATE_NONE) {
+		data = GetCurrentPlayListData();
+	} else {
+		data = GetCurrentPlayListDataBySettings();
 	}
 
-	PLSBgmItemData data = GetCurrentPlayListDataBySettings();
 	if (data.title.isEmpty()) {
 		ResetControlView();
 		return;
@@ -1628,7 +1738,7 @@ void PLSBackgroundMusicView::SetPlayerControllerStatus(const quint64 &sceneItem,
 			sliderPosition = (time / duration) * (float)ui->playingSlider->maximum();
 			ui->currentTimeLabel->setText(PLSBgmDataViewManager::Instance()->ConvertIntToTimeString((int)(time / 1000.0f)));
 			ui->durationLabel->setText(PLSBgmDataViewManager::Instance()->ConvertIntToTimeString((int)(duration / 1000.0f)));
-			ui->playingSlider->setValue((int)(sliderPosition));
+			ui->playingSlider->setValue(visible ? (int)(sliderPosition) : 0);
 		}
 		ui->playingSlider->setEnabled(true);
 		StartSliderPlayingTimer();
@@ -1645,6 +1755,11 @@ void PLSBackgroundMusicView::SetPlayerControllerStatus(const quint64 &sceneItem,
 		SetSliderPos();
 		pls_flush_style(ui->playBtn, STATUS_STATE, STATUS_PLAY);
 		ui->playBtn->setToolTip(QTStr("Bgm.Play"));
+	} else if (state == OBS_MEDIA_STATE_NONE || state == OBS_MEDIA_STATE_STOPPED || state == OBS_MEDIA_STATE_ENDED) {
+		ui->playingSlider->setEnabled(false);
+		ui->playingSlider->setValue(0);
+		pls_flush_style(ui->playBtn, STATUS_STATE, STATUS_PLAY);
+		ui->playBtn->setToolTip(QTStr("Bgm.Play"));
 	}
 
 	isLoading ? loadingEvent.startLoadingTimer(ui->loadingBtn) : loadingEvent.stopLoadingTimer();
@@ -1657,7 +1772,8 @@ void PLSBackgroundMusicView::SetPlayerControllerStatus(const quint64 &sceneItem,
 	}
 
 	ui->coverLabel->SetMusicInfo(data.title, data.producer);
-	DisablePlayerControlUI(false);
+	DisablePlayerControlUI(!visible, true);
+	ShowCoverImage(data);
 	ShowCoverGif(state == OBS_MEDIA_STATE_PLAYING);
 
 	ui->playingSlider->setMinimum(0);
@@ -1675,9 +1791,13 @@ void PLSBackgroundMusicView::ResetControlView()
 	ui->playBtn->setVisible(true);
 	pls_flush_style(ui->playBtn, STATUS_STATE, STATUS_PLAY);
 	DisablePlayerControlUI(true);
+
+	if (auto main = PLSBasic::instance(); main) {
+		main->getApi()->on_event(pls_frontend_event::PLS_FRONT_EVENT_MUSIC_PLAYLIST_SELECT_CHANGED);
+	}
 }
 
-void PLSBackgroundMusicView::DisablePlayerControlUI(bool disable)
+void PLSBackgroundMusicView::DisablePlayerControlUI(bool disable, bool needShowCover)
 {
 	QString status = disable ? STATUS_DISABLE : STATUS_ENABLE;
 	pls_flush_style(ui->refreshBtn, STATUS, status);
@@ -1685,9 +1805,9 @@ void PLSBackgroundMusicView::DisablePlayerControlUI(bool disable)
 	pls_flush_style(ui->preBtn, STATUS, status);
 	pls_flush_style(ui->nextBtn, STATUS, status);
 	pls_flush_style(ui->loopBtn, STATUS, status);
-	ui->noSongFrame->setVisible(disable);
-	ui->coverLabel->setVisible(!disable);
-	if (disable)
+	ui->noSongFrame->setVisible(!needShowCover);
+	ui->coverLabel->setVisible(needShowCover);
+	if (!needShowCover)
 		ui->coverLabel->SetCoverPath(DEFAULT_COVER_IMAGE, false);
 	SetPlayerPaneEnabled(!disable);
 }
@@ -1720,7 +1840,7 @@ int PLSBackgroundMusicView::GetPlayListItemIndexByKey(const QString &key) const
 	return -1;
 }
 
-void PLSBackgroundMusicView::SetUrlInfo(OBSSource source, const PLSBgmItemData &data) const
+void PLSBackgroundMusicView::SetUrlInfo(OBSSource source, const PLSBgmItemData &data, bool playImmediately) const
 {
 	if (!source) {
 		return;
@@ -1733,8 +1853,9 @@ void PLSBackgroundMusicView::SetUrlInfo(OBSSource source, const PLSBgmItemData &
 
 	pls_source_set_private_data(source, settings);
 	obs_data_release(settings);
-
-	obs_source_media_restart(source);
+	if (playImmediately) {
+		obs_source_media_restart(source);
+	}
 }
 
 void PLSBackgroundMusicView::SetUrlInfoToSettings(obs_data_t *settings, const PLSBgmItemData &data) const
@@ -1743,13 +1864,13 @@ void PLSBackgroundMusicView::SetUrlInfoToSettings(obs_data_t *settings, const PL
 		return;
 	}
 
-	obs_data_set_string(settings, BGM_TITLE, data.title.toStdString().c_str());
-	obs_data_set_string(settings, BGM_PRODUCER, data.producer.toStdString().c_str());
-	obs_data_set_string(settings, BGM_URL, data.GetUrl(data.id).toStdString().c_str());
-	obs_data_set_string(settings, BGM_DURATION_TYPE, QString::number(data.id).toStdString().c_str());
-	obs_data_set_string(settings, BGM_DURATION, QString::number(data.GetDuration(data.id)).toStdString().c_str());
-	obs_data_set_string(settings, BGM_GROUP, data.group.toStdString().c_str());
-	obs_data_set_string(settings, BGM_COVER_PATH, data.coverPath.toStdString().c_str());
+	obs_data_set_string(settings, BGM_TITLE, data.title.toUtf8().constData());
+	obs_data_set_string(settings, BGM_PRODUCER, data.producer.toUtf8().constData());
+	obs_data_set_string(settings, BGM_URL, data.GetUrl(data.id).toUtf8().constData());
+	obs_data_set_string(settings, BGM_DURATION_TYPE, QString::number(data.id).toUtf8().constData());
+	obs_data_set_string(settings, BGM_DURATION, QString::number(data.GetDuration(data.id)).toUtf8().constData());
+	obs_data_set_string(settings, BGM_GROUP, data.group.toUtf8().constData());
+	obs_data_set_string(settings, BGM_COVER_PATH, data.coverPath.toUtf8().constData());
 	obs_data_set_bool(settings, BGM_IS_LOCAL_FILE, data.isLocalFile);
 	obs_data_set_bool(settings, BGM_HAVE_COVER, data.haveCover);
 	obs_data_set_bool(settings, BGM_IS_CURRENT, data.isCurrent);
@@ -1762,17 +1883,6 @@ QString PLSBackgroundMusicView::StrcatString(const QString &title, const QString
 		return "";
 	}
 	return title + QString("-") + producer;
-}
-
-bool PLSBackgroundMusicView::IsSourceAvailable(const QString &sourceName, quint64 sceneItem) const
-{
-	OBSSource source = pls_get_source_by_name(sourceName.toStdString().c_str());
-	if (!source) {
-		return false;
-	}
-
-	auto item = (obs_sceneitem_t *)sceneItem;
-	return obs_sceneitem_visible(item);
 }
 
 void PLSBackgroundMusicView::StartSliderPlayingTimer()
@@ -1823,7 +1933,7 @@ bool PLSBackgroundMusicView::CheckValidLocalAudioFile(const QString &url) const
 	media_info_t media_info;
 	memset(&media_info, 0, sizeof(media_info_t));
 
-	bool open = mi_open(&media_info, url.toStdString().c_str(), static_cast<mi_open_mode>(MI_OPEN_DIRECTLY | MI_OPEN_TRY_DECODER));
+	bool open = mi_open(&media_info, url.toUtf8().constData(), static_cast<mi_open_mode>(MI_OPEN_DIRECTLY | MI_OPEN_TRY_DECODER));
 	mi_free(&media_info);
 
 	return open;
@@ -1841,8 +1951,8 @@ void PLSBackgroundMusicView::RefreshMulicEnabledPlayList(const quint64 &sceneIte
 	obs_data_array_t *urlArray = obs_data_array_create();
 	for (auto &data : datas) {
 		obs_data_t *url = obs_data_create();
-		obs_data_set_string(url, BGM_URL, data.GetUrl(data.id).toStdString().c_str());
-		obs_data_set_string(url, BGM_DURATION_TYPE, QString::number(data.id).toStdString().c_str());
+		obs_data_set_string(url, BGM_URL, data.GetUrl(data.id).toUtf8().constData());
+		obs_data_set_string(url, BGM_DURATION_TYPE, QString::number(data.id).toUtf8().constData());
 		obs_data_array_push_back(urlArray, url);
 		obs_data_release(url);
 	}
@@ -1858,26 +1968,34 @@ void PLSBackgroundMusicView::UpdateCurrentPlayStatus(const QString &sourceName)
 		return;
 	}
 
-	OBSSource source = pls_get_source_by_name(currentSourceName.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(currentSourceName.toUtf8().constData());
 	if (!source) {
 		return;
 	}
 
 	int currentRow = ui->playListWidget->GetCurrentRow();
 	if (-1 == currentRow) {
+		setCurrentRow(source);
 		return;
 	}
-
+	if (!isSceneitemVisible(currentSceneItem)) {
+		ui->playListWidget->SetMediaStatus(currentRow, MediaStatus::stateCurrentInvisible);
+		return;
+	}
 	obs_media_state state = obs_source_media_get_state(source);
 	if (state == OBS_MEDIA_STATE_PLAYING) {
 		indexLoading = currentRow;
 		ui->playListWidget->SetMediaStatus(currentRow, isLoading ? MediaStatus::stateLoading : MediaStatus::statePlaying);
+		StartLoadingTimer(100);
 	} else if (state == OBS_MEDIA_STATE_OPENING) {
 		indexLoading = currentRow;
 		ui->playListWidget->SetMediaStatus(currentRow, MediaStatus::stateLoading);
+	} else if (state == OBS_MEDIA_STATE_ENDED || state == OBS_MEDIA_STATE_STOPPED || state == OBS_MEDIA_STATE_NONE) {
+		if (-1 == currentRow) {
+			setCurrentRow(source);
+		}
 	}
 }
-
 void PLSBackgroundMusicView::SetPlayListStatus(const PLSBgmItemData &)
 {
 	for (int i = 0; i < ui->playListWidget->Count(); i++) {
@@ -1889,7 +2007,7 @@ void PLSBackgroundMusicView::SetPlayListStatus(const PLSBgmItemData &)
 void PLSBackgroundMusicView::SetPlayListItemStatus(const int &index, const PLSBgmItemData &data_)
 {
 	bool current = data_.isCurrent;
-	OBSSource source = pls_get_source_by_name(currentSourceName.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(currentSourceName.toUtf8().constData());
 	if (!source) {
 		ui->playListWidget->SetMediaStatus(index, MediaStatus::stateNormal);
 		return;
@@ -1900,11 +2018,18 @@ void PLSBackgroundMusicView::SetPlayListItemStatus(const int &index, const PLSBg
 		return;
 	}
 
+	if (!isSceneitemVisible(currentSceneItem)) {
+		current ? ui->playListWidget->SetMediaStatus(index, MediaStatus::stateCurrentInvisible) : ui->playListWidget->SetMediaStatus(index, MediaStatus::stateInvisible);
+		return;
+	}
+
 	if (current) {
 		obs_media_state state = obs_source_media_get_state(source);
 		if (state == OBS_MEDIA_STATE_PLAYING) {
 			if (!isLoading) {
 				ui->playListWidget->SetMediaStatus(index, MediaStatus::statePlaying);
+				indexLoading = index;
+				StartLoadingTimer(100);
 			}
 		} else if (state == OBS_MEDIA_STATE_OPENING) {
 			if (!isLoading) {
@@ -1914,11 +2039,14 @@ void PLSBackgroundMusicView::SetPlayListItemStatus(const int &index, const PLSBg
 			ui->playListWidget->SetMediaStatus(index, MediaStatus::statePause);
 		} else if (state == OBS_MEDIA_STATE_ERROR) {
 			ui->playListWidget->SetMediaStatus(index, MediaStatus::stateInvalid);
+		} else if (state == OBS_MEDIA_STATE_NONE || state == OBS_MEDIA_STATE_ENDED || state == OBS_MEDIA_STATE_STOPPED) {
+			ui->playListWidget->SetMediaStatus(index, MediaStatus::stateSelected);
 		} else {
 			data_.isDisable ? ui->playListWidget->SetMediaStatus(index, MediaStatus::stateInvalid) : ui->playListWidget->SetMediaStatus(index, MediaStatus::stateNormal);
 		}
 		return;
 	}
+
 	ui->playListWidget->SetMediaStatus(index, MediaStatus::stateNormal);
 }
 
@@ -1935,6 +2063,8 @@ void PLSBackgroundMusicView::SetPlayerPaneEnabled(bool enabled)
 
 	if (!enabled) {
 		ui->playingSlider->setEnabled(enabled);
+		ui->playingSlider->setValue(0);
+		ui->currentTimeLabel->setText("00:00");
 	}
 }
 
@@ -1955,6 +2085,9 @@ void PLSBackgroundMusicView::InitToast()
 
 void PLSBackgroundMusicView::ShowToastView(const QString &text)
 {
+	if (toastView.isVisible() && toastView.GetMessageContent() == tr("Bgm.No.Network.Toast")) {
+		return;
+	}
 	toastView.SetMessage(text);
 	ResizeToastView();
 	toastView.ShowToast();
@@ -1963,12 +2096,13 @@ void PLSBackgroundMusicView::ShowToastView(const QString &text)
 void PLSBackgroundMusicView::ResizeToastView()
 {
 	toastView.SetShowWidth(this->width() - 2 * 10);
-
-#if defined(Q_OS_MACOS)
-	toastView.move(10, 420);
-#elif defined(Q_OS_WIN)
-	toastView.move(10, 460);
-#endif
+	QPoint pos;
+	if (ui->noSourcePage->isVisible()) {
+		pos = ui->noSourcePage->mapTo(this, QPoint(10, 10));
+	} else if (ui->playListPage->isVisible()) {
+		pos = ui->playListPage->mapTo(this, QPoint(10, 10));
+	}
+	toastView.move(pos.x(), pos.y());
 }
 
 QImage PLSBackgroundMusicView::GetCoverImage(const QString &url) const
@@ -1976,7 +2110,7 @@ QImage PLSBackgroundMusicView::GetCoverImage(const QString &url) const
 	QImage image{};
 	media_info_t media_info;
 	memset(&media_info, 0, sizeof(media_info_t));
-	bool open = mi_open(&media_info, url.toStdString().c_str(), MI_OPEN_DIRECTLY);
+	bool open = mi_open(&media_info, url.toUtf8().constData(), MI_OPEN_DIRECTLY);
 	if (!open) {
 		return image;
 	}
@@ -1990,6 +2124,7 @@ QImage PLSBackgroundMusicView::GetCoverImage(const QString &url) const
 
 void PLSBackgroundMusicView::SetCoverImage(const PLSBgmItemData &data)
 {
+	createGetCoverThread();
 	QMetaObject::invokeMethod(coverThreadObj, "GetCoverImage", Qt::QueuedConnection, Q_ARG(const PLSBgmItemData &, data));
 }
 
@@ -2059,9 +2194,9 @@ void PLSBackgroundMusicView::UpdateBgmCoverPath(const PLSBgmItemData &data)
 			if (data_.coverPath.isEmpty() || !existed) {
 				OBSData settings_ = obs_data_create();
 				obs_data_set_string(settings_, "method", "bgm_update_cover_path");
-				obs_data_set_string(settings_, BGM_URL, data.GetUrl(data.id).toStdString().c_str());
-				obs_data_set_string(settings_, BGM_DURATION_TYPE, QString::number(data.id).toStdString().c_str());
-				obs_data_set_string(settings_, BGM_COVER_PATH, data.coverPath.toStdString().c_str());
+				obs_data_set_string(settings_, BGM_URL, data.GetUrl(data.id).toUtf8().constData());
+				obs_data_set_string(settings_, BGM_DURATION_TYPE, QString::number(data.id).toUtf8().constData());
+				obs_data_set_string(settings_, BGM_COVER_PATH, data.coverPath.toUtf8().constData());
 				pls_source_set_private_data(source, settings_);
 				obs_data_release(settings_);
 			}
@@ -2076,7 +2211,7 @@ void CheckValidThread::CheckUrlAvailable(const PLSBgmItemData &data)
 	media_info_t media_info;
 	memset(&media_info, 0, sizeof(media_info_t));
 
-	bool open = mi_open(&media_info, data.GetUrl(data.id).toStdString().c_str(), static_cast<mi_open_mode>(MI_OPEN_DIRECTLY | MI_OPEN_TRY_DECODER));
+	bool open = mi_open(&media_info, data.GetUrl(data.id).toUtf8().constData(), static_cast<mi_open_mode>(MI_OPEN_DIRECTLY | MI_OPEN_TRY_DECODER));
 	mi_free(&media_info);
 
 	emit checkFinished(data, open);
@@ -2084,7 +2219,7 @@ void CheckValidThread::CheckUrlAvailable(const PLSBgmItemData &data)
 
 void PLSBackgroundMusicView::SeekTo(int val)
 {
-	OBSSource source = pls_get_source_by_name(currentSourceName.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(currentSourceName.toUtf8().constData());
 	if (!source)
 		return;
 
@@ -2099,7 +2234,7 @@ void PLSBackgroundMusicView::SeekTo(int val)
 
 int64_t PLSBackgroundMusicView::GetSliderTime(int val)
 {
-	OBSSource source = pls_get_source_by_name(currentSourceName.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(currentSourceName.toUtf8().constData());
 	if (!source)
 		return 0;
 
@@ -2108,6 +2243,55 @@ int64_t PLSBackgroundMusicView::GetSliderTime(int val)
 	int64_t seekTo = (int64_t)(percent * duration);
 
 	return seekTo;
+}
+
+void PLSBackgroundMusicView::setCurrentRow(OBSSource source)
+{
+	if (!source) {
+		ResetControlView();
+		return;
+	}
+	// get first invalid
+	PLSBgmItemData data;
+	bool valid = false;
+	for (auto dataTmp : ui->playListWidget->GetData()) {
+		if (dataTmp.title.isEmpty() || dataTmp.isDisable) {
+			continue;
+		}
+		data = dataTmp;
+		valid = true;
+		break;
+	}
+	if (!valid) {
+		ResetControlView();
+		ui->playListWidget->SetCurrentRow(PLSBgmItemData());
+		return;
+	}
+
+	setCurrentRow(source, data);
+}
+
+void PLSBackgroundMusicView::setCurrentRow(OBSSource source, const PLSBgmItemData &data)
+{
+	if (!source) {
+		ResetControlView();
+		return;
+	}
+
+	SetUrlInfo(source, data, false);
+	ui->playingSlider->setEnabled(false);
+	ui->playingSlider->setValue(0);
+	ui->currentTimeLabel->setText("00:00");
+	ui->durationLabel->setText(PLSBgmDataViewManager::Instance()->ConvertIntToTimeString(data.GetDuration(data.id)));
+	ui->coverLabel->SetMusicInfo(data.title, data.producer);
+	ui->playListWidget->SetCurrentRow(data);
+	ShowCoverGif(false);
+	ShowCoverImage(data);
+	SetPlayListStatus(data);
+	SetPlayerControllerStatus(currentSceneItem);
+	if (auto main = PLSBasic::instance(); main) {
+		main->getApi()->on_event(pls_frontend_event::PLS_FRONT_EVENT_MUSIC_PLAYLIST_SELECT_CHANGED);
+	}
 }
 
 void GetCoverThread::SaveCoverToLocalPath(const PLSBgmItemData &data_, const QImage &image)
@@ -2133,7 +2317,7 @@ void GetCoverThread::PrintThumbInfo(const QString &url, media_info_t *mi) const
 
 	if (width > 0 && height > 0) {
 		auto file_name = pls_get_path_file_name(url);
-		PLS_INFO(MAIN_BGM_MODULE, "bgm thumbnail info. %lldx%lld, vformat:%lld, file:'%s'", width, height, vformat, file_name.toStdString().c_str());
+		PLS_INFO(MAIN_BGM_MODULE, "bgm thumbnail info. %lldx%lld, vformat:%lld, file:'%s'", width, height, vformat, file_name.toUtf8().constData());
 	}
 }
 
@@ -2153,7 +2337,7 @@ void GetCoverThread::NextTask()
 	}
 	media_info_t media_info;
 	memset(&media_info, 0, sizeof(media_info_t));
-	bool open = mi_open(&media_info, url.toStdString().c_str(), MI_OPEN_DIRECTLY);
+	bool open = mi_open(&media_info, url.toUtf8().constData(), MI_OPEN_DIRECTLY);
 	if (!open) {
 		emit GetPreviewImage(image, data);
 		NextTask();

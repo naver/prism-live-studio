@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resource/images/add-source-view/addSourceGuide/game_en.png</file>
+        <file>resource/images/add-source-view/addSourceGuide/presentation_en.png</file>
+        <file>resource/images/add-source-view/addSourceGuide/shopping_en.png</file>
+        <file>resource/images/add-source-view/addSourceGuide/vtuber_en.png</file>
+        <file>resource/images/add-source-view/addSourceGuide/chatting_en.png</file>
+        <file>resource/images/add-source-view/addSourceGuide/mobile_en.png</file>
+        <file>resource/images/add-source-view/ic_next_over.svg</file>
+        <file>resource/images/add-source-view/ic_badge_source_beta.svg</file>
+        <file>resource/images/add-source-view/img_source_recommendedsources.png</file>
+    </qresource>
+</RCC>

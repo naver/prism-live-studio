@@ -32,6 +32,7 @@ protected:
 
 private:
 	Ui::PLSLiveInfoYoutube *ui;
+	void initUI();
 	void setupFirstUI();
 	std::vector<PLSScheComboxItemData> m_vecItemDatas;
 

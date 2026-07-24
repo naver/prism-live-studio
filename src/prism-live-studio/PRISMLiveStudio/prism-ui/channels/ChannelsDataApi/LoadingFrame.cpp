@@ -50,7 +50,6 @@ void LoadingFrame::next()
 		painter.drawImage(mPic.rect(), mPic);
 
 		ui->LoadingIconLabel->setPixmap(tmp);
-		QApplication::processEvents();
 	}
 }
 

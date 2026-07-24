@@ -1,7 +1,6 @@
 /*
 * @file		PLSPlatformBase.hpp
 * @brief	A base class for all platforms
-* @author	wu.longyue@navercorp.com
 * @date		2020-01-06
 */
 
@@ -102,6 +101,9 @@ enum class PLSPlatformLiveStartedStatus { PLS_NONE, PLS_SUCCESS, PLS_FAILED };
 class PLSPlatformBase : public QObject {
 	Q_OBJECT
 public:
+	enum UpdateType { None = 0x00, Thum = 0x01, Category = 0x01 << 1, Kids = 0x01 << 2, Title = 0x01 << 3, PrivacyStatus = 0x01 << 4, Description = 0x01 << 5, Latency = 0x01 << 6 };
+	Q_DECLARE_FLAGS(UpdateTypes, UpdateType)
+
 	virtual PLSServiceType getServiceType() const = 0;
 
 	//Corresponding UI's channel name
@@ -402,6 +404,9 @@ public:
 	virtual QJsonObject getDirectStartParams() { return QJsonObject(); }
 	virtual QMap<QString, QString> getDirectEndParams() { return {}; }
 
+	virtual void onResumeStreaming(const QMap<QString, QVariant> &params) {}
+	virtual QMap<QString, QVariant> getResumeStreamingParams() const { return QMap<QString, QVariant>(); }
+
 	virtual void onInitDataChanged() {}
 
 	virtual bool isMqttChatCanShow(const QJsonObject &);
@@ -424,6 +429,9 @@ public:
 	bool getVerticalOutput() const { return m_bVerticalOutput; }
 	void setVerticalOutput() { m_bVerticalOutput = isVerticalOutput(); }
 
+	UpdateTypes getUpdateFailedTypes() const { return m_failedTypes; };
+	void appendUpdateFailedTypes(UpdateTypes values) { m_failedTypes |= values; };
+	void setUpdateFailedTypes(UpdateTypes values) { m_failedTypes = values; };
 signals:
 	void scheduleListUpdateFinished();
 
@@ -520,4 +528,6 @@ private:
 	bool m_bSubChannelStartApiCall = false;
 
 	bool m_bVerticalOutput = false;
+
+	UpdateTypes m_failedTypes = UpdateType::None;
 };

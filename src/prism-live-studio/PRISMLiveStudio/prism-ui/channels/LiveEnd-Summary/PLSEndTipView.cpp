@@ -22,7 +22,6 @@ PLSEndTipView::PLSEndTipView(QWidget *parent) : PLSDialogView(parent)
 
 	PLS_INFO(END_MODULE, "PLSEndTipView Show");
 	setWindowTitle(tr("TransitionInProgress.Title"));
-	this->setAttribute(Qt::WA_AlwaysShowToolTips, true);
 	this->setAttribute(Qt::WA_NativeWindow);
 
 	ui->topTitle->setText(tr("nshopping.end.alert.title"));

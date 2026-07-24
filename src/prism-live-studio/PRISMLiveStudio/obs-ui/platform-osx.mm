@@ -109,7 +109,15 @@ vector<string> GetPreferredLocales()
 
 bool IsAlwaysOnTop(QWidget *window)
 {
-    return (window->windowFlags() & Qt::WindowStaysOnTopHint) != 0;
+    if (!window)
+        return false;
+
+    NSView *nsv = (__bridge NSView *) reinterpret_cast<void *>(window->winId());
+    NSWindow *nsw = nsv.window;
+    if (!nsw)
+        return false;
+
+    return nsw.level == NSScreenSaverWindowLevel;
 }
 
 void disableColorSpaceConversion(QWidget *window)
@@ -120,21 +128,19 @@ void disableColorSpaceConversion(QWidget *window)
 
 void SetAlwaysOnTop(QWidget *window, bool enable)
 {
-    Qt::WindowFlags flags = window->windowFlags();
+    if (!window)
+        return;
+
     NSView *nsv = (__bridge NSView *) reinterpret_cast<void *>(window->winId());
     NSWindow *nsw = nsv.window;
-    if (enable) {
-        NSView *view = (__bridge NSView *) reinterpret_cast<void *>(window->winId());
+    if (!nsw)
+        return;
 
-        [[view window] setLevel:NSScreenSaverWindowLevel];
+    if (enable)
+        [nsw setLevel:NSScreenSaverWindowLevel];
+    else
+        [nsw setLevel:NSNormalWindowLevel];
 
-        flags |= Qt::WindowStaysOnTopHint;
-    } else {
-        [nsw setLevel:0];
-        flags &= ~Qt::WindowStaysOnTopHint;
-    }
-
-    window->setWindowFlags(flags);
     window->show();
 }
 void bringWindowToTop(const QWidget *window)

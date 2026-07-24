@@ -18,6 +18,17 @@ eg: Launcher process, cam-session.exe, PRISMLiveStudio.exe ...
 */
 LIBDUMPANALUZER_API void pls_catch_unhandled_exceptions(const std::string &process_name, const std::string &dump_path = "");
 
+#ifdef __APPLE__
+/*
+ * Install fallback signal handlers for crash detection.
+ * These handlers will call kscrash_notifyAppCrash() before re-raising
+ * the signal, ensuring KSCrash is notified even if its own monitors
+ * fail to capture the crash.
+ * Call this AFTER pls_catch_unhandled_exceptions() to install handlers
+ * for SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL.
+ */
+LIBDUMPANALUZER_API void pls_install_fallback_crash_handlers();
+#endif
 /*
 Note: Only available on Windows platform
 
@@ -72,12 +83,22 @@ info.block_time_ms;		 if the DumpType is DT_UI_BLOCK, this field be required
 */
 LIBDUMPANALUZER_API bool pls_wait_send_dump(ProcessInfo info);
 
+LIBDUMPANALUZER_API bool pls_capture_force_exit_dump(const char *reason);
+
 #if defined(Q_OS_WIN)
 LIBDUMPANALUZER_API bool pls_send_block_dump(ProcessInfo info);
 LIBDUMPANALUZER_API std::vector<SoftInfo> pls_installed_software();
 
 #elif defined(Q_OS_MACOS)
-// TODO: - mac next
+/*
+Check if a KSCrash crash dump exists for the given process info.
+Uses session and pid to locate the correct dump directory.
+
+info.process_name       required
+info.prism_sub_session  required
+info.pid                required
+*/
+LIBDUMPANALUZER_API bool pls_has_crash_dump(const ProcessInfo &info);
 #endif
 
 #endif // _PRISM_COMMON_LIBDUMPANALUZER_LIBDUMPANALUZER_H

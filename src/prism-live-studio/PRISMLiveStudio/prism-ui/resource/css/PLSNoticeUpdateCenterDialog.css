@@ -1,0 +1,202 @@
+PLSNoticeUpdateCenterDialog {
+    qproperty-captionBarHeight: 36;
+    qproperty-hasHLine: true;
+    /* Opaque root matches #content; avoids dark bleed-through at rounded corners (same as PLSNoticePopupDialog). */
+    background-color: #272727;
+}
+
+PLSNoticeUpdateCenterDialog > #content {
+    background-color: #272727;
+}
+
+/* Tab frame: bottom border (line under tabs) */
+PLSNoticeUpdateCenterDialog #tabFrame {
+    min-height: 55px;
+    max-height: 55px;
+    background-color: #272727;
+    border: none;
+    border-bottom: 1px solid #333333;
+}
+
+PLSNoticeUpdateCenterDialog #tabFrame #b2bTabButton,
+PLSNoticeUpdateCenterDialog #tabFrame #prismTabButton {
+    padding:0;
+    margin:0;
+    min-width: 157px;
+    max-width: 157px;
+    min-height: 55px;
+    max-height: 55px;
+    font-size: 14px;
+    font-weight: normal;
+    color: #bababa;
+    background-color: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+}
+
+PLSNoticeUpdateCenterDialog #tabFrame #b2bTabButton:hover,
+PLSNoticeUpdateCenterDialog #tabFrame #prismTabButton:hover {
+    color: #ffffff;
+}
+
+PLSNoticeUpdateCenterDialog #tabFrame #b2bTabButton:pressed,
+PLSNoticeUpdateCenterDialog #tabFrame #prismTabButton:pressed {
+    color: #1E1E1F;
+}
+
+PLSNoticeUpdateCenterDialog #tabFrame #b2bTabButton:checked,
+PLSNoticeUpdateCenterDialog #tabFrame #prismTabButton:checked {
+    color: #effc35;
+    font-weight: bold;
+    border-bottom: 2px solid #effc35;
+}
+
+PLSNoticeUpdateCenterDialog #subHeaderWidget {
+    background-color: #363636;
+    border-radius: 3px;
+}
+
+PLSNoticeUpdateCenterDialog #subHeaderWidget #noticeSubButton,
+PLSNoticeUpdateCenterDialog #subHeaderWidget #updateSubButton {
+    font-size: 12px !important;
+    font-weight: bold !important;
+    color: #999999 !important;
+    background-color: transparent !important;
+    border: none !important;
+    min-height: 44px;
+}
+
+PLSNoticeUpdateCenterDialog #subHeaderWidget #noticeSubButton:hover,
+PLSNoticeUpdateCenterDialog #subHeaderWidget #updateSubButton:hover {
+    color: #cccccc !important;
+    background-color: transparent !important;
+}
+
+PLSNoticeUpdateCenterDialog #subHeaderWidget #noticeSubButton:checked,
+PLSNoticeUpdateCenterDialog #subHeaderWidget #updateSubButton:checked {
+    color: #effc35 !important;
+    background-color: transparent !important;
+}
+
+PLSNoticeUpdateCenterDialog #subHeaderWidget #noticeSubButton:pressed,
+PLSNoticeUpdateCenterDialog #subHeaderWidget #updateSubButton:pressed {
+    color: #effc35 !important;
+    background-color: transparent !important;
+}
+
+PLSNoticeUpdateCenterDialog #subHeaderWidget #subSeparator {
+    min-height: 12px;
+    max-height: 12px;
+    background-color: #666666;
+}
+
+/* Scroll area */
+PLSNoticeUpdateCenterDialog #scrollArea {
+    background-color: #272727;
+}
+
+PLSNoticeUpdateCenterDialog #scrollAreaWidgetContents {
+    background-color: #272727;
+}
+
+PLSNoticeUpdateCenterDialog #centerEmptyLabel,
+PLSNoticeUpdateCenterDialog #centerFailedLabel {
+    font-size: 14px;
+    color: #999999;
+    background-color: transparent;
+    min-height: 0px;
+    max-height: 9999px;
+}
+
+PLSNoticeUpdateCenterDialog #centerFailedLabel {
+    padding: 2px 8px;
+}
+
+PLSNoticeUpdateCenterDialog #centerFailedWidget {
+    min-width: 340px;
+    min-height: 100px;
+}
+
+PLSNoticeUpdateCenterDialog #centerRetryButton {
+    padding:0;
+    margin:0;
+    min-width: 110px;
+    min-height: 27px;
+    max-height: 27px;
+    font-size: 12px;
+    font-weight: normal;
+    color: #bababa;
+    background-color: transparent;
+    border-radius: 3px;
+    border: 1px solid #3d3d3d;
+}
+
+PLSNoticeUpdateCenterDialog #centerRetryButton:hover {
+    background-color: #555555;
+}
+
+PLSNoticeUpdateCenterDialog #centerRetryButton:pressed {
+    background-color: #1e1e1f;
+}
+
+PLSNoticeUpdateCenterDialog #NoticeUpdateListItem {
+    min-height: 70px;
+    max-height:70px;
+    text-align: left;
+    background-color: #363636;
+    border: none;
+    border-radius: 4px;
+}
+
+PLSNoticeUpdateCenterDialog #NoticeUpdateListItem:hover {
+    background-color: #3e3e3e;
+}
+
+PLSNoticeUpdateCenterDialog #NoticeUpdateListItem:pressed {
+    background-color: #2d2d2d;
+}
+
+PLSNoticeUpdateCenterDialog #NoticeUpdateListItem #itemTitle,
+PLSNoticeUpdateCenterDialog #NoticeUpdateListItem #itemDate {
+    background-color: transparent;
+}
+
+PLSNoticeUpdateCenterDialog #NoticeUpdateListItem #itemTitle {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+PLSNoticeUpdateCenterDialog #NoticeUpdateListItem #itemDate {
+    font-size: 12px;
+    color: #999999;
+}
+
+/* Bottom line */
+PLSNoticeUpdateCenterDialog #lineView {
+    background-color: #151515;
+    min-height: 1px;
+    max-height: 1px;
+}
+
+/* Close button */
+PLSNoticeUpdateCenterDialog #closeButton {
+    padding:0;
+    margin:0;
+    min-width: 168px;
+    min-height: 38px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+    background-color: #444444;
+    border-radius: 3px;
+}
+
+PLSNoticeUpdateCenterDialog #closeButton:hover {
+    background-color: #555555;
+}
+
+PLSNoticeUpdateCenterDialog #closeButton:pressed {
+    background-color: #1e1e1f;
+}

@@ -1,7 +1,29 @@
 #include "PLSD2DGeometry.h"
 #include "../PLSDrawPenMgr.h"
+#include "../PLSDrawPenDefine.h"
 
 constexpr auto smoothcurve = "drawpen smoothcurve";
+
+// Brush smoothing was removed; use the raw stroke points as-is, connected by
+// straight (degenerate cubic bezier) segments so BezierCurve keeps working unchanged.
+static void pls_build_raw_ctrl_pts(PointFs &ctrlPts, const PointFs &points)
+{
+	if (points.empty()) {
+		return;
+	}
+	if (points.size() == 1) {
+		for (int i = 0; i < 4; i++) {
+			ctrlPts.push_back(points[0]);
+		}
+		return;
+	}
+	for (size_t i = 0; i + 1 < points.size(); i++) {
+		ctrlPts.push_back(points[i]);
+		ctrlPts.push_back(points[i]);
+		ctrlPts.push_back(points[i + 1]);
+		ctrlPts.push_back(points[i + 1]);
+	}
+}
 
 void PLSD2DGeometry::BezierCurve(ID2D1PathGeometry *pathGeometry, const PointFs &ctrlPts, PointF point)
 {
@@ -13,11 +35,14 @@ void PLSD2DGeometry::BezierCurve(ID2D1PathGeometry *pathGeometry, const PointFs 
 		D2D1_POINT_2F start = {point.x, point.y};
 		pSink->BeginFigure(start, D2D1_FIGURE_BEGIN_FILLED);
 
-		for (auto p : ctrlPts) {
-			D2D1_POINT_2F pt{};
-			pt.x = p.x;
-			pt.y = p.y;
-			pSink->AddLine(pt);
+		uint64_t i = 0;
+		while (i < ctrlPts.size() && !(ctrlPts.size() % 4)) {
+
+			D2D1_POINT_2F c1 = {ctrlPts[i + 1].x, ctrlPts[i + 1].y};
+			D2D1_POINT_2F c2 = {ctrlPts[i + 2].x, ctrlPts[i + 2].y};
+			D2D1_POINT_2F end = {ctrlPts[i + 3].x, ctrlPts[i + 3].y};
+			pSink->AddBezier(D2D1::BezierSegment(c1, c2, end));
+			i += 4;
 		}
 
 		pSink->EndFigure(D2D1_FIGURE_END_OPEN);
@@ -46,12 +71,14 @@ ID2D1Geometry *PLSD2DGeometry::CalculateCurveGeometry(std::vector<PointF> points
 	if (profile)
 		profile_start(smoothcurve);
 
+	PointFs ctrlPts;
+	pls_build_raw_ctrl_pts(ctrlPts, points);
 
 	if (profile)
 		profile_end(smoothcurve);
 
-	BezierCurve(pathGeometry, points, points.front());
-	points.clear();
+	BezierCurve(pathGeometry, ctrlPts, points.front());
+	ctrlPts.clear();
 
 	return pathGeometry;
 }

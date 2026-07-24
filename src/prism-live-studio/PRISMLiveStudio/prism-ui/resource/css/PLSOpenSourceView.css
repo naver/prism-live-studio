@@ -1,46 +1,43 @@
 PLSOpenSourceView {
-    qproperty-hasHLine: true;
-    qproperty-hasMinButton: false;
-    qproperty-hasCloseButton: false;
-    qproperty-isMoveInContent: true;
-    qproperty-hasBorder: true;
-    qproperty-hasCaption: false;
-	background-color: #272727;
+    qproperty-captionBarHeight: 0;
+    qproperty-captionHeight: 0;
+    qproperty-hasHLine: false;
+    background-color: #272727;
 }
 
-PLSOpenSourceView #lineView {
-    background-color:#151515;
-}
+    PLSOpenSourceView #lineView {
+        background-color: #151515;
+    }
 
-PLSOpenSourceView #topTitleLabel {
-    color:#effc35;
-    font-size:/*hdpi*/20px;
-    font-weight: bold;
-    min-height:/*hdpi*/30px;
-    max-height:/*hdpi*/30px;
-}
+    PLSOpenSourceView #topTitleLabel {
+        color: #effc35;
+        font-size: 20px;
+        font-weight: bold;
+        min-height: 30px;
+        max-height: 30px;
+    }
 
-PLSOpenSourceView #cefBackView {
-    background-color:#1e1e1e;
-	min-height:/*hdpi*/ 248px;
-    max-height:/*hdpi*/ 248px;
-}
+    PLSOpenSourceView #cefBackView {
+        background-color: #1e1e1e;
+        min-height: 248px;
+        max-height: 248px;
+    }
 
-PLSOpenSourceView #confirmButton {
-    font-size:/*hdpi*/14px;
-    font-weight:bold;
-    border-radius:/*hdpi*/3px;
-    padding:0px;
-    color:white;
-    background-color:#444444;
-	qproperty-minimumSize: /*hdpi*/ 175px /*hdpi*/ 40px;
-	qproperty-maximumSize: /*hdpi*/ 175px /*hdpi*/ 40px;
-}
+    PLSOpenSourceView #confirmButton {
+        font-size: 14px;
+        font-weight: bold;
+        border-radius: 3px;
+        padding: 0px;
+        color: white;
+        background-color: #444444;
+        qproperty-minimumSize: 175px 40px;
+        qproperty-maximumSize: 175px 40px;
+    }
 
-PLSOpenSourceView #confirmButton:hover {
-    background-color:#555555;
-}
+        PLSOpenSourceView #confirmButton:hover {
+            background-color: #555555;
+        }
 
-PLSOpenSourceView #confirmButton:pressed {
-    background-color:#1e1e1f;
-}
+        PLSOpenSourceView #confirmButton:pressed {
+            background-color: #1e1e1f;
+        }

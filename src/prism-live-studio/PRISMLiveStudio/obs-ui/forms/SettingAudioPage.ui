@@ -1,0 +1,521 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SettingAudioPage</class>
+ <widget class="QWidget" name="SettingAudioPage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QScrollArea" name="scrollArea_50">
+     <property name="frameShape">
+      <enum>QFrame::Shape::NoFrame</enum>
+     </property>
+     <property name="widgetResizable">
+      <bool>true</bool>
+     </property>
+     <widget class="QWidget" name="scrollAreaWidgetContents_50">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>800</width>
+        <height>600</height>
+       </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_50">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>25</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QGroupBox" name="audioGeneralGroupBox">
+         <property name="title">
+          <string>Basic.Settings.General</string>
+         </property>
+         <layout class="QFormLayout" name="formLayout_52">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+          </property>
+          <property name="horizontalSpacing">
+           <number>20</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>10</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_14">
+            <property name="minimumSize">
+             <size>
+              <width>170</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Basic.Settings.Audio.SampleRate</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="PLSComboBox" name="sampleRate">
+            <property name="currentText">
+             <string notr="true">44.1 kHz</string>
+            </property>
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <item>
+             <property name="text">
+              <string>44.1 kHz</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>48 kHz</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_15">
+            <property name="text">
+             <string>Basic.Settings.Audio.Channels</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="PLSComboBox" name="channelSetup">
+            <property name="currentText">
+             <string>Mono</string>
+            </property>
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <item>
+             <property name="text">
+              <string>Mono</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Stereo</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>2.1</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>4.0</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>4.1</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>5.1</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>7.1</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="audioDevicesGroupBox">
+         <property name="title">
+          <string>Basic.Settings.Audio.Devices</string>
+         </property>
+         <layout class="QFormLayout" name="formLayout_53">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+          </property>
+          <property name="horizontalSpacing">
+           <number>20</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>10</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_2">
+            <property name="text">
+             <string>Basic.Settings.Audio.DesktopDevice</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="PLSComboBox" name="desktopAudioDevice1">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>Basic.Settings.Audio.DesktopDevice2</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="PLSComboBox" name="desktopAudioDevice2">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label_4">
+            <property name="text">
+             <string>Basic.Settings.Audio.AuxDevice</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="PLSComboBox" name="auxAudioDevice1">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>Basic.Settings.Audio.AuxDevice2</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="PLSComboBox" name="auxAudioDevice2">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="label_6">
+            <property name="text">
+             <string>Basic.Settings.Audio.AuxDevice3</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="PLSComboBox" name="auxAudioDevice3">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="PLSComboBox" name="auxAudioDevice4">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="label_67">
+            <property name="text">
+             <string>Basic.Settings.Audio.AuxDevice4</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="audioMetersGroupBox">
+         <property name="title">
+          <string>Basic.Settings.Audio.Meters</string>
+         </property>
+         <layout class="QFormLayout" name="formLayout_54">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+          </property>
+          <property name="horizontalSpacing">
+           <number>20</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>10</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_65">
+            <property name="text">
+             <string>Basic.Settings.Audio.MeterDecayRate</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="PLSComboBox" name="meterDecayRate">
+            <property name="currentText">
+             <string>Basic.Settings.Audio.MeterDecayRate.Fast</string>
+            </property>
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <item>
+             <property name="text">
+              <string>Basic.Settings.Audio.MeterDecayRate.Fast</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Basic.Settings.Audio.MeterDecayRate.Medium</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Basic.Settings.Audio.MeterDecayRate.Slow</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_66">
+            <property name="text">
+             <string>Basic.Settings.Audio.PeakMeterType</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="PLSComboBox" name="peakMeterType">
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <item>
+             <property name="text">
+              <string>Basic.Settings.Audio.PeakMeterType.SamplePeak</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Basic.Settings.Audio.PeakMeterType.TruePeak</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="audioAdvGroupBox">
+         <property name="title">
+          <string>Basic.Settings.Advanced</string>
+         </property>
+         <layout class="QFormLayout" name="formLayout_56">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+          </property>
+          <property name="horizontalSpacing">
+           <number>20</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>10</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="monitoringDeviceLabel">
+            <property name="text">
+             <string>Basic.Settings.Advanced.Audio.MonitoringDevice</string>
+            </property>
+            <property name="useFor" stdset="0">
+             <string notr="true">FormLabelRole</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="PLSComboBox" name="monitoringDevice"/>
+          </item>
+          <item row="1" column="1">
+           <widget class="PLSCheckBox" name="disableAudioDucking">
+            <property name="text">
+             <string>Basic.Settings.Advanced.Audio.DisableAudioDucking</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="PLSCheckBox" name="lowLatencyBuffering">
+            <property name="text">
+             <string>Basic.Settings.Audio.LowLatencyBufferingMode</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="audioHotkeysGroupBox">
+         <property name="title">
+          <string>Basic.Settings.Hotkeys</string>
+         </property>
+         <layout class="QFormLayout" name="audioSourceLayout">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+          </property>
+          <property name="horizontalSpacing">
+           <number>20</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>10</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_4">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PLSComboBox</class>
+   <extends>QComboBox</extends>
+   <header>PLSComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSCheckBox</class>
+   <extends>QCheckBox</extends>
+   <header>PLSCheckBox.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

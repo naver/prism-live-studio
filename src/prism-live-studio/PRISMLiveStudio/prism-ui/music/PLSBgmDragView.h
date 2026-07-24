@@ -61,8 +61,7 @@ private:
 signals:
 	void DelButtonClickedSignal(const PLSBgmItemData &data, bool);
 	void LoadingFailed(const QString &name);
-	void MousePressedSignal(PLSBgmItemView *item);
-	void MouseDoublePressedSignal(const QModelIndex &index);
+	void MousePressedSignal(const QModelIndex &index);
 	void RowChanged(const int &srcIndex, const int &destIndex);
 	void AudioFileDraggedIn(const QStringList &paths);
 

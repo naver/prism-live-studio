@@ -51,6 +51,7 @@
 #include <liblog.h>
 #include <PLSAlertView.h>
 #include <libutils-api.h>
+#include "PLSErrorHandler.h"
 
 #if __APPLE__
 #include "mac/DNSSDRegisterManager.hpp"
@@ -416,88 +417,88 @@ FRONTEND_API void pls_prism_signout()
 
 FRONTEND_API Common pls_get_gpop_common()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_common();
+	if (general_callbacks_valid()) {
+		return LocalGlobalVars::fgc->pls_get_common();
 	}
 	return Common();
 }
 
 FRONTEND_API QMap<QString, SnsCallbackUrl> pls_get_gpop_snscallback_urls()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_snscallback_urls();
+	if (general_callbacks_valid()) {
+		return LocalGlobalVars::fgc->pls_get_snscallback_urls();
 	}
 	return QMap<QString, SnsCallbackUrl>();
 }
 
 FRONTEND_API Connection pls_get_gpop_connection()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_connection();
+	if (general_callbacks_valid()) {
+		return LocalGlobalVars::fgc->pls_get_connection();
 	}
 	return Connection();
 }
 
 FRONTEND_API QMap<int, RtmpDestination> pls_get_rtmpDestination()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_rtmpDestination();
+	if (general_callbacks_valid()) {
+		return LocalGlobalVars::fgc->pls_get_rtmpDestination();
 	}
 	return QMap<int, RtmpDestination>();
 }
 
 FRONTEND_API QString pls_get_gcc_data()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_gcc_data();
+	if (general_callbacks_valid()) {
+		return LocalGlobalVars::fgc->pls_get_gcc_data();
 	}
 	return QString();
 }
 
 FRONTEND_API QString pls_get_prism_token()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_prism_token();
+	if (general_callbacks_valid()) {
+		return LocalGlobalVars::fgc->pls_get_prism_token();
 	}
 	return QString();
 }
 
 FRONTEND_API QString pls_get_prism_email()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_prism_email();
+	if (general_callbacks_valid()) {
+		return LocalGlobalVars::fgc->pls_get_prism_email();
 	}
 	return QString();
 }
 
 FRONTEND_API QString pls_get_prism_thmbanilurl()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_prism_thmbanilurl();
+	if (general_callbacks_valid()) {
+		return LocalGlobalVars::fgc->pls_get_prism_thmbanilurl();
 	}
 	return QString();
 }
 
 FRONTEND_API QString pls_get_prism_nickname()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_prism_nickname();
+	if (general_callbacks_valid()) {
+		return LocalGlobalVars::fgc->pls_get_prism_nickname();
 	}
 	return QString();
 }
 
 FRONTEND_API QString pls_get_prism_usercode()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_prism_usercode();
+	if (general_callbacks_valid()) {
+		return LocalGlobalVars::fgc->pls_get_prism_usercode();
 	}
 	return QString();
 }
 
 FRONTEND_API QByteArray pls_get_prism_cookie()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_prism_cookie();
+	if (general_callbacks_valid()) {
+		return LocalGlobalVars::fgc->pls_get_prism_cookie();
 	}
 	return nullptr;
 }
@@ -516,14 +517,6 @@ FRONTEND_API bool pls_get_b2b_acctoken(const QString &url)
 		return LocalGlobalVars::fc->pls_get_b2b_acctoken(url);
 	}
 	return false;
-}
-
-FRONTEND_API QJsonObject pls_get_resource_statistics_data()
-{
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_resource_statistics_data();
-	}
-	return QJsonObject();
 }
 
 FRONTEND_API bool pls_click_alert_message()
@@ -564,14 +557,6 @@ FRONTEND_API bool pls_is_rehearsal_info_display()
 		return LocalGlobalVars::fc->pls_is_rehearsal_info_display();
 	}
 	return false;
-}
-
-FRONTEND_API QString pls_get_remote_control_mobile_name(const QString &platformName)
-{
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_remote_control_mobile_name(platformName);
-	}
-	return QString();
 }
 
 FRONTEND_API bool pls_frontend_set_preview_program_mode(bool enable)
@@ -641,28 +626,6 @@ FRONTEND_API void pls_toast_clear()
 	}
 }
 
-FRONTEND_API void pls_paid_toast_message(pls_toast_info_type type, const QString &title, const QString &message, const QString &bottomButton, const std::function<void()> &btnCallback,
-					 bool containCloseBtn, int auto_close)
-{
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_paid_toast_message(type, title, message, bottomButton, btnCallback, containCloseBtn, auto_close);
-	}
-}
-FRONTEND_API void pls_paid_toast_message_close_btn(pls_toast_info_type type, const QString &title, const QString &message)
-{
-	pls_paid_toast_message(type, title, message, "", nullptr, true, -1);
-}
-FRONTEND_API void pls_paid_toast_message_no_btn(pls_toast_info_type type, const QString &title, const QString &message, int auto_close)
-{
-	assert(auto_close > 0 && "no btn and not set auto close less than zero");
-	pls_paid_toast_message(type, title, message, "", nullptr, false, auto_close);
-}
-FRONTEND_API void pls_paid_toast_clear()
-{
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_paid_toast_clear();
-	}
-}
 FRONTEND_API void pls_set_main_view_side_bar_user_button_icon(const QIcon &icon)
 {
 	if (callbacks_valid()) {
@@ -741,10 +704,10 @@ FRONTEND_API bool pls_inside_visible_screen_area(QRect geometry)
 	return false;
 }
 
-FRONTEND_API pls_check_update_result_t pls_check_app_update(bool &is_force, QString &version, QString &file_url, QString &update_info_url, PLSErrorHandler::RetData &retData)
+FRONTEND_API pls_check_update_result_t pls_check_app_update(bool &is_force, QString &version, QString &file_url, QString &update_info_url, PLSErrorHandler::RetData &retData, bool isNeedLatestApi)
 {
 	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_check_app_update(is_force, version, file_url, update_info_url, retData);
+		return LocalGlobalVars::fc->pls_check_app_update(is_force, version, file_url, update_info_url, retData, isNeedLatestApi);
 	}
 	return pls_check_update_result_t::Failed;
 }
@@ -765,11 +728,18 @@ FRONTEND_API bool pls_show_update_info_view(bool is_force, const QString &versio
 	return false;
 }
 
-FRONTEND_API void pls_get_new_notice_Info(const std::function<void(const QVariantMap &noticeInfo)> &noticeCallback)
+FRONTEND_API void pls_get_new_notice_Info(const std::function<void(const QList<PLSNoticeUpdateItem> &noticeInfos)> &noticeCallback)
 {
 	if (callbacks_valid()) {
 		return LocalGlobalVars::fc->pls_get_new_notice_Info(noticeCallback);
 	}
+}
+FRONTEND_API QList<PLSNoticeUpdateItem> pls_get_new_notice_from_cache()
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_get_new_notice_from_cache();
+	}
+	return QList<PLSNoticeUpdateItem>();
 }
 FRONTEND_API QString pls_get_win_os_version()
 {
@@ -889,12 +859,15 @@ FRONTEND_API void pls_load_dev_server()
 	LOAD_DEV_SERVER(PLS_LOGOUT_URL);
 	LOAD_DEV_SERVER(PLS_TOKEN_SESSION_URL);
 	LOAD_DEV_SERVER(PLS_NOTICE_URL);
+	LOAD_DEV_SERVER(PLS_NOTICE_V2_URL);
+	LOAD_DEV_SERVER(PLS_NOTICE_B2B_URL);
 	LOAD_DEV_SERVER(PLS_SIGNOUT_URL);
 	LOAD_DEV_SERVER(PLS_CHANGE_PASSWORD);
 
 	// Twitch
 	LOAD_DEV_SERVER(TWITCH_CLIENT_ID);
 	LOAD_DEV_SERVER(TWITCH_REDIRECT_URI);
+	LOAD_DEV_SERVER(TWITCH_CLIENT_SECRET);
 
 	// Youtube
 	LOAD_DEV_SERVER(YOUTUBE_CLIENT_ID);
@@ -917,9 +890,6 @@ FRONTEND_API void pls_load_dev_server()
 	LOAD_DEV_SERVER(PLS_RTMP_MODIFY_V2);
 	LOAD_DEV_SERVER(PLS_RTMP_DELETE_V2);
 	LOAD_DEV_SERVER(PLS_RTMP_LIST_V2);
-
-	LOAD_DEV_SERVER(g_streamKeyPrismHelperEn);
-	LOAD_DEV_SERVER(g_streamKeyPrismHelperKr);
 
 	LOAD_DEV_SERVER(LIBRARY_POLICY_PC_ID);
 	LOAD_DEV_SERVER(LABORATORY_REMOTECHAT_ID);
@@ -968,6 +938,7 @@ FRONTEND_API void pls_load_dev_server()
 	//Facebook
 	LOAD_DEV_SERVER(CHANNEL_FACEBOOK_CLIENT_ID);
 	LOAD_DEV_SERVER(CHANNEL_FACEBOOK_SECRET);
+	LOAD_DEV_SERVER(FACEBOOK_LOGIN_REDIRECT_URI);
 
 	// Chat Widget
 	LOAD_DEV_SERVER(CHAT_SOURCE_URL);
@@ -985,6 +956,9 @@ FRONTEND_API void pls_load_dev_server()
 	LOAD_DEV_SERVER(PRISM_NCP_AUTH_JOIN_API);
 	LOAD_DEV_SERVER(PRISM_NCP_REFRESH_TOKEN_API);
 	LOAD_DEV_SERVER(PRISM_NCP_SERVICE_CONFIG_API);
+
+	LOAD_DEV_SERVER(APPLE_ID_REDIRECT_URI);
+	LOAD_DEV_SERVER(APPLE_ID_CLIENT_ID);
 }
 
 FRONTEND_API PfnGetConfigPath pls_get_config_path(void)
@@ -1400,25 +1374,11 @@ FRONTEND_API ITextMotionTemplateHelper *pls_get_chat_template_helper_instance()
 	}
 	return nullptr;
 }
-FRONTEND_API QString pls_get_current_language()
-{
-	return pls_prism_get_locale();
-}
 
 FRONTEND_API QLocale::Language pls_get_current_language_enum()
 {
 	QLocale locale(pls_get_current_language());
 	return locale.language();
-}
-
-FRONTEND_API QString pls_get_current_language_short_str()
-{
-	return pls_get_current_language().section(QRegularExpression("\\W+"), 0, 0);
-}
-
-FRONTEND_API QString pls_get_current_country_short_str()
-{
-	return pls_get_current_language().section(QRegularExpression("\\W+"), 1, 1);
 }
 
 FRONTEND_API bool pls_is_match_current_language(QLocale::Language xlanguage)
@@ -1676,7 +1636,7 @@ FRONTEND_API bool pls_config_remove_value(config_t *config, ConfigId id, const c
 
 FRONTEND_API bool pls_is_dev_server()
 {
-	return pls_prism_is_dev();
+	return pls_is_dev();
 }
 
 FRONTEND_API QString pls_get_navershopping_deviceId()
@@ -2026,79 +1986,11 @@ FRONTEND_API void pls_on_frontend_event(pls_frontend_event event, const QVariant
 	}
 }
 
-FRONTEND_API void pls_send_analog(AnalogType logType, const QVariantMap &info)
-{
-	if (general_callbacks_valid()) {
-		LocalGlobalVars::fgc->pls_send_analog(logType, info);
-	}
-}
-
-FRONTEND_API QString pls_get_analog_filter_id(const char *id)
-{
-	if (!id)
-		return "unknown";
-
-	if (0 == strcmp(id, FILTER_TYPE_ID_VIDEODELAY_ASYNC))
-		return "Video Delay (Async)";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_CHROMAKEY))
-		return "ChromaKey";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_COLOR_FILTER))
-		return "Color Correction";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_APPLYLUT))
-		return "Color Filter (LUT)";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_COLOR_KEY_FILTER))
-		return "Color Key";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_COMPRESSOR))
-		return "Compressor";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_CROP_PAD))
-		return "Crop/Pad";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_EXPANDER))
-		return "Expander";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_GAIN))
-		return "Gain";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_RENDER_DELAY))
-		return "Render Delay";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_INVERT_POLARITY))
-		return "Invert Polarity";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_LIMITER))
-		return "Limiter";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_LUMAKEY))
-		return "Luma Key";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_IMAGEMASK_BLEND))
-		return "Image Mask/Blend";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_NOISEGATE))
-		return "Noise Gate";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_NOISE_SUPPRESSION))
-		return "Noise Suppression";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE))
-		return "Rnnoise";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_SCALING_ASPECTRATIO))
-		return "Scale/Aspect Ratio";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_SCROLL))
-		return "Scroll";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_SHARPEN))
-		return "Sharpen";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_SOUND_TOUCH_FILTER))
-		return "Soundtouch Filter";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_VSTPLUGIN))
-		return "VST 2.x Plug-in";
-	else if (0 == strcmp(id, FILTER_TYPE_ID_PREMULTIPLIED_ALPHA_FILTER))
-		return "Fix alpha blending";
-	else
-		return id;
-}
-
-FRONTEND_API void pls_get_scene_source_count(int &sceneCount, int &sourceCount)
-{
-	if (callbacks_valid()) {
-		LocalGlobalVars::fc->pls_get_scene_source_count(sceneCount, sourceCount);
-	}
-}
-
 FRONTEND_API int pls_show_download_failed_alert(QWidget *paren)
 {
-	QMap<PLSAlertView::Button, QString> buttons = {{PLSAlertView::Button::Ok, pls_translate_qstr("Retry")}, {PLSAlertView::Button::Cancel, pls_translate_qstr("OK")}};
-	return PLSAlertView::question(paren, pls_translate_qstr("Alert.Title"), pls_translate_qstr("Basic.resource.downlaod.failed.retry"), buttons);
+	PLSErrorHandler::RetData ret = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_BASIC_RESOURCE_DOWNLAOD_FAILED_RETRY, PLSErrKeyAllAlert, QString(),
+									     PLSErrorHandler::ExtraData(QStringLiteral("pls_show_download_failed_alert")), paren);
+	return static_cast<int>(ret.clickedBtn);
 }
 
 FRONTEND_API QVector<QString> pls_get_scene_collections()
@@ -2246,78 +2138,6 @@ FRONTEND_API void pls_register_mdns_service_ex(const char *pszName, unsigned sho
 
 #endif
 
-FRONTEND_API void pls_set_remote_control_server_info(quint16 port)
-{
-	if (!LocalGlobalVars::fc || !LocalGlobalVars::fc->obs_frontend_get_global_config()) {
-		return;
-	}
-
-	auto config = LocalGlobalVars::fc->obs_frontend_get_global_config();
-	config_set_int(config, ConfigKey(ConfigId::RemoteControlConfig), "port", port);
-	config_save(config);
-
-	struct calldata data = {0};
-	calldata_set_int(&data, "port", port);
-	signal_handler_signal(obs_get_signal_handler(), "remote_control_socket_initialized", &data);
-	calldata_free(&data);
-}
-FRONTEND_API void pls_get_remote_control_server_info(quint16 &port)
-{
-	if (!LocalGlobalVars::fc || !LocalGlobalVars::fc->obs_frontend_get_global_config()) {
-		return;
-	}
-
-	auto config = LocalGlobalVars::fc->obs_frontend_get_global_config();
-	port = (quint16)config_get_int(config, ConfigKey(ConfigId::RemoteControlConfig), "port");
-}
-FRONTEND_API void pls_set_remote_control_client_info(const QString &peerName, bool connected)
-{
-	if (!LocalGlobalVars::fc || !LocalGlobalVars::fc->obs_frontend_get_global_config()) {
-		return;
-	}
-
-	auto config = LocalGlobalVars::fc->obs_frontend_get_global_config();
-	config_set_string(config, ConfigKey(ConfigId::RemoteControlConfig), "peerName", peerName.toStdString().c_str());
-	config_set_bool(config, ConfigKey(ConfigId::RemoteControlConfig), "connected", connected);
-	config_save(config);
-
-	if (callbacks_valid()) {
-		LocalGlobalVars::fc->on_event(pls_frontend_event::PLS_FRONTEND_EVENT_REMOTE_CONTROL_CONNECTION_CHANGED, {peerName, connected});
-	}
-}
-FRONTEND_API void pls_get_remote_control_client_info(QString &peerName, bool &connected)
-{
-	if (!LocalGlobalVars::fc || !LocalGlobalVars::fc->obs_frontend_get_global_config()) {
-		return;
-	}
-
-	auto config = LocalGlobalVars::fc->obs_frontend_get_global_config();
-	auto p = config_get_string(config, ConfigKey(ConfigId::RemoteControlConfig), "peerName");
-	peerName = p == nullptr ? "" : QString(p);
-	connected = config_get_bool(config, ConfigKey(ConfigId::RemoteControlConfig), "connected");
-}
-FRONTEND_API bool pls_set_remote_control_log_file(const QString &logFile)
-{
-	if (!LocalGlobalVars::fc || !LocalGlobalVars::fc->obs_frontend_get_global_config()) {
-		return false;
-	}
-
-	auto config = LocalGlobalVars::fc->obs_frontend_get_global_config();
-	config_set_string(config, ConfigKey(ConfigId::RemoteControlConfig), "logFile", logFile.toStdString().c_str());
-	config_save(config);
-	return true;
-}
-FRONTEND_API void pls_get_remote_control_log_file(QString &logFile)
-{
-	if (!LocalGlobalVars::fc || !LocalGlobalVars::fc->obs_frontend_get_global_config()) {
-		return;
-	}
-
-	auto config = LocalGlobalVars::fc->obs_frontend_get_global_config();
-	auto p = config_get_string(config, ConfigKey(ConfigId::RemoteControlConfig), "logFile");
-	logFile = p == nullptr ? "" : QString(p);
-}
-
 FRONTEND_API void pls_sys_tray_notify(const QString &text, QSystemTrayIcon::MessageIcon n, bool usePrismLogo)
 {
 	if (callbacks_valid()) {
@@ -2332,7 +2152,7 @@ FRONTEND_API config_t *pls_get_global_cookie_config(void)
 	return nullptr;
 }
 
-static pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const QString &message, const QString &errorCode, const QString &userId, pls::Buttons buttons,
+static pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const pls_text_t &message, const QString &errorCode, const QString &userId, pls::Buttons buttons,
 					   pls::Button defaultButton, const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	if (callbacks_valid()) {
@@ -2340,30 +2160,30 @@ static pls::Button pls_alert_error_message(QWidget *parent, const QString &title
 	}
 	return PLSAlertView::warning(parent, title, message, buttons, defaultButton, timeout, properties);
 }
-static pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const QString &message, const QString &errorCode, const QString &userId, const QMap<pls::Button, QString> &buttons,
-					   pls::Button defaultButton, const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
+static pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const pls_text_t &message, const QString &errorCode, const QString &userId,
+					   const QMap<pls::Button, pls_text_t> &buttons, pls::Button defaultButton, const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	if (callbacks_valid()) {
 		return LocalGlobalVars::fc->pls_alert_error_message(parent, title, message, errorCode, userId, buttons, defaultButton, timeout, properties);
 	}
 	return PLSAlertView::warning(parent, title, message, buttons, defaultButton, timeout, properties);
 }
-FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const QString &message, pls::Buttons buttons, pls::Button defaultButton, const std::optional<int> &timeout,
+FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const pls_text_t &message, pls::Buttons buttons, pls::Button defaultButton, const std::optional<int> &timeout,
 						 const QMap<QString, QVariant> &properties)
 {
 	return pls_alert_error_message(parent, title, message, QString(), buttons, defaultButton, timeout, properties);
 }
-FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const QString &message, const QMap<pls::Button, QString> &buttons, pls::Button defaultButton,
+FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const pls_text_t &message, const QMap<pls::Button, pls_text_t> &buttons, pls::Button defaultButton,
 						 const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return pls_alert_error_message(parent, title, message, QString(), buttons, defaultButton, timeout, properties);
 }
-FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const QString &message, const QString &errorCode, pls::Buttons buttons, pls::Button defaultButton,
+FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const pls_text_t &message, const QString &errorCode, pls::Buttons buttons, pls::Button defaultButton,
 						 const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return pls_alert_error_message(parent, title, message, errorCode, pls_get_prism_usercode(), buttons, defaultButton, timeout, properties);
 }
-FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const QString &message, const QString &errorCode, const QMap<pls::Button, QString> &buttons,
+FRONTEND_API pls::Button pls_alert_error_message(QWidget *parent, const QString &title, const pls_text_t &message, const QString &errorCode, const QMap<pls::Button, pls_text_t> &buttons,
 						 pls::Button defaultButton, const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
 	return pls_alert_error_message(parent, title, message, errorCode, pls_get_prism_usercode(), buttons, defaultButton, timeout, properties);
@@ -2400,10 +2220,10 @@ FRONTEND_API QWidget *pls_get_banner_widget()
 	return nullptr;
 }
 
-FRONTEND_API void pls_open_cam_studio(QStringList arguments, QWidget *parent)
+FRONTEND_API void pls_open_cam_studio(QStringList arguments, QWidget *parent, bool isMobile)
 {
 	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_open_cam_studio(arguments, parent);
+		return LocalGlobalVars::fc->pls_open_cam_studio(arguments, parent, isMobile);
 	}
 }
 
@@ -2488,15 +2308,38 @@ FRONTEND_API obs_output_t *pls_frontend_get_streaming_output_v(void)
 	return nullptr;
 }
 
-/**
-  * call obs_source_check_settings_ex to check if the source is paid or not.
-  */
-FRONTEND_API bool pls_source_check_paid(obs_source_t *source)
+FRONTEND_API void pls_sticker_source_start_update_sticker(obs_source_t *source)
 {
-	auto isPaid = false;
-	obs_data_t *data = obs_data_create();
-	if (obs_source_check_settings_ex(source, data))
-		isPaid = obs_data_get_bool(data, API_PAID_KEY_NAME);
-	obs_data_release(data);
-	return isPaid;
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_sticker_source_start_update_sticker(source);
+	}
+}
+
+FRONTEND_API void pls_sticker_source_start_add_sticker()
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_sticker_source_start_add_sticker();
+	}
+}
+
+FRONTEND_API bool pls_sticker_source_cancel_update_sticker(obs_source_t *source)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_sticker_source_cancel_update_sticker(source);
+	}
+	return true;
+}
+
+FRONTEND_API void pls_sticker_source_apply_update_sticker(obs_source_t *source)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_sticker_source_apply_update_sticker(source);
+	}
+}
+
+FRONTEND_API void pls_sticker_source_defaults_update_sticker(obs_source_t *source)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_sticker_source_defaults_update_sticker(source);
+	}
 }

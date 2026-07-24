@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resource/css/PLSAppLoadingView.css</file>
+        <file>data/locale/en-US.ini</file>
+        <file>data/locale/es-ES.ini</file>
+        <file>data/locale/id-ID.ini</file>
+        <file>data/locale/ja-JP.ini</file>
+        <file>data/locale/ko-KR.ini</file>
+        <file>data/locale/pt-BR.ini</file>
+        <file>data/locale/vi-VN.ini</file>
+        <file>resource/images/apploading_logo.svg</file>
+    </qresource>
+</RCC>

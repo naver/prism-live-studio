@@ -6,6 +6,7 @@
 #include "PLSBgmDataManager.h"
 #include "PLSBgmItemDelegate.h"
 #include "utils-api.h"
+#include "libui.h"
 
 #include <QMouseEvent>
 #include <QDragEnterEvent>
@@ -211,8 +212,12 @@ PLSBgmItemData PLSBgmDragView::GetCurrent() const
 void PLSBgmDragView::mousePressEvent(QMouseEvent *event)
 {
 	if (event->button() == Qt::LeftButton) {
-		startDragPoint = event->pos();
-		startDragModelIdx = this->indexAt(event->pos());
+		QRect currentRect = visualRect(this->indexAt(event->pos()));
+		QRect buttonRect = QRect(currentRect.width() - 45 - 19, (currentRect.height() - 19) / 2, 19, 19);
+		if (buttonRect.contains(event->pos() - currentRect.topLeft())) {
+			startDragPoint = event->pos();
+			startDragModelIdx = this->indexAt(event->pos());
+		}
 	}
 
 	QListView::mousePressEvent(event);
@@ -220,14 +225,18 @@ void PLSBgmDragView::mousePressEvent(QMouseEvent *event)
 
 void PLSBgmDragView::mouseMoveEvent(QMouseEvent *event)
 {
-	if (event->buttons() & Qt::LeftButton) {
+	if (event->buttons() & Qt::LeftButton && !startDragPoint.isNull()) {
 		QPoint distance = event->pos() - startDragPoint;
 		if (distance.manhattanLength() > QApplication::startDragDistance()) {
 
 			auto drag = pls_new<QDrag>(this);
 			auto mimeData = pls_new<QMimeData>();
 			startDragIndex = startDragModelIdx.row();
-			mimeData->setData(BGM_DRAG_MIME_TYPE, QByteArray(QString::number(startDragIndex).toStdString().c_str()));
+			mimeData->setData(BGM_DRAG_MIME_TYPE, QByteArray(QString::number(startDragIndex).toUtf8().constData()));
+
+#ifdef Q_OS_WIN
+			drag->setDragCursor(pls_get_win_custom_drag_pixmap(this), Qt::MoveAction);
+#endif //  Q_OS_WIN
 
 			QRect currentRect = visualRect(this->indexAt(event->pos()));
 			QPixmap pixmap = viewport()->grab(currentRect);
@@ -332,6 +341,7 @@ void PLSBgmDragView::dropEvent(QDropEvent *event)
 		event->setDropAction(Qt::MoveAction);
 		event->accept();
 		isDraging = false;
+		startDragPoint = {};
 		QModelIndex dropDragModelIdx = this->indexAt(event->position().toPoint());
 		int currentIndex = dropDragModelIdx.row();
 		if (-1 == currentIndex || currentIndex > this->Count()) {
@@ -349,10 +359,13 @@ void PLSBgmDragView::dropEvent(QDropEvent *event)
 			}
 		}
 
+		GetStm()->clearAllDropIndicators();
 		QListView::dropEvent(event);
 		emit RowChanged(startDragIndex, currentIndex);
-		GetStm()->setData(dragOverModelIndex, QVariant::fromValue(DropIndicator::None), (int)CustomDataRole::DropIndicatorRole);
-		update(dragOverModelIndex);
+		PLS_UI_ACTION("In Music Playlist, the music play list row has been changed.");
+		GetStm()->clearAllDropIndicators();
+		dragOverModelIndex = QModelIndex();
+		viewport()->update();
 		return;
 	}
 	QListView::dropEvent(event);
@@ -362,9 +375,11 @@ void PLSBgmDragView::dropEvent(QDropEvent *event)
 void PLSBgmDragView::dragLeaveEvent(QDragLeaveEvent *event)
 {
 	isDraging = false;
+	startDragPoint = {};
+	GetStm()->clearAllDropIndicators();
+	dragOverModelIndex = QModelIndex();
 	update();
-	GetStm()->setData(dragOverModelIndex, QVariant::fromValue(DropIndicator::None), (int)CustomDataRole::DropIndicatorRole);
-	update(dragOverModelIndex);
+	viewport()->update();
 	QListView::dragLeaveEvent(event);
 }
 
@@ -429,7 +444,7 @@ void PLSBgmDragView::CreateItemDelegate()
 {
 	auto delegate = pls_new<PLSBgmItemDelegate>(this, font(), this);
 	connect(delegate, &PLSBgmItemDelegate::delBtnClicked, this, [this](const QModelIndex &index) { emit DelButtonClickedSignal(GetData(index), false); });
-	connect(delegate, &PLSBgmItemDelegate::doubleClicked, this, [this](const QModelIndex &index) { emit MouseDoublePressedSignal(index); });
+	connect(delegate, &PLSBgmItemDelegate::mouseClicked, this, [this](const QModelIndex &index) { emit MousePressedSignal(index); });
 
 	setItemDelegate(delegate);
 }

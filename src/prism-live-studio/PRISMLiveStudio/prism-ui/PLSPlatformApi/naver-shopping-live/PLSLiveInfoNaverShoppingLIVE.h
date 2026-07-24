@@ -16,6 +16,7 @@ class PLSLiveInfoNaverShoppingLIVE;
 }
 
 constexpr auto MODULE_NAVER_SHOPPING_LIVE_LIVEINFO = "NaverShoppingLIVE/LiveInfo";
+class PLSShoppingCalenderCombox;
 
 class PLSNaverShoppingImageScaleProcessor : public QObject {
 	Q_OBJECT
@@ -47,6 +48,7 @@ private:
 	void setupData();
 	void setupGuideButton();
 	void setupLineEdit();
+	void updateHelpLayout();
 	void setupThumbnailButton() const;
 	void setupScheduleComboBox();
 	void setupDateComboBox();
@@ -86,12 +88,16 @@ private:
 	void checkSwitchNewScheduleItem(const PLSScheComboxItemData &selelctData);
 	void updateSelectedScheduleItenInfo(const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList);
 	void printStartLiveFailedLog(const QByteArray &data, const QString &error);
+	void createDateItemWidget();
+	void updateScheduleComboBox();
+	void createDualWidget();
 
 protected:
 	bool eventFilter(QObject *i_Object, QEvent *i_Event) override;
 #if defined(Q_OS_MACOS)
 	QList<QWidget *> moveContentExcludeWidgetList() override;
 #endif
+	void showEvent(QShowEvent *event) override;
 
 private slots:
 	void on_cancelButton_clicked();
@@ -123,6 +129,13 @@ private:
 	PrepareRequestType m_prepareLivingType;
 	QTimer *m_closeGuideTimer{nullptr};
 	uint64_t m_requestFlag = 0;
-};
 
+	QWidget *dateItemWidget{nullptr};
+	PLSShoppingCalenderCombox *yearButton{nullptr};
+	PLSShoppingCalenderCombox *apButton{nullptr};
+	PLSShoppingCalenderCombox *hourButton{nullptr};
+	PLSShoppingCalenderCombox *minuteButton{nullptr};
+	QHBoxLayout *horizontalLayout_8{nullptr};
+	PLSScheduleCombox *m_scheCombox{nullptr};
+};
 #endif // PLSLIVEINFONAVERSHOPPINGLIVE_H

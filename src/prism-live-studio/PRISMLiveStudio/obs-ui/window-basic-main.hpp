@@ -62,6 +62,8 @@
 #include "PLSOutputHandler.hpp"
 #include "PLSDualOutputTitle.h"
 #include "PLSDualOutputConst.h"
+#include "pls-shared-values.h"
+#include "PLSNCB2bBrowserDock.h"
 
 class QMessageBox;
 class QListWidgetItem;
@@ -73,8 +75,7 @@ class PLSAudioControl;
 class PLSPreviewProgramTitle;
 class PLSWatermark;
 class PLSPlatformBase;
-class PLSPlusIntroDlg;
-class PLSPaymentTermsOfAgree;
+class PLSPreviewMaskWidget;
 
 #include "ui_OBSBasic.h"
 #include "ui_ColorSelect.h"
@@ -220,6 +221,7 @@ private:
 	std::unique_ptr<Ui::ColorSelect> ui;
 };
 
+class PLSBgmControlsView;
 class OBSBasic : public OBSMainWindow {
 	Q_OBJECT
 	Q_PROPERTY(QIcon imageIcon READ GetImageIcon WRITE SetImageIcon DESIGNABLE true)
@@ -247,7 +249,6 @@ class OBSBasic : public OBSMainWindow {
 	friend class OBSBasicTransform;
 	friend class OBSBasicSettings;
 	friend class Auth;
-	friend class AutoConfig;
 	friend class AutoConfigStreamPage;
 	friend class RecordButton;
 	friend class ControlsSplitButton;
@@ -283,7 +284,7 @@ class OBSBasic : public OBSMainWindow {
 		Horizontal,
 	};
 
-private:
+protected:
 	pls_frontend_callbacks *api = nullptr;
 
 	std::shared_ptr<Auth> auth;
@@ -319,7 +320,7 @@ private:
 	QAction *actionSeperateSource;
 	QAction *actionSperateMixer;
 	QAction *actionSeperateChat;
-
+	QAction *actionSeperateBgm;
 	QAction *actionMixerLayout;
 
 	bool sceneChanging = false;
@@ -328,7 +329,6 @@ private:
 	bool isCreateSouceInLoading = true;
 	bool isSwitchingLoadSources = false;
 
-	bool alreadyShowSceneMethodAlert = false;
 	bool deferShowSceneMethodAlert = false;
 
 	QString lastCollectionPath;
@@ -365,7 +365,21 @@ private:
 	QPointer<QTimer> nudge_timer;
 	bool recent_nudge = false;
 
+	//PRISM/FanZirong/20260310/PRISM_PC-5472/Game source size display in fullscreen
+	//PRISM/FanZirong/20260410/PRISM_PC-5674/Pending game layout: store scene id, not OBSScene pointer
+	/** When a game source first captures a frame, apply one-time layout (height=canvas height, width proportional, top-left aligned) only if the user has not changed the transform.
+	 * Scene source uuid only (no OBSScene pointer) to avoid dangling scene after ClearSceneData. */
+	struct PendingGameSourceLayout {
+		QString sceneUuid;
+		int64_t item_id;
+		obs_transform_info initial_transform;
+	};
+	QList<PendingGameSourceLayout> m_pendingGameSourceLayout;
+
 	os_cpu_usage_info_t *cpuUsageInfo = nullptr;
+#if defined(Q_OS_WINDOWS)
+	sys_cpu_usage_info_t *sysCpuUsageInfo = nullptr;
+#endif
 
 	OBSService service;
 	OBSService serviceVertical;
@@ -440,6 +454,10 @@ private:
 	QPointer<QVBoxLayout> programLayout;
 	QPointer<QLabel> programLabel;
 
+	QPointer<PLSPreviewMaskWidget> m_previewMaskWidget;
+	QPointer<PLSPreviewMaskWidget> m_programMaskWidget;
+	QPointer<PLSPreviewMaskWidget> m_verticalPreviewMaskWidget;
+
 	QScopedPointer<QThread> patronJsonThread;
 	std::string patronJson;
 
@@ -449,12 +467,9 @@ private:
 	PLSSceneCollectionManagement *sceneCollectionManageView{nullptr};
 	PLSMenuPushButton *sceneCollectionManageTitle{nullptr};
 
-	QPointer<PLSPlusIntroDlg> plusIntroDlg;
-	QPointer<PLSPaymentTermsOfAgree> paymentTermsOfAgree;
-
 	QTimer updateSceneCollectionTimeTimer;
 	bool showLoadSceneCollectionError = false;
-	QString showLoadSceneCollectionErrorStr;
+	uint32_t showLoadSceneCollectionErrorPrismCode = 0;
 
 	std::shared_ptr<PLSOutro> outro;
 
@@ -483,7 +498,7 @@ private:
 
 	void Save(const char *file);
 	void LoadData(obs_data_t *data, const char *file, bool remigrate = false);
-	void Load(const char *file, bool loadWithoutDualOutput = false, bool remigrate = false);
+	void Load(const char *file, bool remigrate = false);
 	void loadProfile(const char *savePath, const char *sceneCollection,
 			 LoadSceneCollectionWay way = LoadSceneCollectionWay::RunPrismImmediately);
 
@@ -519,8 +534,6 @@ private:
 	obs_data_array_t *SaveSceneListOrder();
 	void ChangeSceneIndex(bool relative, int idx, int invalidIdx);
 
-	void checkSceneDisplayMethod();
-
 	void LoadSourceRecentColorConfig(obs_data_t *obj);
 	void UpdateSourceRecentColorConfig(QString strColor);
 
@@ -538,6 +551,7 @@ private:
 	void GetAudioSourceFilters();
 	void GetAudioSourceProperties();
 	void VolControlContextMenu();
+	void VolControlMoreButtonMenu();
 	void ToggleVolControlLayout();
 	void ToggleMixerLayout(bool vertical);
 
@@ -584,7 +598,8 @@ private:
 				   bool import_scene = false, ExprotCallback callback = nullptr);
 	void OnSelectExportFile(const QString &exportFile, const QString &path, const QString &currentFile,
 				ExprotCallback callback, bool import_scene);
-	void LoadSceneCollection(QString name, QString filePath, bool loadWithoutDualOutput = false);
+	void LoadSceneCollection(QString name, QString filePath);
+	virtual void pauseStatistics(bool bPaused) = 0;
 	bool CheckSceneCollectionNameAndPath(QString path, std::string &destName, std::string &destPath) const;
 	PLSSceneCollectionData GetSceneCollectionDataWithUserLocalPath(QString userLocalPath) const;
 	bool CheckSameSceneCollection(QString name, QString userLocalPath) const;
@@ -644,11 +659,11 @@ private:
 
 	void PasteShowHideTransition(obs_sceneitem_t *item, bool show, obs_source_t *tr, int duration);
 	QMenu *CreatePerSceneTransitionMenu();
-	QMenu *CreateVisibilityTransitionMenu(bool visible, bool isVerticalPreview);
+	QMenu *CreateVisibilityTransitionMenu(bool visible, QWidget *parent, bool isVerticalPreview);
 
 	bool SetPreviewProgramMode(bool enabled);
-	void ResizeProgram(uint32_t cx, uint32_t cy);
-	void ResizeVerticalDisplay(uint32_t cx, uint32_t cy);
+	void ResizeProgram(uint32_t cx = UINT32_MAX, uint32_t cy = UINT32_MAX);
+	void ResizeVerticalDisplay(uint32_t cx = UINT32_MAX, uint32_t cy = UINT32_MAX);
 	void SetCurrentScene(obs_scene_t *scene, bool force = false);
 	static void RenderProgram(void *data, uint32_t cx, uint32_t cy);
 	static void RenderVerticalDisplay(void *data, uint32_t cx, uint32_t cy);
@@ -721,7 +736,6 @@ private:
 	QStringList extraCustomDockNames;
 	QList<QPointer<QDockWidget>> extraCustomDocks;
 
-	QStringList ncb2bCustomDockUrls;
 	QStringList ncb2bCustomDockNames;
 	QList<std::shared_ptr<QDockWidget>> ncb2bCustomDocks;
 	QPointer<QAction> ncb2bMenuDocksSeparator;
@@ -740,6 +754,8 @@ private:
 
 	void loadNcb2bBrowserSettingsDocks();
 	void saveNcb2bBrowserSettingsDocks();
+	bool createNcb2bBrowserDock(const QString &title, const QString &uuid, const QString &selectedTitle,
+				    bool firstCreate);
 
 #endif
 
@@ -815,6 +831,7 @@ private:
 
 	QColor GetCropColor() const;
 	QColor GetHoverColor() const;
+	QColor GetAlignLineColor() const;
 
 	void UpdatePreviewSpacingHelpers();
 	bool drawSpacingHelpers = true;
@@ -905,6 +922,10 @@ public slots:
 	QVector<QString> GetSceneCollections() const;
 
 	void AddSource(const char *id);
+	//PRISM/FanZirong/20260310/PRISM_PC-5472/Game source size display in fullscreen
+	/** Register a game source: when it first gets valid size, apply one-time layout (height=canvas height, width proportional, top-left aligned) if the user has not changed the transform; otherwise keep user's transform. */
+	void RegisterPendingGameSourceLayout(OBSScene scene, int64_t item_id,
+					     const obs_transform_info &initial_transform);
 
 	bool NewProfile(const QString &name);
 	bool DuplicateProfile(const QString &name);
@@ -921,6 +942,7 @@ public slots:
 	bool QueryRemoveSource(obs_source_t *source, QWidget *parent = pls_get_main_view());
 	void SetShowing(bool showing, bool isChangePreviewState = true);
 	void UpdateEditMenu();
+	void refreshSceneThumbnail();
 
 	void CreateFirstRunSources();
 
@@ -931,6 +953,8 @@ private slots:
 
 	void AddSceneItem(OBSSceneItem item);
 	void RemoveSceneItem(OBSSceneItem item) const;
+	//PRISM/FanZirong/20260310/PRISM_PC-5472/Game source size display in fullscreen
+	void CheckPendingGameSourceLayout();
 	void SelectSceneItem(OBSScene scene, OBSSceneItem item, bool select);
 
 	void AddScene(OBSSource source);
@@ -1058,7 +1082,7 @@ private:
 	static void RenderMain(void *data, uint32_t cx, uint32_t cy);
 	static void SourceDestroyed(void *data, calldata_t *params);
 
-	void ResizePreview(uint32_t cx, uint32_t cy);
+	void ResizePreview(uint32_t cx = UINT32_MAX, uint32_t cy = UINT32_MAX);
 
 	QMenu *CreateAddSourcePopupMenu();
 	void AddSourcePopupMenu(const QPoint &pos);
@@ -1146,6 +1170,9 @@ public:
 	inline bool SavingDisabled() const { return disableSaving; }
 
 	inline double GetCPUUsage() const { return os_cpu_usage_info_query(cpuUsageInfo); }
+#if defined(Q_OS_WINDOWS)
+	inline double GetSystemCPUUsage() const { return sys_cpu_usage_info_query(sysCpuUsageInfo); }
+#endif
 
 	void SaveService();
 	bool LoadService();
@@ -1206,12 +1233,15 @@ public:
 
 	static QList<QString> GetProjectorMenuMonitorsFormatted();
 	template<typename Receiver, typename... Args>
-	static void AddProjectorMenuMonitors(QMenu *parent, Receiver *target, void (Receiver::*slot)(Args...))
+	static void AddProjectorMenuMonitors(QMenu *parent, Receiver *target, const QString &actionName,
+					     void (Receiver::*slot)(Args...))
 	{
 		auto projectors = GetProjectorMenuMonitorsFormatted();
 		for (int i = 0; i < projectors.size(); i++) {
 			QString str = projectors[i];
 			QAction *action = parent->addAction(str, target, slot);
+			action->setParent(parent);
+			pls_uistep_v2_set_name(action, actionName);
 			action->setProperty("monitor", i);
 		}
 	}
@@ -1247,13 +1277,15 @@ public:
 	virtual void closeMainBegin() {}
 	virtual void closeMainFinished() {}
 	virtual bool checkMainViewClose(QCloseEvent *event);
+	virtual void restartPrismApp(RestartAppType restartAppType = RestartAppType::Direct,
+				     const QStringList &params = {}, bool isUpdated = false) = 0;
 
 	void DeleteSelectedScene(OBSScene scene);
 
 	void UpdateSudioModeState(bool enabled);
 	void UpdateStudioModeUI(bool studioMode);
 
-	void RunPrismByPscPath();
+	void RunPrismByPscPath(bool fromStartup = false);
 
 	//20230118/zengqin/for drawpen cursor
 	inline float GetPreviewScale() const { return previewScale[PLSOutputHandler::Horizontal]; };
@@ -1264,20 +1296,17 @@ public:
 	double GetRecordingOutputFPS();
 	//PRISM/wangshaohui/20250311/2446/for network time
 	double GetStreamingNetworkMilliTime(bool vertical = false);
+	void showOutputStartErrorAlert(const QString &title, const QString &message, bool is_encoder_error);
 
 	int getState(int state);
 	void setDocksVisible(bool visible);
 	void setDocksVisibleProperty();
 	void setDockDisplayAsynchronously(PLSDock *dock, bool visible);
 
-	BrowserDock *addNcb2bCustomDock(const QString &title, const QString &url, const QString &uuid, bool firstCreate,
-					QByteArray geometry = QByteArray());
-	QList<std::shared_ptr<QDockWidget>> getNcb2bCustomDocks();
-	QList<QString> getNcb2bCustomDocksUrls();
+	void addNcb2bCustomDock(const QString &title, const QString &uuid, const QString &selectedTitle = "",
+				bool firstCreate = true);
 	QList<QString> getNcb2bCustomDocksNames();
-	std::shared_ptr<QDockWidget> getNcb2bCustomDock(const QString &title);
-	void updateNcb2bDockUrl(int index, const QString &url);
-	void updateNcb2bDockName(int index, const QString &name);
+	PLSNCB2bBrowserDock *getNcb2bDock();
 #ifdef BROWSER_AVAILABLE
 	void AddExtraBrowserDock(const QString &title, const QString &url, const QString &uuid, bool firstCreate);
 	BrowserDock *createBrowserDock(const QString &title, const QString &url, const QString &uuid, bool firstCreate,
@@ -1296,18 +1325,19 @@ public:
 	void setVerticalService(obs_service_t *newService);
 	obs_service_t *getVerticalService();
 
-	void showsPrismPlusIntroWindow();
-	void showsTipAndPrismPlusIntroWindow(const QString &strContent, const QString &strFeature,
-					     QWidget *parent = nullptr);
-
 	// lastYouTubeChannelId getter
 	inline const QString &getLastYouTubeChannelId() const { return lastYouTubeChannelId; }
 	// lastYouTubeChannelId setter
 	inline void setLastYouTubeChannelId(const QString &id) { lastYouTubeChannelId = id; }
 
+	void updateMusicToolbarUi();
+	void SetPendingRenderSceneNamePerf(obs_source_t *source, const char *actionStr);
+	void SetPreviewRenderPerf(const char *actionStr);
+
 protected:
 	virtual bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 	virtual void changeEvent(QEvent *event) override;
+	void showEvent(QShowEvent *event) override;
 
 private slots:
 	void on_actionFullscreenInterface_triggered();
@@ -1381,7 +1411,8 @@ private slots:
 	bool startRecordCheck();
 	bool stopRecordCheck();
 
-	void Screenshot(OBSSource source_ = nullptr, bool isVerticalPreview = false);
+	void Screenshot(OBSSource source_ = nullptr, bool isVerticalPreview = false,
+			const char *performanceParent = nullptr);
 	void ScreenshotSelectedSource();
 	void ScreenshotProgram();
 	void ScreenshotScene();
@@ -1516,6 +1547,12 @@ private slots:
 	bool getIsVerticalPreviewFromAction();
 	void addNudgeFunc(OBSBasicPreview *preview);
 
+	void handleResizeTrackerBeginEvent();
+	void handleResizeTrackerEndEvent();
+	void createPreviewMaskWidget();
+	void createProgramMaskWidget();
+	void createVerticalPreviewMaskWidget();
+
 public slots:
 	void on_actionResetTransform_triggered();
 
@@ -1556,6 +1593,8 @@ signals:
 	void mainClosing();
 	void mainCloseFinished();
 	void updateChatV2PropertBrowserSize(const QSize &size);
+	void loadSceneFinished();
+
 	/* Streaming signals */
 	void StreamingPreparing();
 	void StreamingStarting(bool broadcastAutoStart);
@@ -1599,6 +1638,7 @@ signals:
 private:
 	std::unique_ptr<Ui::OBSBasic> ui;
 	QPointer<OBSDock> controlsDock;
+	QPointer<PLSNCB2bBrowserDock> ncb2bDock;
 
 	std::unique_ptr<PLSWatermark> _watermark;
 	bool updatedLiveStart = false;
@@ -1620,6 +1660,7 @@ private:
 	QHBoxLayout *m_layoutVerticalScroll = nullptr;
 
 	OBSPreviewScalingComboBox *previewScalingModeV = nullptr;
+	QPointer<PLSBgmControlsView> m_bgmControls;
 
 private:
 	void configureWatermark();
@@ -1627,6 +1668,7 @@ private:
 	void updateLiveEndUI();
 	void updateRecordStartUI();
 	void updateRecordEndUI();
+	void addSourceFromAddSourceView();
 
 public:
 	/* `undo_s` needs to be declared after `ui` to prevent an uninitialized
@@ -1647,8 +1689,6 @@ public:
 	void NewYouTubeAppDock();
 	void DeleteYouTubeAppDock();
 	YouTubeAppDock *GetYouTubeAppDock();
-
-	static void AnalogCodecNotify(void *data, calldata_t *params);
 
 	bool isSameChzzkSourceWithChzzkId(obs_source_t *source, PLSPlatformBase *chzzkPlatform);
 
@@ -1681,6 +1721,8 @@ private:
 
 	void RefreshSceneCollections(bool refreshCache = false);
 	void ActivateSceneCollection(const OBSSceneCollection &collection, bool remigrate = false);
+
+	void showSingleAudioMoreMenu();
 
 public:
 	inline const OBSSceneCollectionCache &GetSceneCollectionCache() const noexcept { return collections; };

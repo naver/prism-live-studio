@@ -26,3 +26,14 @@ OBSQTDisplay QLabel#displayText {
 	padding-right: 30px;
 }
 
+QWidget#sourceLoadingPage {
+	background-color: #151515;
+}
+
+QWidget#failedTextView,
+QLabel#failedText {
+	background-color: #151515;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+}
+

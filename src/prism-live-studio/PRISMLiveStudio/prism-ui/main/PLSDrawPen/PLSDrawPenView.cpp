@@ -4,22 +4,23 @@
 #include "window-basic-main.hpp"
 #include "PLSDrawPenMgr.h"
 #include "prism-ui/log/module_names.h"
+#include "pls-performance.h"
 #include <liblog.h>
 #include <QButtonGroup>
 #include <QRadioButton>
 #include <QBitmap>
 #include <QPainter>
 
-const QString ANALOG_DRAWPEN_DRAW_KEY = "draw";
-
 static const std::vector<std::string> shapeTips{"drawpen.toolbar.arrow.toolTip", "drawpen.toolbar.line.toolTip", "drawpen.toolbar.rect.toolTip", "drawpen.toolbar.round.toolTip",
 						"drawpen.toolbar.triangle.toolTip"};
 
 PLSDrawPenView::PLSDrawPenView(QWidget *parent) : QFrame(parent)
 {
-	ui = pls_new<Ui::PLSDrawPenView>();
 	pls_add_css(this, {"PLSDrawPenView"});
+
+	ui = pls_new<Ui::PLSDrawPenView>();
 	ui->setupUi(this);
+
 	ui->label_separate->setObjectName("label_separate");
 	ui->label_separate_2->setObjectName("label_separate");
 	ui->label_separate_3->setObjectName("label_separate");
@@ -47,8 +48,9 @@ PLSDrawPenView::PLSDrawPenView(QWidget *parent) : QFrame(parent)
 	ui->pushButton_Clear->setToolTip(QTStr("drawpen.toolbar.clear.toolTip"));
 	ui->pushButton_Visible->setToolTip(QTStr("drawpen.toolbar.visible.toolTip"));
 
+	ui->pushButton_Exit->setText(QTStr("drawpen.toolbar.exit.text"));
+
 	ui->pushButton_CurShape->setProperty("style", 0);
-	ui->pushButton_Width->setProperty("style", 1);
 	ui->pushButton_Color->setProperty("style", 0);
 	ui->pushButton_ShapeOpen->setProperty("open", true);
 
@@ -59,8 +61,25 @@ PLSDrawPenView::PLSDrawPenView(QWidget *parent) : QFrame(parent)
 	ui->pushButton_Undo->setDisabled(true);
 	ui->pushButton_Redo->setDisabled(true);
 
+	pls_uistep_v2_set_name(ui->pushButton_Pen, "NormalPen");
+	pls_uistep_v2_set_name(ui->pushButton_Highlighter, "Highlighter");
+	pls_uistep_v2_set_name(ui->pushButton_GlowPen, "GlowPen");
+	pls_uistep_v2_set_name(ui->pushButton_CurShape, "CurShape");
+	pls_uistep_v2_set_name(ui->pushButton_ShapeOpen, "ShapeOpen");
+	pls_uistep_v2_set_name(ui->pushButton_Rubber, "Rubber");
+	pls_uistep_v2_set_name(ui->pushButton_Width, "Width");
+	pls_uistep_v2_set_name(ui->pushButton_Color, "Color");
+	pls_uistep_v2_set_name(ui->pushButton_Undo, "Undo");
+	pls_uistep_v2_set_name(ui->pushButton_Redo, "Redo");
+	pls_uistep_v2_set_name(ui->pushButton_Clear, "Clear");
+	pls_uistep_v2_set_name(ui->pushButton_Visible, "Visible");
+	pls_uistep_v2_set_name(ui->pushButton_Exit, "Exit");
+
 	connect(PLSDrawPenMgr::Instance(), &PLSDrawPenMgr::UndoDisabled, this, &PLSDrawPenView::OnUndoDisabled);
 	connect(PLSDrawPenMgr::Instance(), &PLSDrawPenMgr::RedoDisabled, this, &PLSDrawPenView::OnRedoDisabled);
+
+	pls_uistep_v2_set_title(this, QStringLiteral("DrawPen View"));
+	pls_uistep_v2_set_value(ui->pushButton_Visible, [this]() { return ui->pushButton_Visible->property("visibled").toBool() ? QStringLiteral("Hide") : QStringLiteral("Show"); });
 }
 
 PLSDrawPenView::~PLSDrawPenView()
@@ -89,8 +108,56 @@ void PLSDrawPenView::createCustomGroup(QButtonGroup *&group, QGridLayout *&gLayo
 		button->setAutoExclusive(true);
 		button->setCheckable(true);
 		button->setFixedSize(28, 28);
+
 		group->addButton(button, i);
 		gLayout->addWidget(button, int(i) / colum, int(i) % colum);
+		pls_uistep_v2_set_title(button, QStringLiteral("DrawPen View"));
+		pls_uistep_v2_set_value(button, suffix);
+	}
+}
+
+void PLSDrawPenView::updateGroupState(QWidget *parentWidget, int selected)
+{
+	if (!parentWidget) {
+		assert(false);
+		return;
+	}
+
+	QGridLayout *gridLayout = dynamic_cast<QGridLayout *>(parentWidget->layout());
+	if (!gridLayout) {
+		assert(false);
+		return;
+	}
+
+	int rowCount = gridLayout->rowCount();
+	int columnCount = gridLayout->columnCount();
+	for (int row = 0; row < rowCount; ++row) {
+		for (int col = 0; col < columnCount; ++col) {
+			QLayoutItem *item = gridLayout->itemAtPosition(row, col);
+			if (!item) {
+				assert(false);
+				continue;
+			}
+
+			QWidget *widget = item->widget();
+			if (!widget) {
+				assert(false);
+				continue;
+			}
+
+			QPushButton *btn = dynamic_cast<QPushButton *>(widget);
+			if (!btn) {
+				assert(false);
+				continue;
+			}
+
+			int index = row * columnCount + col;
+			QString newState = (index == selected) ? "selected" : "";
+			if (btn->property("state") != newState) {
+				btn->setProperty("state", newState);
+				pls_flush_style(btn);
+			}
+		}
 	}
 }
 
@@ -122,11 +189,13 @@ void PLSDrawPenView::shapeGroupButtonChangedInternal(int index)
 		ui->pushButton_CurShape->setToolTip(QTStr(shapeTips.at(index).c_str()));
 	ui->pushButton_CurShape->setProperty("style", index);
 	pls_flush_style(ui->pushButton_CurShape);
-	pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, "Shape_" + QString::number(index)}});
 }
 
 void PLSDrawPenView::UpdateView(OBSScene scene, bool reset)
 {
+	PLS_PERFORMANCE_FUNCTION();
+	isUpdatingView = true;
+
 	if (reset) {
 		PLSDrawPenMgr::Instance()->ResetProperties();
 	}
@@ -158,6 +227,8 @@ void PLSDrawPenView::UpdateView(OBSScene scene, bool reset)
 
 	drawVisible = PLSDrawPenMgr::Instance()->DrawVisible();
 	setViewEnabled(drawVisible);
+
+	isUpdatingView = false;
 }
 
 void PLSDrawPenView::drawGroupButtonChanged(int index, bool)
@@ -190,76 +261,114 @@ void PLSDrawPenView::drawGroupButtonChanged(int index, bool)
 
 void PLSDrawPenView::shapeGroupButtonChanged(int index)
 {
+	if (!isUpdatingView) {
+		PLS_UI_ACTION("PLSDrawPenView shape select start, index: %d", index);
+	}
 	ui->pushButton_CurShape->setChecked(true);
 	PLSDrawPenMgr::Instance()->SetCurrentDrawType(DrawType::DT_2DSHAPE);
 	shapeGroupButtonChangedInternal(index);
+	if (!isUpdatingView) {
+		PLS_UI_ACTION("PLSDrawPenView shape select end, index: %d", index);
+	}
 }
 
 void PLSDrawPenView::widthGroupButtonChanged(int index)
 {
+	if (!isUpdatingView) {
+		PLS_UI_ACTION("PLSDrawPenView thickness select start, index: %d", index);
+	}
 	PLSDrawPenMgr::Instance()->SetLineWidthIndex(index);
-	ui->pushButton_Width->setProperty("style", index);
-	pls_flush_style(ui->pushButton_Width);
-	if (widthPopup)
+
+	if (widthPopup) {
 		widthPopup->hide();
-	pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, "Line_" + QString::number(index)}});
+	}
+
+	if (!isUpdatingView) {
+		PLS_UI_ACTION("PLSDrawPenView thickness select end, index: %d", index);
+	}
 }
 
 void PLSDrawPenView::colorGroupButtonChanged(int index)
 {
+	if (!isUpdatingView) {
+		PLS_UI_ACTION("PLSDrawPenView color select start, index: %d", index);
+	}
 	PLSDrawPenMgr::Instance()->SetColorIndex(index);
 	ui->pushButton_Color->setProperty("style", index);
 	pls_flush_style(ui->pushButton_Color);
-	if (colorPopup)
+	if (colorPopup) {
 		colorPopup->hide();
-	pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, "Color_" + QString::number(index)}});
+	}
+	if (!isUpdatingView) {
+		PLS_UI_ACTION("PLSDrawPenView color select end, index: %d", index);
+	}
 }
 
 void PLSDrawPenView::onPenClicked() const
 {
 	if (ui->pushButton_Pen->isChecked()) {
+		if (!isUpdatingView) {
+			PLS_UI_ACTION("PLSDrawPenView pen update start");
+		}
 		PLSDrawPenMgr::Instance()->SetCurrentDrawType(DrawType::DT_PEN);
-		pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, "Pen"}});
+		if (!isUpdatingView) {
+			PLS_UI_ACTION("PLSDrawPenView pen update end");
+		}
 	}
-	PLS_UI_STEP(DRAWPEN_MODULE, "DrawPen Selected Pen Type", ACTION_CLICK);
 }
 
 void PLSDrawPenView::onHighlighterClicked() const
 {
 	if (ui->pushButton_Highlighter->isChecked()) {
+		if (!isUpdatingView) {
+			PLS_UI_ACTION("PLSDrawPenView highlight update start");
+		}
 		PLSDrawPenMgr::Instance()->SetCurrentDrawType(DrawType::DT_HIGHLIGHTER);
-		pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, "Highlighter"}});
+		if (!isUpdatingView) {
+			PLS_UI_ACTION("PLSDrawPenView highlight update end");
+		}
 	}
-	PLS_UI_STEP(DRAWPEN_MODULE, "DrawPen Selected Highlighter Type", ACTION_CLICK);
 }
 
 void PLSDrawPenView::onGlowPenClicked() const
 {
 	if (ui->pushButton_GlowPen->isChecked()) {
+		if (!isUpdatingView) {
+			PLS_UI_ACTION("PLSDrawPenView glow update start");
+		}
 		PLSDrawPenMgr::Instance()->SetCurrentDrawType(DrawType::DT_GLOW_PEN);
-		pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, "GlowPen"}});
+		if (!isUpdatingView) {
+			PLS_UI_ACTION("PLSDrawPenView glow update end");
+		}
 	}
-	PLS_UI_STEP(DRAWPEN_MODULE, "DrawPen Selected GlowPen Type", ACTION_CLICK);
 }
 
 void PLSDrawPenView::onShapeClicked() const
 {
 	if (ui->pushButton_CurShape->isChecked()) {
+		if (!isUpdatingView) {
+			PLS_UI_ACTION("PLSDrawPenView shape update start");
+		}
 		PLSDrawPenMgr::Instance()->SetCurrentDrawType(DrawType::DT_2DSHAPE);
 		int index = ui->pushButton_CurShape->property("style").toInt();
 		PLSDrawPenMgr::Instance()->SetCurrentShapeType(ShapeType(index));
-		pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, "Shape_" + QString::number(index)}});
+		if (!isUpdatingView) {
+			PLS_UI_ACTION("PLSDrawPenView shape update end");
+		}
 	}
-	PLS_UI_STEP(DRAWPEN_MODULE, "DrawPen Selected Shape Type", ACTION_CLICK);
 }
 
 void PLSDrawPenView::onRubberClicked() const
 {
 	if (ui->pushButton_Rubber->isChecked()) {
+		if (!isUpdatingView) {
+			PLS_UI_ACTION("PLSDrawPenView eraser update start");
+		}
 		PLSDrawPenMgr::Instance()->SetCurrentDrawType(DrawType::DT_RUBBER);
-		pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, "Rubber"}});
+		if (!isUpdatingView) {
+			PLS_UI_ACTION("PLSDrawPenView eraser update end");
+		}
 	}
-	PLS_UI_STEP(DRAWPEN_MODULE, "DrawPen Selected Rubber Type", ACTION_CLICK);
 }
 
 void PLSDrawPenView::on_pushButton_ShapeOpen_clicked()
@@ -300,6 +409,10 @@ void PLSDrawPenView::on_pushButton_ShapeOpen_clicked()
 		return;
 
 	if (ui->pushButton_ShapeOpen->isChecked()) {
+		PLS_UI_ACTION("PLSDrawPenView shape menu show start");
+		auto selected = get_shape_index(PLSDrawPenMgr::Instance()->GetCurrentShapeType());
+		updateGroupState(shapePopup, selected);
+
 		shapePopup->resize(162, 50);
 		QPoint offset(-95, 4);
 		QPoint p = ui->pushButton_ShapeOpen->mapToGlobal(QPoint(0, ui->pushButton_ShapeOpen->size().height())) + offset;
@@ -307,6 +420,7 @@ void PLSDrawPenView::on_pushButton_ShapeOpen_clicked()
 		shapePopup->show();
 		ui->pushButton_ShapeOpen->setProperty("open", false);
 		pls_flush_style(ui->pushButton_ShapeOpen);
+		PLS_UI_ACTION("PLSDrawPenView shape menu show end");
 	}
 }
 
@@ -346,13 +460,16 @@ void PLSDrawPenView::on_pushButton_Width_clicked()
 	if (!widthPopup)
 		return;
 
-	if (ui->pushButton_Width->isChecked()) {
-		widthPopup->resize(162, 50);
-		QPoint offset(-67, 4);
-		QPoint p = ui->pushButton_Width->mapToGlobal(QPoint(0, ui->pushButton_Width->size().height())) + offset;
-		widthPopup->move(p);
-		widthPopup->show();
-	}
+	PLS_UI_ACTION("PLSDrawPenView thickness menu show start");
+	auto selected = PLSDrawPenMgr::Instance()->GetLineWidthIndex();
+	updateGroupState(widthPopup, selected);
+
+	widthPopup->resize(162, 50);
+	QPoint offset(-67, 4);
+	QPoint p = ui->pushButton_Width->mapToGlobal(QPoint(0, ui->pushButton_Width->size().height())) + offset;
+	widthPopup->move(p);
+	widthPopup->show();
+	PLS_UI_ACTION("PLSDrawPenView thickness menu show end");
 }
 
 void PLSDrawPenView::on_pushButton_Color_clicked()
@@ -390,43 +507,58 @@ void PLSDrawPenView::on_pushButton_Color_clicked()
 	if (!colorPopup)
 		return;
 
-	if (ui->pushButton_Color->isChecked()) {
-		colorPopup->resize(190, 78);
-		QPoint offset(-81, 4);
-		QPoint p = ui->pushButton_Color->mapToGlobal(QPoint(0, ui->pushButton_Color->size().height())) + offset;
-		colorPopup->move(p);
-		colorPopup->show();
-	}
+	PLS_UI_ACTION("PLSDrawPenView color menu show start");
+	auto selected = PLSDrawPenMgr::Instance()->GetColorIndex();
+	updateGroupState(colorPopup, selected);
+
+	colorPopup->resize(190, 78);
+	QPoint offset(-81, 4);
+	QPoint p = ui->pushButton_Color->mapToGlobal(QPoint(0, ui->pushButton_Color->size().height())) + offset;
+	colorPopup->move(p);
+	colorPopup->show();
+	PLS_UI_ACTION("PLSDrawPenView color menu show end");
 }
 
 void PLSDrawPenView::on_pushButton_Undo_clicked() const
 {
+	PLS_UI_ACTION("PLSDrawPenView undo update start");
 	PLSDrawPenMgr::Instance()->UndoStroke();
-	PLS_UI_STEP(DRAWPEN_MODULE, "DrawPen Undo", ACTION_CLICK);
-	pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, "Undo"}});
+	PLS_UI_ACTION("PLSDrawPenView undo update end");
 }
 
 void PLSDrawPenView::on_pushButton_Redo_clicked() const
 {
+	PLS_UI_ACTION("PLSDrawPenView redo update start");
 	PLSDrawPenMgr::Instance()->RedoStroke();
-	PLS_UI_STEP(DRAWPEN_MODULE, "DrawPen Redo", ACTION_CLICK);
-	pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, "Redo"}});
+	PLS_UI_ACTION("PLSDrawPenView redo update end");
 }
 
 void PLSDrawPenView::on_pushButton_Clear_clicked() const
 {
 	PLSDrawPenMgr::Instance()->ClearStrokes();
-	PLS_UI_STEP(DRAWPEN_MODULE, "DrawPen Clear", ACTION_CLICK);
-	pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, "Clear"}});
 }
 
 void PLSDrawPenView::on_pushButton_Visible_clicked()
 {
 	drawVisible = !PLSDrawPenMgr::Instance()->DrawVisible();
+	if (drawVisible) {
+		pls_on_drawpen_event(PLSDrawPenMgr::Instance()->GetCurrentScene(), ACTION_SHOW);
+	} else {
+		pls_on_drawpen_event(PLSDrawPenMgr::Instance()->GetCurrentScene(), ACTION_HIDE);
+	}
+
+	PLS_UI_ACTION("PLSDrawPenView visible update start, visible: %s", drawVisible ? "true" : "false");
 	PLSDrawPenMgr::Instance()->OnDrawVisible(drawVisible);
 	setViewEnabled(drawVisible);
-	PLS_UI_STEP(DRAWPEN_MODULE, "DrawPen  " + drawVisible ? "Visible" : "Invisible", ACTION_CLICK);
-	pls_send_analog(AnalogType::ANALOG_DRAWPEN, {{ANALOG_DRAWPEN_DRAW_KEY, drawVisible ? "Visible" : "Invisible"}});
+	PLS_UI_ACTION("PLSDrawPenView visible update end, visible: %s", drawVisible ? "true" : "false");
+
+	pls_on_drawpen_updated(PLSDrawPenMgr::Instance()->GetCurrentScene());
+}
+
+void PLSDrawPenView::on_pushButton_Exit_clicked()
+{
+	PLS_UI_ACTION("PLSDrawPenView exit button click");
+	pls_async_call(this, []() { PLSBasic::instance()->OnDrawPenClicked(); });
 }
 
 void PLSDrawPenView::OnUndoDisabled(bool disabled)

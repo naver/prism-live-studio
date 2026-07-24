@@ -311,12 +311,16 @@ void PLSWidgetInfo::CTBkColorChanged(const char *setting)
 	obs_data_release(ctBkColorObj);
 	obs_data_release(newCtBkColorObj);
 }
-QHBoxLayout *PLSPropertiesView::createColorButtonNoSlider(obs_property_t *prop, long long colorValue, int alaphValue, int index)
+QHBoxLayout *PLSPropertiesView::createColorButtonNoSlider(QString resumeID, obs_property_t *prop, long long colorValue, int alaphValue, int index, const QString &colorButtonName)
 {
+	if (resumeID.isEmpty()) {
+		resumeID = QString::fromUtf8(obs_property_name(prop));
+	}
 	QHBoxLayout *layout = new QHBoxLayout();
-	auto button = pls_new<QPushButton>();
+	auto button = resumeNewWidget<QPushButton>(QString("%1_createNoSlider").arg(resumeID)).first;
+	pls_uistep_v2_custom(button, QStringLiteral("clicked"), QStringLiteral("Click"), colorButtonName, QStringLiteral("Color"));
 	button->setObjectName("textColorBtn");
-	auto colorLabel = pls_new<QLabel>();
+	auto colorLabel = resumeNewWidget<QLabel>(QString("%1_createNoSlider").arg(resumeID)).first;
 	colorLabel->setProperty("index", index);
 	colorLabel->setObjectName("colorLabel");
 	colorLabel->setAlignment(Qt::AlignCenter);
@@ -337,7 +341,7 @@ void PLSPropertiesView::AddCtFont(obs_property_t *prop, QFormLayout *layout, QLa
 	const char *name = obs_property_name(prop);
 	obs_data_t *val = obs_data_get_obj(settings, name);
 
-	label = pls_new<QLabel>(QString::fromUtf8(obs_property_description(prop)));
+	label = resumeNewWidget<QLabel>(QString("%1_ctFontLabel").arg(name), QString::fromUtf8(obs_property_description(prop))).first;
 	auto flayout = pls_new<QFormLayout>();
 	flayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 	flayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
@@ -351,7 +355,7 @@ void PLSPropertiesView::AddCtFont(obs_property_t *prop, QFormLayout *layout, QLa
 		return fontStrs;
 	};
 	auto family = obs_data_get_string(val, "chatFontFamily");
-	auto labelFont = pls_new<QLabel>(tr("ChatTemplate.Default.Font"));
+	auto labelFont = resumeNewWidget<QLabel>(QString("%1_ctFontDefaultLabel").arg(name), tr("ChatTemplate.Default.Font")).first;
 	labelFont->setObjectName("subLabel");
 	auto defaultFontWidget = pls_new<FontSelectionWindow>(pls_get_chat_template_helper_instance()->getChatCustomDefaultFamily(), family);
 	flayout->addRow(labelFont, defaultFontWidget);
@@ -360,8 +364,9 @@ void PLSPropertiesView::AddCtFont(obs_property_t *prop, QFormLayout *layout, QLa
 	hlayout1->setContentsMargins(0, 0, 0, 0);
 	hlayout1->setSpacing(10);
 
-	auto fontCbx = pls_new<PLSComboBox>();
+	auto fontCbx = resumeNewWidget<PLSComboBox>(QString("%1_ctFontFamily").arg(name)).first;
 	fontCbx->setObjectName("tmFontBox");
+	pls_uistep_v2_bind(fontCbx, labelFont);
 #if defined(Q_OS_WIN)
 	const char *ko_en_family = "Malgun Gothic";
 	const char *ko_ko_family = "\353\247\221\354\235\200 \352\263\240\353\224\225";
@@ -375,7 +380,8 @@ void PLSPropertiesView::AddCtFont(obs_property_t *prop, QFormLayout *layout, QLa
 #endif
 	fontCbx->addItem(family);
 	fontCbx->setCurrentText(family);
-	auto weightCbx = pls_new<PLSComboBox>();
+	auto weightCbx = resumeNewWidget<PLSComboBox>(QString("%1_ctFontStyle").arg(name)).first;
+	pls_uistep_v2_bind(weightCbx, labelFont);
 	updateFontSytle(family, weightCbx);
 	weightCbx->setCurrentText(obs_data_get_string(val, "chatFontStyle"));
 
@@ -427,8 +433,8 @@ void PLSPropertiesView::AddCtFont(obs_property_t *prop, QFormLayout *layout, QLa
 	int stepVal = 1;
 	auto fontSize = (int)obs_data_get_int(val, "chatFontSize");
 
-	createTMSlider(prop, 1, minVal, maxVal, stepVal, fontSize, hlayout3, false, false, false, "");
-	auto fontSizeLabel = pls_new<QLabel>(tr("textmotion.size"));
+	createTMSlider(QString("%1_chatFontSize").arg(name), prop, 1, minVal, maxVal, stepVal, fontSize, hlayout3, false, false, false, "");
+	auto fontSizeLabel = resumeNewWidget<QLabel>(QString("%1_ctFontSizeLabel").arg(name), tr("textmotion.size")).first;
 	fontSizeLabel->setObjectName("subLabel");
 	flayout->addRow(fontSizeLabel, hlayout3);
 	m_tmLabels.append(fontSizeLabel);
@@ -441,7 +447,7 @@ void PLSPropertiesView::AddCtFont(obs_property_t *prop, QFormLayout *layout, QLa
 	auto textColorLayout = pls_new<QHBoxLayout>();
 	textColorLayout->setContentsMargins(0, 0, 0, 0);
 	textColorLayout->setSpacing(20);
-	auto textColorLabel = pls_new<QLabel>(tr("ChatTemplate.Outline"));
+	auto textColorLabel = resumeNewWidget<QLabel>(QString("%1_subLabel").arg(name), tr("ChatTemplate.Outline")).first;
 	textColorLabel->setObjectName("subLabel");
 	textColorLabel->setEnabled(obs_data_get_bool(val, "isEnableChatFontOutlineColor"));
 	glayout->addWidget(textColorLabel, insetRow, 0);
@@ -449,7 +455,7 @@ void PLSPropertiesView::AddCtFont(obs_property_t *prop, QFormLayout *layout, QLa
 
 	PLSCheckBox *ChecBox = nullptr;
 	pls_used(ChecBox);
-	createColorButton(prop, glayout, ChecBox, tr("ChatTemplate.Outline.Size"), 0, false, true);
+	createColorButton(QString("%1_ctOutlineSize_0").arg(name), prop, glayout, ChecBox, tr("ChatTemplate.Outline.Size"), 0, false, true);
 
 	flayout->addRow(glayout);
 
@@ -471,13 +477,14 @@ void PLSPropertiesView::AddCtTextColor(obs_property_t *prop, QFormLayout *layout
 	const char *name = obs_property_name(prop);
 	obs_data_t *val = obs_data_get_obj(settings, name);
 
-	label = pls_new<QLabel>(QString::fromUtf8(obs_property_description(prop)));
+	label = resumeNewWidget<QLabel>(QString("%1_ctTextColorLabel").arg(name), QString::fromUtf8(obs_property_description(prop))).first;
+	label->setText(QString::fromUtf8(obs_property_description(prop)));
 	auto flayout = pls_new<QFormLayout>();
 	flayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 	flayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 	flayout->setHorizontalSpacing(20);
 	flayout->setVerticalSpacing(10);
-	auto nickCommonLabel = pls_new<QLabel>(tr("ChatTemplate.Common.Nick"));
+	auto nickCommonLabel = resumeNewWidget<QLabel>(QString("%1_ctNickCommonLabel").arg(name), tr("ChatTemplate.Common.Nick")).first;
 	nickCommonLabel->setObjectName("subLabel");
 	m_tmLabels.append(nickCommonLabel);
 	QHBoxLayout *hLayout = pls_new<QHBoxLayout>();
@@ -494,13 +501,14 @@ void PLSPropertiesView::AddCtTextColor(obs_property_t *prop, QFormLayout *layout
 
 	auto commonNickGroup = pls_new<PLSRadioButtonGroup>();
 	commonNickGroup->setObjectName("commonNickGroup");
-	createRadioButton(2, val, hLayout, commonNickGroup, {tr("Radom.Color"), tr("Single.Color")}, true, frame);
+	createRadioButton(QString("%1_commonNickColor").arg(name), 2, val, hLayout, commonNickGroup, {tr("Radom.Color"), tr("Single.Color")}, true, frame);
 	commonNickGroup->button(isCheckNickTextColor)->setChecked(true);
 
 	auto alignInfo = pls_new<PLSWidgetInfo>(this, prop, commonNickGroup);
 	connect(commonNickGroup, &PLSRadioButtonGroup::idClicked, alignInfo, &PLSWidgetInfo::ControlChanged);
 
-	auto subHlayout = createColorButtonNoSlider(prop, obs_data_get_int(val, "nickTextDefaultColor"), 255, 0);
+	auto subHlayout = createColorButtonNoSlider(QString("%1_commonNickColorButton").arg(name), prop, obs_data_get_int(val, "nickTextDefaultColor"), 255, 0,
+						    pls_uistep_v2_get_english("ChatTemplate.Common.Nick"));
 	setLayoutEnable(subHlayout, isCheckNickTextColor);
 	connect(commonNickGroup, &PLSRadioButtonGroup::idClicked, [subHlayout, this](int id) { setLayoutEnable(subHlayout, id == 1); });
 	if (auto btn = commonNickGroup->button(0))
@@ -510,31 +518,34 @@ void PLSPropertiesView::AddCtTextColor(obs_property_t *prop, QFormLayout *layout
 	hLayout->addLayout(subHlayout);
 	flayout->addRow(nickCommonLabel, frame);
 
-	auto nickMgrLabel = pls_new<QLabel>(tr("ChatTemplate.Mgr.Nick"));
+	auto nickMgrLabel = resumeNewWidget<QLabel>(QString("%1_ctNickMgrLabel").arg(name), tr("ChatTemplate.Mgr.Nick")).first;
 	nickMgrLabel->setObjectName("subLabelWithTips");
 	auto nickMgrLabelWithHelp = plsCreateHelpQWidget(nickMgrLabel, tr("ChatTemplate.Mgr.Nick.Tooltip"), "ChatV2_MoveDown", true);
 	nickMgrLabelWithHelp->setObjectName("subLabel");
 
 	m_tmLabels.append(nickMgrLabel);
-	auto mgrColorLayout = createColorButtonNoSlider(prop, obs_data_get_int(val, "mgrNickTextColor"), 255, 1);
+	auto mgrColorLayout =
+		createColorButtonNoSlider(QString("%1_mgrNickColorButton").arg(name), prop, obs_data_get_int(val, "mgrNickTextColor"), 255, 1, pls_uistep_v2_get_english("ChatTemplate.Mgr.Nick"));
 	setLayoutEnable(mgrColorLayout, obs_data_get_bool(val, "isEnableMgrNickTextColor"));
 	flayout->addRow(nickMgrLabelWithHelp, mgrColorLayout);
 
-	auto subcirbeTextLabel = pls_new<QLabel>(tr("ChatTemplate.Subcribe.Text"));
+	auto subcirbeTextLabel = resumeNewWidget<QLabel>(QString("%1_ctSubcribeTextLabel").arg(name), tr("ChatTemplate.Subcribe.Text")).first;
 	subcirbeTextLabel->setObjectName("subLabelWithTips");
 	auto subcirbeTextLabelWithHelp = plsCreateHelpQWidget(subcirbeTextLabel, tr("ChatTemplate.Subcribe.Text.Tooltip"), "ChatV2_MoveDown", true);
 	subcirbeTextLabelWithHelp->setObjectName("subLabel");
 	m_tmLabels.append(subcirbeTextLabel);
-	auto subribeLayout = createColorButtonNoSlider(prop, obs_data_get_int(val, "subcribeTextColor"), 255, 2);
+	auto subribeLayout = createColorButtonNoSlider(QString("%1_subcribeTextColorButton").arg(name), prop, obs_data_get_int(val, "subcribeTextColor"), 255, 2,
+						       pls_uistep_v2_get_english("ChatTemplate.Subcribe.Text"));
 	setLayoutEnable(subribeLayout, obs_data_get_bool(val, "isEnableSubcribeTextColor"));
 
 	flayout->addRow(subcirbeTextLabelWithHelp, subribeLayout);
 
-	auto messageTextLabel = pls_new<QLabel>(tr("ChatTemplate.Message.Text"));
+	auto messageTextLabel = resumeNewWidget<QLabel>(QString("%1_ctMessageTextLabel").arg(name), tr("ChatTemplate.Message.Text")).first;
 	messageTextLabel->setObjectName("subLabel");
 	messageTextLabel->setWordWrap(true);
 	m_tmLabels.append(messageTextLabel);
-	auto messageLayout = createColorButtonNoSlider(prop, obs_data_get_int(val, "messageTextColor"), 255, 3);
+	auto messageLayout = createColorButtonNoSlider(QString("%1_messageTextColorButton").arg(name), prop, obs_data_get_int(val, "messageTextColor"), 255, 3,
+						       pls_uistep_v2_get_english("ChatTemplate.Message.Text"));
 	setLayoutEnable(messageLayout, obs_data_get_bool(val, "isEnableMessageTextColor"));
 
 	flayout->addRow(messageTextLabel, messageLayout);
@@ -557,7 +568,8 @@ void PLSPropertiesView::AddCtBkColor(obs_property_t *prop, QFormLayout *layout, 
 	const char *name = obs_property_name(prop);
 	obs_data_t *val = obs_data_get_obj(settings, name);
 
-	label = pls_new<QLabel>(QString::fromUtf8(obs_property_description(prop)));
+	label = resumeNewWidget<QLabel>(QString("%1_ctBkColorLabel").arg(name), QString::fromUtf8(obs_property_description(prop))).first;
+	label->setText(QString::fromUtf8(obs_property_description(prop)));
 	auto flayout = pls_new<QFormLayout>();
 	flayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 	flayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
@@ -571,7 +583,7 @@ void PLSPropertiesView::AddCtBkColor(obs_property_t *prop, QFormLayout *layout, 
 	PLSCheckBox *ChecBox = nullptr;
 	pls_used(ChecBox);
 	auto colorStyleIndex = obs_data_get_int(val, "chatSingleColorStyle");
-	auto textColorLabel = pls_new<QLabel>(tr("ChatTemplate.Single.Bk.Color"));
+	auto textColorLabel = resumeNewWidget<QLabel>(QString("%1_ctSingleBkColorLabel").arg(name), tr("ChatTemplate.Single.Bk.Color")).first;
 	textColorLabel->setObjectName("subLabel");
 	textColorLabel->setWordWrap(true);
 	if (colorStyleIndex == -1) {
@@ -582,7 +594,7 @@ void PLSPropertiesView::AddCtBkColor(obs_property_t *prop, QFormLayout *layout, 
 		glayout->addWidget(textColorLabel, insetRow, 0);
 		m_tmLabels.append(textColorLabel);
 		textColorLabel->setEnabled(obs_data_get_bool(val, "isEnableChatSingleBkColor"));
-		createColorButton(prop, glayout, ChecBox, tr("textmotion.opacity"), 0, true, true, ctOffset);
+		createColorButton(QString("%1_ctOpacity_0").arg(name), prop, glayout, ChecBox, tr("textmotion.opacity"), 0, true, true, ctOffset);
 	} else {
 
 		QHBoxLayout *hLayout = pls_new<QHBoxLayout>();
@@ -595,7 +607,7 @@ void PLSPropertiesView::AddCtBkColor(obs_property_t *prop, QFormLayout *layout, 
 		frame->setLayout(hLayout);
 		auto singleBkGroup = pls_new<PLSRadioButtonGroup>();
 		singleBkGroup->setObjectName("singleBkGroup");
-		createRadioButton(2, val, hLayout, singleBkGroup, {tr("Pastel.Color"), tr("Bibid.Color")}, true, frame);
+		createRadioButton(QString("%1_singleBkColor").arg(name), 2, val, hLayout, singleBkGroup, {tr("Pastel.Color"), tr("Bibid.Color")}, true, frame);
 
 		singleBkGroup->button(colorStyleIndex)->setChecked(true);
 
@@ -611,19 +623,24 @@ void PLSPropertiesView::AddCtBkColor(obs_property_t *prop, QFormLayout *layout, 
 	bkColorLayout->setSpacing(20);
 	auto bkColorLabelFrame = pls_new<QFrame>();
 	bkColorLabelFrame->setObjectName("ctColorFrame");
-	createTMColorCheckBox(bkControlChecBox, prop, bkColorLabelFrame, currentIndex, tr("ChatTemplate.Total.Bk"), bkColorLayout, obs_data_get_bool(val, "isCheckChatTotalBkColor"),
-			      obs_data_get_bool(val, "is-bk-init-color-on"));
+	createTMColorCheckBox(QString("%1_ctTotalBk").arg(name), bkControlChecBox, prop, bkColorLabelFrame, currentIndex, tr("ChatTemplate.Total.Bk"), bkColorLayout,
+			      obs_data_get_bool(val, "isCheckChatTotalBkColor"), obs_data_get_bool(val, "is-bk-init-color-on"));
+
+	bkControlChecBox->setProperty("name", "totalBk");
+
 	glayout->addWidget(bkColorLabelFrame, currentIndex, 0);
-	createColorButton(prop, glayout, bkControlChecBox, tr("textmotion.opacity"), currentIndex, true, true, ctOffset);
+	createColorButton(QString("%1_ctOpacity_%2").arg(name).arg(currentIndex + ctOffset), prop, glayout, bkControlChecBox, tr("textmotion.opacity"), currentIndex, true, true, ctOffset);
 	flayout->addRow(glayout);
+	auto isControl = obs_data_get_int(settings, "Chat.Bk.Control");
+	bkColorLabelFrame->setEnabled(isControl != 0);
 
 	auto hlayout3 = pls_new<QHBoxLayout>();
 	hlayout3->setContentsMargins(0, 0, 0, 0);
 	hlayout3->setSpacing(20);
 	auto windowAlpha = (int)obs_data_get_int(val, "chatWindowAlpha");
-	createTMSlider(prop, 2, 0, 100, 1, windowAlpha, hlayout3, false, true, false, QString(), ctOffset);
+	createTMSlider(QString("%1_chatWindowAlpha").arg(name), prop, 2, 0, 100, 1, windowAlpha, hlayout3, false, true, false, QString(), ctOffset);
 
-	auto windowLabel = pls_new<QLabel>(tr("ChatTemplate.Window.Alpha"));
+	auto windowLabel = resumeNewWidget<QLabel>(QString("%1_ctWindowAlphaLabel").arg(name), tr("ChatTemplate.Window.Alpha")).first;
 	windowLabel->setObjectName("subLabel");
 	windowLabel->setWordWrap(true);
 	flayout->addRow(windowLabel, hlayout3);
@@ -665,7 +682,7 @@ void PLSPropertiesView::AddCtDisplay(obs_property_t *prop, QFormLayout *layout, 
 	flayout->setHorizontalSpacing(20);
 	flayout->setVerticalSpacing(0);
 
-	auto platformTypeLabel = pls_new<QLabel>(tr("ChatTemplate.display.platformType"));
+	auto platformTypeLabel = resumeNewWidget<QLabel>(QString("%1_platformTypeLabel").arg(name), tr("ChatTemplate.display.platformType")).first;
 	auto platformTypehelp = plsCreateHelpQWidget(platformTypeLabel, tr("ChatTemplate.display.platformType.tooltip"), "ChatV2_MoveDown", true);
 	platformTypehelp->setObjectName("platformTypehelp");
 	auto flowLayout = pls_new<FlowLayout>(0, 25, 15);
@@ -677,19 +694,19 @@ void PLSPropertiesView::AddCtDisplay(obs_property_t *prop, QFormLayout *layout, 
 	frame->setObjectName("CTChatPlatformTypeFrame");
 	m_platfromCheckBoxs.clear();
 	auto list = getChatChannelNameList();
-	for (auto &name : list) {
-		QString path = getPlatformImageFromName(name, 0);
+	for (auto &platformName : list) {
+		QString path = getPlatformImageFromName(platformName, 0);
 		QPixmap pix;
 		loadPixmap(pix, path, {72, 72});
-		QString translateName = translatePlatformName(name);
-		auto checkbox = pls_new<PLSCheckBox>(pix, translateName, false);
+		QString translateName = translatePlatformName(platformName);
+		auto checkbox = resumeNewWidget<PLSCheckBox>(QString("%1_ch_%2").arg(name, platformName), pix, translateName, false).first;
 		checkbox->setObjectName("CTChatPlatformCheck");
-		if (pls_is_ncp(name)) {
-			name.insert(0, "NCP_");
+		if (pls_is_ncp(platformName)) {
+			platformName.insert(0, "NCP_");
 		}
-		checkbox->setProperty("platformName", name);
+		checkbox->setProperty("platformName", platformName);
 		checkbox->setSpac(5);
-		if (selectPlatformList.contains(name)) {
+		if (selectPlatformList.contains(platformName)) {
 			checkbox->setChecked(true);
 		} else {
 			checkbox->setChecked(false);
@@ -705,7 +722,7 @@ void PLSPropertiesView::AddCtDisplay(obs_property_t *prop, QFormLayout *layout, 
 	flayout->addRow(platformTypehelp, frame);
 	flayout->addItem(pls_new<QSpacerItem>(10, 37, QSizePolicy::Fixed, QSizePolicy::Fixed));
 
-	auto iconDisplayLabel = pls_new<QLabel>(tr("ChatTemplate.display.icon.display"));
+	auto iconDisplayLabel = resumeNewWidget<QLabel>(QString("%1_iconDisplayLabel").arg(name), tr("ChatTemplate.display.icon.display")).first;
 	iconDisplayLabel->setWordWrap(true);
 	iconDisplayLabel->setObjectName("subLabel");
 	auto hlayout = pls_new<QHBoxLayout>();
@@ -719,7 +736,7 @@ void PLSPropertiesView::AddCtDisplay(obs_property_t *prop, QFormLayout *layout, 
 	frame2->setLayout(hlayout);
 	frame2->setObjectName("CTChatPlatformIconFrame");
 
-	auto platformIconCheck = pls_new<PLSCheckBox>(tr("ChatTemplate.display.platformIcon"));
+	auto platformIconCheck = resumeNewWidget<PLSCheckBox>(QString("%1_platformIconCheck").arg(name), tr("ChatTemplate.display.platformIcon")).first;
 	platformIconCheck->setObjectName("platformIconCheck");
 	platformIconCheck->setSpac(5);
 	hlayout->addWidget(platformIconCheck);
@@ -729,7 +746,7 @@ void PLSPropertiesView::AddCtDisplay(obs_property_t *prop, QFormLayout *layout, 
 	connect(platformIconCheck, &PLSCheckBox::clicked, platformIconInfo, &PLSWidgetInfo::ControlChanged);
 	children.emplace_back(platformIconInfo);
 
-	auto levelIconCheck = pls_new<PLSCheckBox>(tr("ChatTemplate.display.levelIcon"));
+	auto levelIconCheck = resumeNewWidget<PLSCheckBox>(QString("%1_levelIconCheck").arg(name), tr("ChatTemplate.display.levelIcon")).first;
 	levelIconCheck->setObjectName("levelIconCheck");
 	levelIconCheck->setSpac(5);
 	levelIconCheck->setEnabled(isEnableLevelIcon);
@@ -742,7 +759,7 @@ void PLSPropertiesView::AddCtDisplay(obs_property_t *prop, QFormLayout *layout, 
 	connect(levelIconCheck, &PLSCheckBox::clicked, levelIconInfo, &PLSWidgetInfo::ControlChanged);
 	children.emplace_back(levelIconInfo);
 
-	auto idIconCheck = pls_new<PLSCheckBox>(tr("ChatTemplate.display.idIcon"));
+	auto idIconCheck = resumeNewWidget<PLSCheckBox>(QString("%1_idIconCheck").arg(name), tr("ChatTemplate.display.idIcon")).first;
 	idIconCheck->setObjectName("idIconCheck");
 	idIconCheck->setSpac(5);
 	hlayout->addWidget(idIconCheck);
@@ -782,7 +799,7 @@ void PLSPropertiesView::AddCtOptions(obs_property_t *prop, QFormLayout *layout, 
 	int chatHeight = obs_data_get_int(settings, "chatHeight");
 	bool isEnableOption = obs_data_get_bool(val, "isEnableChatOption");
 
-	label = pls_new<QLabel>(QString::fromUtf8(obs_property_description(prop)));
+	label = resumeNewWidget<QLabel>(QString("%1_desc").arg(name), QString::fromUtf8(obs_property_description(prop))).first;
 	auto flayout = pls_new<QFormLayout>();
 	flayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 	flayout->setHorizontalSpacing(20);
@@ -801,7 +818,7 @@ void PLSPropertiesView::AddCtOptions(obs_property_t *prop, QFormLayout *layout, 
 	frame->setLayout(hlayout);
 	frame->setObjectName("CTChatAlignFrame");
 
-	auto checkWarp = pls_new<PLSCheckBox>(tr("ChatTemplate.option.warp"));
+	auto checkWarp = resumeNewWidget<PLSCheckBox>(QString("%1_optionWarp").arg(name), tr("ChatTemplate.option.warp")).first;
 	checkWarp->setSpac(5);
 	checkWarp->setEnabled(isEnableWrap);
 	checkWarp->setChecked(isCheckWrap);
@@ -812,7 +829,7 @@ void PLSPropertiesView::AddCtOptions(obs_property_t *prop, QFormLayout *layout, 
 	checkWarp->setObjectName("CTOptionCheckWarp");
 	children.emplace_back(checkWarpInfo);
 
-	createRadioButton(2, val, hlayout, group, {tr("ChatTemplate.option.left.align"), tr("ChatTemplate.option.right.align")}, true, frame);
+	createRadioButton(QString("%1_ctOptionAlign").arg(name), 2, val, hlayout, group, {tr("ChatTemplate.option.left.align"), tr("ChatTemplate.option.right.align")}, true, frame);
 	if (isLeftAlign) {
 		group->button(0)->setChecked(true);
 	} else {
@@ -824,7 +841,7 @@ void PLSPropertiesView::AddCtOptions(obs_property_t *prop, QFormLayout *layout, 
 	connect(group, &PLSRadioButtonGroup::idClicked, alignInfo, &PLSWidgetInfo::ControlChanged);
 	children.emplace_back(alignInfo);
 
-	auto sortLable = pls_new<QLabel>(tr("ChatTemplate.option.sort"));
+	auto sortLable = resumeNewWidget<QLabel>(QString("%1_optionSort").arg(name), tr("ChatTemplate.option.sort")).first;
 	sortLable->setObjectName("subLabel");
 	sortLable->setWordWrap(true);
 	flayout->addRow(sortLable, frame);
@@ -841,7 +858,7 @@ void PLSPropertiesView::AddCtOptions(obs_property_t *prop, QFormLayout *layout, 
 	frame2->setLayout(hlayout2);
 	frame2->setObjectName("CTChatDisapperFrame");
 
-	createRadioButton(2, val, hlayout2, group2, {tr("ChatTemplate.option.disapper.on"), tr("ChatTemplate.option.disapper.off")}, true, frame2);
+	createRadioButton(QString("%1_ctOptionDisapper").arg(name), 2, val, hlayout2, group2, {tr("ChatTemplate.option.disapper.on"), tr("ChatTemplate.option.disapper.off")}, true, frame2);
 	if (isCheckDisapper) {
 		group2->button(0)->setChecked(true);
 	} else {
@@ -853,7 +870,7 @@ void PLSPropertiesView::AddCtOptions(obs_property_t *prop, QFormLayout *layout, 
 	children.emplace_back(DisapperInfo);
 
 	flayout->addItem(pls_new<QSpacerItem>(10, 30, QSizePolicy::Fixed, QSizePolicy::Fixed));
-	auto disapperLable = pls_new<QLabel>(tr("ChatTemplate.option.disapper"));
+	auto disapperLable = resumeNewWidget<QLabel>(QString("%1_optionDisapperLabel").arg(name), tr("ChatTemplate.option.disapper")).first;
 	disapperLable->setObjectName("subLabel");
 	disapperLable->setWordWrap(true);
 	flayout->addRow(disapperLable, frame2);
@@ -862,11 +879,11 @@ void PLSPropertiesView::AddCtOptions(obs_property_t *prop, QFormLayout *layout, 
 	hlayout3->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 	hlayout3->setContentsMargins(0, 0, 0, 0);
 	hlayout3->setSpacing(10);
-	auto widthLable = pls_new<QLabel>(tr("ChatTemplate.option.width"));
+	auto widthLable = resumeNewWidget<QLabel>(QString("%1_optionWidthLabel").arg(name), tr("ChatTemplate.option.width")).first;
 	widthLable->setObjectName("CTChatWidthLable");
 	hlayout3->addWidget(widthLable);
 
-	auto widthSpinBox = pls_new<PLSSpinBox>();
+	auto widthSpinBox = resumeNewWidget<PLSSpinBox>(QString("%1_optionWidthSpinBox").arg(name)).first;
 	widthSpinBox->setObjectName("widthSpinBox");
 	widthSpinBox->setRange(150, 1024);
 	widthSpinBox->setSingleStep(1);
@@ -900,11 +917,11 @@ void PLSPropertiesView::AddCtOptions(obs_property_t *prop, QFormLayout *layout, 
 	hlayout4->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 	hlayout4->setContentsMargins(0, 0, 0, 0);
 	hlayout4->setSpacing(10);
-	auto heightLable = pls_new<QLabel>(tr("ChatTemplate.option.height"));
+	auto heightLable = resumeNewWidget<QLabel>(QString("%1_optionHeightLabel").arg(name), tr("ChatTemplate.option.height")).first;
 	heightLable->setObjectName("CTChatHegihtLable");
 	hlayout4->addWidget(heightLable);
 
-	auto heightSpinBox = pls_new<PLSSpinBox>();
+	auto heightSpinBox = resumeNewWidget<PLSSpinBox>(QString("%1_optionHeightSpinBox").arg(name)).first;
 	heightSpinBox->setObjectName("heightSpinBox");
 	heightSpinBox->setRange(70, 768);
 	heightSpinBox->setSingleStep(1);
@@ -942,10 +959,12 @@ void PLSPropertiesView::AddCtOptions(obs_property_t *prop, QFormLayout *layout, 
 	setLayoutEnable(hlayout5, isEnableSize);
 
 	flayout->addItem(pls_new<QSpacerItem>(10, 20, QSizePolicy::Fixed, QSizePolicy::Fixed));
-	auto sizeLabel = pls_new<QLabel>(tr("ChatTemplate.option.size"));
+	auto sizeLabel = resumeNewWidget<QLabel>(QString("%1_optionSizeLabel").arg(name), tr("ChatTemplate.option.size")).first;
 	sizeLabel->setObjectName("subLabel");
 	sizeLabel->setWordWrap(true);
 	flayout->addRow(sizeLabel, hlayout5);
+	pls_uistep_v2_bind(heightSpinBox, QObjectList{sizeLabel, heightLable}, pls_uistep_v2_auto_bind_get_name);
+	pls_uistep_v2_bind(widthSpinBox, QObjectList{sizeLabel, widthLable}, pls_uistep_v2_auto_bind_get_name);
 	auto w = pls_new<QWidget>();
 	w->setObjectName("horiLine");
 	flayout->addItem(pls_new<QSpacerItem>(10, 20, QSizePolicy::Fixed, QSizePolicy::Fixed));
@@ -967,7 +986,7 @@ void PLSPropertiesView::AddCtMotion(obs_property_t *prop, QFormLayout *layout, Q
 	bool isCheck = obs_data_get_bool(val, "isCheckChatMotion");
 	bool isEnable = obs_data_get_bool(val, "isEnableChatMotion");
 
-	label = pls_new<QLabel>(QString::fromUtf8(obs_property_description(prop)));
+	label = resumeNewWidget<QLabel>(QString("%1_desc").arg(name), QString::fromUtf8(obs_property_description(prop))).first;
 	auto flayout = pls_new<QFormLayout>();
 	flayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 	flayout->setHorizontalSpacing(20);
@@ -985,7 +1004,8 @@ void PLSPropertiesView::AddCtMotion(obs_property_t *prop, QFormLayout *layout, Q
 	frame->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 	frame->setLayout(hlayout);
 	frame->setObjectName("CTMotionGroupFrame");
-	createRadioButton(3, val, hlayout, group, {tr("ChatTemplate.motion.shaking"), tr("ChatTemplate.motion.random"), tr("ChatTemplate.motion.wave")}, true, frame);
+	createRadioButton(QString("%1_ctMotionStyle").arg(name), 3, val, hlayout, group, {tr("ChatTemplate.motion.shaking"), tr("ChatTemplate.motion.random"), tr("ChatTemplate.motion.wave")}, true,
+			  frame);
 	if (index != -1 && isCheck) {
 		group->button(index)->setChecked(true);
 	}
@@ -1029,7 +1049,7 @@ void PLSPropertiesView::AddCtMotion(obs_property_t *prop, QFormLayout *layout, Q
 	});
 	check->setObjectName("CTMotionCheckbox");
 	children.emplace_back(info);
-
+	pls_uistep_v2_bind(check, checkText);
 	flayout->insertRow(0, frame2, frame);
 	auto w = pls_new<QWidget>();
 	w->setObjectName("horiLine");

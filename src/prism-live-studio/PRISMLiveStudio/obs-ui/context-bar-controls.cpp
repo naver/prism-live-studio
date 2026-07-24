@@ -14,6 +14,7 @@
 #include "ui_text-source-toolbar.h"
 #include "PLSColorDialogView.h"
 #include "PLSFontDialogView.h"
+#include "pls/pls-source.h"
 
 #ifdef _WIN32
 #define get_os_module(win, mac, linux) obs_get_module(win)
@@ -25,6 +26,8 @@
 #define get_os_module(win, mac, linux) obs_get_module(linux)
 #define get_os_text(mod, win, mac, linux) obs_module_get_locale_text(mod, linux)
 #endif
+
+#define ACTION_LOG_EXT "_toolbar"
 
 /* ========================================================================= */
 
@@ -90,6 +93,7 @@ BrowserToolbar::BrowserToolbar(QWidget *parent, OBSSource source)
 	  ui(new Ui_BrowserSourceToolbar)
 {
 	ui->setupUi(this);
+	pls_uistep_v2_set_name(ui->refresh, "refresh");
 }
 
 BrowserToolbar::~BrowserToolbar() {}
@@ -103,6 +107,7 @@ void BrowserToolbar::on_refresh_clicked()
 
 	obs_property_t *p = obs_properties_get(props.get(), "refreshnocache");
 	obs_property_button_clicked(p, source.Get());
+	PLS_UI_ACTION("Widget BrowserToolbar Refresh Done");
 }
 
 /* ========================================================================= */
@@ -183,6 +188,13 @@ void ComboSelectToolbar::Init()
 
 void UpdateSourceComboToolbarValue(QComboBox *combo, OBSSource source, int idx, const char *prop_name, bool is_int)
 {
+#ifdef PLS_UI_ACTION_STATS
+	if (prop_name) {
+		std::string ext = std::string(prop_name) + ACTION_LOG_EXT;
+		pls_on_source_property_changed(source, ext.c_str());
+	}
+#endif
+
 	QString id = combo->itemData(idx).toString();
 
 	OBSDataAutoRelease settings = obs_data_create();
@@ -202,6 +214,10 @@ void ComboSelectToolbar::on_device_currentIndexChanged(int idx)
 	}
 
 	SaveOldProperties(source);
+#ifdef PLS_UI_ACTION_STATS
+	//PRISM/chenguoxi/20260121/none/ui action log
+	pls_on_source_property_changed(source, "Device");
+#endif
 	UpdateSourceComboToolbarValue(ui->device, source, idx, prop_name, is_int);
 	SetUndoProperties(source);
 }
@@ -415,6 +431,11 @@ void GameCaptureToolbar::on_mode_currentIndexChanged(int idx)
 		return;
 	}
 
+#ifdef PLS_UI_ACTION_STATS
+	std::string ext = std::string("mode") + ACTION_LOG_EXT;
+	pls_on_source_property_changed(source, ext.c_str());
+#endif
+
 	QString id = ui->mode->itemData(idx).toString();
 
 	SaveOldProperties(source);
@@ -432,6 +453,11 @@ void GameCaptureToolbar::on_window_currentIndexChanged(int idx)
 	if (idx == -1 || !source) {
 		return;
 	}
+
+#ifdef PLS_UI_ACTION_STATS
+	std::string ext = std::string("window") + ACTION_LOG_EXT;
+	pls_on_source_property_changed(source, ext.c_str());
+#endif
 
 	QString id = ui->window->itemData(idx).toString();
 
@@ -566,6 +592,9 @@ void ColorSourceToolbar::on_choose_clicked()
 	color = newColor;
 	UpdateColor();
 
+	//PRISM/chenguoxi/20260121/none/ui action log
+	pls_on_source_property_changed(source, "color_bar");
+
 	SaveOldProperties(source);
 
 	OBSDataAutoRelease settings = obs_data_create();
@@ -634,6 +663,9 @@ void TextSourceToolbar::on_selectFont_clicked()
 		return;
 	}
 
+	//PRISM/chenguoxi/20260121/none/ui action log
+	pls_on_source_property_changed(source, "font_bar");
+
 	OBSDataAutoRelease font_obj = obs_data_create();
 
 	obs_data_set_string(font_obj, "face", QT_TO_UTF8(font.family()));
@@ -682,6 +714,9 @@ void TextSourceToolbar::on_selectColor_clicked()
 		return;
 	}
 
+	//PRISM/chenguoxi/20260121/none/ui action log
+	pls_on_source_property_changed(source, "color_bar");
+
 	color = newColor;
 
 	SaveOldProperties(source);
@@ -704,6 +739,7 @@ void TextSourceToolbar::on_text_textChanged()
 	if (!source) {
 		return;
 	}
+
 	std::string newText = QT_TO_UTF8(ui->text->text());
 	OBSDataAutoRelease settings = obs_source_get_settings(source);
 	if (newText == obs_data_get_string(settings, "text")) {

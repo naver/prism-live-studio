@@ -53,6 +53,20 @@
         <file>resource/images/ic-help-on-click.svg</file>
         <file>resource/images/ic-help-on-normal.svg</file>
         <file>resource/images/ic-help-on-over.svg</file>
+        <file>resource/images/help-menu/ic-helpmenu-contact.svg</file>
+        <file>resource/images/help-menu/ic-helpmenu-faq.svg</file>
+        <file>resource/images/help-menu/ic-helpmenu-notiandupdate.svg</file>
+        <file>resource/images/help-menu/ic-helpmenu-update.svg</file>
+        <file>resource/images/help-menu/ic-helpmenu-userguide.svg</file>
+        <file>resource/images/help-menu/ic-helpmenu-website.svg</file>
+        <file>resource/images/ic_more_off_click.svg</file>
+        <file>resource/images/ic_more_off_disable.svg</file>
+        <file>resource/images/ic_more_off_normal.svg</file>
+        <file>resource/images/ic_more_off_over.svg</file>
+        <file>resource/images/ic_more_on_click.svg</file>
+        <file>resource/images/ic_more_on_disable.svg</file>
+        <file>resource/images/ic_more_on_normal.svg</file>
+        <file>resource/images/ic_more_on_over.svg</file>
         <file>resource/images/ic-setting-off-click.svg</file>
         <file>resource/images/ic-setting-off-disable.svg</file>
         <file>resource/images/ic-setting-off-normal.svg</file>
@@ -237,7 +251,9 @@
         <file>resource/images/bgm/icon-source-bgm-select-disable.svg</file>
         <file>resource/images/bgm/ic-unconnect.svg</file>
         <file>resource/images/bgm/img-free.svg</file>
+        <file>resource/images/bgm/img-free-invisible.svg</file>
         <file>resource/images/bgm/img-music-dot.svg</file>
+        <file>resource/images/bgm/img-music-dot-invisible.svg</file>
         <file>resource/images/bgm/library-tab-hot-off-click.svg</file>
         <file>resource/images/bgm/library-tab-hot-off-normal.svg</file>
         <file>resource/images/bgm/library-tab-hot-off-over.svg</file>
@@ -703,7 +719,6 @@
         <file>resource/images/btn-apply-normal.svg</file>
         <file>resource/images/btn-apply-over.svg</file>
         <file>resource/images/ic-fileupload-click.svg</file>
-        <file>resource/images/ic-fileupload-disable.svg</file>
         <file>resource/images/ic-fileupload-normal.svg</file>
         <file>resource/images/ic-fileupload-over.svg</file>
         <file>resource/images/effect-close-click.svg</file>
@@ -725,5 +740,31 @@
         <file>resource/images/icon-source/ic_scenetemplate_on_hover.svg</file>
         <file>resource/images/icon-source/ic_scenetemplate_on_normal.svg</file>
         <file>resource/images/noimg_chzzk_defaulf.svg</file>
+        <file>resource/images/icon-source/icon-source-disable.svg</file>
+        <file>resource/images/icon-source/icon-source-disable_hover.svg</file>
+        <file>resource/images/draw-pen/ic_layer_border_18_normal.svg</file>
+        <file>resource/images/draw-pen/ic_layer_border_14_normal.svg</file>
+        <file>resource/images/draw-pen/ic_layer_border_10_normal.svg</file>
+        <file>resource/images/draw-pen/ic_layer_border_8_normal.svg</file>
+        <file>resource/images/draw-pen/ic_layer_border_4_normal.svg</file>
+        <file>resource/images/draw-pen/ic_color_12_selected.svg</file>
+        <file>resource/images/draw-pen/ic_color_11_selected.svg</file>
+        <file>resource/images/draw-pen/ic_color_10_selected.svg</file>
+        <file>resource/images/draw-pen/ic_color_09_selected.svg</file>
+        <file>resource/images/draw-pen/ic_color_08_selected.svg</file>
+        <file>resource/images/draw-pen/ic_color_07_selected.svg</file>
+        <file>resource/images/draw-pen/ic_color_06_selected.svg</file>
+        <file>resource/images/draw-pen/ic_color_05_selected.svg</file>
+        <file>resource/images/draw-pen/ic_color_04_selected.svg</file>
+        <file>resource/images/draw-pen/ic_color_03_selected.svg</file>
+        <file>resource/images/draw-pen/ic_color_02_selected.svg</file>
+        <file>resource/images/draw-pen/ic_color_01_selected.svg</file>
+        <file>resource/images/draw-pen/ic_stroke_weight_disable.svg</file>
+        <file>resource/images/draw-pen/ic_stroke_weight_click.svg</file>
+        <file>resource/images/draw-pen/ic_stroke_weight_hover.svg</file>
+        <file>resource/images/draw-pen/ic_stroke_weight_normal.svg</file>
+        <file>resource/images/prism-sticker/ic-prismsticker-toast-close-click.svg</file>
+        <file>resource/images/prism-sticker/ic-prismsticker-toast-close-hover.svg</file>
+        <file>resource/images/prism-sticker/ic-prismsticker-toast-close-normal.svg</file>
     </qresource>
 </RCC>

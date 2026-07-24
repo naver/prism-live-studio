@@ -227,9 +227,10 @@ static void *win_spout_source_create(obs_data_t *settings, obs_source_t *source)
 	context->dxHandle = NULL;
 	context->initialized = false;
 
-	// set the initial size as 100x100 until we
+	//PRISM/FanZirong/20260302/PRISM_PC-5424/set default size to 0
+	// set the initial size as 0x0 until we
 	// have the actual dimensions from SPOUT
-	context->width = context->height = 100;
+	context->width = context->height = 0;
 
 	win_spout_source_update(context, settings);
 	return context;
@@ -304,6 +305,11 @@ static void win_spout_source_render(void *data, gs_effect_t *effect)
 		context->render_status = 0;
 	}
 
+	//PRISM/FanZirong/20260424/PRISM_PC-5995/Spout2 sRGB: gs_get_color_space, fb+image, gs_draw_sprite
+	const bool nonlinear_fade = gs_get_color_space() == GS_CS_SRGB;
+	const bool previous_fb_srgb = gs_framebuffer_srgb_enabled();
+	gs_enable_framebuffer_srgb(!nonlinear_fade);
+
 	switch (context->composite_mode) {
 	case COMPOSITE_MODE_OPAQUE:
 		effect = obs_get_base_effect(OBS_EFFECT_OPAQUE);
@@ -326,8 +332,23 @@ static void win_spout_source_render(void *data, gs_effect_t *effect)
 	}
 
 	while (gs_effect_loop(effect, "Draw")) {
-		obs_source_draw(context->texture, 0, 0, 0, 0, false);
+		//PRISM/FanZirong/20260424/PRISM_PC-5995/Spout2 sRGB: gs_get_color_space, fb+image, gs_draw_sprite
+		//obs_source_draw(context->texture, 0, 0, 0, 0, false);
+		gs_eparam_t *param = gs_effect_get_param_by_name(effect, "image");
+		if (nonlinear_fade) {
+			gs_effect_set_texture(param, context->texture);
+		} else {
+			gs_effect_set_texture_srgb(param, context->texture);
+		}
+		gs_draw_sprite(context->texture, 0, 0, 0);
 	}
+	//PRISM/FanZirong/20260424/PRISM_PC-5995/Spout2 sRGB: gs_get_color_space, fb+image, gs_draw_sprite
+	gs_enable_framebuffer_srgb(previous_fb_srgb);
+
+#ifdef PLS_UI_ACTION_STATS
+	//PRISM/FanZirong/20260112/PRISM_PC-5167/action log
+	pls_on_source_property_render(context->source, 0);
+#endif
 
 	if (context->composite_mode == COMPOSITE_MODE_PREMULTIPLIED) {
 		gs_blend_state_pop();

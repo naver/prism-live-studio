@@ -3,6 +3,7 @@
 #include <pls/media-info.h>
 #include "PLSMotionFileManager.h"
 #include "PLSAlertView.h"
+#include "PLSErrorHandler.h"
 #include "obs-app.hpp"
 #include "PLSMotionImageListView.h"
 #include "PLSBasic.h"
@@ -19,6 +20,7 @@ PLSMyMotionListView::PLSMyMotionListView(QWidget *parent) : QFrame(parent)
 	ui->listFrame->insertAddFileItem();
 	ui->listFrame->hide();
 	ui->listFrame->setDeleteAllButtonVisible(true);
+	pls_uistep_v2_set_name(ui->addButton, "Add Button");
 
 	connect(ui->addButton, &QPushButton::clicked, this, &PLSMyMotionListView::chooseLocalFileDialog);
 	connect(ui->listFrame, &PLSImageListView::addFileButtonClicked, this, &PLSMyMotionListView::chooseLocalFileDialog);
@@ -197,10 +199,12 @@ void PLSMyMotionListView::addResourcesFinished(const QObject *sourceUi, int erro
 	}
 
 	if (error != PLSAddMyResourcesProcessor::MaxResolutionError) {
-		pls_alert_error_message(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.Title"), QTStr("virtual.resource.add.file.other.error.tip"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_VIRTUAL_RESOURCE_ADD_FILE_OTHER_ERROR_TIP, PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral("PLSMyMotionListView::addResourcesFinished.other")), PLSBasic::instance()->GetPropertiesWindow());
 	}
 	if (error & PLSAddMyResourcesProcessor::MaxResolutionError) {
-		pls_alert_error_message(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.Title"), QTStr("virtual.resource.add.file.exceed.tip"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_VIRTUAL_RESOURCE_ADD_FILE_EXCEED_TIP, PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral("PLSMyMotionListView::addResourcesFinished.exceed")), PLSBasic::instance()->GetPropertiesWindow());
 	}
 }
 

@@ -1,0 +1,58 @@
+{
+    "data": [
+        {
+            "api": {
+                "$statusCode": "400",
+                "subCode": "1106"
+            },
+            "err": {
+                "prismCode": 31000,
+                "prismName": "CHANNEL_CHZZK_1106_AGREEMENT_REQUIRED",
+                "msgKey": "chzzk.clip.need.agree",
+                "buttons": "[{\"button\":\"Cancel\"},{\"button\":\"Open\",\"tr\":\"chzzk.clip.alert.goto\",\"action\":\"open.https://studio.chzzk.naver.com/{{chzzkLiveId}}/live\"}]",
+                "msgText": "You have not agreed to create CHZZK clips. Please give consent following the guidelines in the pop-up that will be displayed upon clicking on the option to allow creating clips in CHZZK Studio, and try again."
+            }
+        },
+        {
+            "phase": "login",
+            "api": {
+                "subCode": "1102"
+            },
+            "err": {
+                "prismCode": 31001,
+                "prismName": "CHANNEL_CHZZK_1102_LOGIN_AGREEMENT_REQUIRED",
+                "msgKey": "Chzzk.Channel.Login.Term",
+                "buttons": "[{\"button\":\"Cancel\"},{\"button\":\"Ok\",\"tr\":\"Chzzk.Channel.Login.Term.Button\"}]",
+                "msgText": "Consent to CHZZK Studio's Terms of Service is required to live stream CHZZK on the PRISM app."
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "subCode": [
+                "code"
+            ],
+            "message": [
+                "message"
+            ],
+            "exception": [
+                "exception"
+            ]
+        },
+        "logAppend": [
+            "subCode: {{subCode}}",
+            "message: {{message}}",
+            "exception: {{exception}}"
+        ],
+        "inherit": [
+            "PRISM"
+        ],
+        "append": [
+            "tr(\"NaverShoppingLive.Alert.Error.Code\") {{subCode}}",
+            "tr(\"NaverShoppingLive.Alert.Error.Message\") {{message}}"
+        ],
+        "appendJoin": [
+            "\n"
+        ]
+    }
+}

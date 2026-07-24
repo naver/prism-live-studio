@@ -8,6 +8,7 @@ using namespace common;
 PLSSceneTemplateReturnButton::PLSSceneTemplateReturnButton(QWidget *parent) : QFrame(parent), ui(new Ui::PLSSceneTemplateReturnButton)
 {
 	ui->setupUi(this);
+	setProperty("showHandCursor", true);
 	ui->returnLabel->setText(tr("SceneTemplate.Scene.Return.Button"));
 }
 

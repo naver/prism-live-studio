@@ -27,6 +27,7 @@ constexpr auto MAIN_BEAUTY_DELETEBEAUTY_MESSAGE = "main.beauty.deletebeauty.mess
 constexpr auto MAIN_BEAUTY_TITLE = "main.beauty.title";
 constexpr auto MIAN_GIPHY_STICKER_TITLE = "main.giphy.title";
 constexpr auto MIAN_PRISM_STICKER_TITLE = "main.prism.sticker.title";
+constexpr auto MIAN_PRISM_UPDATE_STICKER_TITLE = "main.prism.update.sticker.title";
 constexpr const char *BLACKLIST_GRAPHICS_CARD_LOWER_DX11 = "blacklist.graphicscard.lower.dx11";
 constexpr const char *BLACKLIST_GRAPHICS_CARD_LOWER_REQUIREMENT = "blacklist.graphicscard.lower.requirement";
 

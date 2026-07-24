@@ -26,7 +26,7 @@ bool PLSChzzkDataHandler::tryToUpdate(const QVariantMap &srcInfo, const UpdateCa
 	QString channelUUID = srcInfo[ChannelData::g_channelUUID].toString();
 	auto cookie = srcInfo.value(ChannelData::g_channelCookie).toString();
 	PLS_INFO(MODULE_PLATFORM_CHZZK, "PlatformAPI tryToUpdate chzzk platform, channel type is %d , channel uuid is %s", srcInfo.value(ChannelData::g_data_type).toInt(),
-		 channelUUID.toStdString().c_str());
+		 channelUUID.toUtf8().constData());
 	auto chzzk = dynamic_cast<PLSPlatformChzzk *>(PLS_PLATFORM_API->getPlatformById(channelUUID, srcInfo));
 	if (!chzzk) {
 		PLS_ERROR(MODULE_PLATFORM_CHZZK, "%s %s Chzzk refresh failed, platform not exists", PrepareInfoPrefix, __FUNCTION__);

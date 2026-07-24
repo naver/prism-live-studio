@@ -12,6 +12,7 @@
 #include <json11.hpp>
 
 #include "ui_OBSExtraBrowsers.h"
+#include "login-user-info.hpp"
 
 using namespace json11;
 
@@ -133,6 +134,7 @@ void ExtraBrowsersModel::AddDeleteButton(int idx, bool disable)
 	del->setObjectName("extraPanelDelete");
 	del->setMinimumSize(QSize(22, 22));
 	connect(del, &QPushButton::clicked, this, &ExtraBrowsersModel::DeleteItem);
+	pls_uistep_v2_set_value(del, "clicked", QString("delete"));
 
 	widget->setIndexWidget(index, del);
 	widget->setRowHeight(idx, 50);
@@ -215,6 +217,7 @@ void ExtraBrowsersModel::DeleteItem()
 	}
 
 	endRemoveRows();
+	PLS_UI_ACTION("Cutsom Brower Docks Delete Item Done");
 }
 
 void ExtraBrowsersModel::Apply()
@@ -421,9 +424,11 @@ OBSExtraBrowsers::OBSExtraBrowsers(QWidget *parent) : PLSDialogView(parent), ui(
 	setupUi(ui);
 	pls_add_css(this, {"OBSExtraBrowsers"});
 	setAttribute(Qt::WA_DeleteOnClose, true);
+	setResizeEnabled(false);
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 #ifdef __APPLE__
 	ui->helpIcon->setToolTip(QTStr("ExtraBrowsers.Info"));
+	pls_uistep_v2_set_custom_enter_leave_name(ui->helpIcon, "TitleBar Button Help");
 #else
 	ui->helpIcon->setVisible(false);
 	setHasHelpButton(true);
@@ -458,6 +463,7 @@ void OBSExtraBrowsers::closeEvent(QCloseEvent *event)
 void OBSExtraBrowsers::on_apply_clicked()
 {
 	model->Apply();
+	PLS_UI_ACTION("Cutsom Brower Docks Apply Button Done");
 }
 
 /* ------------------------------------------------------------------------- */
@@ -525,23 +531,29 @@ void OBSBasic::ManageExtraBrowserDocks()
 
 void OBSBasic::loadNcb2bBrowserSettingsDocks()
 {
+	QString userServiceName = PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName();
+	if (userServiceName.isEmpty()) {
+		return;
+	}
+	ncb2bMenuDocksSeparator = ui->menuDocks->addSeparator();
 	const char *jsonStr = config_get_string(App()->GetUserConfig(), "BasicWindow", "Ncb2bBrowserDocks");
-
 	std::string err;
 	Json json = Json::parse(jsonStr, err);
-	if (!err.empty())
+	if (!err.empty()) {
+		addNcb2bCustomDock(tr("Ncpb2b.Browser.Settings.Dock.Title").arg(userServiceName), pls_gen_uuid());
 		return;
+	}
 
 	Json::array array = json.array_items();
-	if (!array.empty())
-		ncb2bMenuDocksSeparator = ui->menuDocks->addSeparator();
-
+	if (array.empty()) {
+		addNcb2bCustomDock(tr("Ncpb2b.Browser.Settings.Dock.Title").arg(userServiceName), pls_gen_uuid());
+		return;
+	}
 	for (Json &item : array) {
-		std::string title = item["title"].string_value();
-		std::string url = item["url"].string_value();
 		std::string uuid = item["uuid"].string_value();
-
-		addNcb2bCustomDock(title.c_str(), url.c_str(), uuid.c_str(), false);
+		std::string selectedTitle = item["selectedTitle"].string_value();
+		addNcb2bCustomDock(tr("Ncpb2b.Browser.Settings.Dock.Title").arg(userServiceName), uuid.c_str(),
+				   selectedTitle.c_str(), false);
 	}
 }
 
@@ -551,12 +563,11 @@ void OBSBasic::saveNcb2bBrowserSettingsDocks()
 	for (int i = 0; i < ncb2bCustomDocks.size(); i++) {
 		QDockWidget *dock = ncb2bCustomDocks[i].get();
 		QString title = ncb2bCustomDockNames[i];
-		QString url = ncb2bCustomDockUrls[i];
 		QString uuid = dock->property("uuid").toString();
+		QString selectedTitle = dock->property("selectedTitle").toString();
 		Json::object obj{
-			{"title", QT_TO_UTF8(title)},
-			{"url", QT_TO_UTF8(url)},
 			{"uuid", QT_TO_UTF8(uuid)},
+			{"selectedTitle", QT_TO_UTF8(selectedTitle)},
 		};
 		array.push_back(obj);
 	}

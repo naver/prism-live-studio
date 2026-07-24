@@ -1,4 +1,5 @@
 #include "PLSChannelsArea.h"
+#include <QCheckBox>
 #include <QGuiApplication>
 #include <QPushButton>
 #include <QScrollBar>
@@ -17,14 +18,18 @@
 #include "PLSBasic.h"
 #include "PLSChannelDataAPI.h"
 #include "PLSChannelsVirualAPI.h"
+#include "PLSWatchers.h"
+#include "ResolutionGuidePage.h"
+#include "frontend-api.h"
 #include "libui.h"
+#include "login-user-info.hpp"
 #include "pls-channel-const.h"
 #include "window-basic-main.hpp"
 using namespace ChannelData;
 
 PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent)
 {
-
+	PLS_DISABLE_UISTEP_V2(this);
 	ui->setupUi(this);
 	initializeMychannels();
 	pls_add_css(this, {"PLSChannelsArea"});
@@ -32,15 +37,17 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent)
 	ui->AddFrame->layout()->addWidget(defaultAddWid);
 	ui->AddFrame->setVisible(false);
 	ui->FoldDisPlay->setVisible(false);
+	pls_uistep_v2_set_custom_show_hide_name(ui->FoldDisPlay, "Mini Dashbord");
 	createFoldButton();
 	initScollButtons();
-
+	createB2BResolutionButton();
 	ui->MidFrame->setAttribute(Qt::WA_Hover);
 	ui->MidFrame->installEventFilter(this);
 	ui->MidFrame->setProperty("showRightBorder", "false");
 	ui->AddFrameInvisible->setVisible(false);
 	connect(ui->GotoAddWinButton, &QAbstractButton::clicked, this, []() { showChannelsSetting(); }, Qt::QueuedConnection);
 
+	ui->MidFrame->setProperty("subWindowLoadingName", "Dashbord Loading");
 	mbusyFrame = new PLSAddingFrame(ui->MidFrame);
 	mbusyFrame->setObjectName("LoadingFrame");
 	mbusyFrame->setContent(CHANNELS_TR(Loading));
@@ -74,10 +81,14 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent)
 		PLSCHANNELS_API, &PLSChannelDataAPI::holdOnChannelArea, this,
 		[this](bool isHold) {
 			if (isHold) {
-				mbusyFrame->setContent("");
-				mbusyFrame->resize(48, 48);
+				if (PLSCHANNELS_API->getAutoAddChannelFlag()) {
+					mbusyFrame->setContent(CHANNELS_TR(Adding));
+					mbusyFrame->resize(QSize(200, 48));
+				} else {
+					mbusyFrame->setContent("");
+					mbusyFrame->resize(48, 48);
+				}
 			}
-
 			holdOnChannelArea(isHold);
 		},
 		Qt::QueuedConnection);
@@ -93,7 +104,6 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent)
 		},
 		Qt::QueuedConnection);
 
-	connect(PLSCHANNELS_API, &PLSChannelDataAPI::sigAllClear, this, &PLSChannelsArea::clearAll, Qt::QueuedConnection);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::liveStateChanged, this, &PLSChannelsArea::delayUpdateUi, Qt::QueuedConnection);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::liveTypeChanged, this, &PLSChannelsArea::delayUpdateUi, Qt::QueuedConnection);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toDoinitialize, this, &PLSChannelsArea::beginInitChannels, Qt::QueuedConnection);
@@ -110,6 +120,7 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent)
 	pls_connect(PLSBasic::instance(), &PLSBasic::sigOpenDualOutput, this, &PLSChannelsArea::updateAllChannelsByDualOutput);
 
 	this->setDisabled(true);
+	pls_uistep_v2_set_title(this, QStringLiteral("Channel Dashbord"));
 }
 
 PLSChannelsArea::~PLSChannelsArea()
@@ -120,7 +131,6 @@ PLSChannelsArea::~PLSChannelsArea()
 
 void PLSChannelsArea::beginInitChannels()
 {
-
 	isUiInitialized = false;
 	checkIsEmptyUi();
 	this->holdOnChannelArea(true);
@@ -130,7 +140,6 @@ void PLSChannelsArea::beginInitChannels()
 }
 void PLSChannelsArea::endInitialize()
 {
-
 	this->setEnabled(true);
 	PLSCHANNELS_API->sigChannelAreaInialized();
 	if (PLSCHANNELS_API->hasError()) {
@@ -139,6 +148,7 @@ void PLSChannelsArea::endInitialize()
 	this->holdOnChannelArea(false);
 	isUiInitialized = true;
 	PLSCHANNELS_API->clearOldVersionImages();
+	PLSCHANNELS_API->setAutoAddChannelFlag(false);
 }
 
 void PLSChannelsArea::initializeNextStep()
@@ -227,6 +237,7 @@ void PLSChannelsArea::initScollButtons()
 	ui->MidFrameLayout->insertWidget(0, mLeftButon);
 	connect(mLeftButon, &QPushButton::clicked, [this]() { scrollNext(true); });
 	mLeftButon->setVisible(false);
+	pls_uistep_v2_set_value(mLeftButon, QStringLiteral("*"), QStringLiteral("Channel Dashbord Left Button"));
 
 	mRightButton = new QPushButton(ui->MidFrame);
 	mRightButton->setObjectName("RightButton");
@@ -236,6 +247,7 @@ void PLSChannelsArea::initScollButtons()
 	ui->MidFrameLayout->addWidget(mRightButton);
 	connect(mRightButton, &QPushButton::clicked, [this]() { scrollNext(false); });
 	mRightButton->setVisible(false);
+	pls_uistep_v2_set_value(mRightButton, QStringLiteral("*"), QStringLiteral("Channel Dashbord Right Button"));
 
 	ui->ChannelScrollArea->verticalScrollBar()->setDisabled(true);
 	ui->NormalDisFrameLayout->addStretch(10);
@@ -244,6 +256,9 @@ void PLSChannelsArea::initScollButtons()
 
 void PLSChannelsArea::checkScrollButtonsState(ScrollDirection direction)
 {
+	if (mB2BResolutionButton) {
+		mB2BResolutionButton->setVisible(PLSCHANNELS_API->isLiving() || m_bFold ? false : true);
+	}
 	bool isNeeded = isScrollButtonsNeeded();
 	enabledScrollButtons(isNeeded);
 	displayScrollButtons(isNeeded);
@@ -330,7 +345,7 @@ void PLSChannelsArea::scrollNext(bool forwartStep)
 	bar->setValue(lastV);
 
 	buttonLimitCheck();
-	PLS_UI_STEP("PLSChannelsArea", "Scroll", QString::number(lastV).toUtf8().constData());
+	PLS_UI_ACTION("Complete scrolling to the %s", forwartStep ? "left" : "right");
 }
 
 void PLSChannelsArea::ensureCornerChannelVisible(bool forwartStep) const
@@ -453,6 +468,7 @@ ChannelCapsulePtr PLSChannelsArea::addChannel(const QVariantMap &channelInfo, bo
 
 bool PLSChannelsArea::checkIsEmptyUi()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	//empty channels
 	if (PLSCHANNELS_API->isEmpty()) {
 		ui->AddFrameInvisible->setVisible(false);
@@ -480,6 +496,7 @@ bool PLSChannelsArea::checkIsEmptyUi()
 		return false;
 	}
 
+	PLS_PERFORMANCE_START(Normal_state);
 	//normal
 	ui->AddFrame->hide();
 	ui->AddFrameInvisible->setVisible(false);
@@ -495,6 +512,7 @@ bool PLSChannelsArea::checkIsEmptyUi()
 	if (isScrollButtonsNeeded()) {
 		displayScrollButtons(true);
 	}
+	PLS_PERFORMANCE_END(Normal_state);
 
 	return false;
 }
@@ -603,7 +621,6 @@ void PLSChannelsArea::updateAllChannelsByDualOutput(bool bOpen)
 		}
 		PLSCHANNELS_API->setChannelDefaultOutputDirection();
 	} else {
-		PLSCHANNELS_API->disableChannelWhenDualOutputClose();
 		mDualoutputInfos = PLSCHANNELS_API->getAllChannelInfo();
 	}
 	auto check = [bOpen](ChannelCapsulePtr wid) { wid->updateUi(true); };
@@ -661,8 +678,6 @@ void PLSChannelsArea::updateChannelUi(const QString &channelUUID)
 
 void PLSChannelsArea::refreshChannels()
 {
-	PRE_LOG_UI_MSG_STRING("Refresh [menu] ", "Clicked")
-
 	auto matchedPlaftorms = PLSCHANNELS_API->getAllChannelInfo();
 
 	auto isMatched = [&](const QVariantMap &info) {
@@ -671,11 +686,9 @@ void PLSChannelsArea::refreshChannels()
 	};
 
 	if (std::find_if(matchedPlaftorms.constBegin(), matchedPlaftorms.constEnd(), isMatched) != matchedPlaftorms.constEnd()) {
-
-		auto ret = PLSAlertView::question(this, tr("Alert.Title"), tr("RefreshChannel.DeleteLiveInfo.Alert.Message"),
-						  {{PLSAlertView::Button::Yes, tr("RefreshChannel.DeleteLiveInfo.Alert.Refresh")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}},
-						  PLSAlertView::Button::Cancel);
-		if (ret != PLSAlertView::Button::Yes) {
+		PLSErrorHandler::RetData retData = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHANNELS_REFRESH_DELETE_LIVE_INFO, PLSErrKeyAllAlert, {},
+											 PLSErrorHandler::ExtraData("Channels refresh delete live info confirm"), this);
+		if (retData.clickedBtn != QDialogButtonBox::Yes) {
 			return;
 		}
 	}
@@ -685,10 +698,13 @@ void PLSChannelsArea::refreshChannels()
 
 void PLSChannelsArea::showChannelsAdd()
 {
-	PRE_LOG_UI_MSG_STRING("add channels [Menu]", "Clicked")
-	auto channelsAdd = new ChannelsAddWin(this);
-	channelsAdd->setAttribute(Qt::WA_DeleteOnClose);
-	channelsAdd->show();
+	PLS_PERFORMANCE_GLOBAL_START("ShowChannelsAddAllTime");
+	PLS_PERFORMANCE_GLOBAL_START("BulidAddWindow", "ShowChannelsAddAllTime");
+	ChannelsAddWin channelsAdd(this);
+	PLS_PERFORMANCE_GLOBAL_END("BulidAddWindow");
+	PLS_PERFORMANCE_GLOBAL_START("AddWindowExec", "ShowChannelsAddAllTime");
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&channelsAdd, PLS_PERFORMANCE_GLOBAL_END("AddWindowExec"); PLS_PERFORMANCE_GLOBAL_END("ShowChannelsAddAllTime"));
+	channelsAdd.exec();
 }
 
 void PLSChannelsArea::clearAll()
@@ -777,10 +793,9 @@ void PLSChannelsArea::showEvent(QShowEvent *event)
 
 bool PLSChannelsArea::isScrollButtonsNeeded() const
 {
-	ui->scrollAreaWidgetContents->adjustSize();
 	auto recView = ui->ChannelScrollArea->contentsRect();
-	auto scrollGeo = ui->scrollAreaWidgetContents->contentsRect();
-	return recView.width() < scrollGeo.width();
+	auto contentHint = ui->scrollAreaWidgetContents->sizeHint();
+	return recView.width() < contentHint.width();
 }
 
 void PLSChannelsArea::initializeMychannels()
@@ -794,16 +809,17 @@ void PLSChannelsArea::initializeMychannels()
 	ui->HeaderLayout->addWidget(myChannelsTxtBtn, 25);
 	ui->HeaderLayout->addWidget(myChannelsIconBtn, 1, Qt::AlignLeft | Qt::AlignHCenter);
 
+	pls_uistep_v2_set_value(myChannelsIconBtn, QStringLiteral("*"), QStringLiteral("My Channels More Bttton"));
 	auto menu = new QMenu(myChannelsIconBtn);
 	menu->setWindowFlag(Qt::NoDropShadowWindowHint);
 	menu->setObjectName("MyChannelsMenu");
-	auto settingAction = menu->addAction(CHANNELS_TR(SettingChannels), this, []() {
-		PRE_LOG_UI_MSG_STRING("My Channels Setting [menu] ", "Clicked")
-		showChannelsSetting();
-	});
-	menu->addAction(CHANNELS_TR(AddChannels), this, &PLSChannelsArea::showChannelsAdd);
-	menu->addAction(CHANNELS_TR(RefreshChannels), this, &PLSChannelsArea::refreshChannels);
-
+	auto settingAction = menu->addAction(CHANNELS_TR(SettingChannels), this, []() { showChannelsSetting(); });
+	settingAction->setParent(this);
+	auto addAction = menu->addAction(CHANNELS_TR(AddChannels), this, &PLSChannelsArea::showChannelsAdd);
+	addAction->setParent(this);
+	auto refreshAction = menu->addAction(CHANNELS_TR(RefreshChannels), this, &PLSChannelsArea::refreshChannels);
+	refreshAction->setParent(this);
+	pls_uistep_v2_set_custom_show_hide_name(menu, "My Channels Menu");
 	connect(
 		myChannelsIconBtn, &QToolButton::clicked, this,
 		[this, settingAction, menu]() {
@@ -889,13 +905,16 @@ void PLSChannelsArea::onFoldUpButtonClick()
 }
 void PLSChannelsArea::onFoldDownButtonClick()
 {
+	PLS_PERFORMANCE_FUNCTION("PLSChannelsArea onFoldDownButtonClick");
 	m_bFold = false;
 	m_FoldDownButton->setVisible(false);
 	m_FoldUpButton->setEnabled(true);
 	m_FoldUpButton->setVisible(true);
 	ui->HeaderFrame->show();
-	updateAllChannelsUi();
 	checkIsEmptyUi();
+	PLS_PERFORMANCE_START(updateAllChannelsUi);
+	updateAllChannelsUi();
+	PLS_PERFORMANCE_END(updateAllChannelsUi);
 }
 
 void PLSChannelsArea::createFoldButton()
@@ -909,9 +928,11 @@ void PLSChannelsArea::createFoldButton()
 	m_FoldUpButton->setEnabled(true);
 	m_FoldUpButton->setVisible(true);
 	m_FoldUpButton->setToolTip(tr("Channels.dashbrod.tooltip"));
+	pls_uistep_v2_set_value(m_FoldUpButton, QStringLiteral("*"), QStringLiteral("Channel Dashbord Up Fold Button"));
 
 	m_FoldDownButton = pls_new<QPushButton>(ui->TailFrame);
 	m_FoldDownButton->setObjectName("FoldDownButton");
+	m_FoldDownButton->setToolTip(tr("Channels.dashbrod.expand"));
 	ui->TailLayout->insertWidget(1, m_FoldDownButton);
 	connect(m_FoldDownButton, &QPushButton::clicked, this, &PLSChannelsArea::onFoldDownButtonClick);
 	connect(
@@ -925,6 +946,7 @@ void PLSChannelsArea::createFoldButton()
 		Qt::QueuedConnection);
 	m_FoldDownButton->setEnabled(false);
 	m_FoldDownButton->setVisible(false);
+	pls_uistep_v2_set_value(m_FoldDownButton, QStringLiteral("*"), QStringLiteral("Channel Dashbord Down Fold Button"));
 }
 
 void PLSChannelsArea::removeChannelWithoutYoutubeDock(const QString &channelUUID)
@@ -962,4 +984,18 @@ bool PLSChannelsArea::isNeedClearDualOutput()
 		}
 	}
 	return false;
+}
+
+void PLSChannelsArea::createB2BResolutionButton()
+{
+	QString userServiceName = PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName();
+	if (userServiceName.isEmpty()) {
+		return;
+	}
+	mB2BResolutionButton = pls_new<QCheckBox>(ui->TailFrame);
+	mB2BResolutionButton->setVisible(false);
+	ui->TailLayout->insertWidget(0, mB2BResolutionButton);
+	mB2BResolutionButton->setObjectName("B2BResolutionButton");
+	mB2BResolutionButton->setText(tr("Channels.Dashbrod.Resolution.Setup"));
+	connect(mB2BResolutionButton, &QCheckBox::clicked, this, [](bool) { ResolutionGuidePage::setVisibleOfGuide(pls_get_main_view()); });
 }

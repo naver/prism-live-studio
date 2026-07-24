@@ -32,6 +32,10 @@ public:
 	void requestLiveStreamKey(const streamLiveKeyCallback &);
 	QJsonObject getLiveStartParams() override;
 
+protected:
+	void onResumeStreaming(const QMap<QString, QVariant> &params) override;
+	QMap<QString, QVariant> getResumeStreamingParams() const override;
+
 private:
 	void onAlLiveStarted(bool) override;
 	void onAllPrepareLive(bool isOk) override;

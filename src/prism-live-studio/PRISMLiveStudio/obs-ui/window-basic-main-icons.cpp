@@ -1,5 +1,6 @@
 #include <window-basic-main.hpp>
 #include <pls/pls-source.h>
+#include "pls-common-define.hpp"
 
 extern QString GetIconKey(obs_icon_type type);
 extern void loadPixmap(QPixmap &pix, const QString &pixmapPath, const QSize &pixSize);
@@ -210,8 +211,10 @@ QPixmap OBSBasic::GetSourcePixmap(const QString &id, bool selected, QSize size)
 		iconKey = "scene";
 	} else if (id == "group") {
 		iconKey = "group";
+	} else if (id == common::VLC_SOURCE_ID) {
+		iconKey = "plugin";
 	} else {
-		iconKey = GetIconKey(obs_source_get_icon_type(id.toStdString().c_str())).toLower();
+		iconKey = GetIconKey(obs_source_get_icon_type(id.toUtf8().constData())).toLower();
 	}
 
 	QPixmap pix;

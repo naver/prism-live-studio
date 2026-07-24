@@ -8,9 +8,11 @@ using namespace ChannelData;
 
 ChannelItem::ChannelItem(QWidget *parent) : QPushButton(parent), ui(new Ui::ChannelItem)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	ui->setupUi(this);
 	this->setCheckable(true);
 	connect(this, &QPushButton::toggled, this, &ChannelItem::onSelectStateChanged);
+	pls_uistep_v2_enable(ui->checkBox, false);
 }
 
 ChannelItem::~ChannelItem()
@@ -27,10 +29,10 @@ void ChannelItem::setData(const QVariantMap &data)
 	QString userIcon;
 	QString platformIcon;
 	int channelState = getInfo(mLastData, g_channelStatus, Error);
+	auto platformName = getInfo(mLastData, g_channelName);
 	if (channelState == Valid) {
 		getComplexImageOfChannel(uuid, ImageType::tagIcon, userIcon, platformIcon);
 	} else {
-		auto platformName = getInfo(mLastData, g_channelName);
 		userIcon = getPlatformImageFromName(platformName, ImageType::tagIcon);
 	}
 	ui->IconLabel->setMainPixmap(userIcon, QSize(34, 34));
@@ -42,6 +44,8 @@ void ChannelItem::setData(const QVariantMap &data)
 	bool isSelected = getInfo(mLastData, ChannelData::g_displayState, true);
 	ui->checkBox->setChecked(isSelected);
 	this->setChecked(isSelected);
+	pls_uistep_v2_enable(this, PLS_UI_STEPS_V2_SIGNAL_CLICKED, false);
+	pls_uistep_v2_custom(this, PLS_UI_STEPS_V2_SIGNAL_TOGGLED, QStringLiteral("Choose"), platformName, [this]() -> QString { return this->isChecked() ? "On" : "Off"; });
 }
 
 void ChannelItem::changeEvent(QEvent *e)
@@ -66,9 +70,8 @@ void ChannelItem::onSelectStateChanged(bool isChecked)
 {
 	ui->checkBox->blockSignals(true);
 	ui->checkBox->setChecked(isChecked);
-	QString msg = getInfo(mLastData, g_displayPlatformName) + QString(" select state changed:") + (isChecked ? "true" : "false");
-	PRE_LOG_UI_MSG(msg.toStdString().c_str(), ChannelItem)
 	emit sigSelectionChanged(mLastUUid, isChecked);
+	PLS_UI_ACTION(!isChecked ? "Uncheck Channel Item Done" : "Check Channel Item Done");
 }
 
 void ChannelItem::updateTextLabel()

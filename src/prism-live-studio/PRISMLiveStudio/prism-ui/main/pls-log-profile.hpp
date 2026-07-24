@@ -45,7 +45,7 @@ static void LogBasicProfile(const char *filePath, const char *fromFunc)
 
 		if (!body.isEmpty()) {
 			empty_ini = false;
-			PLS_LOG_KR(PLS_LOG_INFO, MAIN_OUTPUT, "%s profile section [%s]\n%s", fromFunc, section.toStdString().c_str(), body.toStdString().c_str());
+			PLS_LOG_KR(PLS_LOG_INFO, MAIN_OUTPUT, "%s profile section [%s]\n%s", fromFunc, section.toUtf8().constData(), body.toUtf8().constData());
 		}
 	}
 

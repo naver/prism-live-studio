@@ -1,4 +1,4 @@
-﻿/*************************************************************************
+/*************************************************************************
  * This file is part of spectralizer
  * github.con/univrsal/spectralizer
  * Copyright 2020 univrsal <universailp@web.de>.
@@ -60,6 +60,7 @@ bar_visualizer::~bar_visualizer()
 	gs_effect_destroy(region_extend_effect);
 	region_extend_effect = nullptr;
 	gs_samplerstate_destroy(sampler);
+	destroy_rounded_rect_vb_cache();
 	release_frame();
 
 	obs_leave_graphics();
@@ -68,6 +69,9 @@ bar_visualizer::~bar_visualizer()
 void bar_visualizer::render()
 {
 	obs_enter_graphics();
+
+	visual_params vp_sync = m_cfg->vm_params[m_cfg->visual];
+	sync_rounded_rectangle_vb_cache_for_render(vp_sync.rounded_corners, vp_sync.corner_points, vp_sync.radius, vp_sync.bar_width);
 
 	update_frame();
 
@@ -207,10 +211,7 @@ void bar_visualizer::draw_rounded_bars()
 	size_t pos_x = 0;
 	uint32_t height;
 	visual_params params = m_cfg->vm_params[m_cfg->visual];
-	uint32_t vert_count = params.corner_points * 4;
-
 	for (; i < get_bars_left().size() - DEAD_BAR_OFFSET; i++) { /* Leave the four dead bars the end */
-		vert_count = 0;
 		auto val = get_bars_left()[i] > 1.0 ? get_bars_left()[i] : 1.0;
 
 		// The bar needs to be at least a square so the circle fits
@@ -227,8 +228,6 @@ void bar_visualizer::draw_rounded_bars()
 
 		gs_matrix_pop();
 		gs_load_vertexbuffer(nullptr);
-		gs_vertexbuffer_destroy(verts);
-		verts = nullptr;
 	}
 }
 
@@ -272,7 +271,6 @@ void bar_visualizer::draw_stereo_rounded_bars()
 		gs_draw(GS_TRISTRIP, 0, 0);
 		gs_matrix_pop();
 		gs_load_vertexbuffer(nullptr);
-		gs_vertexbuffer_destroy(verts_left);
 
 		/* Bottom */
 		gs_matrix_push();
@@ -283,7 +281,6 @@ void bar_visualizer::draw_stereo_rounded_bars()
 		gs_draw(GS_TRISTRIP, 0, 0);
 		gs_matrix_pop();
 		gs_load_vertexbuffer(nullptr);
-		gs_vertexbuffer_destroy(verts_right);
 	}
 }
 

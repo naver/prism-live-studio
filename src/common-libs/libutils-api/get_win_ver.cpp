@@ -166,3 +166,16 @@ LIBUTILSAPI_API QString pls_get_win_name_with_arch()
 {
 	return pls_get_win_name() + conditonal_select(sizeof(void *) == 8, QStringLiteral("(x64)"), QStringLiteral("(x86)"));
 }
+
+LIBUTILSAPI_API void pls_bring_win_window_to_front(WId winId)
+{
+	auto hWnd = (HWND)winId;
+	HWND hForeWnd = GetForegroundWindow();
+	DWORD dwForeID = GetWindowThreadProcessId(hForeWnd, nullptr);
+	DWORD dwCurID = GetCurrentThreadId();
+	AttachThreadInput(dwCurID, dwForeID, TRUE);
+	SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+	SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+	SetForegroundWindow(hWnd);
+	AttachThreadInput(dwCurID, dwForeID, FALSE);
+}

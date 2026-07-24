@@ -36,6 +36,7 @@
 #include "goliveapi-network.hpp"
 #include "multitrack-video-error.hpp"
 #include "models/multitrack-video.hpp"
+#include "PLSErrorHandler.h"
 
 Qt::ConnectionType BlockingConnectionTypeFor(QObject *object)
 {
@@ -737,17 +738,20 @@ static void handle_speaker_layout_issues(QWidget *parent, const QString &multitr
 			QTStr("MultitrackVideo.IncompatibleSettings.AudioChannelsMultiple").arg(multitrack_video_name);
 	}
 
-	QMetaObject::invokeMethod(
-		parent,
-		[&] {
-			auto strText = QTStr("MultitrackVideo.IncompatibleSettings.AudioChannels")
-					       .arg(multitrack_video_name)
-					       .arg(QTStr(speaker_layout_to_string(layout)))
-					       .arg(message);
+	const QString multitrackName = multitrack_video_name;
+	const QString layoutLabel = QTStr(speaker_layout_to_string(layout));
+	const QString detailMessage = message;
 
-			pls_alert_error_message(parent, QTStr("MultitrackVideo.IncompatibleSettings.Title"), strText);
-		},
-		BlockingConnectionTypeFor(parent));
+	auto msgBox = [=]() {
+		PLSErrorHandler::ExtraData extraData(QStringLiteral("handle_speaker_layout_issues"));
+		extraData.defaultArg = QStringList{multitrackName, layoutLabel, detailMessage};
+		auto ret = PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ALERT_MULTITRACK_AUDIO_CHANNEL_INCOMPATIBLE, PLSErrKeyAllAlert, QString(),
+			extraData);
+		Q_UNUSED(ret);
+	};
+	Q_UNUSED(parent);
+	QMetaObject::invokeMethod(App(), "Exec", BlockingConnectionTypeFor(App()), Q_ARG(VoidFunc, msgBox));
 
 	blog(LOG_INFO, "MultitrackVideoOutput: Attempted to start stream with incompatible "
 		       "audio channel setting. Action taken: cancel");

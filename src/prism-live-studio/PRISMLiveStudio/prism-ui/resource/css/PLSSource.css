@@ -916,7 +916,12 @@ SourceTreeItem #sourceNameLabel[status="invisible.unselect"]{
     font-weight: normal;
 }
 
-SourceTreeItem #sourceNameLabel[status="invisible.select"]{
+SourceTreeItem #sourceNameLabel[status="invalid.unselect"]{
+	color: #555555;
+    font-weight: normal;
+}
+
+SourceTreeItem #sourceNameLabel[status="invisible.select"], SourceTreeItem #sourceNameLabel[status="invalid.select"]{
 	color: #7a7f34;
     font-weight: bold;
 }

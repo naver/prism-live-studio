@@ -93,7 +93,7 @@ PLSNCB2bBrowserSettings QListWidget::item:hover {
     background-color: #444444;
 }
 
-PLSNCB2bBroSettingsItem #selectedBtn, PLSNCB2bBroSettingsItem #selectedBtn[checked=false] {
+PLSNCB2bBroSettingsItem #selectedBtn {
     min-height: /*hdpi*/ 22px;
     max-height: /*hdpi*/ 22px;
     min-width: /*hdpi*/ 22px;
@@ -104,15 +104,15 @@ PLSNCB2bBroSettingsItem #selectedBtn, PLSNCB2bBroSettingsItem #selectedBtn[check
     image: url(":/resource/images/ncp/btn_add_playlist_done_disable.svg");
 }
 
-PLSNCB2bBroSettingsItem #selectedBtn:hover, PLSNCB2bBroSettingsItem #selectedBtn[checked=false]:hover{
-    image:url(":/resource/images/ncp/btn_check_white.svg");
+PLSNCB2bBroSettingsItem #selectedBtn:hover {
+    image: url(":/resource/images/ncp/btn_check_white.svg");
 }
 
-PLSNCB2bBroSettingsItem #selectedBtn[checked=true] {
-    image:url(":/resource/images/ncp/btn_add_playlist_done_normal.svg");
+PLSNCB2bBroSettingsItem #selectedBtn:checked {
+    image: url(":/resource/images/ncp/btn_add_playlist_done_normal.svg");
 }
 
-PLSNCB2bBroSettingsItem #selectedBtn[checked=true]:hover {
+PLSNCB2bBroSettingsItem #selectedBtn:checked:hover {
     image: url(":/resource/images/ncp/btn_add_playlist_done_over.svg");
 }
 

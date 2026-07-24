@@ -54,21 +54,18 @@ void PLSPlatformBand::getBandRefreshTokenInfo(const refreshTokenCallback &callba
 					   .rawHeader("Authorization", authHeadValue)
 					   .withLog()             //
 					   .receiver(this)        //
-					   .workInMainThread()    //
 					   .url(QUrl(authUrlStr)) //
 					   .id(BAND)
 					   .timeout(PRISM_NET_REQUEST_TIMEOUT)
 					   .okResult([this, callbackfunc](const pls::http::Reply &reply) {
 						   auto data = reply.data();
 						   auto statusCode = reply.statusCode();
-						   responseRefreshTokenHandler(callbackfunc, data, statusCode);
+						   pls_async_call_mt(this, [this, callbackfunc, data, statusCode]() { responseRefreshTokenHandler(callbackfunc, data, statusCode); });
 					   })
-					   .failResult([callbackfunc](const pls::http::Reply &reply) {
-						   pls_unused(reply);
+					   .failResult([this, callbackfunc](const pls::http::Reply &reply) {
 						   PLS_ERROR(MODULE_PLATFORM_BAND, "getBandRefreshTokenInfo .refresh band token failed error: %d-%d", reply.statusCode(), reply.error());
-
 						   if (callbackfunc) {
-							   callbackfunc(false);
+							   pls_async_call_mt(this, [callbackfunc] { callbackfunc(false); });
 						   }
 					   }));
 
@@ -94,32 +91,34 @@ void PLSPlatformBand::getBandTokenInfo(const QVariantMap &srcInfo, const UpdateC
 				   .rawHeader("Authorization", authHeadValue)
 				   .withLog()             //
 				   .receiver(this)        //
-				   .workInMainThread()    //
 				   .url(QUrl(authUrlStr)) //
 				   .id(BAND)
 				   .timeout(PRISM_NET_REQUEST_TIMEOUT)
 				   .okResult([this, finishedCall](const pls::http::Reply &reply) {
 					   auto data = reply.data();
 					   auto statusCode = reply.statusCode();
-					   responseTokenHandler(finishedCall, data, statusCode);
+					   pls_async_call_mt(this, [this, finishedCall, data, statusCode]() { responseTokenHandler(finishedCall, data, statusCode); });
 				   })
 				   .failResult([this, finishedCall](const pls::http::Reply &reply) {
 					   auto statusCode = reply.statusCode();
 					   auto error = reply.error();
+					   auto replyData = reply.data();
+					   auto urlPath = reply.request().originalUrl().path();
 					   PLS_ERROR(MODULE_PLATFORM_BAND, "getBandTokenInfo .error: %d -%d", statusCode, error);
-					   m_bandLoginInfo[ChannelData::g_channelSreLoginFailed] = "band get token failed";
+					   pls_async_call_mt(this, [this, finishedCall, statusCode, error, replyData, urlPath]() {
+						   m_bandLoginInfo[ChannelData::g_channelSreLoginFailed] = "band get token failed";
 
-					   PLSErrorHandler::ExtraData otherData;
-					   otherData.urlEn = reply.request().originalUrl().path();
-					   otherData.errPhase = PLSErrPhaseLogin;
-					   auto retData = PLSErrorHandler::getAlertString({statusCode, error, reply.data()}, BAND, "", otherData);
-					   m_bandLoginInfo[ChannelData::g_channelStatus] = retData.errorType == PLSErrorHandler::ErrorType::TokenExpired ? ChannelData::ChannelStatus::Expired
-																			 : ChannelData::ChannelStatus::Error;
-					   m_bandLoginInfo[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
-					   m_bandLoginInfo[ChannelData::g_errorString] = retData.alertMsg;
+						   PLSErrorHandler::ExtraData otherData(urlPath);
+						   otherData.errPhase = PLSErrPhaseLogin;
+						   auto retData = PLSErrorHandler::getAlertString({statusCode, error, replyData}, BAND, "", otherData);
+						   m_bandLoginInfo[ChannelData::g_channelStatus] = retData.errorType == PLSErrorHandler::ErrorType::TokenExpired ? ChannelData::ChannelStatus::Expired
+																				 : ChannelData::ChannelStatus::Error;
+						   m_bandLoginInfo[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
+						   m_bandLoginInfo[ChannelData::g_errorString] = retData.alertMsg;
 
-					   m_bandInfos.append(m_bandLoginInfo);
-					   finishedCall(m_bandInfos);
+						   m_bandInfos.append(m_bandLoginInfo);
+						   finishedCall(m_bandInfos);
+					   });
 				   }));
 }
 
@@ -128,17 +127,23 @@ void PLSPlatformBand::getBandCategoryInfo(const QVariantMap &srcInfo, const Upda
 	m_bandLoginInfo = srcInfo;
 
 	auto failedResult = [this, finishedCall](const pls::http::Reply &reply) {
-		m_bandLoginInfo[ChannelData::g_channelSreLoginFailed] = "band get categoryInfo failed";
-		PLSErrorHandler::ExtraData otherData;
-		otherData.errPhase = PLSErrPhaseLogin;
-		otherData.urlEn = reply.request().originalUrl().path();
+		auto statusCode = reply.statusCode();
+		auto error = reply.error();
+		auto replyData = reply.data();
+		auto urlPath = reply.request().originalUrl().path();
+		pls_async_call_mt(this, [this, finishedCall, statusCode, error, replyData, urlPath]() {
+			m_bandLoginInfo[ChannelData::g_channelSreLoginFailed] = "band get categoryInfo failed";
+			PLSErrorHandler::ExtraData otherData(urlPath);
+			otherData.errPhase = PLSErrPhaseLogin;
 
-		auto retData = PLSErrorHandler::getAlertString({reply.statusCode(), reply.error(), reply.data()}, BAND, "", otherData);
-		m_bandLoginInfo[ChannelData::g_channelStatus] = retData.errorType == PLSErrorHandler::ErrorType::TokenExpired ? ChannelData::ChannelStatus::Expired : ChannelData::ChannelStatus::Error;
-		m_bandLoginInfo[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
-		m_bandLoginInfo[ChannelData::g_errorString] = retData.alertMsg;
-		m_bandInfos.append(m_bandLoginInfo);
-		finishedCall(m_bandInfos);
+			auto retData = PLSErrorHandler::getAlertString({statusCode, error, replyData}, BAND, "", otherData);
+			m_bandLoginInfo[ChannelData::g_channelStatus] = retData.errorType == PLSErrorHandler::ErrorType::TokenExpired ? ChannelData::ChannelStatus::Expired
+																      : ChannelData::ChannelStatus::Error;
+			m_bandLoginInfo[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
+			m_bandLoginInfo[ChannelData::g_errorString] = retData.alertMsg;
+			m_bandInfos.append(m_bandLoginInfo);
+			finishedCall(m_bandInfos);
+		});
 	};
 	auto callbackFun = [this, finishedCall, failedResult](bool) {
 		QString token = PLSCHANNELS_API->getChannelInfo(getChannelUUID())[ChannelData::g_channelToken].toString();
@@ -151,12 +156,15 @@ void PLSPlatformBand::getBandCategoryInfo(const QVariantMap &srcInfo, const Upda
 					   .jsonContentType()
 					   .withLog()
 					   .receiver(this)
-					   .workInMainThread()
 					   .url(CHANNEL_BAND_CATEGORY)
 					   .id(BAND)
 					   .urlParams(queryParams)
 					   .timeout(PRISM_NET_REQUEST_TIMEOUT)
-					   .okResult([this, finishedCall](const pls::http::Reply &reply) { responseBandCategoryHandler(finishedCall, reply.data(), reply.statusCode()); })
+					   .okResult([this, finishedCall](const pls::http::Reply &reply) {
+						   auto data = reply.data();
+						   auto statusCode = reply.statusCode();
+						   pls_async_call_mt(this, [this, finishedCall, data, statusCode]() { responseBandCategoryHandler(finishedCall, data, statusCode); });
+					   })
 					   .failResult(failedResult));
 	};
 
@@ -356,14 +364,14 @@ template<typename responseCallbackFunc> void PLSPlatformBand::responseStreamLive
 	auto resultObj = pls_to_json_object(data);
 	auto streamKey = pls_find_attr<QString>(resultObj, "stream_key");
 	auto publishUrlNotKey = pls_find_attr<QString>(resultObj, "publish_url_without_stream_key");
-	auto liveId = pls_find_attr<QString>(resultObj, "live_id");
+	auto liveId = pls_find_attr<int>(resultObj, "live_id");
 	auto description = pls_find_attr<QString>(resultObj, "description");
 	auto maxLiveTime = pls_find_attr<int>(resultObj, "max_running_time_mins");
 	auto resultCode = pls_find_attr<int>(resultObj, "result_code");
 	setStreamKey(streamKey.toUtf8().constData());
 	setStreamServer(publishUrlNotKey.toUtf8().constData());
 	setMaxLiveTime(maxLiveTime);
-	setLiveId(liveId);
+	setLiveId(QString::number(liveId));
 	// handler multi and single stream
 
 	if (resultCode == 1) {
@@ -377,9 +385,8 @@ template<typename responseCallbackFunc> void PLSPlatformBand::responseStreamLive
 		m_isRequestStart = true;
 		retData.prismCode = PLSErrorHandler::SUCCESS;
 	} else {
-		PLSErrorHandler::ExtraData extraData;
+		PLSErrorHandler::ExtraData extraData(reply.request().originalUrl().path());
 		extraData.errPhase = PLSErrPhaseChannel;
-		extraData.urlEn = reply.request().originalUrl().path();
 
 		retData = PLSErrorHandler::getAlertString({reply.statusCode(), reply.error(), data}, BAND, "FailedToStartLive", extraData);
 		if (!(retData.errorType == PLSErrorHandler::ErrorType::TokenExpired || retData.prismCode == PLSErrorHandler::CHANNEL_BAND_FORBIDDEN_ERROR)) {
@@ -393,36 +400,72 @@ void PLSPlatformBand::requestLiveStreamKey(const streamLiveKeyCallback &callback
 {
 	auto failResult = [this, callback](const pls::http::Reply &reply) {
 		auto code = reply.statusCode();
+		auto error = reply.error();
+		auto replyData = reply.data();
+		auto urlPath = reply.request().originalUrl().path();
 		PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_BAND, {{"platformName", "band"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "streamKey api error"}}, "band start live failed");
-		PLS_ERROR(MODULE_PLATFORM_BAND, "requestLiveStreamKey .error: %d-%d", code, reply.error());
+		PLS_ERROR(MODULE_PLATFORM_BAND, "requestLiveStreamKey .error: %d-%d", code, error);
+		pls_async_call_mt(this, [this, callback, code, error, replyData, urlPath]() {
+			PLSErrorHandler::ExtraData extraData(urlPath);
+			extraData.errPhase = PLSErrPhaseChannel;
 
-		PLSErrorHandler::ExtraData extraData;
-		extraData.errPhase = PLSErrPhaseChannel;
-		extraData.urlEn = reply.request().originalUrl().path();
+			auto retData = PLSErrorHandler::getAlertString({code, error, replyData}, BAND, "FailedToStartLive", extraData);
+			callback(retData);
 
-		auto retData = PLSErrorHandler::getAlertString({code, reply.error(), reply.data()}, BAND, "FailedToStartLive", extraData);
-		callback(retData);
-
-		if (!(retData.errorType == PLSErrorHandler::ErrorType::TokenExpired || retData.prismCode == PLSErrorHandler::CHANNEL_BAND_FORBIDDEN_ERROR)) {
-			PLSErrorHandler::directShowAlert(retData, nullptr);
-		}
+			if (!(retData.errorType == PLSErrorHandler::ErrorType::TokenExpired || retData.prismCode == PLSErrorHandler::CHANNEL_BAND_FORBIDDEN_ERROR)) {
+				PLSErrorHandler::directShowAlert(retData, nullptr);
+			}
+		});
 	};
 	auto callbackFun = [this, callback, failResult](bool) {
 		auto infos = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
 		QMap<QString, QString> queryParams = {
 			{"band_key", infos[ChannelData::g_subChannelId].toString()}, {"description", getDescription().c_str()}, {COOKIE_ACCESS_TOKEN, infos[ChannelData::g_channelToken].toString()}};
-		pls::http::request(pls::http::Request()
-					   .method(pls::http::Method::Post)
-					   .jsonContentType()                  //
-					   .withLog()                          //
-					   .receiver({this, getAlertParent()}) //
-					   .workInMainThread()                 //
-					   .url(CHANNEL_BAND_LIVE_CREATE)      //
-					   .id(BAND)
-					   .timeout(PRISM_NET_REQUEST_TIMEOUT)
-					   .urlParams(queryParams)
-					   .okResult([this, callback](const pls::http::Reply &reply) { responseStreamLiveKeyHandler(callback, reply); })
-					   .failResult(failResult));
+		pls::http::request(
+			pls::http::Request()
+				.method(pls::http::Method::Post)
+				.jsonContentType()                  //
+				.withLog()                          //
+				.receiver({this, getAlertParent()}) //
+				.url(CHANNEL_BAND_LIVE_CREATE)      //
+				.id(BAND)
+				.timeout(PRISM_NET_REQUEST_TIMEOUT)
+				.urlParams(queryParams)
+				.okResult([this, callback](const pls::http::Reply &reply) {
+					auto data = reply.data();
+					auto statusCode = reply.statusCode();
+					auto error = reply.error();
+					auto urlPath = reply.request().originalUrl().path();
+					pls_async_call_mt(this, [this, callback, data, statusCode, error, urlPath]() {
+						PLSErrorHandler::RetData retData{};
+						auto resultObj = pls_to_json_object(data);
+						auto streamKey = pls_find_attr<QString>(resultObj, "stream_key");
+						auto publishUrlNotKey = pls_find_attr<QString>(resultObj, "publish_url_without_stream_key");
+						auto liveId = pls_find_attr<int>(resultObj, "live_id");
+						auto maxLiveTime = pls_find_attr<int>(resultObj, "max_running_time_mins");
+						auto resultCode = pls_find_attr<int>(resultObj, "result_code");
+						setStreamKey(streamKey.toUtf8().constData());
+						setStreamServer(publishUrlNotKey.toUtf8().constData());
+						setMaxLiveTime(maxLiveTime);
+						setLiveId(QString::number(liveId));
+
+						if (resultCode == 1) {
+							PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_BAND, {{"platformName", "band"}, {"startLiveStatus", "Success"}}, "band start live success");
+							PLS_INFO(MODULE_PLATFORM_BAND, "responseStreamLiveKeyHandler band perpare ok");
+							m_isRequestStart = true;
+							retData.prismCode = PLSErrorHandler::SUCCESS;
+						} else {
+							PLSErrorHandler::ExtraData extraData(urlPath);
+							extraData.errPhase = PLSErrPhaseChannel;
+							retData = PLSErrorHandler::getAlertString({statusCode, error, data}, BAND, "FailedToStartLive", extraData);
+							if (!(retData.errorType == PLSErrorHandler::ErrorType::TokenExpired || retData.prismCode == PLSErrorHandler::CHANNEL_BAND_FORBIDDEN_ERROR)) {
+								PLSErrorHandler::directShowAlert(retData, nullptr);
+							}
+						}
+						callback(retData);
+					});
+				})
+				.failResult(failResult));
 	};
 
 	//refresh token
@@ -444,12 +487,13 @@ void PLSPlatformBand::requesetLiveEnd(const requesetLiveEndCallback &callback)
 	auto maskUrlStr =
 		maskUrl(CHANNEL_BAND_LIVE_OFF, {{"band_key", pls_masking_person_info(bandKey.toString())}, {"live_id", pls_masking_person_info(getLiveId())}, {COOKIE_ACCESS_TOKEN, accessToken}});
 
-	auto okResult = [callback](const pls::http::Reply &reply) {
-		if (HTTP_STATUS_CODE_200 == reply.statusCode()) {
-			PLS_INFO(MODULE_PLATFORM_BAND, "requesetLiveEnd .success: %d", reply.statusCode());
+	auto okResult = [this, callback](const pls::http::Reply &reply) {
+		auto statusCode = reply.statusCode();
+		if (HTTP_STATUS_CODE_200 == statusCode) {
+			PLS_INFO(MODULE_PLATFORM_BAND, "requesetLiveEnd .success: %d", statusCode);
 		}
-		if (nullptr != callback) {
-			callback();
+		if (callback) {
+			pls_async_call_mt(this, [callback]() { callback(); });
 		}
 	};
 	auto callbackFun = [url, maskUrlStr, this, callback, okResult](bool) {
@@ -458,17 +502,17 @@ void PLSPlatformBand::requesetLiveEnd(const requesetLiveEndCallback &callback)
 					   .jsonContentType()   //
 					   .withLog(maskUrlStr) //
 					   .receiver(this)      //
-					   .workInMainThread()  //
 					   .url(url)            //
 					   .id(BAND)
 					   .timeout(PRISM_NET_REQUEST_TIMEOUT)
 					   .okResult(okResult)
 					   .allowAbort(false)
-					   .failResult([callback](const pls::http::Reply &reply) {
+					   .failResult([this, callback](const pls::http::Reply &reply) {
 						   auto code = reply.statusCode();
-						   PLS_ERROR(MODULE_PLATFORM_BAND, "requesetLiveEnd .error: %d-%d", code, reply.error());
-						   if (nullptr != callback) {
-							   callback();
+						   auto error = reply.error();
+						   PLS_ERROR(MODULE_PLATFORM_BAND, "requesetLiveEnd .error: %d-%d", code, error);
+						   if (callback) {
+							   pls_async_call_mt(this, [callback]() { callback(); });
 						   }
 					   }));
 	};
@@ -507,4 +551,15 @@ QJsonObject PLSPlatformBand::getLiveStartParams()
 	platform["simulcastChannel"] = PLSCHANNELS_API->getChannelInfo(getChannelUUID()).value(ChannelData::g_nickName).toString();
 
 	return platform;
+}
+void PLSPlatformBand::onResumeStreaming(const QMap<QString, QVariant> &params)
+{
+	setTitle(params.value("title").toString().toStdString());
+}
+
+QMap<QString, QVariant> PLSPlatformBand::getResumeStreamingParams() const
+{
+	QMap<QString, QVariant> saveData;
+	saveData.insert("title", QString::fromUtf8(getTitle()));
+	return saveData;
 }

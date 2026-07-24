@@ -110,7 +110,6 @@ private:
 
 	bool enableHotkeysInFocus = true;
 	bool enableHotkeysOutOfFocus = true;
-	QString appRunningPath;
 
 	std::deque<obs_frontend_translate_ui_cb> translatorHooks;
 	bool hotkeyEnable = true;
@@ -133,6 +132,8 @@ private:
 	inline void ResetHotkeyState(bool inFocus);
 
 	QPalette defaultPalette;
+
+	std::function<void(QObject *receiver, QEvent *e)> m_cbMousePress;
 
 protected:
 	bool notify(QObject *receiver, QEvent *e) override;
@@ -177,6 +178,8 @@ public:
 	inline const char *GetString(const char *lookupVal) const { return textLookup.GetString(lookupVal); }
 
 	bool TranslateString(const char *lookupVal, const char **out) const;
+	static QString getEnglishTranslateStringByLang(const QString &lang);
+	static QString getEnglishTranslateStringByKey(const QByteArray &key);
 
 	profiler_name_store_t *GetProfilerNameStore() const { return profilerNameStore; }
 
@@ -194,9 +197,6 @@ public:
 	const char *OutputAudioSource() const;
 
 	const char *GetRenderModule() const;
-
-	inline QString getAppRunningPath() const { return appRunningPath; }
-	inline void setAppRunningPath(const QString &appRunningPath_) { appRunningPath = appRunningPath_; }
 
 	inline void IncrementSleepInhibition()
 	{
@@ -223,6 +223,11 @@ public:
 	static void SigIntSignalHandler(int);
 #endif
 	static void deleteOldestFile(bool has_prefix, const char *location);
+
+	void setMousePressCB(const std::function<void(QObject *receiver, QEvent *e)> &cbMousePress)
+	{
+		m_cbMousePress = cbMousePress;
+	}
 
 public slots:
 	void Exec(VoidFunc func);
@@ -296,7 +301,6 @@ struct GlobalVars {
 	static bool opt_allow_opengl;
 	static bool opt_always_on_top;
 	static std::string opt_starting_scene;
-	static std::string gcc;
 	static QStringList gpuNames;
 	static QPointer<OBSLogViewer> obsLogViewer;
 

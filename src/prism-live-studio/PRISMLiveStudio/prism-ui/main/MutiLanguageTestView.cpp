@@ -14,7 +14,6 @@ MutiLanguageTestView::MutiLanguageTestView(QWidget *parent) : PLSDialogView(pare
 	setResizeEnabled(false);
 	setHasMaxResButton(false);
 	setHasMinButton(false);
-	setMoveInContent(true);
 	setWindowIcon(QIcon(":/resource/images/logo/PRISMLiveStudio.ico"));
 	addMacTopMargin();
 	initSize(600, 450);
@@ -52,12 +51,12 @@ void MutiLanguageTestView::on_button_show_message_clicked()
 	if (buttons == 0) {
 		return;
 	}
-	QMap<PLSAlertView::Button, QString> buttonsEnums{{ui->comboBox_button_1->currentData().value<QDialogButtonBox::StandardButton>(),
-							  button1Text.isEmpty() ? tr(ui->comboBox_button_1->currentText().toUtf8().constData()) : tr(button1Text.toUtf8().constData())},
-							 {ui->comboBox_button_2->currentData().value<QDialogButtonBox::StandardButton>(),
-							  button2Text.isEmpty() ? tr(ui->comboBox_button_2->currentText().toUtf8().constData()) : tr(button2Text.toUtf8().constData())},
-							 {ui->comboBox_button_3->currentData().value<QDialogButtonBox::StandardButton>(),
-							  button3Text.isEmpty() ? tr(ui->comboBox_button_3->currentText().toUtf8().constData()) : tr(button3Text.toUtf8().constData())}};
+	QMap<PLSAlertView::Button, pls_text_t> buttonsEnums{{ui->comboBox_button_1->currentData().value<QDialogButtonBox::StandardButton>(),
+							     button1Text.isEmpty() ? tr(ui->comboBox_button_1->currentText().toUtf8().constData()) : tr(button1Text.toUtf8().constData())},
+							    {ui->comboBox_button_2->currentData().value<QDialogButtonBox::StandardButton>(),
+							     button2Text.isEmpty() ? tr(ui->comboBox_button_2->currentText().toUtf8().constData()) : tr(button2Text.toUtf8().constData())},
+							    {ui->comboBox_button_3->currentData().value<QDialogButtonBox::StandardButton>(),
+							     button3Text.isEmpty() ? tr(ui->comboBox_button_3->currentText().toUtf8().constData()) : tr(button3Text.toUtf8().constData())}};
 
 	if (ui->comboBox_message_type->currentText() == "Normal") {
 		PLSAlertView::information(nullptr, tr(title.toUtf8().constData()), tr(message.toUtf8().constData()), buttonsEnums);

@@ -18,6 +18,7 @@
 #pragma once
 
 #include <QLabel>
+#include <QMouseEvent>
 #include <obs.hpp>
 
 class SourceLabel : public QLabel {
@@ -34,16 +35,22 @@ public:
 	QString GetText() const;           // overwrite the func of QLabel
 	void appendDeviceName(const char *name, const char *appendDeviceName);
 	void setPadding(int value) { m_iPadding = value; }
+	void setSourceInvalid(bool invalid);
 
 protected:
 	void resizeEvent(QResizeEvent *event) override;
 	void paintEvent(QPaintEvent *event) override;
+	void leaveEvent(QEvent *event) override;
+	void mouseMoveEvent(QMouseEvent *event) override;
 
 	QString SnapSourceName();
+	QRect iconRect() const;
 
 private:
 	QString currentText = "";
 	int m_iPadding = 5;
+	bool m_sourceInvalid = false;
+	bool m_iconHover = false;
 };
 
 class OBSSourceLabel : public SourceLabel {

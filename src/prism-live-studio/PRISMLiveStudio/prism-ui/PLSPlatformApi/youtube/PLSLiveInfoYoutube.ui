@@ -374,13 +374,6 @@
               </widget>
              </item>
              <item>
-              <widget class="PLSRadioButton" name="hiddenRadioButton" native="true">
-               <property name="text" stdset="0">
-                <string/>
-               </property>
-              </widget>
-             </item>
-             <item>
               <spacer name="horizontalSpacer_2">
                <property name="orientation">
                 <enum>Qt::Horizontal</enum>

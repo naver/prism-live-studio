@@ -14,6 +14,8 @@ typedef void(DrawPenCallBacak)(void *context, bool undoEmpty, bool redoEmpty);
 
 class PLSDrawPenInterface {
 public:
+	virtual ~PLSDrawPenInterface() = default;
+
 	virtual void beginDraw(unsigned int brushMode, unsigned int colorMode, unsigned int thicknessMode, PointF point) = 0;
 	virtual void beginDraw(PointF point) = 0;
 	virtual void moveTo(PointF point) = 0;

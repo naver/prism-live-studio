@@ -52,6 +52,8 @@ public:
 	QList<MotionData> getGroupList(const QString &group) const;
 
 	void removeAllCustomGroups();
+	bool isPrismResource(const QString &itemId) const;
+	bool isMotionEnabled(const QString &itemId, MotionType type) const;
 
 	bool isPathEqual(const MotionData &md1, const MotionData &md2) const;
 	bool groupDownloadRequestFinished(const QString &group);

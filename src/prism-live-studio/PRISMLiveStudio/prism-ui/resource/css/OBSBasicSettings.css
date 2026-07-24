@@ -568,22 +568,11 @@ PLSSettingGeneralView #nickName {
     color: white;
 }
 
-PLSSettingGeneralView #userPlusIcon {
-        image:url(":/resource/images/payment/ic_plusbadgesmall.svg");
-        min-width:  17px;
-        max-width:  17px;
-        min-height: 17px;
-        max-height: 17px;
-        padding: 0;
-        margin: 0;
-        border:none;
-}
-
 #OBSBasicSettings #groupBox_20::title {
     left: /*hdpi*/ -3px;
 }
 
-PLSSettingGeneralView #label_3, PLSSettingGeneralView #label_6, PLSSettingGeneralView #userCode {
+PLSSettingGeneralView #label_3, PLSSettingGeneralView #label_6, PLSSettingGeneralView #userCode #textLabel {
     min-height: /*hdpi*/ 18px;
     max-height: /*hdpi*/ 18px;
     font-size: /*hdpi*/ 14px;
@@ -610,16 +599,7 @@ PLSSettingGeneralView #pushButton_logout, PLSSettingGeneralView #pushButton_del_
     margin-right: /*hdpi*/ 6px;
 }
 
-PLSSettingGeneralView #pushButton_change_pwd {
-    qproperty-minimumSize: /*hdpi*/ 10px /*hdpi*/ 27px;
-    padding-left: /*hdpi*/ 6px;
-    padding-right: /*hdpi*/ 6px;
-    margin-right: /*hdpi*/ 0px;
-}
-
     PLSSettingGeneralView #pushButton_logout:disabled, PLSSettingGeneralView #pushButton_del_account:disabled, PLSSettingGeneralView #pushButton_change_pwd:disabled {
-        qproperty-minimumSize: /*hdpi*/ 110px /*hdpi*/ 27px;
-        qproperty-maximumSize: /*hdpi*/ 110px /*hdpi*/ 27px;
         border-image: none;
         border: /*hdpi*/ 1px solid #3d3d3d;
         padding: /*hdpi*/ 0px;
@@ -733,7 +713,7 @@ PLSSettingGeneralView {
     }
 
 #OBSBasicSettings #colorsGroupBox #colorPresetLabel, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_1, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_2, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_3, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_4,
-#OBSBasicSettings #colorsGroupBox #colorSelectLabel_5, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_6, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_7, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_8, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_9 {
+#OBSBasicSettings #colorsGroupBox #colorSelectLabel_5, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_6, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_7, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_8, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_9, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_10 {
     min-width: 194px;
     max-width: 194px;
     margin-right: 14px;
@@ -746,6 +726,7 @@ PLSSettingGeneralView {
 
 #OBSBasicSettings #colorsGroupBox {
     padding-top: /*hdpi*/ 30px;
+	padding-bottom: /*hdpi*/ 10px;
 }
 
 #OBSBasicSettings #colorCheckBox QLabel {
@@ -772,100 +753,8 @@ PLSSettingGeneralView {
     image: url("://resource/images/dual-output/ic_help_s_hover.svg");
 }
 
-#OBSBasicSettings #widgetSubcriberContainer {
-    background: #2D2D2D;
-    border-radius: 3px;
-}
-
-#OBSBasicSettings #labelSubscriberPlus {
-    color: white;
-    background: transparent;
-    
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 22px;
-}
-
-#OBSBasicSettings #labelSubscriberPlus[status="free"] {
-    min-width: 241px;
-    max-width: 241px;
-    min-height: 22px;
-    max-height: 22px;
-
-    image: url("://resource/images/payment/img_setting_prism_plus.svg");
-}
-
-#OBSBasicSettings #labelSubscriberStatus {
-    color: #0D0D0E;
-
-    padding: 3px 4px 2px 4px;
-    border-radius: 4px;
-    min-height: 13px;
-
-    font-size: 13px;
-    font-weight: 700;
-}
-
-#OBSBasicSettings #widget_6 {
-    background: transparent;    
-}
-
-#OBSBasicSettings #labelSubscribeTip {
-    color: white;
-    background: transparent;
-
-    margin-top: 6px;
-
+#OBSBasicSettings #downscaleFilterDesc {
     font-size: 14px;
-    font-weight: 400;
-    line-height: 20px;
-}
-
-#OBSBasicSettings #labelSubscriberStatus, #OBSBasicSettings #pushButtonSubscribe {
-    background: transparent;
-    border-image: url("://resource/images/payment/btn_plus_normal.svg");
-}
-
-#OBSBasicSettings #pushButtonSubscribe {
-    color: black;
-
-    margin-top: 12px;
-    padding: 0 0 1px 0;
-    border-radius: 3px;
-    min-width: 280px;
-    min-height: 45px;
-
-    font-size: 14px;
-    font-weight: 700;
-    line-height: 20px;
-}
-
-#OBSBasicSettings #pushButtonSubscribe:hover {
-    border-image: url("://resource/images/payment/btn_plus_hover.svg");
-}
-
-#OBSBasicSettings #pushButtonSubscribe:pressed {
-    border-image: url("://resource/images/payment/btn_plus_clicked.svg");
-}
-
-#OBSBasicSettings #labelSubscriberDate {
-    color: white;
-    background: transparent;
-
-    margin-top: 11px;
-
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 20px;    
-}
-
-#OBSBasicSettings #labelSubscriberMobile {
-    color: #999999;
-    background: transparent;
-
-    margin-top: 1px;
-
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 20px;       
+    color: #BABABA;
+	padding-bottom:20px;
 }

@@ -50,6 +50,12 @@ private slots:
 public:
 	OBSBasicSourceSelect(OBSBasic *parent, const char *id, undo_stack &undo_s);
 
+	static bool checkSourceExisted(const char *id);
+	static QString getDefaultAddSourceName(const char *id);
+	static bool addNewSource(const char *id, const char *sourceName, bool visible, OBSSource &newSource,
+				 std::function<void(const std::string &)> &undoFunc,
+				 std::function<void(const std::string &)> &redoFunc, std::string &strWrapper);
+
 	OBSSource newSource;
 	QModelIndex previousIndex;
 

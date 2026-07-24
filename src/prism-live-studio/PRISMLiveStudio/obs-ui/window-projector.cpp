@@ -11,6 +11,7 @@
 #include "platform.hpp"
 #include "multiview.hpp"
 #include "pls/pls-dual-output.h"
+#include "pls-performance.h"
 
 QList<OBSProjector *> OBSProjector::multiviewProjectors = {};
 
@@ -233,8 +234,8 @@ void OBSProjector::OBSRender(void *data, uint32_t cx, uint32_t cy)
 			proc_handler_call(ph, "chat_browser_render", &cd);
 			calldata_free(&cd);
 		} else {
-			window->isVerticalPreview ? obs_source_video_render(source)
-						  : pls_source_video_render_vertical(source);
+			window->isVerticalPreview ? pls_source_video_render_vertical(source)
+						  : obs_source_video_render(source);
 		}
 	} else {
 		window->isVerticalPreview ? pls_render_vertical_main_texture() : obs_render_main_texture();
@@ -474,7 +475,8 @@ void OBSProjector::mousePressEvent(QMouseEvent *event)
 
 	if (event->button() == Qt::RightButton) {
 		QMenu *projectorMenu = new QMenu(QTStr("Fullscreen"));
-		OBSBasic::AddProjectorMenuMonitors(projectorMenu, this, &OBSProjector::OpenFullScreenProjector);
+		OBSBasic::AddProjectorMenuMonitors(projectorMenu, this, "Projector",
+						   &OBSProjector::OpenFullScreenProjector);
 
 		QMenu popup(this);
 		popup.addMenu(projectorMenu);
@@ -616,6 +618,7 @@ int OBSProjector::GetMonitor()
 
 void OBSProjector::UpdateMultiviewProjectors()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	obs_enter_graphics();
 	updatingMultiview = true;
 	obs_leave_graphics();

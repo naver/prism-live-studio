@@ -11,7 +11,7 @@
 #include "PLSServerStreamHandler.hpp"
 #include "login-user-info.hpp"
 #include "utils-api.h"
-#include "PLSLoginDataHandler.h"
+#include "pls-channel-const.h"
 
 #define PUBLISH_VERSION QStringLiteral("version")
 #define POLICY_PUBLISH_JSON_NAME QStringLiteral("Policy_Publish.json")
@@ -31,7 +31,7 @@ struct CategoryLibrary : public pls::rsm::ICategory {
 
 	QString categoryId(pls::rsm::IResourceManager *mgr) const override { return PLS_RSM_CID_LIBRARY; }
 
-	QString getLibraryItemId() const { return pls_prism_is_dev() ? QStringLiteral("LIBRARY_1452") : QStringLiteral("LIBRARY_1225"); }
+	QString getLibraryItemId() const { return pls_is_dev() ? QStringLiteral("LIBRARY_1452") : QStringLiteral("LIBRARY_1225"); }
 
 	bool itemNeedDownload(pls::rsm::IResourceManager *mgr, pls::rsm::Item item) const override
 	{
@@ -118,10 +118,10 @@ void PLSSyncServerManager::updatePolicyPublishByteArray()
 	initSupportedResolutionFPS(policyPublishObject);
 	initRtmpDestination(policyPublishObject);
 	initMultiplePlatformMaxBitrate(policyPublishObject);
+	initPrismLiveStartRequestTimeout(policyPublishObject);
 	initNaverPlatformWhiteList(policyPublishObject);
 	initStreamServiceList(policyPublishObject);
 	initPlatformLiveTimeLimit(policyPublishObject);
-	initRemoteControlInfo(policyPublishObject);
 	initPlatformVersionInfo(policyPublishObject);
 	initNaverShoppingInfo(policyPlatformObject);
 	initTwitchWhipServer(policyPlatformObject);
@@ -240,6 +240,17 @@ void PLSSyncServerManager::initMultiplePlatformMaxBitrate(const QJsonObject &pol
 	PLS_INFO("SyncServer", "sync server status: init multiple platform max bitrate info success , m_iMultiplePlatformMaxBitrate is %d", m_iMultiplePlatformMaxBitrate);
 }
 
+void PLSSyncServerManager::initPrismLiveStartRequestTimeout(const QJsonObject &policyPublishJsonObject)
+{
+	PLS_INFO("SyncServer", "sync server status: start init prism live start request timeout");
+	QJsonValue value = policyPublishJsonObject.value(name2str(prismLiveStartRequestTimeoutMs));
+	int ms = value.toInt(0);
+	if (ms <= 0)
+		ms = DEFAULT_PRISM_LIVE_START_REQUEST_TIMEOUT_MS;
+	m_prismLiveStartRequestTimeoutMs = ms;
+	PLS_INFO("SyncServer", "sync server status: init prism live start request timeout success , value is %d ms", m_prismLiveStartRequestTimeoutMs.value());
+}
+
 void PLSSyncServerManager::initNaverPlatformWhiteList(const QJsonObject &policyPublishJsonObject)
 {
 	PLS_INFO("SyncServer", "sync server status: start init naver platform white list info");
@@ -313,28 +324,116 @@ void PLSSyncServerManager::initPlatformVersionInfo(const QJsonObject &policyPubl
 	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
 }
 
-void PLSSyncServerManager::initRemoteControlInfo(const QJsonObject &policyPublishJsonObject)
-{
-	PLS_INFO("SyncServer", "sync server status: start init remote control info");
-	QJsonValue value = policyPublishJsonObject.value(name2str(remoteControlPlatforms));
-	if (!value.isObject()) {
-		PLS_INFO("SyncServer", "sync server status: init remote control info failed ,because the  remote control value is not json object");
-		return;
-	}
-	QJsonObject itemObject = value.toObject();
-	m_remoteControlPlatformsInfo = itemObject.toVariantMap();
-	QString log = QString("sync server status: init remote control info success , m_remoteControlPlatformsInfo count() is %1").arg(m_remoteControlPlatformsInfo.count());
-	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-}
-
 void PLSSyncServerManager::initNaverShoppingInfo(const QJsonObject &policyPlatformJsonObject)
 {
-	return;
+	PLS_INFO("SyncServer", "sync server status: start init navershopping info");
+	QJsonValue value = policyPlatformJsonObject.value(name2str(navershopping));
+	if (!value.isObject()) {
+		PLS_INFO("SyncServer", "sync server status: init navershopping info failed , because the navershopping value is not json object");
+		return;
+	}
+	QJsonObject platformObject = value.toObject();
+
+	m_navershoppingTermofUse = platformObject.value(name2str(serviceTermsOfUse)).toString();
+	QString log = QString("sync server status: init navershopping serviceTermsOfUse info , m_navershoppingTermofUse is %1").arg(m_navershoppingTermofUse);
+	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+
+	m_navershoppingOperationPolicy = platformObject.value(name2str(operationPolicy)).toString();
+	log = QString("sync server status: init navershopping operationPolicy info , m_navershoppingOperationPolicy is %1").arg(m_navershoppingOperationPolicy);
+	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+
+	m_navershoppingNotes = platformObject.value(name2str(serviceNotes)).toString();
+	log = QString("sync server status: init navershopping serviceNotes info , m_navershoppingNotes is %1").arg(m_navershoppingNotes);
+	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+
+	auto lang = pls_get_current_country_short_str().toUpper();
+	QJsonValue noticeOnAutomaticExtractionOfProductSectionsValue = platformObject.value(name2str(noticeOnAutomaticExtractionOfProductSections));
+	if (!noticeOnAutomaticExtractionOfProductSectionsValue.isObject()) {
+		PLS_INFO("SyncServer", "sync server status: init navershopping info failed , because the noticeOnAutomaticExtractionOfProductSections is not json object");
+		return;
+	}
+
+	QVariantMap noticeOnAutomaticExtractionOfProductSectionsMap = noticeOnAutomaticExtractionOfProductSectionsValue.toObject().toVariantMap();
+	if (noticeOnAutomaticExtractionOfProductSectionsMap.find(lang) != noticeOnAutomaticExtractionOfProductSectionsMap.end()) {
+		m_noticeOnAutomaticExtractionOfProductSections = noticeOnAutomaticExtractionOfProductSectionsMap.value(lang).toString();
+		log = QString("sync server status: init navershopping automatic extraction info , m_noticeOnAutomaticExtractionOfProductSections is %1 , lang is %2")
+			      .arg(m_noticeOnAutomaticExtractionOfProductSections)
+			      .arg(lang);
+		PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+	}
+
+	if (m_noticeOnAutomaticExtractionOfProductSections.isEmpty()) {
+		lang = "US";
+		if (noticeOnAutomaticExtractionOfProductSectionsMap.find(lang) != noticeOnAutomaticExtractionOfProductSectionsMap.end()) {
+			m_noticeOnAutomaticExtractionOfProductSections = noticeOnAutomaticExtractionOfProductSectionsMap.value(lang).toString();
+			log = QString("sync server status: init navershopping automatic extraction default value info , m_noticeOnAutomaticExtractionOfProductSections is %1 , lang is %2")
+				      .arg(m_noticeOnAutomaticExtractionOfProductSections)
+				      .arg(lang);
+			PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+		}
+	}
+
+	QJsonValue voluntaryReviewProductsValue = platformObject.value(name2str(voluntaryReviewProducts));
+	if (!voluntaryReviewProductsValue.isObject()) {
+		PLS_INFO("SyncServer", "sync server status: init navershopping info failed , because the voluntaryReviewProductsValue is not json object");
+		return;
+	}
+	QVariantMap voluntaryReviewProductsMap = voluntaryReviewProductsValue.toObject().toVariantMap();
+	if (voluntaryReviewProductsMap.find(lang) != voluntaryReviewProductsMap.end()) {
+		m_voluntaryReviewProducts = voluntaryReviewProductsMap.value(lang).toString();
+		log = QString("sync server status: init navershopping voluntary review products info , m_voluntaryReviewProducts is %1 , lang is %2").arg(m_voluntaryReviewProducts).arg(lang);
+		PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+	}
+
+	if (m_voluntaryReviewProducts.isEmpty()) {
+		lang = "US";
+		if (voluntaryReviewProductsMap.find(lang) != voluntaryReviewProductsMap.end()) {
+			m_voluntaryReviewProducts = voluntaryReviewProductsMap.value(lang).toString();
+			log = QString("sync server status: init navershopping voluntary review products default value info , m_voluntaryReviewProducts is %1 , lang is %2")
+				      .arg(m_voluntaryReviewProducts)
+				      .arg(lang);
+			PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+		}
+	}
+
+	QJsonValue categoryValue = platformObject.value(name2str(category));
+	if (!categoryValue.isArray()) {
+		PLS_INFO("SyncServer", "sync server status: init navershopping info failed , because the categoryValue is not json object");
+		return;
+	}
+	m_productCategoryJsonArray = categoryValue.toArray();
+
+	log = QString("sync server status: init navershopping info success , m_productCategoryJsonArray count() is %1").arg(m_productCategoryJsonArray.count());
+	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
 }
 
 void PLSSyncServerManager::initOpenSourceInfo()
 {
-	return;
+	PLS_INFO("SyncServer", "sync server status: start init open source info");
+	QString OPEN_SOURCE_DIR = QString("%1%2").arg(CONFIGS_LIBRARY_POLICY_PATH).arg(CONFIGS_LIBRARY_POLICY_LISCENSE_PATH);
+
+#if defined(Q_OS_WIN)
+	QString openSourceDir = pls_get_user_path(OPEN_SOURCE_DIR) + "/win";
+#elif defined(Q_OS_MACOS)
+	QString openSourceDir = pls_get_user_path(OPEN_SOURCE_DIR) + "/mac";
+#endif
+
+	QString maxFileVersion;
+	QDir dir(openSourceDir);
+	QFileInfoList fileInfoList = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+	for (const QFileInfo &fileInfo : fileInfoList) {
+		PLS_INFO("SyncServer", "sync server status: open source file name is %s", fileInfo.fileName().toUtf8().constData());
+		if (fileInfo.isFile() && fileInfo.suffix() == OPEN_SOURCE_FILE_SUFFIX && fileInfo.fileName().startsWith(OPEN_SOURCE_FILE_PREFIX)) {
+			QString removeSuffix = QString(".%1").arg(OPEN_SOURCE_FILE_SUFFIX);
+			QString fileVersion = fileInfo.fileName().remove(OPEN_SOURCE_FILE_PREFIX).remove(removeSuffix);
+			if (pls_compare_version(PLS_VERSION, fileVersion) >= 0 && pls_compare_version(fileVersion, maxFileVersion) >= 0) {
+				maxFileVersion = fileVersion;
+				m_openSourceLicense = fileInfo.filePath();
+			}
+			PLS_INFO("SyncServer", "sync server status: open source file version is %s , max file version is %s", fileVersion.toUtf8().constData(), maxFileVersion.toUtf8().constData());
+		}
+	}
+	PLS_INFO("SyncServer", "sync server status: init open source info success , open source is %s", m_openSourceLicense.toUtf8().constData());
 }
 
 void PLSSyncServerManager::initTwitchWhipServer(const QJsonObject &policyPlatformJsonObject)
@@ -446,15 +545,20 @@ bool PLSSyncServerManager::initSupportedResolutionFPS(const QJsonObject &policyP
 	QJsonValue value = policyPublishJsonObject.value(name2str(supportedResolutionFPS));
 	if (!value.isObject()) {
 		PLS_INFO("SyncServer", "sync server status: init supported resolution fps info failed ,because the supportedResolutionFPS value is not json object");
+		m_platformFPSMap.clear();
+		m_multiplePlatformMaxResolutionByChannel.clear();
 		return false;
 	}
 
 	m_platformFPSMap.clear();
+	m_multiplePlatformMaxResolutionByChannel.clear();
 	QJsonObject itemObject = value.toObject();
 	QJsonObject::iterator it;
 	for (it = itemObject.begin(); it != itemObject.end(); it++) {
 		QString platformKey = it.key();
 		QJsonObject obj = it.value().toObject();
+		const QString mpmr = obj.value(name2str(multiplePlatformMaxResolution)).toString().trimmed();
+		m_multiplePlatformMaxResolutionByChannel.insert(platformKey, mpmr);
 		bool limit = obj.value(name2str(hasResolutionLimit)).toBool();
 		if (!limit) {
 			continue;
@@ -483,21 +587,25 @@ void PLSSyncServerManager::initRtmpDestination(const QJsonObject &policyPublishJ
 		PLS_INFO("SyncServer", "sync server status: init rtmp destination info failed , because rtmpDestination list count is zero");
 		return;
 	}
-
+	m_multiplePlatformMaxResolutionByRtmp.clear();
 	QVariantMap rtmpFPSMap;
 	for (const auto &map : list) {
+		const QVariantMap row = map.toMap();
 		RtmpDestination rtmpDestionation;
-		rtmpDestionation.streamName = map.toMap().value(name2str(streamName)).toString();
-		rtmpDestionation.rtmpUrl = map.toMap().value(name2str(rtmpUrl)).toString();
-		rtmpDestionation.exposure = map.toMap().value(name2str(exposure)).toBool();
-		rtmpDestionation.order = map.toMap().value(name2str(order)).toInt();
+		auto streamName = row.value(name2str(streamName)).toString();
+		rtmpDestionation.streamName = streamName;
+		rtmpDestionation.rtmpUrl = row.value(name2str(rtmpUrl)).toString();
+		rtmpDestionation.exposure = row.value(name2str(exposure)).toBool();
+		rtmpDestionation.order = row.value(name2str(order)).toInt();
 		if (rtmpDestionation.exposure) {
 			rtmpDestinations.insert(rtmpDestionation.order, rtmpDestionation);
 		}
-		bool hasResolutionLimit = map.toMap().value(name2str(hasResolutionLimit)).toBool();
+		const QString mpmr = row.value(name2str(multiplePlatformMaxResolution)).toString().trimmed();
+		m_multiplePlatformMaxResolutionByRtmp.insert(streamName.trimmed().toLower(), mpmr);
+		bool hasResolutionLimit = row.value(name2str(hasResolutionLimit)).toBool();
 		if (rtmpDestionation.exposure && hasResolutionLimit) {
-			QString idName = map.toMap().value(name2str(id)).toString();
-			QMap resolutionFps = map.toMap().value(name2str(resolutionFps)).toMap();
+			QString idName = row.value(name2str(id)).toString();
+			QMap resolutionFps = row.value(name2str(resolutionFps)).toMap();
 			rtmpFPSMap.insert(idName, resolutionFps);
 		}
 	}
@@ -506,6 +614,39 @@ void PLSSyncServerManager::initRtmpDestination(const QJsonObject &policyPublishJ
 	QString log =
 		QString("sync server status: init rtmp destination info success , m_rtmpFPSMap count() is %1 , m_destinations count() is %2").arg(m_rtmpFPSMap.count()).arg(m_destinations.count());
 	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+}
+
+QString PLSSyncServerManager::channelNameToLivePlatformKey(const QString &channelName) const
+{
+	static const QMap<QString, QString> kMap = {
+		{YOUTUBE, QStringLiteral("youtube")},
+		{TWITCH, QStringLiteral("twitch")},
+		{FACEBOOK, QStringLiteral("facebook")},
+		{VLIVE, QStringLiteral("vlive")},
+		{NAVER_TV, QStringLiteral("navertv")},
+		{BAND, QStringLiteral("band")},
+		{NOW, QStringLiteral("now")},
+		{AFREECATV, QStringLiteral("afreecatv")},
+		{NAVER_SHOPPING_LIVE, NAVER_SHOPPING_RESOLUTION_KEY},
+		{CHZZK, QStringLiteral("chzzk")},
+		{QStringLiteral("kakaoTV"), QStringLiteral("kakaotv")},
+	};
+	return kMap.value(channelName, channelName);
+}
+
+QString PLSSyncServerManager::getMaxResolutionByName(const QString &name, bool isRtmp)
+{
+	static const QString kDefaultMax1080p = QStringLiteral("1920x1080");
+	if (name.isEmpty()) {
+		return kDefaultMax1080p;
+	}
+	if (isRtmp) {
+		getRtmpPlatformFPSMap();
+		return m_multiplePlatformMaxResolutionByRtmp.value(name.trimmed().toLower(), kDefaultMax1080p);
+	}
+	getSupportedResolutionFPSMap();
+	const QString liveKey = channelNameToLivePlatformKey(name);
+	return m_multiplePlatformMaxResolutionByChannel.value(liveKey, kDefaultMax1080p);
 }
 
 const QVariantList &PLSSyncServerManager::getResolutionsList()
@@ -586,6 +727,7 @@ QVariantMap PLSSyncServerManager::getSupportedResolutionFPSMap()
 	}
 	QString log = QString("sync server status: get supported resolution fps info finished , m_platformFPSMap count() is %1").arg(m_platformFPSMap.count());
 	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+	PLS_UI_ACTION(log.toUtf8().constData());
 	return m_platformFPSMap;
 }
 
@@ -652,6 +794,22 @@ int PLSSyncServerManager::getMultiplePlatformMaxBitrate()
 	return value;
 }
 
+int PLSSyncServerManager::getPrismLiveStartRequestTimeoutMs()
+{
+	if (!m_prismLiveStartRequestTimeoutMs.has_value()) {
+		PLS_INFO("SyncServer", "sync server status: get prism live start request timeout from AppData or App Bundle");
+		updatePolicyPublishByteArray();
+		if (!m_prismLiveStartRequestTimeoutMs.has_value()) {
+			PLS_INFO("SyncServer", "sync server status: get prism live start request timeout from app default value json file");
+			initPrismLiveStartRequestTimeout(m_policyPublishDefaultValueObject);
+		}
+	}
+	int value = m_prismLiveStartRequestTimeoutMs.value();
+	QString log = QString("sync server status: get prism live start request timeout finished , value is %1 ms").arg(value);
+	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+	return value;
+}
+
 QStringList PLSSyncServerManager::getNaverPlatformWhiteList()
 {
 	if (m_naverPlatformWhiteList.isEmpty()) {
@@ -711,26 +869,6 @@ PlatformLiveTime PLSSyncServerManager::getPlatformLiveTime(bool isDirect, const 
 			      .arg(platformName);
 	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
 	return liveTime;
-}
-
-QString PLSSyncServerManager::getRemoteControlMobilePlatform(const QString &platformName)
-{
-
-	if (m_remoteControlPlatformsInfo.isEmpty()) {
-		PLS_INFO("SyncServer", "sync server status: get remote control info from AppData or App Bundle , the m_remoteControlPlatformsInfo is empty");
-		updatePolicyPublishByteArray();
-		if (m_remoteControlPlatformsInfo.isEmpty()) {
-			PLS_INFO("SyncServer", "sync server status: get remote control info from app default value json file , the m_remoteControlPlatformsInfo is empty");
-			initRemoteControlInfo(m_policyPublishDefaultValueObject);
-		}
-	}
-
-	QVariantMap platformMap = m_remoteControlPlatformsInfo.value(platformName).toMap();
-	QString mobilePlatformName = platformMap.value(name2str(mobilePlatform)).toString();
-	QString log = QString("sync server status: get remote control info finished , platformName is %1 , mobilePlatformName is %2").arg(platformName).arg(mobilePlatformName);
-	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-
-	return mobilePlatformName;
 }
 
 const QVariantMap &PLSSyncServerManager::getPlatformVersionInfo()
@@ -1031,30 +1169,16 @@ const QVariantMap &PLSSyncServerManager::getOutroResLocalPathAndText(const QStri
 	return m_outroPathAndText;
 }
 
-int PLSSyncServerManager::compareVersion(const QString &v1, const QString &v2) const
-{
-	QStringList v1List = v1.split(".");
-	QStringList v2List = v2.split(".");
-	auto len1 = v1List.count();
-	auto len2 = v2List.count();
-	for (int i = 0; i < qMin(len1, len2); i++) {
-		if (v1List.at(i).toUInt() > v2List.at(i).toUInt()) {
-			return 1;
-		} else if (v1List.at(i).toUInt() < v2List.at(i).toUInt()) {
-			return -1;
-		}
-	}
-	return 0;
-}
-
 void PLSSyncServerManager::onReceiveLibraryNeedUpdate(bool isSucceed)
 {
 	if (!isSucceed) {
 		PLS_WARN("SyncServer", "sync server status: library request fail, maybe use qrc json");
+		libraryUpdateDone();
 		return;
 	}
 	PLS_INFO("SyncServer", "sync server status: library request finished, start update json object data");
 	updatePolicyPublishByteArray();
+	libraryUpdateDone();
 }
 
 void PLSSyncServerManager::initDiscordInfo(const QJsonObject &policyPublishJsonObject)

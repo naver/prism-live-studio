@@ -18,7 +18,7 @@
 #endif
 
 static std::vector<std::string> g_third_party_plugins;
-static const std::string third_party_plugin_list_path = "PRISMLiveStudio\\crashDump\\third_party_plugins.json";
+static const std::string third_party_plugin_list_path = "\\crashDump\\third_party_plugins.json";
 
 namespace pls {
 
@@ -155,13 +155,26 @@ bool is_third_party_plugin(std::string &module_path)
 #if __APPLE__
 	return mac_is_third_party_plugin(module_path);
 #else
-	auto path = pls_get_app_data_dir(QString::fromStdString(third_party_plugin_list_path));
+	if (module_path.empty()) {
+		return false;
+	}
+
+	auto path = pls_get_app_user_data_file_path_pn(QString::fromStdString(third_party_plugin_list_path));
 	auto data = pls_read_data(path);
 	QJsonObject obj = QJsonDocument::fromJson(data).object();
 	QJsonArray plugin_list = obj["plugins"].toArray();
 
-	std::filesystem::path pathObj(std::filesystem::u8path(module_path));
-	std::string dllName = pathObj.stem().u8string();
+	std::string dllName;
+	try {
+		std::filesystem::path pathObj(std::filesystem::u8path(module_path));
+		dllName = pathObj.stem().u8string();
+	} catch (...) {
+		return false;
+	}
+
+	if (dllName.empty()) {
+		return false;
+	}
 
 	for (auto plugin : plugin_list) {
 		if (plugin.toObject()["name"].toString().toStdString() == dllName) {

@@ -19,19 +19,19 @@ PLSShoppingRhythmicity::PLSShoppingRhythmicity(QWidget *parent) : PLSDialogView(
 	auto lang = pls_get_current_language();
 	if (IS_KR()) {
 #if defined(Q_OS_MACOS)
-		setFixedSize(410, 400);
+		setFixedSize(410, 440 - PLS_TITLE_BAR_HEIGHT);
 #else
 		setFixedSize(410, 440);
 #endif
 	} else if (pls_is_match_current_language(QLocale::Indonesian)) {
 #if defined(Q_OS_MACOS)
-		setFixedSize(410, 460);
+		setFixedSize(410, 500 - PLS_TITLE_BAR_HEIGHT);
 #else
 		setFixedSize(410, 500);
 #endif
 	} else {
 #if defined(Q_OS_MACOS)
-		setFixedSize(410, 434);
+		setFixedSize(410, 474 - PLS_TITLE_BAR_HEIGHT);
 #else
 		setFixedSize(410, 474);
 #endif

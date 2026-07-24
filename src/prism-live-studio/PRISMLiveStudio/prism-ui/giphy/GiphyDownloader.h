@@ -26,8 +26,8 @@ public:
 
 private slots:
 	void excuteTask(const DownloadTaskData &taskData);
-	void downloadFinished(const pls::rsm::DownloadResult &result);
-	void downloadTimeout(const pls::rsm::DownloadResult &result);
+	void downloadFinished(const pls::rsm::DownloadResult &result, const DownloadTaskData &taskData);
+	void downloadTimeout(const DownloadTaskData &taskData);
 
 signals:
 	void downloadResult(const TaskResponData &result);
@@ -36,15 +36,18 @@ signals:
 private:
 	static QString saveFileName(const QUrl &url, const QString &id, const QString &tail);
 	void ClearTask();
+	void addRetryTask(const DownloadTaskData &taskData);
 
 	explicit GiphyDownloader(QObject *parent = nullptr);
 	~GiphyDownloader() override;
+
+	void performBackgroundNetworkCheck(bool accessible);
 
 	QNetworkAccessManager *manager{nullptr};
 	QMap<QUrl, DownloadTaskData> taskDownloads;
 	QQueue<DownloadTaskData> tasksRetry;
 	QThread threadDownload;
-	std::recursive_mutex m_mutex;
+	QMutex m_mutex;
 	bool running{false};
 };
 #endif // GIPHYDOWNLOADER_H

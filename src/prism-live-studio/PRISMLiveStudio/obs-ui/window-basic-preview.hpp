@@ -38,6 +38,16 @@ enum class ItemHandle : uint32_t {
 	Rot = ITEM_ROT
 };
 
+enum class CustomCursor { OpenHand, ClosedHand, NotSet };
+
+struct SpacingLabelInfo {
+	int sourceIndex;
+	int px;
+	vec3 labelPos;
+	obs_source_t *source;
+	bool valid = false;
+};
+
 class OBSBasicPreview : public OBSQTDisplay {
 	Q_OBJECT
 
@@ -62,6 +72,8 @@ private:
 	gs_texture_t *overflow = nullptr;
 	gs_vertbuffer_t *rectFill = nullptr;
 	gs_vertbuffer_t *circleFill = nullptr;
+	//PRISM/lizhiyong/20251205/PRISM_PC-4599/improved the rotate icon
+	gs_texture_t *rotationHandle = nullptr;
 
 	vec2 startPos;
 	vec2 mousePos;
@@ -90,17 +102,25 @@ private:
 	bool tableDown = false;
 	bool tabletDeviceActive = false;
 
+	std::atomic<bool> bhovered = false;
 	std::vector<obs_sceneitem_t *> hoveredPreviewItems;
 	std::vector<obs_sceneitem_t *> selectedItems;
 	std::mutex selectMutex;
 
 	bool m_bVerticalDisplay = false;
 
+	//PRISM/lizhiyong/20251205/PRISM_PC-4599/improved the rotate icon
+	std::vector<struct matrix4> rotationHandleMatrixs;
+
+	std::atomic<bool> clampAspect = false;
+
 	vec2 GetMouseEventPos(QMouseEvent *event, bool horizontal);
 	static bool FindSelected(obs_scene_t *scene, obs_sceneitem_t *item, void *param);
 	static bool DrawSelectedOverflow(obs_scene_t *scene, obs_sceneitem_t *item, void *param);
 	static bool DrawSelectedItem(obs_scene_t *scene, obs_sceneitem_t *item, void *param);
 	static bool DrawSelectionBox(float x1, float y1, float x2, float y2, gs_vertbuffer_t *box);
+	static bool DrawOverlayBox(float x1, float y1, float x2, float y2, float rot, gs_vertbuffer_t *box,
+				   const vec3 &tl);
 
 	static OBSSceneItem GetItemAtPos(OBSBasicPreview *preview, const vec2 &pos, bool selectBelow);
 	static bool SelectedAtPos(OBSBasicPreview *preview, const vec2 &pos);
@@ -112,7 +132,7 @@ private:
 
 	void GetStretchHandleData(const vec2 &pos, bool ignoreGroup);
 
-	void UpdateCursor(uint32_t &flags);
+	void UpdateCursor(uint32_t &flags, bool needUpdateHand);
 
 	void SnapStretchingToScreen(vec3 &tl, vec3 &br);
 	void ClampAspect(vec3 &tl, vec3 &br, vec2 &size, const vec2 &baseSize);
@@ -133,6 +153,17 @@ private:
 	OBSDataAutoRelease wrapper = nullptr;
 	bool changed;
 
+	void SetCustomCursor(CustomCursor cursor);
+	void UnSetCursor();
+	bool IsCustomCursor(CustomCursor cursor);
+	CustomCursor curCursor = CustomCursor::NotSet;
+
+	//PRISM/PRISM_PC-5673: cache vertical scenes on GUI thread (mouseMove when needed);
+	// render-path helpers read via GetCachedVerticalScenes without taking sources_mutex.
+	void refreshVerticalScenesCache();
+	void GetCachedVerticalScenes(std::vector<OBSScene> &out) const;
+	mutable std::mutex m_cachedVerticalScenesMutex;
+	std::vector<OBSScene> m_cachedVerticalScenes;
 public slots:
 	void XScrollBarMoved(int value);
 	void YScrollBarMoved(int value);
@@ -195,7 +226,7 @@ public:
 	inline bool GetOverflowSelectionHidden() const { return overflowSelectionHidden; }
 	inline bool GetOverflowAlwaysVisible() const { return overflowAlwaysVisible; }
 
-	void setVerticalDisplay(bool bValue) { m_bVerticalDisplay = bValue; }
+	void setVerticalDisplay(bool bValue);
 
 	bool isVerticalDisplay() const { return m_bVerticalDisplay; }
 
@@ -206,8 +237,8 @@ public:
 	static inline void *operator new(size_t size) { return bmalloc(size); }
 	static inline void operator delete(void *ptr) { bfree(ptr); }
 
-	OBSSourceAutoRelease spacerLabel[4];
-	int spacerPx[4] = {0};
+	OBSSourceAutoRelease spacerLabel[8];
+	int spacerPx[8] = {0};
 	bool spacerInited = false;
 
 	void DrawSpacingHelpers();
@@ -215,7 +246,26 @@ public:
 	void UpdateXScrollBar(float cx);
 	void UpdateYScrollBar(float cy);
 
+	void DrawOverflowDistance(const matrix4 &boxTransform, const vec3 &size, vec3 &viewport, float pixelRatio,
+				  std::vector<SpacingLabelInfo> &labelInfos);
+	void DrawAlignLines();
+	static bool FindBoundingRectTransform(obs_scene_t *scene, obs_sceneitem_t *item, void *param);
+
+	bool IsCropping() const { return cropping; }
+
+	std::mutex pendingRenderSceneNameMutex;
+	std::string pendingRenderSceneName;
+	std::atomic<uint64_t> lastActionTime = 0;
+	std::atomic<uint64_t> lastSelectedActionTime = 0;
+
+	//PRISM/lizhiyong/20251205/PRISM_PC-4595/improved the rotate icon
+	void AddRotationHandleMatrix(const matrix4 &matrix) { rotationHandleMatrixs.push_back(matrix); }
+	gs_vertbuffer_t *GetCircleFill() { return circleFill; }
+	gs_texture_t *GetRotationHandleTexture() { return rotationHandle; }
+	void SetRotationHandleTexture(gs_texture_t *texture) { rotationHandle = texture; }
+	void DrawRotationHandle();
 signals:
+
 	void scalingChanged(float scalingAmount);
 	void fixedScalingChanged(bool isFixed);
 };

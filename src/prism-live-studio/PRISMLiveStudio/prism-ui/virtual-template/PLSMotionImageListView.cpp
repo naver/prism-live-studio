@@ -13,6 +13,7 @@
 #include "window-basic-main.hpp"
 #include "utils-api.h"
 #include "PLSAlertView.h"
+#include "PLSErrorHandler.h"
 #include "pls/pls-source.h"
 #include "liblog.h"
 #include "PLSBasic.h"
@@ -98,7 +99,7 @@ static void updateCurrentClickedForTemplateSource(const MotionData &motionData)
 	obs_data_set_string(data, "method", "get_current_clicked_id");
 	pls_source_get_private_data(source, data);
 
-	const char *id = obs_data_get_string(data, MOTION_ITEM_ID_KEY.toStdString().c_str());
+	const char *id = obs_data_get_string(data, MOTION_ITEM_ID_KEY.toUtf8().constData());
 	if (0 == motionData.itemId.compare(id)) {
 		bool prismResource = !motionData.canDelete;
 		obs_data_set_bool(data, "prism_resource", prismResource);
@@ -126,7 +127,7 @@ static void setCurrentClickedForTemplateSource(QString id)
 	}
 	obs_data_t *data = obs_data_create();
 	obs_data_set_string(data, "method", "set_current_clicked_id");
-	obs_data_set_string(data, MOTION_ITEM_ID_KEY.toStdString().c_str(), id.toUtf8().constData());
+	obs_data_set_string(data, MOTION_ITEM_ID_KEY.toUtf8().constData(), id.toUtf8().constData());
 	pls_source_set_private_data(source, data);
 	obs_data_release(data);
 }
@@ -169,7 +170,7 @@ void PLSMotionImageListView::clickItemWithSendSignal(const MotionData &motionDat
 
 	PLSMotionFileManager::instance()->insertMotionData(motionData, key);
 
-	setCheckBoxEnabled(motionData.type == MotionType::MOTION && !motionData.canDelete);
+	setCheckBoxEnabled(CategoryVirtualTemplateInstance->isMotionEnabled(motionData.itemId, motionData.type));
 
 	if (isValidMotionData) {
 		emit currentResourceChanged(motionData.itemId, static_cast<int>(motionData.type), motionData.resourcePath, motionData.staticImgPath, motionData.thumbnailPath, !motionData.canDelete,
@@ -228,7 +229,7 @@ void PLSMotionImageListView::setSelectedItem(const QString &itemId)
 		if (!view) {
 			continue;
 		}
-		result = result || view->setSelectedItem(itemId);
+		result = view->setSelectedItem(itemId) || result;
 	}
 
 	bool myResult = ui->myView->setSelectedItem(itemId);
@@ -432,6 +433,7 @@ void PLSMotionImageListView::initCategory(PLSMotionViewType type)
 		auto groupId = group.groupId();
 		QPushButton *btn = pls_new<QPushButton>(this);
 		btn->setCheckable(true);
+		pls_uistep_v2_set_name(btn, groupId);
 		if (groupId == PRISM_STR) { // for css
 			btn->setObjectName("btn_prism");
 		} else if (groupId == FREE_STR) {
@@ -446,6 +448,7 @@ void PLSMotionImageListView::initCategory(PLSMotionViewType type)
 		ui->horizontalLayout_scrollarea->insertWidget(index, btn);
 
 		auto view = pls_new<PLSPrismListView>(groupId, this);
+		pls_uistep_v2_set_custom_show_hide_name(view, groupId.append(" Tab").toUtf8());
 		view->setForProperties(type == PLSMotionViewType::PLSMotionPropertyView);
 		if (type == PLSMotionViewType::PLSMotionDetailView) {
 			view->getImageListView()->showBottomMargin();
@@ -454,6 +457,10 @@ void PLSMotionImageListView::initCategory(PLSMotionViewType type)
 		categoryViews.insert(index, view);
 		index++;
 	}
+	pls_uistep_v2_set_name(ui->btn_recent, "Recent");
+	pls_uistep_v2_set_name(ui->btn_my, "My");
+	pls_uistep_v2_set_custom_show_hide_name(ui->recentView, QByteArrayLiteral("Recent Tab"));
+	pls_uistep_v2_set_custom_show_hide_name(ui->myView, QByteArrayLiteral("My Tab"));
 
 	m_buttonGroup->addButton(ui->btn_my, index);
 	connect(m_buttonGroup, QOverload<int>::of(&QButtonGroup::idClicked), this, &PLSMotionImageListView::buttonGroupSlot);
@@ -632,7 +639,8 @@ void PLSMotionImageListView::onAllDownloadFinished(bool ok)
 	PLS_INFO(MAIN_VIRTUAL_BACKGROUND, "download all virtual background resources : %s.", ok ? "success" : "failed");
 
 	if (!ok && retryClicked) {
-		PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.title"), QTStr("virtual.resource.part.download.failed"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_VIRTUAL_RESOURCE_PART_DOWNLOAD_FAILED, PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral("PLSMotionImageListView::onAllDownloadFinished")), PLSBasic::instance()->GetPropertiesWindow());
 	}
 	retryClicked = false;
 }

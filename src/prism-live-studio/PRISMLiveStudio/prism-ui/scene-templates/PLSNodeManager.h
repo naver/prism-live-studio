@@ -8,9 +8,6 @@
 const static QString OVERLAY_FILE = ".overlay";
 static const char *FROM_SCENE_TEMPLATE = "fromSceneTemplate";
 
-// this is for keyname in scene collection. as discuss, its name should not include "paid"
-static const char *SCENE_PAID_KEY_NAME = "flagInnerAttribute";
-
 class PLSNodeManager;
 class CopyFileWorker : public QObject {
 	Q_OBJECT

@@ -27,6 +27,9 @@ public:
 	void setSelected(const QList<PLSNCB2bBrowserSettingData> &datas);
 	bool getSelected(const PLSNCB2bBrowserSettingData &data);
 
+	QList<PLSNCB2bBrowserSettingData> parseSupportUrls(const QJsonObject &obj);
+	QString getDisplayTitle(const QString &title);
+
 private:
 	QList<PLSNCB2bBrowserSettingData> datas;
 };

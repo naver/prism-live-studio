@@ -15,15 +15,14 @@ PLSNaverShoppingUseTerm::PLSNaverShoppingUseTerm(QWidget *parent) : PLSDialogVie
 	setupUi(ui);
 	initSize(720, 598);
 	setResizeEnabled(false);
+	pls_uistep_v2_set_title(this, "NAVER Shopping Live Terms of Use");
 
 #ifdef Q_OS_MACOS
 	setHasCaption(true);
-	setMoveInContent(false);
 	setHasHLine(false);
 	setWindowTitle(QTStr("login.agreement.title"));
 #else
 	setHasCaption(false);
-	setMoveInContent(true);
 	setHasHLine(true);
 #endif // Q_OS_MACOS
 
@@ -95,7 +94,7 @@ void PLSNaverShoppingUseTerm::doUpdateOkButtonState()
 
 QString PLSNaverShoppingUseTerm::getPolicyJavaScript() const
 {
-	QString filePath("");
+	QString filePath(":/Configs/resource/DefaultResources/pls_navershopping_policy.js");
 	QFile file(filePath);
 	file.open(QIODevice::ReadOnly | QIODevice::Text);
 	QByteArray byteArray = file.readAll();

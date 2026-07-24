@@ -79,23 +79,6 @@ setup_default_config() {
     info "PROJECT_DIR = ${PROJECT_DIR}"
     cd ${PROJECT_DIR}
 
-    if [ "${CIPackage}" ]; then
-        trap "caught_error 'python download sync json'" ERR
-           if [ "${IGNORE_SYNC}" ]; then
-            info "ignore download sync by command line"
-        else
-            /usr/bin/python3 "${SCRIPT_PATH}/../common/downSyncJson.py" --path="${PRISM_SRC_DIR}/PRISMLiveStudio" -v=${VERSION} ${PRISM_DEV_PYTHON_DOWNLOAD}
-        fi
-        
-
-        trap "caught_error 'python download gpop'" ERR
-        if [ "${IGNORE_GPOP}" ]; then
-            info "ignore download gpop by command line"
-        else
-            /usr/bin/python3 "${SCRIPT_PATH}/../common/downloadGpop.py" "${PRISM_SRC_DIR}/PRISMLiveStudio/prism-ui/resource/DefaultResources/mac/gpop.json" ${VERSION} "mac" ${PRISM_DEV_PYTHON_DOWNLOAD}
-        fi
-    fi
-
     info "BUILD_TYPE=${BUILD_TYPE}"
     configure-prism
 }
@@ -119,11 +102,13 @@ prism-build-main() {
              -v | --version ) export VERSION="${2}"; shift 2 ;;
             --qt-dir ) export QTDIR="${2}"; shift 2 ;;
             --ads_san ) export PRISM_ADDRESS_SANITIZER=ON; shift ;; #enable address sanitizer
+            --performance-stats ) export PERFORMANCE_STATS_ARG=ON; shift ;;
+            --ui-action-stats ) export UI_ACTION_STATS_ARG=ON; shift ;;
             -- ) shift; break ;;
             * ) break ;;
         esac
     done
-
+    
     setup_default_config
 
     if [ "${BUILD}" ]; then

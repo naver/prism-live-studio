@@ -1,0 +1,128 @@
+{
+    "data": [
+        {
+            "api": {
+                "$statusCode": "401",
+                "code": "3000"
+            },
+            "err": {
+                "prismCode": 11001,
+                "prismName": "PRISM_API_TOKEN_EXPIRED",
+                "msgKey": "main.message.prism.login.session.expired",
+                "msgText": "Your account verification information has expired. You will be transferred to the login page."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "403",
+                "errorCode": "025"
+            },
+            "err": {
+                "prismCode": 11002,
+                "prismName": "PRISM_API_SYSTEM_TIME_ERROR",
+                "msgKey": "Prism.Login.Systemtime.Error",
+                "msgText": "The app cannot run normally due to an incorrect system time setting. Please change the setting to the current time and try again.",
+                "alertType": "Error_Blog"
+            },
+            "alert": {
+                "error": {
+                    "blogLink": "https://guide.prismlive.com/desktop/guides/error-solution/others/handling-incorrect-system-time-issue"
+                }
+            }
+        },
+        {
+            "api": {
+                "code": "104"
+            },
+            "err": {
+                "prismCode": 11501,
+                "prismName": "PRISM_API_COUNTRY_FAILED",
+                "msgKey": "Live.Check.message.mutilive.failed.country",
+                "msgText": "Streaming is not supported for the selected channels in this region."
+            }
+        },
+        {
+            "api": {
+                "code": "106"
+            },
+            "err": {
+                "prismCode": 11502,
+                "prismName": "PRISM_API_NO_LONGER_VALID",
+                "msgKey": "broadcast.no.longer.valid",
+                "msgText": "This live broadcast is no longer valid. Please check and try again."
+            }
+        },
+        {
+            "api": {
+                "code": "152"
+            },
+            "err": {
+                "prismCode": 11503,
+                "prismName": "PRISM_API_INVALID_PLATFORM",
+                "msgKey": "broadcast.no.valid.platform",
+                "msgText": "The Custom URL or stream key is incorrect or expired. Check and try again."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "406"
+            },
+            "err": {
+                "prismCode": 11504,
+                "prismName": "PRISM_API_TERM_OF_AGREE",
+                "msgKey": "Prism.Login.Term.Of.Agree",
+                "msgText": "prism sns login need show term"
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "202",
+                "code": "10000"
+            },
+            "err": {
+                "prismCode": 11504,
+                "prismName": "PRISM_API_TERM_OF_AGREE",
+                "msgKey": "Prism.Login.Term.Of.Agree",
+                "msgText": "prism b2b login need show term"
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "404",
+                "code": "1002"
+            },
+            "err": {
+                "prismCode": 11505,
+                "prismName": "PRISM_API_NO_APP_UPDATE",
+                "msgKey": "Update.Lastest.Version.Title",
+                "msgText": "request appversion api no update available"
+            }
+        },
+        {
+            "api": {
+                "reason": "UserNotExistException",
+                "code": "9010"
+            },
+            "err": {
+                "prismCode": 11506,
+                "prismName": "PRISM_API_NO_EXIST_USER",
+                "msgKey": "setting.account.user.not.exist",
+                "msgText": "This account does not exist. You will be logged out after pressing OK.",
+                "alertType": "Normal"
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "errorCode": [
+                "errorCode"
+            ],
+            "code": [
+                "code"
+            ],
+            "reason": [
+                "exception"
+            ]
+        }
+    }
+}

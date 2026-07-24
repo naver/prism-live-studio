@@ -42,6 +42,15 @@ protected:
 	std::unique_ptr<Ui::OBSBasicProperties> ui;
 	bool acceptClicked;
 	bool isClosed = false;
+	enum class ButtonClickType {
+		None,           // Default state, no button clicked
+		PropertyOk,     // Property dialog OK button
+		PropertyCancel, // Property dialog Cancel button
+		PromptDiscard,  // "Settings changed" prompt Discard button
+		PromptSave,     // "Settings changed" prompt Save button
+		PromptCancel    // "Settings changed" prompt Cancel button
+	};
+	ButtonClickType m_lastClickedButton = ButtonClickType::None;
 
 	OBSSource source;
 	OBSSignal removedSignal;
@@ -54,8 +63,11 @@ protected:
 	OBSSourceAutoRelease sourceB;
 	OBSSourceAutoRelease sourceClone;
 	bool direction = true;
+	//PRISM/Lizhiyong/20260128/PRISM_PC-5198 
+	QTimer *debounceTimer = nullptr;
 
 	bool m_isSaveClick = false;
+	bool m_isSendCloseNotify = false;
 	qreal m_dpi = 1.0;
 
 	static void SourceRemoved(void *data, calldata_t *params);
@@ -69,7 +81,8 @@ protected:
 	void UpdateOldSettings();
 	void Cleanup();
 	void dialogClosedToSendNoti();
-	bool isPaidSource();
+	static QRect getRenderSize(OBSBasicProperties *window, uint32_t cx, uint32_t cy, uint32_t &sourceCX,
+				   uint32_t &sourceCY);
 
 private slots:
 	void on_buttonBox_clicked(QAbstractButton *button);
@@ -86,6 +99,8 @@ public:
 	void OnButtonBoxCancelClicked(OBSSource source);
 	void ReloadProperties();
 
+	//PRISM/Lizhiyong/20260128/PRISM_PC-5198 
+	void DebouncedUpdate();
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
 	virtual bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;

@@ -28,6 +28,23 @@ constexpr const char *SMART_STORE_INFO_FILE_NAME = "smart_store_info.json";
 constexpr const char *OTHER_INFOS_FILE_NAME = "other_infos.json";
 constexpr const char *NAVERSHOPPINGLIVE_DATAMANAGER = "NaverShoppingLIVE/DataManager";
 
+namespace {
+
+constexpr qsizetype kMaxDownloadImagePixmapCacheEntries = 200;
+
+using DownloadImagePixmapCacheMap = QMap<QString, std::tuple<QPixmap, QPixmap, QPixmap, QPixmap, QPixmap>>;
+
+// PRISM_PC-5592: bound in-memory pixmap cache; evict oldest key order (QString) when inserting a new URL.
+void ensureDownloadImagePixmapCacheCapacity(DownloadImagePixmapCacheMap &cache, const QString &url)
+{
+	if (cache.contains(url))
+		return;
+	while (cache.size() >= kMaxDownloadImagePixmapCacheEntries && !cache.isEmpty())
+		cache.erase(cache.begin());
+}
+
+} // namespace
+
 static inline void createDir(const QDir &dir)
 {
 	if (!dir.exists()) {
@@ -638,6 +655,7 @@ bool PLSNaverShoppingLIVEDataManager::getThumbnailPixmap(QPixmap &normalPixmap, 
 	liveHoveredPixmap = hoveredRoundedPixmap(size, roundedPixmap(liveHoveredCrop, radius), margin, radius);
 
 	QWriteLocker writeLocker(&downloadImagePixmapCacheRWLock);
+	ensureDownloadImagePixmapCacheCapacity(downloadImagePixmapCache, url);
 	auto &pixmaps = downloadImagePixmapCache[url];
 	if (needLoadOriginal) {
 		std::get<0>(pixmaps) = original;
@@ -764,6 +782,7 @@ void PLSNaverShoppingLIVEDataManager::updateThumbnailPixmap(const QString &url, 
 		QPixmap liveHoveredPixmap = hoveredRoundedPixmap(size, roundedPixmap(liveHoveredCrop, radius), margin, radius);
 
 		QWriteLocker writeLocker(&downloadImagePixmapCacheRWLock);
+		ensureDownloadImagePixmapCacheCapacity(downloadImagePixmapCache, url);
 		auto &pixmaps = downloadImagePixmapCache[url];
 		std::get<1>(pixmaps) = normalPixmap;
 		std::get<2>(pixmaps) = hoveredPixmap;
@@ -790,6 +809,7 @@ void PLSNaverShoppingLIVEDataManager::insertThumbnailPixmap(const QString &url, 
 {
 	QWriteLocker writeLocker(&downloadImagePixmapCacheRWLock);
 	// url => (imagePixmap, scaledImagePixmapNormal, scaledImagePixmapHover)
+	ensureDownloadImagePixmapCacheCapacity(downloadImagePixmapCache, url);
 	downloadImagePixmapCache[url] = std::tuple<QPixmap, QPixmap, QPixmap, QPixmap, QPixmap>(imagePixmap, QPixmap(), QPixmap(), QPixmap(), QPixmap());
 }
 

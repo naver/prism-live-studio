@@ -36,14 +36,14 @@ bool PLSNaverTVDataHandler::tryToUpdate(const QVariantMap &srcInfo, const Update
 		return false;
 	}
 	PLS_INFO(MODULE_PlatformService, "PlatformAPI tryToUpdate platform success, channel type is %d , channel uuid is %s", srcInfo.value(ChannelData::g_data_type).toInt(),
-		 channelUUID.toStdString().c_str());
+		 channelUUID.toUtf8().constData());
 	auto navertv = dynamic_cast<PLSPlatformNaverTV *>(PLS_PLATFORM_API->getPlatformById(channelUUID, srcInfo));
 	if (!navertv) {
 		PLS_ERROR(MODULE_PLATFORM_NAVERTV, "%s %s NaverTV refresh failed, platform not exists", PrepareInfoPrefix, __FUNCTION__);
 		callback({makeErrorInfo(srcInfo)});
 		return false;
 	}
-	PLS_INFO(MODULE_PLATFORM_NAVERTV, "%s %s channelUUID(%s) NaverTV platform(%p) refresh", PrepareInfoPrefix, __FUNCTION__, channelUUID.toStdString().c_str(), navertv);
+	PLS_INFO(MODULE_PLATFORM_NAVERTV, "%s %s channelUUID(%s) NaverTV platform(%p) refresh", PrepareInfoPrefix, __FUNCTION__, channelUUID.toUtf8().constData(), navertv);
 	QMetaObject::invokeMethod(navertv, [this, navertv, srcInfo, callback]() { navertv->getAuth(getPlatformName(), srcInfo, callback, PLSCHANNELS_API->isResetNeed()); });
 	return true;
 }

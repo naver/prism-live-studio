@@ -6,6 +6,7 @@
 #include "pls-shared-functions.h"
 
 #include <liblog.h>
+#include "libui.h"
 
 //#include "pls-global-vars.h"
 #include "PLSBasic.h"
@@ -40,6 +41,7 @@ PLSBrowserView::PLSBrowserView(bool readCookies, QVariantHash *res, const QUrl &
 {
 	ui = pls_new<Ui::PLSBrowserView>();
 	ui->setupUi(this);
+	pls_uistep_v2_set_custom_show_hide_name(this, QString("%1 Login Page").arg(pannelCookieName).toUtf8());
 	setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
 	if (!plsCef) {
 		emit doneSignal(QDialog::Rejected);

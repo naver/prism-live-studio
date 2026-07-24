@@ -23,11 +23,14 @@ public:
 protected:
 	void enterEvent(QEnterEvent *event) override;
 	void leaveEvent(QEvent *event) override;
+	bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
 	void checkMouseEnterEvent();
 	void checkMouseLeaveEvent();
-	void performMouseEnterEvent();
+	void showHoverUI();       // immediate: show install/video view, hide intro/image
+	void startHoverVideo();   // delayed: start video playback (called by timer)
+	void performMouseEnterEvent(); // full enter: showHoverUI + startHoverVideo
 	void performMouseLeaveEvent();
 
 private:

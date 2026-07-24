@@ -241,6 +241,7 @@ PLSHelpIcon::PLSHelpIcon(QWidget *parent, bool handleTooltip_) : QLabel(parent),
 {
 	setFrameShape(QFrame::NoFrame);
 	setProperty("showHandCursor", QVariant(true));
+	pls_uistep_v2_set_custom_enter_leave_name(this, []() { return pls_uistep_v2_to_english("Help Icon").toUtf8(); });
 #if defined(Q_OS_MACOS)
 	installEventFilter(this);
 #endif
@@ -267,6 +268,10 @@ bool PLSHelpIcon::eventFilter(QObject *watched, QEvent *event)
 	return QLabel::eventFilter(watched, event);
 }
 
+void PLSHelpIcon::setReleateText(const QString &text)
+{
+	pls_uistep_v2_set_custom_enter_leave_name(this, [text]() { return pls_uistep_v2_to_english(text).toUtf8(); });
+}
 PLSFormLabel::PLSFormLabel(QWidget *parent) : QLabel(parent) {}
 
 void PLSFormLabel::setText(const QString &value)
@@ -284,5 +289,17 @@ void PLSFormLabel::resizeEvent(QResizeEvent *event)
 		setAlignment(Qt::AlignLeft | Qt::AlignTop);
 	} else {
 		setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+	}
+}
+
+PLSHeightFromWidthLabel::PLSHeightFromWidthLabel(QWidget *parent, Qt::WindowFlags f) : QLabel(parent, f) {}
+
+PLSHeightFromWidthLabel::PLSHeightFromWidthLabel(const QString &text, QWidget *parent, Qt::WindowFlags f) : QLabel(text, parent, f) {}
+
+void PLSHeightFromWidthLabel::resizeEvent(QResizeEvent *event)
+{
+	QLabel::resizeEvent(event);
+	if (auto height = pls_calculate_size_for_width(text(), font(), event->size().width()).height(); height != minimumHeight()) {
+		setMinimumHeight(height);
 	}
 }

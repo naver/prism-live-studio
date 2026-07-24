@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <qhttpmultipart.h>
+#include "libui.h"
 
 class PLSBasic;
 
@@ -21,8 +22,8 @@ public:
 	explicit PLSServerStreamHandler(QObject *parent = nullptr);
 	QString getOutputResolution(bool bVertical) const;
 	QString getOutputFps() const;
-	bool isSupportedResolutionFPS(QString &outTipString) const;
-	QString getResolutionAndFpsInvalidTip(const QString &channeName) const;
+	bool isSupportedResolutionFPS(pls_text_t &outTipString) const;
+	pls_text_t getResolutionAndFpsInvalidTip(const QString &channeName) const;
 	void checkChannelResolutionFpsValid(const QString &channelName, const QVariantMap &platformFPSMap, const QString &platformKey, bool &result, QList<QString> &platformList,
 					    bool bVertical) const;
 	bool isValidWatermark(const QString &platFormName) const;

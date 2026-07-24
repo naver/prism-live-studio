@@ -947,7 +947,7 @@ PLSPropertiesView #sliderLabel, PLSPropertiesView #bk_outlineLabel {
     color: #bababa;
 }
 
-    PLSPropertiesView #sliderLabel:disabled {
+    PLSPropertiesView #sliderLabel:disabled, PLSPropertiesView #bk_outlineLabel:disabled {
         font-size: 14px;
         font-weight: normal;
         color: #666666;
@@ -1621,6 +1621,23 @@ PLSPropertiesView #prismLensLabelGuide {
     max-height: 40px;
 }
 
+PLSPropertiesView #prismLensVbGuide {
+    font-weight: normal;
+    font-size: 14px;
+    color: #666666;
+}
+
+PLSPropertiesView #lensDescIcon {
+    min-height: 10px;
+    max-height: 10px;
+    min-width: 10px;
+    max-width: 10px;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-image: url(":/resource/images/mobile-source/ic-dot.svg");
+}
+
 PLSPropertiesView #prismLensAudioLabel {
     font-weight: normal;
     font-size: 14px;
@@ -1961,6 +1978,26 @@ PLSPropertiesView #CTChatPlatformTypeFrame >PLSCheckBox #showImageLable {
     margin:0;
     border:none;
 }
+
+PLSPropertiesView #updateStickerButton {
+    padding: 0px;
+    margin: 0;
+    min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	min-width: /*hdpi*/ 128px;
+	max-width: /*hdpi*/ 128px;
+    border-radius: /*hdpi*/ 3px;
+	background-color: #444444;
+}
+
+PLSPropertiesView #updateStickerButton:hover {
+    background-color: #555555;
+}
+
+PLSPropertiesView #updateStickerButton:pressed {
+	background-color: #2d2d2d;
+}
+
 PLSPropertiesView #CtChatSaveButton {
     padding-left: 15px;
     padding-right:15px;
@@ -2108,4 +2145,9 @@ PLSPropertiesView #newLabel {
     max-height: /*hdpi-u*/ 16px;
     background-color: transparent;
     image: url(:/resource/images/chat-template-source/ic_badge_new.svg);
+}
+
+PLSPropertiesView #captureGuideLabel {
+    font-size: 12px;
+    font-weight: bold;
 }

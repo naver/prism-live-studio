@@ -77,9 +77,9 @@ add_subdirectory(prism-ui/GuideTips)
 add_subdirectory(prism-ui/laboratory)
 add_subdirectory(prism-ui/prism-login)
 
-find_package(Qt6 COMPONENTS Widgets Network Svg Xml Gui NetworkAuth WebSockets Multimedia OpenGLWidgets)
+find_package(Qt6 COMPONENTS Widgets Network Svg Xml Gui NetworkAuth WebSockets Multimedia)
 find_package(nlohmann_json REQUIRED)
-target_link_libraries(PRISMLiveStudio PRIVATE Qt6::Widgets Qt6::Svg Qt6::Xml Qt6::Network Qt6::WebSockets nlohmann_json::nlohmann_json Qt6::Multimedia Qt6::OpenGLWidgets)
+target_link_libraries(PRISMLiveStudio PRIVATE Qt6::Widgets Qt6::WidgetsPrivate Qt6::Svg Qt6::Xml Qt6::Network Qt6::WebSockets nlohmann_json::nlohmann_json Qt6::Multimedia)
 
 if(ENABLE_TEST)
   find_package(Qt6 COMPONENTS Test)
@@ -156,16 +156,13 @@ target_sources(PRISMLiveStudio PRIVATE obs-ui/forms/obs.qrc
   prism-ui/filter-ui.qrc
   prism-ui/obs-dark.qrc
   prism-ui/prism-chat-template.qrc
+  prism-ui/prism-source-guide.qrc
+  prism-ui/notice-update.qrc
 )
 
 target_sources(
   PRISMLiveStudio
-  PRIVATE obs-ui/forms/AutoConfigFinishPage.ui
-  obs-ui/forms/AutoConfigStartPage.ui
-  obs-ui/forms/AutoConfigStartPage.ui
-  obs-ui/forms/AutoConfigStreamPage.ui
-  obs-ui/forms/AutoConfigTestPage.ui
-  obs-ui/forms/AutoConfigVideoPage.ui
+  PRIVATE
   obs-ui/forms/ColorSelect.ui
   obs-ui/forms/OBSAbout.ui
   obs-ui/forms/OBSAdvAudio.ui
@@ -174,6 +171,18 @@ target_sources(
   obs-ui/forms/OBSBasicFilters.ui
   obs-ui/forms/OBSBasicInteraction.ui
   obs-ui/forms/OBSBasicSettings.ui
+  obs-ui/forms/SettingGeneralPage.ui
+  obs-ui/forms/SettingOutputPage.ui
+  obs-ui/forms/SettingAudioPage.ui
+  obs-ui/forms/SettingVideoPage.ui
+  obs-ui/forms/SettingHotkeyPage.ui
+  obs-ui/forms/SettingAccessPage.ui
+  obs-ui/forms/SettingAdvancedPage.ui 
+  obs-ui/forms/SettingOutputSimplePage.ui
+  obs-ui/forms/SettingOutputStreamPage.ui
+  obs-ui/forms/SettingOutputRecordPage.ui
+  obs-ui/forms/SettingOutputAudioPage.ui
+  obs-ui/forms/SettingOutputReplayPage.ui  
   obs-ui/forms/OBSBasicSourceSelect.ui
   obs-ui/forms/OBSBasicTransform.ui
   obs-ui/forms/OBSBasicVCamConfig.ui
@@ -214,6 +223,8 @@ target_sources(
   obs-ui/crash-report.hpp
   obs-ui/display-helpers.hpp
   obs-ui/platform.hpp
+  obs-ui/qt-display-failed-view.cpp
+  obs-ui/qt-display-failed-view.hpp
   obs-ui/qt-display.cpp
   obs-ui/qt-display.hpp
   obs-ui/ui-validation.cpp
@@ -284,9 +295,6 @@ target_sources(
   PRISMLiveStudio
   PRIVATE obs-ui/window-basic-about.cpp
   obs-ui/window-basic-about.hpp
-  obs-ui/window-basic-auto-config.cpp
-  obs-ui/window-basic-auto-config.hpp
-  obs-ui/window-basic-auto-config-test.cpp
   obs-ui/window-basic-adv-audio.cpp
   obs-ui/window-basic-adv-audio.hpp
   obs-ui/window-basic-filters.cpp
@@ -298,6 +306,7 @@ target_sources(
   obs-ui/window-basic-main-browser.cpp
   obs-ui/window-basic-main-dropfiles.cpp
   obs-ui/window-basic-main-icons.cpp
+  obs-ui/window-basic-main-outputs2.cpp
   obs-ui/window-basic-main-outputs.cpp
   obs-ui/window-basic-main-outputs.hpp
   obs-ui/window-basic-main-profiles.cpp
@@ -378,7 +387,8 @@ target_sources(
   prism-ui/common/PLSToastMsgFrame.cpp
   prism-ui/common/bubbletips.ui
   prism-ui/common/bubbletips.h
-  prism-ui/common/bubbletips.cpp)
+  prism-ui/common/bubbletips.cpp
+  prism-ui/common/PLSAutoActionLog.hpp)
 
 target_sources(
   PRISMLiveStudio
@@ -421,9 +431,17 @@ target_sources(
   prism-ui/main/PLSUpdateView.hpp
   prism-ui/main/PLSUpdateView.cpp
   prism-ui/main/PLSUpdateView.ui
-  prism-ui/main/PLSNoticeView.hpp
-  prism-ui/main/PLSNoticeView.cpp
-  prism-ui/main/PLSNoticeView.ui
+  prism-ui/main/PLSNoticeUpdateTypes.hpp
+  prism-ui/main/PLSNoticeUpdateRepository.hpp
+  prism-ui/main/PLSNoticeUpdateRepository.cpp
+  prism-ui/main/PLSNoticeUpdateCoordinator.hpp
+  prism-ui/main/PLSNoticeUpdateCoordinator.cpp
+  prism-ui/main/PLSNoticePopupDialog.hpp
+  prism-ui/main/PLSNoticePopupDialog.cpp
+  prism-ui/main/PLSNoticePopupDialog.ui
+  prism-ui/main/PLSNoticeUpdateCenterDialog.hpp
+  prism-ui/main/PLSNoticeUpdateCenterDialog.cpp
+  prism-ui/main/PLSNoticeUpdateCenterDialog.ui
   prism-ui/main/PLSGetPropertiesThread.h
   prism-ui/main/PLSGetPropertiesThread.cpp
   prism-ui/main/PLSPropertyModel.hpp
@@ -439,6 +457,7 @@ target_sources(
   prism-ui/main/PLSCompleter.hpp
   prism-ui/main/PLSOutputHandler.cpp
   prism-ui/main/PLSOutputHandler.hpp
+  prism-ui/main/PLSBlockRecorder.hpp
 )
 target_sources(
   PRISMLiveStudio
@@ -448,6 +467,7 @@ target_sources(
   prism-ui/scene/PLSSceneListView.h
   prism-ui/scene/PLSSceneTransitionsView.cpp
   prism-ui/scene/PLSSceneTransitionsView.h
+  prism-ui/scene/PLSSceneTransitionBuiltin.h
   prism-ui/scene/PLSSceneDataMgr.cpp
   prism-ui/scene/PLSSceneDataMgr.h
   prism-ui/scene/PLSScrollAreaContent.cpp
@@ -484,17 +504,18 @@ target_sources(
   prism-ui/main/pls-gpop-data.hpp
   prism-ui/main/pls-gpop-data.cpp
   prism-ui/main/pls-gpop-data-struct.hpp
-  prism-ui/main/pls-notice-handler.hpp
-  prism-ui/main/pls-notice-handler.cpp
   prism-ui/main/login-common-struct.hpp
   prism-ui/main/audio-meter-wrapper.h
   prism-ui/main/audio-meter-wrapper.cpp
-  prism-ui/main/PLSAction.h
-  prism-ui/main/PLSAction.cpp
   prism-ui/main/PLSAddSourceItem.ui
   prism-ui/main/PLSAddSourceView.h
   prism-ui/main/PLSAddSourceView.cpp
   prism-ui/main/PLSAddSourceView.ui
+  prism-ui/main/PLSAddSourceGuideView.h
+  prism-ui/main/PLSAddSourceGuideView.cpp
+  prism-ui/main/PLSAddSourceGuideView.ui
+  prism-ui/main/PLSSourceTemplateConfig.h
+  prism-ui/main/PLSSourceTemplateConfig.cpp
   prism-ui/main/PLSIPCHandler.h
   prism-ui/main/PLSIPCHandler.cpp
   prism-ui/main/window-basic-color-select.hpp
@@ -538,6 +559,7 @@ target_sources(
   prism-ui/main/PLSBasicProperties.cpp
   prism-ui/main/PLSPropertiesView.hpp
   prism-ui/main/PLSPropertiesView.cpp
+  prism-ui/main/PLSPropertiesViewVbChromakey.cpp
   prism-ui/main/PLSPropertiesExtraUI.hpp
   prism-ui/main/PLSPropertiesExtraUI.cpp
   prism-ui/main/PLSRegionCapture.h
@@ -570,7 +592,8 @@ target_sources(
   prism-ui/source-toolbar/PLSSourceToolbar.cpp
   prism-ui/main/PLSCompleter.cpp
   prism-ui/main/PLSCTPropertiesUi.cpp
-  prism-ui/main/PLSSourceAnalog.cpp
+  prism-ui/main/PLSPreviewMaskWidget.h
+  prism-ui/main/PLSPreviewMaskWidget.cpp
 )
 
 target_sources(
@@ -614,9 +637,15 @@ target_sources(
   prism-ui/main/PLSBrowserView.hpp
   prism-ui/main/PLSBrowserView.cpp
   prism-ui/main/PLSBrowserView.ui
+  prism-ui/main/pls-setting-general-view.hpp
+  prism-ui/main/pls-setting-general-view.cpp
+  prism-ui/main/PLSSettingGeneralView.ui
   prism-ui/main/pls-complex-header-icon.hpp
   prism-ui/main/pls-complex-header-icon.cpp
   prism-ui/main/PLSComplexHeaderIcon.ui
+  prism-ui/main/PLSChangePasswordView.ui
+  prism-ui/main/change-password-view.hpp
+  prism-ui/main/change-password-view.cpp
   prism-ui/main/TextMotionTemplateButton.h
   prism-ui/main/TextMotionTemplateButton.cpp
   prism-ui/main/PLSTemplateButton.ui
@@ -632,6 +661,9 @@ target_sources(
   prism-ui/main/PLSOpenSourceView.cpp
   prism-ui/main/PLSOpenSourceView.ui
   prism-ui/main/PLSBasicStatusPanel.ui
+  prism-ui/main/PLSOnBoardingDlg.h
+  prism-ui/main/PLSOnBoardingDlg.cpp
+  prism-ui/main/PLSOnBoardingDlg.ui
 )
 
 target_sources(
@@ -693,28 +725,24 @@ target_sources(
   PRISMLiveStudio
   PRIVATE ${watermark_source})
 
+# filter dialog
+file(GLOB FILTER_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/main/PLSFiltersItemView.*"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/obs-ui/window-basic-filters.*"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/obs-ui/focus-list.*")
+target_sources(PRISMLiveStudio PRIVATE ${FILTER_SOURCE})
+source_group("prism-filter" FILES ${FILTER_SOURCE})
+
+# drawpen files
+file(GLOB DRAW_PEN_COMMON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/main/PLSDrawPen/*.*")
 if(OS_WINDOWS)
+  file(GLOB DRAW_PEN_WIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/main/PLSDrawPen/windows/*.*")
+  source_group("prism-drawpen" FILES ${DRAW_PEN_COMMON_FILE})
+  source_group("prism-drawpen/windows" FILES ${DRAW_PEN_WIN_FILE})
+
   target_sources(
-    PRISMLiveStudio
-    PRIVATE prism-ui/main/PLSDrawPen/windows/PLSD2DGeometry.h
-    prism-ui/main/PLSDrawPen/windows/PLSD2DGeometry.cpp
-    prism-ui/main/PLSDrawPen/windows/PLSD2DRenderTarget.h
-    prism-ui/main/PLSDrawPen/windows/PLSD2DRenderTarget.cpp
-    prism-ui/main/PLSDrawPen/windows/PLSDrawPenCore.h
-    prism-ui/main/PLSDrawPen/windows/PLSDrawPenCore.cpp
-    prism-ui/main/PLSDrawPen/windows/PLSDrawPenWin.cpp
-    prism-ui/main/PLSDrawPen/windows/PLSDrawPenWin.cpp
-    prism-ui/main/PLSDrawPen/windows/PLSGraphicsHandler.h
-    prism-ui/main/PLSDrawPen/windows/PLSGraphicsHandler.cpp
-    prism-ui/main/PLSDrawPen/windows/PLSDrawPenEffect.h
-    prism-ui/main/PLSDrawPen/windows/PLSDrawPenEffect.cpp
-    prism-ui/main/PLSDrawPen/windows/PLSDrawPenStroke.h
-    prism-ui/main/PLSDrawPen/PLSDrawPenDefine.h
-    prism-ui/main/PLSDrawPen/PLSDrawPenMgr.h
-    prism-ui/main/PLSDrawPen/PLSDrawPenMgr.cpp
-    prism-ui/main/PLSDrawPen/PLSDrawPenView.h
-    prism-ui/main/PLSDrawPen/PLSDrawPenView.cpp
-    prism-ui/main/PLSDrawPen/PLSDrawPenInterface.h
+    PRISMLiveStudio PRIVATE 
+    ${DRAW_PEN_COMMON_FILE}
+    ${DRAW_PEN_WIN_FILE}
     prism-ui/forms/PLSDrawPenView.ui
     prism-ui/main/windows/PLSBlockDump.cpp
     prism-ui/main/windows/PLSBlockDump.h
@@ -724,28 +752,22 @@ if(OS_WINDOWS)
     prism-ui/main/windows/PLSWinrtNotify.cpp
     obs-ui/win-dll-blocklist.c)
 elseif(OS_MACOS)
+  file(GLOB DRAW_PEN_MAC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/main/PLSDrawPen/mac/*.*")
+  source_group("prism-drawpen" FILES ${DRAW_PEN_COMMON_FILE})
+  source_group("prism-drawpen/mac" FILES ${DRAW_PEN_MAC_FILE})
+
   target_sources(
-    PRISMLiveStudio
-    PRIVATE prism-ui/main/PLSDrawPen/mac/PLSDrawPenMac.cpp
-    prism-ui/main/PLSDrawPen/mac/PLSDrawPenMac.h
-    prism-ui/main/PLSDrawPen/mac/PLSStrokable.hpp
-    prism-ui/main/PLSDrawPen/mac/PLSStrokable.mm
-    prism-ui/main/PLSDrawPen/mac/PLSStrokeManager.hpp
-    prism-ui/main/PLSDrawPen/mac/PLSStrokeManager.mm
-    prism-ui/main/PLSDrawPen/mac/PLSStrokeManagerOCInterface.hpp
-    prism-ui/main/PLSDrawPen/mac/PLSStrokeStruct.hpp
-    prism-ui/main/PLSDrawPen/mac/PLSStrokeStruct.mm
-    prism-ui/main/PLSDrawPen/PLSDrawPenDefine.h
-    prism-ui/main/PLSDrawPen/PLSDrawPenMgr.h
-    prism-ui/main/PLSDrawPen/PLSDrawPenMgr.cpp
-    prism-ui/main/PLSDrawPen/PLSDrawPenView.h
-    prism-ui/main/PLSDrawPen/PLSDrawPenView.cpp
-    prism-ui/main/PLSDrawPen/PLSDrawPenInterface.h
+    PRISMLiveStudio PRIVATE 
+    ${DRAW_PEN_COMMON_FILE}
+    ${DRAW_PEN_MAC_FILE}
     prism-ui/forms/PLSDrawPenView.ui
     prism-ui/main/mac/PLSBlockDump.mm
     prism-ui/main/mac/PLSBlockDump.h
     prism-ui/main/mac/PLSPermissionHelper.mm
-    prism-ui/main/mac/PLSPermissionHelper.h)
+    prism-ui/main/mac/PLSPermissionHelper.h
+    prism-ui/main/mac/PLSMacSleepNotify.mm
+    prism-ui/main/mac/PLSMacSleepNotify.h
+    )
 endif()
 
 # Outro files
@@ -805,7 +827,11 @@ target_sources(PRISMLiveStudio PRIVATE ${PRISMLogin-HDR_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${PRISMLogin-UI_FILES})
 
 if(OS_WINDOWS)
-  target_sources(PRISMLiveStudio PRIVATE prism-ui/main/unzip.h)
+  target_sources(PRISMLiveStudio PRIVATE 
+      prism-ui/main/unzip.h 
+      ${CMAKE_CURRENT_SOURCE_DIR}/region-capture/win-signal.h
+      ${CMAKE_CURRENT_SOURCE_DIR}/region-capture/win-signal.cpp
+  )
 endif()
 
 # PLSPerformance
@@ -925,7 +951,7 @@ endif()
 prism_exe(PRISMLiveStudio "PRISM Live Studio")
 
 if(OS_WINDOWS)
-  set_target_properties(PRISMLiveStudio PROPERTIES WIN32_EXECUTABLE ON OUTPUT_NAME PRISMLiveStudio)
+  set_target_properties(PRISMLiveStudio PROPERTIES WIN32_EXECUTABLE ON OUTPUT_NAME obs64)
 
   find_package(Detours REQUIRED)
 
@@ -1155,19 +1181,27 @@ target_compile_definitions(PRISMLiveStudio PRIVATE "SAFE_MODULES=\"${SAFE_MODULE
 # setup_target_resources(PRISMLiveStudio obs-studio)
 # add_target_resource(PRISMLiveStudio $ENV{OBS_SRC_DIR}/AUTHORS
 # obs-studio/authors)
-copy_common_libs_data(PRISMLiveStudio ../../../build/common/errorExcel2Json.py data/prism-studio/resources)
-
 if(OS_MACOS)
   copy_common_libs_data(PRISMLiveStudio data data/prism-studio)
   copy_common_libs_data(PRISMLiveStudio prism-ui/main/PLSDrawPen/data data/libobs)
   setup_prism_app(PRISMLiveStudio)
 elseif(OS_WINDOWS)
-  copy_prism_binary(PRISMLiveStudio)
+  copy_target(PRISMLiveStudio obs64 "" bin/64bit)
   copy_prism_data(PRISMLiveStudio)
   copy_data(PRISMLiveStudio PRISMLiveStudio prism-ui/resource/LUTs data/obs-plugins/obs-filters/LUTs)
   copy_data(PRISMLiveStudio PRISMLiveStudio prism-ui/main/PLSDrawPen/data data/libobs)
   copy_third_party_mqtt(PRISMLiveStudio)
-  deploy_qt(PRISMLiveStudio)
+  add_custom_command(TARGET PRISMLiveStudio
+    POST_BUILD
+    COMMAND "${CMAKE_COMMAND}"
+      "-DCONFIG=$<CONFIGURATION>"
+      "-DQT_DIR=$ENV{QTDIR}"
+      "-DDEV_OUTPUT_DIR=$ENV{DEV_OUTPUT_DIR}"
+      "-DTARGET=obs64"
+      "-DOS_WINDOWS=${OS_WINDOWS}"
+      "-DOS_MACOS=${OS_MACOS}"
+      -P "$ENV{PRISM_SRC_DIR}/cmake/deploy_qt.cmake"
+    VERBATIM)
 endif()
 
 if(OS_WINDOWS)

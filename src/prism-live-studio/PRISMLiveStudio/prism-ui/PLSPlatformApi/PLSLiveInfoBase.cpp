@@ -19,6 +19,7 @@
 
 PLSLiveInfoBase::PLSLiveInfoBase(PLSPlatformBase *pPlatformBase, QWidget *parent) : PLSDialogView(parent), m_pPlatformBase(pPlatformBase), m_pWidgetLoadingBG(nullptr)
 {
+	pls_uistep_v2_set_custom_show_hide_name(this, QByteArrayLiteral("PLSLiveInfoBase"));
 	pls_add_css(this, {"PLSLoadingBtn", "PLSLiveInfoBase"});
 	setHasCloseButton(false);
 	setResizeEnabled(false);
@@ -36,7 +37,7 @@ PLSLiveInfoBase::PLSLiveInfoBase(PLSPlatformBase *pPlatformBase, QWidget *parent
 		Qt::QueuedConnection);
 
 #if defined(Q_OS_MACOS)
-	setFixedSize({720, 670});
+	setFixedSize({720, 710 - PLS_TITLE_BAR_HEIGHT});
 #else
 	setFixedSize({720, 710});
 #endif
@@ -61,21 +62,24 @@ void PLSLiveInfoBase::updateStepTitle(QPushButton *button)
 	}
 }
 
-void PLSLiveInfoBase::showLoading(QWidget *parent)
+void PLSLiveInfoBase::showLoading(QWidget *parent, int maskHeight)
 {
 	hideLoading();
 
 	m_isRunLoading = true;
 	m_pWidgetLoadingBGParent = parent;
+	m_loadingBGMaskHeight = maskHeight;
 
 	m_pWidgetLoadingBG = new QWidget(parent);
 	m_pWidgetLoadingBG->setObjectName("loadingBG");
+	pls_uistep_v2_set_custom_show_hide_name(m_pWidgetLoadingBG, QByteArrayLiteral("LiveInfo loadingBtn"));
 #if defined(Q_OS_MACOS)
 	m_pWidgetLoadingBG->setAttribute(Qt::WA_DontCreateNativeAncestors);
 	m_pWidgetLoadingBG->setAttribute(Qt::WA_NativeWindow);
 #endif
 
-	m_pWidgetLoadingBG->setGeometry(0, 0, parent->geometry().size().width(), parent->geometry().size().height());
+	int height = (maskHeight >= 0) ? maskHeight : parent->geometry().size().height();
+	m_pWidgetLoadingBG->setGeometry(0, 0, parent->geometry().size().width(), height);
 	m_pWidgetLoadingBG->show();
 
 	auto layout = pls_new<QHBoxLayout>(m_pWidgetLoadingBG);
@@ -94,6 +98,7 @@ void PLSLiveInfoBase::showLoading(QWidget *parent)
 void PLSLiveInfoBase::hideLoading()
 {
 	m_isRunLoading = false;
+	m_loadingBGMaskHeight = -1;
 	if (m_pWidgetLoadingBGParent && pls_object_is_valid(m_pWidgetLoadingBGParent)) {
 		m_pWidgetLoadingBGParent->removeEventFilter(this);
 		m_pWidgetLoadingBGParent = nullptr;
@@ -119,7 +124,8 @@ bool PLSLiveInfoBase::eventFilter(QObject *watcher, QEvent *event)
 {
 	if (m_pWidgetLoadingBG && (watcher == m_pWidgetLoadingBGParent) && (event->type() == QEvent::Resize)) {
 		const QResizeEvent *resizeEvent = static_cast<QResizeEvent *>(event);
-		m_pWidgetLoadingBG->setGeometry(0, 0, resizeEvent->size().width(), resizeEvent->size().height());
+		int height = (m_loadingBGMaskHeight >= 0) ? m_loadingBGMaskHeight : resizeEvent->size().height();
+		m_pWidgetLoadingBG->setGeometry(0, 0, resizeEvent->size().width(), height);
 	}
 
 	return PLSDialogView::eventFilter(watcher, event);

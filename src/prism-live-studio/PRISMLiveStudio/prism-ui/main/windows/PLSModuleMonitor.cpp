@@ -101,7 +101,7 @@ void PLSModuleMonitor::updateModuleList()
 
 	CloseHandle(modules);
 
-	QString path = pls_get_app_data_dir_pn("") + "crashDump/modules.json";
+	QString path = pls_get_app_user_data_file_path_pn(QStringLiteral("/crashDump/modules.json"));
 	if (path.isEmpty())
 		return;
 

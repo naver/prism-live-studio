@@ -1,4 +1,5 @@
 #include "login-common-helper.hpp"
+#include <QLineEdit>
 #include <QRegularExpression>
 #include <QUrl>
 #include "pls-common-define.hpp"
@@ -9,6 +10,17 @@ bool ::LoginCommonHelpers::isValidEmailByRegExp(const QString &email)
 {
 	QRegularExpression rep(EMAIL_REGEXP);
 	return rep.match(email).hasMatch();
+}
+
+void ::LoginCommonHelpers::sanitizeEmailLineEdit(QLineEdit *edit)
+{
+	if (!edit) {
+		return;
+	}
+	const QString cleaned = edit->text().trimmed();
+	if (cleaned != edit->text()) {
+		edit->setText(cleaned);
+	}
 }
 
 bool ::LoginCommonHelpers::isValidPasswordByRegExp(const QString &password)

@@ -20,11 +20,20 @@ PLSNewIconActionWidget[type="mainMenu"] #titleLabel:hover {
 	background: #373737;
 }
 
+PLSNewIconActionWidget #itemIcon {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	background-color: transparent;
+}
+
 PLSNewIconActionWidget #titleLabel {
 	color: white;
 	font-size: /*hdpi*/ 14px;
 	background-color:transparent;
 	padding: 0px;
+	padding-right:6px;
 }
 
 PLSNewIconActionWidget #badgeNew {

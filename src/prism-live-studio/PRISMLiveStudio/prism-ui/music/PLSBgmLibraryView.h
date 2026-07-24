@@ -9,6 +9,7 @@
 #include <QPushButton>
 #include <QTimer>
 #include <QNetworkAccessManager>
+#include <functional>
 #include "PLSPushButton.h"
 
 namespace Ui {
@@ -108,6 +109,7 @@ public:
 
 protected:
 	void resizeEvent(QResizeEvent *event) override;
+	void showEvent(QShowEvent *event) override;
 
 private slots:
 	void OnListenButtonClicked(const PLSBgmLibraryItem *item);
@@ -133,7 +135,6 @@ private:
 	PLSBgmLibraryItem *CreateLibraryBgmItemView(const PLSBgmItemData &data, QWidget *parent = nullptr);
 	void CreateListenSource();
 	void CreateGroup(const QString &groupName);
-	void ScrollToCategoryButton(const QPushButton *categoryButton) const;
 	void RefreshSelectedGroupButtonStyle(const QString &groupName) const;
 
 	// toast
@@ -146,6 +147,7 @@ private:
 	void InitButtonState(const QString &group);
 	void UpdateSelectedString();
 	bool CheckMusicResource() const;
+	void withListScrollPreserved(const std::function<void()> &action);
 
 signals:
 	void AddCachePlayList(const QVector<PLSBgmItemData> &datas);

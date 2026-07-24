@@ -162,12 +162,41 @@ void spectrum_visualizer::tick(float seconds)
 	}
 }
 
-gs_vertbuffer_t *spectrum_visualizer::make_rounded_rectangle(float height, bool)
+void spectrum_visualizer::destroy_rounded_rect_vb_cache()
+{
+	for (auto &e : m_rounded_rect_vb_cache) {
+		if (e.second)
+			gs_vertexbuffer_destroy(e.second);
+	}
+	m_rounded_rect_vb_cache.clear();
+}
+
+void spectrum_visualizer::sync_rounded_rectangle_vb_cache_for_render(bool rounded_corners, uint32_t corner_points, float radius, uint32_t bar_width)
+{
+	/* Must match everything that affects build_rounded_rectangle_vb() besides per-bar height. */
+	if (rounded_corners) {
+		if (corner_points != m_rounded_rect_cache_key_cp || radius != m_rounded_rect_cache_key_radius || bar_width != m_rounded_rect_cache_key_bw) {
+			destroy_rounded_rect_vb_cache();
+			m_rounded_rect_cache_key_cp = corner_points;
+			m_rounded_rect_cache_key_radius = radius;
+			m_rounded_rect_cache_key_bw = bar_width;
+		}
+	} else {
+		if (!m_rounded_rect_vb_cache.empty()) {
+			destroy_rounded_rect_vb_cache();
+			m_rounded_rect_cache_key_cp = UINT32_MAX;
+			m_rounded_rect_cache_key_radius = -1.f;
+			m_rounded_rect_cache_key_bw = UINT32_MAX;
+		}
+	}
+}
+
+gs_vertbuffer_t *spectrum_visualizer::build_rounded_rectangle_vb(uint32_t height_px)
 {
 	visual_params params = m_cfg->vm_params[m_cfg->visual];
+	const float height = (float)height_px;
 
 	gs_render_start(true);
-	int index = 0;
 
 	// Top right
 	for (int i = 0; i < params.corner_points; i++) {
@@ -218,6 +247,25 @@ gs_vertbuffer_t *spectrum_visualizer::make_rounded_rectangle(float height, bool)
 	}
 
 	return gs_render_save();
+}
+
+gs_vertbuffer_t *spectrum_visualizer::make_rounded_rectangle(float height, bool circle)
+{
+	UNUSED_PARAMETER(circle);
+	const uint32_t h = (uint32_t)lrintf(fmaxf(0.f, height));
+
+	/*
+	 * Key = bar height in pixels: mesh only scales vertically via y += height - diameter;
+	 * top cap uses fixed m_circle_points. Same (cp,radius,bar_width) + same h ⇒ identical vertices.
+	 */
+	auto found = m_rounded_rect_vb_cache.find(h);
+	if (found != m_rounded_rect_vb_cache.end())
+		return found->second;
+
+	gs_vertbuffer_t *vb = build_rounded_rectangle_vb(h);
+	if (vb)
+		m_rounded_rect_vb_cache[h] = vb;
+	return vb;
 }
 
 bool spectrum_visualizer::prepare_fft_input(const pcm_stereo_sample *buffer, uint32_t sample_size, double *fftw_input, channel_mode channel_mode) const

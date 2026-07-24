@@ -3,6 +3,7 @@
 #include <QObject>
 
 #include "libutils-export.h"
+enum class RestartAppType { Direct = 0, Logout, ChangeLang, Update };
 
 enum class Progress {
 	launchPrism = 0,
@@ -108,8 +109,13 @@ LIBUTILSAPI_API extern const int k_task_crash_return_code;
 LIBUTILSAPI_API extern const QString k_launcher_command_restarted_session;
 LIBUTILSAPI_API extern const QString k_launcher_command_log_process_ids;
 LIBUTILSAPI_API extern const QString k_launcher_command_prism_pid;
+LIBUTILSAPI_API extern const QString k_launcher_command_loading_app_pid;
 LIBUTILSAPI_API extern const QString k_launcher_prism_version;
 LIBUTILSAPI_API extern const QString k_daemon_limit_retry_count;
 LIBUTILSAPI_API extern const QString k_daemon_sm_key;
 LIBUTILSAPI_API extern const QString k_daemon_parent_is_debugger;
+LIBUTILSAPI_API extern const QString k_auth2_apple_id_callback;
+LIBUTILSAPI_API extern const QString k_launcher_command_locale;
+LIBUTILSAPI_API extern const QString k_launcher_command_parent_geometry;
+
 }

@@ -1,0 +1,389 @@
+{
+    "data": [
+        {
+            "api": {
+                "errorMessage": "/.*tr(\"navershopping.api.request.reservation.delete\").*/"
+            },
+            "err": {
+                "prismCode": 30000,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_INVALID_SCHEDULE",
+                "msgKey": "broadcast.invalid.schedule",
+                "msgText": "This scheduled live is no longer valid."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "1002",
+                "logContent": "PLSCreateScheduleLiving"
+            },
+            "err": {
+                "prismCode": 30001,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_OTHER_STORE_BAD_REQUEST",
+                "msgKey": "NaverShoppingLive.LiveInfo.Product.AddProduct.OtherStore",
+                "msgText": "You attached a product from another store, or you do not have output permission."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "1002",
+                "logContent": "PLSCreateNowLiving"
+            },
+            "err": {
+                "prismCode": 30001,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_OTHER_STORE_BAD_REQUEST",
+                "msgKey": "NaverShoppingLive.LiveInfo.Product.AddProduct.OtherStore",
+                "msgText": "You attached a product from another store, or you do not have output permission."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "1002",
+                "logContent": "PLSUpdateScheduleLiving"
+            },
+            "err": {
+                "prismCode": 30001,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_OTHER_STORE_BAD_REQUEST",
+                "msgKey": "NaverShoppingLive.LiveInfo.Product.AddProduct.OtherStore",
+                "msgText": "You attached a product from another store, or you do not have output permission."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "1002",
+                "logContent": "PLSUpdateNowLiving"
+            },
+            "err": {
+                "prismCode": 30001,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_OTHER_STORE_BAD_REQUEST",
+                "msgKey": "NaverShoppingLive.LiveInfo.Product.AddProduct.OtherStore",
+                "msgText": "You attached a product from another store, or you do not have output permission."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401",
+                "errorCode": "1003",
+                "logContent": "PLSRefreshToken"
+            },
+            "err": {
+                "prismCode": 30002,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_UNAUTHORIZED",
+                "msgKey": "navershopping.no.live.right",
+                "msgText": "You can no longer broadcast to this channel as you do not have permission. Please check the NAVER Shopping LIVE. "
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401",
+                "errorCode": "1004",
+                "logContent": "PLSRefreshToken"
+            },
+            "err": {
+                "prismCode": 30003,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_TOKEN_EXPIRED",
+                "alertType": "Normal_Code",
+                "errorType": "TokenExpired",
+                "msgKey": "Channels.expiredQuestion",
+                "msgText": "Your %1 account verification information has expired. You will be transferred to the login page."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401",
+                "errorCode": "1029",
+                "logContent": "PLSRefreshToken"
+            },
+            "err": {
+                "prismCode": 30004,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_LIVE_COMMERCE_UNAUTHORIZED",
+                "alertType": "Normal_Code",
+                "errorType": "TokenExpired",
+                "msgKey": "Channels.expiredQuestion",
+                "msgText": "Your %1 account verification information has expired. You will be transferred to the login page."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401",
+                "errorCode": "1030",
+                "logContent": "PLSRefreshToken"
+            },
+            "err": {
+                "prismCode": 30005,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_CREATE_UNAUTHORIZED",
+                "msgKey": "navershopping.no.live.right",
+                "msgText": "You can no longer broadcast to this channel as you do not have permission. Please check the NAVER Shopping LIVE. "
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401",
+                "errorCode": "1031",
+                "logContent": "PLSRefreshToken"
+            },
+            "err": {
+                "prismCode": 30006,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_UNAUTHORIZED_REASON_BLOCK",
+                "msgKey": "navershopping.no.live.right",
+                "msgText": "You can no longer broadcast to this channel as you do not have permission. Please check the NAVER Shopping LIVE. "
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401",
+                "errorCode": "1035",
+                "logContent": "PLSRefreshToken"
+            },
+            "err": {
+                "prismCode": 30007,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_AUTH_FAILED",
+                "msgKey": "navershopping.no.live.right",
+                "msgText": "You can no longer broadcast to this channel as you do not have permission. Please check the NAVER Shopping LIVE. "
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401",
+                "errorCode": "1036",
+                "logContent": "PLSRefreshToken"
+            },
+            "err": {
+                "prismCode": 30008,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_AUTH_TEMPORARY_FAILED",
+                "msgKey": "navershopping.login.fail",
+                "msgText": "Failed to login. Please try again."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401",
+                "errorCode": "1037",
+                "logContent": "PLSRefreshToken"
+            },
+            "err": {
+                "prismCode": 30009,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_NOT_SUPPORT_STORE",
+                "msgKey": "navershopping.no.live.right",
+                "msgText": "You can no longer broadcast to this channel as you do not have permission. Please check the NAVER Shopping LIVE. "
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401",
+                "logContent": "PLSRefreshToken"
+            },
+            "err": {
+                "prismCode": 30025,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_REFRESH_UNKNOWN_ERROR",
+                "msgKey": "server.unknown.error",
+                "msgText": "An unknown error has occurred."
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "401"
+            },
+            "err": {
+                "prismCode": 30024,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_ACCOUNT_EXPIRED",
+                "alertType": "Normal_Code",
+                "errorType": "TokenExpired",
+                "msgKey": "navershopping.liveinfo.account.expired",
+                "msgText": "Your NAVER Shopping LIVE channel verification information has expired."
+            }
+        },
+        {
+            "api": {
+                "errorMessage": "/.*tr(\"navershopping.api.request.reservation.not.reached\").*/"
+            },
+            "err": {
+                "prismCode": 30010,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_BROADCAST_STARTS_EARLIER",
+                "msgKey": "navershopping.liveinfo.reservation.not.reached",
+                "msgText": "Cannot start the scheduled stream yet."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "1067",
+                "logContent": "PLSCreateScheduleLiving"
+            },
+            "err": {
+                "prismCode": 30011,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_INVALID_STREAM_ORIGIN_TYPE",
+                "msgKey": "navershopping.create.schedule.external.stream",
+                "msgText": "This live stream is set as an external stream. Use the web management tool to change the stream type if you wish to continue."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 30012,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_LIVE_INFO_FAILED",
+                "msgKey": "LiveInfo.live.error.update.failed",
+                "msgText": "Failed to update the live information."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 30013,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_SCHEDULE_INFO_FAILED",
+                "msgKey": "navershopping.liveinfo.update.schedule.fail.tip",
+                "msgText": "Failed to save live stream information.\nPlease try again."
+            }
+        },
+        {
+            "api": {
+                "errorMessage": "/.*tr(\"navershopping.api.request.reservation.living\").*/"
+            },
+            "err": {
+                "prismCode": 30014,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_RESERVATION_IS_LIVED",
+                "msgKey": "navershopping.liveinfo.reservation.is.lived",
+                "msgText": "This live broadcast is no longer valid.\nPlease check and try again."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "1002",
+                "errorMessage": "/.*tr(\"navershopping.api.request.reservation.isLving\").*/"
+            },
+            "err": {
+                "prismCode": 30014,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_RESERVATION_IS_LIVED",
+                "msgKey": "navershopping.liveinfo.reservation.is.lived",
+                "msgText": "This live broadcast is no longer valid.\nPlease check and try again."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 30015,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_CREATE_SCHEDULE_LIVING_FAILED",
+                "msgKey": "navershopping.liveinfo.create.schedule.fail",
+                "msgText": "Naver Shopping Live connection error\nSubmition cannot proceed."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 30016,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_REFRESH_LIVEINFO_FAILED",
+                "msgKey": "Live.Check.LiveInfo.Refresh.Failed",
+                "msgText": "Live information could not be loaded. Please try again later."
+            }
+        },
+        {
+            "api": {
+                "errorMessage": "/.*tr(\"navershopping.api.request.minor.purchase\").*/"
+            },
+            "err": {
+                "prismCode": 30017,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_ADD_AGE_RESTRICT_FAILED",
+                "msgKey": "navershopping.liveinfo.age.restrict.product",
+                "msgText": "You cannnot add age-restricted products."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 30018,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_UPLOAD_IMAGE_FAILED",
+                "msgKey": "LiveInfo.live.error.set_photo_error",
+                "msgText": "The image file has not been successfully uploaded. Please try again."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 30019,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_GET_CATEGORY_LIST_FAILED",
+                "msgKey": "navershopping.liveinfo.load.categorylist.failed",
+                "msgText": "Failed to load category.\nPlease try again."
+            }
+        },
+        {
+            "api": {
+                "errorMessage": "/.*tr(\"navershopping.api.request.attach.product.send.own.mall\").*/"
+            },
+            "err": {
+                "prismCode": 30020,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_ATTACH_PRODUCTS_TO_OWN_MALL",
+                "msgKey": "navershopping.liveinfo.create.schedule.failed.by.independent.stores",
+                "msgText": "You cannot attach products from the app when broadcasting to independent stores. Use the management tool instead."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 30021,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_ADD_UNATTACHABLE_PRODUCT_FAILED",
+                "msgKey": "NaverShoppingLive.LiveInfo.Live.Products.Unattachable",
+                "msgText": "This product cannot be added to the live. Please check the product policy from the Shopping Live service for more details."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 30022,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_SEND_NOTIFICATION_FAILED",
+                "msgKey": "navershopping.liveinfo.notify.fail.alert",
+                "msgText": "Failed to send notification.",
+                "buttons": "[{\"button\":\"Retry\",\"tr\":\"navershopping.liveinfo.notify.fail.retry\"},{\"button\":\"Ignore\",\"tr\":\"navershopping.liveinfo.notify.fail.directStart\"}]"
+            }
+        },
+        {
+            "err": {
+                "prismCode": 30023,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_SCHEDULE_CHANGED_FAILED",
+                "msgKey": "navershopping.liveinfo.choose.schedule.chaned.failed.tip",
+                "msgText": "Failed to save changes for the scheduled live."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 30026,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_FINISHED_BY_PLATFORM",
+                "msgKey": "MQTT.Live.Finished.By.Platform.NaverShopping",
+                "msgText": "Shopping Live was terminated due to a problem with the broadcast. For more information, contact NAVER Shopping Live."
+            }
+        },
+        {
+            "err": {
+                "prismCode": 30027,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_GET_SMART_STORE_URL_FAILED",
+                "msgKey": "GetStoreLoginUrlFail",
+                "msgText": "Failed to connect to login. Please try again."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "1211",
+                "logContent": "PLSCreateScheduleLiving"
+            },
+            "err": {
+                "prismCode": 30028,
+                "prismName": "CHANNEL_NAVER_SHOPPING_LIVE_DOLBY_TRANSMISSION_NOT_SUPPORT_FAILED",
+                "msgKey": "navershopping.liveinfo.create.schedule.fail",
+                "msgText": "Naver Shopping Live connection error\nSubmition cannot proceed."
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "errorCode": [
+                "errorCode",
+                "code",
+                "rtn_cd"
+            ],
+            "errorMessage": [
+                "errorMessage",
+                "message",
+                "rtn_msg"
+            ]
+        },
+        "append": [
+            "tr(\"NaverShoppingLive.Alert.Error.Code\") {{errorCode}}",
+            "tr(\"NaverShoppingLive.Alert.Error.Message\") {{errorMessage}}"
+        ],
+        "appendJoin": [
+            "\n"
+        ],
+        "inherit": [
+            "PRISM"
+        ]
+    }
+}

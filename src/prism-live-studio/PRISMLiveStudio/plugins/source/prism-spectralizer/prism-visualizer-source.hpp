@@ -11,6 +11,7 @@
 #include <map>
 #include <mutex>
 #include <fftw3.h>
+#include <thread>
 
 class audio_visualizer;
 
@@ -116,7 +117,7 @@ public:
 		return &resource;
 	};
 
-	gs_texture_t *getGradientTexture(gradient_color mode) { return gradient_texture[mode]; }
+	gs_texture_t *getGradientTexture(gradient_color mode) { return gradient_texture[mode].load(); }
 	long long getSolidColor(solid_color mode) { return solid_rgb[mode]; }
 	std::vector<std::string> getAudioSources() const { return audio_sources; }
 	void setAudioSources(std::vector<std::string> vec)
@@ -131,12 +132,14 @@ private:
 	static void source_changed(void *data, calldata_t *calldata);
 
 	std::map<solid_color, long long> solid_rgb{};
-	std::map<gradient_color, gs_texture_t *> gradient_texture{};
+	std::map<gradient_color, std::atomic<gs_texture_t *>> gradient_texture{};
 	std::vector<std::string> audio_sources{};
 
 	source_event_type create_type = source_event_type::SET_CREATE;
 	source_event_type destroy_type = source_event_type::SET_DESTROY;
 	source_event_type rename_type = source_event_type::SET_RENAME;
+
+	std::thread gradientThread;
 };
 
 class visualizer_source {
@@ -159,4 +162,5 @@ public:
 	visual_params get_current_visual_params(visual_mode vm);
 	visual_mode get_old_visual_mode() const;
 	obs_data_t *getPropsParams();
+	obs_source_t *get_source() const { return config.source; }
 };

@@ -43,9 +43,24 @@ class QButtonGroup;
 class OBSPropertiesView;
 class OBSHotkeyWidget;
 class PLSPropertiesView;
+class PLSLoadingView;
 class QSpinBox;
 
 #include "ui_OBSBasicSettings.h"
+
+#include "ui_SettingGeneralPage.h"
+#include "ui_SettingOutputPage.h"
+#include "ui_SettingAudioPage.h"
+#include "ui_SettingVideoPage.h"
+#include "ui_SettingHotkeyPage.h"
+#include "ui_SettingAccessPage.h"
+#include "ui_SettingAdvancedPage.h"
+
+#include "ui_SettingOutputSimplePage.h"
+#include "ui_SettingOutputStreamPage.h"
+#include "ui_SettingOutputRecordPage.h"
+#include "ui_SettingOutputAudioPage.h"
+#include "ui_SettingOutputReplayPage.h"
 
 #define VOLUME_METER_DECAY_FAST 23.53
 #define VOLUME_METER_DECAY_MEDIUM 11.76
@@ -63,7 +78,7 @@ public slots:
 	}
 };
 
-class SilentUpdateSpinBox : public QSpinBox {
+class SilentUpdateSpinBox : public PLSSpinBox {
 	Q_OBJECT
 
 public slots:
@@ -89,12 +104,26 @@ class OBSBasicSettings : public PLSDialogView {
 	Q_PROPERTY(QIcon advancedIcon READ GetAdvancedIcon WRITE SetAdvancedIcon DESIGNABLE true)
 
 public:
-	enum Pages { GENERAL, STREAM, OUTPUT, AUDIO, VIDEO, HOTKEYS, ACCESSIBILITY, ADVANCED, NUM_PAGES };
+	enum Pages { GENERAL, OUTPUT, AUDIO, VIDEO, HOTKEYS, ACCESSIBILITY, ADVANCED, NUM_PAGES };
 
 private:
 	OBSBasic *main;
 
 	std::unique_ptr<Ui::OBSBasicSettings> ui;
+
+	std::unique_ptr<Ui::SettingGeneralPage> generalPage;
+	std::unique_ptr<Ui::SettingOutputPage> outputPage;
+	std::unique_ptr<Ui::SettingAudioPage> audioPage;
+	std::unique_ptr<Ui::SettingVideoPage> videoPage;
+	std::unique_ptr<Ui::SettingHotkeyPage> hotkeyPage;
+	std::unique_ptr<Ui::SettingAccessPage> accessPage;
+	std::unique_ptr<Ui::SettingAdvancedPage> advancedPage;
+
+	std::unique_ptr<Ui::SettingOutputSimplePage> outputSimplePage;
+	std::unique_ptr<Ui::SettingOutputStreamPage> outputStreamPage;
+	std::unique_ptr<Ui::SettingOutputRecordPage> outputRecordPage;
+	std::unique_ptr<Ui::SettingOutputAudioPage> outputAudioPage;
+	std::unique_ptr<Ui::SettingOutputReplayPage> outputReplayPage;
 
 	std::shared_ptr<Auth> auth;
 	bool m_isShowChangeLanguageMsg;
@@ -122,7 +151,6 @@ private:
 
 	int lastSimpleRecQualityIdx = 0;
 	int lastServiceIdx = -1;
-	int lastIgnoreRecommended = -1;
 	int lastChannelSetupIdx = 0;
 
 	static constexpr uint32_t ENCODER_HIDE_FLAGS = (OBS_ENCODER_CAP_DEPRECATED | OBS_ENCODER_CAP_INTERNAL);
@@ -140,6 +168,8 @@ private:
 	QList<std::tuple<QWidget *, QLabel *>> warningAlertMessages;
 
 	QWidget *outputSettingsAdvCurrentTab = nullptr;
+
+	PLSLoadingView *m_settingsPageLoadingView = nullptr;
 
 	QString curPreset;
 	QString curQSVPreset;
@@ -174,6 +204,24 @@ private:
 
 	QIcon hotkeyConflictIcon;
 
+	void initGeneralage();
+	void initOutputPage();
+	void initAudioPage();
+	void initVideoPage();
+	void initHotkeyPage();
+	void initAccessPage();
+	void initAdvancedPage();
+
+	bool settingsPageNeedsInit(int row) const;
+	void syncSettingsPageLoadingOverlay(int row);
+	void hideSettingsPageLoadingIfStillCurrentRow(int scheduledRow);
+
+	void initOutputSimplePage();
+	void initOutputStreamPage();
+	void initOutputRecordPage();
+	void initOutputAudioPage();
+	void initOutputReplayPage();
+
 	void SaveCombo(QComboBox *widget, const char *section, const char *value);
 	void SaveComboData(QComboBox *widget, const char *section, const char *value);
 	void SaveCheckBox(PLSCheckBox *widget, const char *section, const char *value, bool invert = false);
@@ -183,10 +231,6 @@ private:
 	void SaveText(QPlainTextEdit *widget, const char *section, const char *value);
 	void SaveFormat(QComboBox *combo);
 	void SaveEncoder(QComboBox *combo, const char *section, const char *value);
-
-	bool ResFPSValid(obs_service_resolution *res_list, size_t res_count, int max_fps);
-	void ClosestResFPS(obs_service_resolution *res_list, size_t res_count, int max_fps, int &new_cx, int &new_cy,
-			   int &new_fps);
 
 	inline bool Changed() const
 	{
@@ -221,11 +265,14 @@ private:
 	bool QueryChanges();
 	bool QueryAllowedToClose();
 
-	void ResetEncoders(bool streamOnly = false);
+	void ResetSimpleEncoders();
+	void ResetStreamEncoders();
+	void ResetRecordEncoders();
 	void LoadColorRanges();
 	void LoadColorSpaces();
 	void LoadColorFormats();
-	void LoadFormats();
+	void LoadSimpleFormats();
+	void LoadRecordFormats();
 	void ReloadCodecs(const FFmpegFormat &format);
 
 	void UpdateColorFormatSpaceWarning();
@@ -237,12 +284,10 @@ private:
 	void LoadVideoSettings();
 	void LoadHotkeySettings(obs_hotkey_id ignoreKey = OBS_INVALID_HOTKEY_ID);
 	void LoadA11ySettings(bool presetChange = false);
-	void LoadAppearanceSettings(bool reload = false);
 	void LoadAdvancedSettings();
 	void LoadSettings(bool changedOnly);
 	void LoadSceneDisplayMethodSettings();
 	void ResetSceneDisplayMethodSettings();
-	void ConnectUiSignals();
 
 	bool IgnoreInvisibleHotkeys(obs_source_t *source, const char *name);
 
@@ -251,18 +296,13 @@ private:
 
 	/* general */
 	void LoadLanguageList();
-	void LoadThemeList(bool firstLoad);
-	void LoadBranchesList();
 
 	/* stream */
-	void InitStreamPage();
 	bool IsCustomService() const;
 	inline bool IsWHIP() const;
 	void LoadServices(bool showAll);
-	void OnOAuthStreamKeyConnected();
-	void OnAuthConnected();
 	QString lastService;
-	QString protocol;
+	QString protocol{"RTMP"};
 	QString lastCustomServer;
 	int prevLangIndex;
 	bool prevBrowserAccel;
@@ -270,26 +310,11 @@ private:
 	void ServiceChanged(bool resetFields = false);
 	QString FindProtocol();
 	void UpdateServerList();
-	void UpdateKeyLink();
 	void UpdateVodTrackSetting();
-	void UpdateServiceRecommendations();
-	void UpdateMoreInfoLink();
 	void UpdateAdvNetworkGroup();
-
-	bool IsCustomServer();
 
 private slots:
 	void UpdateMultitrackVideo();
-	void RecreateOutputResolutionWidget();
-	bool UpdateResFPSLimits();
-	void DisplayEnforceWarning(bool checked);
-	void on_show_clicked();
-	void on_authPwShow_clicked();
-	void on_connectAccount_clicked();
-	void on_disconnectAccount_clicked();
-	void on_useStreamKey_clicked();
-	void on_useAuth_toggled();
-	void on_server_currentIndexChanged(int index);
 
 	void on_pushButton_clicked();
 	void on_hotkeyFilterReset_clicked();
@@ -309,6 +334,7 @@ private:
 	void LoadAdvOutputRecordingEncoderProperties();
 	void LoadAdvOutputFFmpegSettings();
 	void LoadAdvOutputAudioSettings();
+	void LoadAdvOutputReplaySettings();
 	void SetAdvOutputFFmpegEnablement(FFmpegCodecType encoderType, bool enabled, bool enableEncode = false);
 
 	/* audio */
@@ -318,7 +344,9 @@ private:
 
 	/* video */
 	void LoadRendererList();
-	void ResetDownscales(uint32_t cx, uint32_t cy, bool ignoreAllSignals = false);
+	void ResetDownscales(uint32_t cx, uint32_t cy, bool bVideoPage, bool bStreamPage, bool bRecordPage,
+			     bool ignoreAllSignals = false);
+	void ResetVerticalDownscales(uint32_t cx, uint32_t cy);
 	void LoadDownscaleFilters(bool bHorizontal);
 	void LoadResolutionLists();
 	void LoadVerticalResolutionLists();
@@ -333,6 +361,7 @@ private:
 	uint32_t selectRed = 0x35FCEC;
 	uint32_t selectGreen = 0x5141C3;
 	uint32_t selectBlue = 0xFF9100;
+	uint32_t selectPurple = 0xEE00FF;
 	uint32_t mixerGreen = 0x2E4821;
 	uint32_t mixerYellow = 0x275E63;
 	uint32_t mixerRed = 0x222255;
@@ -358,7 +387,6 @@ private:
 	void SearchHotkeys(const QString &text, obs_key_combination_t filterCombo);
 	void SearchHotkeys(QFormLayout *hotkeysLayout, const QString &text, obs_key_combination_t filterCombo);
 
-	void adjustUi();
 	void alignLabels(QWidget *rootWidget);
 	void alignVideoPage();
 	void alignOutputPageLabels();
@@ -406,18 +434,17 @@ private:
 
 	OBSService GetStream1Service();
 
-	bool ServiceAndVCodecCompatible();
-	bool ServiceAndACodecCompatible();
 	bool ServiceSupportsCodecCheck();
 
-	inline bool AllowsMultiTrack(const char *protocol);
 	void SwapMultiTrack(const char *protocol);
 
 	ResolutionGuidePage::CannotTipObject mCannotTip;
 
+	int getOutputMode() const;
+
 private slots:
 
-	void on_listWidget_itemSelectionChanged();
+	void on_listWidget_currentRowChanged(int);
 	void on_buttonBox_clicked(QAbstractButton *button);
 
 	void on_service_currentIndexChanged(int idx);
@@ -453,6 +480,7 @@ private slots:
 	void on_choose7_clicked();
 	void on_choose8_clicked();
 	void on_choose9_clicked();
+	void on_choose10_clicked();
 	void on_colorPreset_currentIndexChanged(int idx);
 
 	void GeneralChanged();
@@ -477,7 +505,9 @@ private slots:
 
 	void UpdateStreamDelayEstimate();
 
-	void UpdateAutomaticReplayBufferCheckboxes();
+	void UpdateGeneralReplayBufferCheckboxes();
+	void UpdateSimpleReplayBufferCheckboxes();
+	void UpdateAdvancedReplayBufferCheckboxes();
 
 	void AdvOutSplitFileChanged();
 	void AdvOutRecCheckWarnings();
@@ -503,14 +533,12 @@ private slots:
 	void SetAccessibilityIcon(const QIcon &icon);
 	void SetAdvancedIcon(const QIcon &icon);
 
-	void UseStreamKeyAdvClicked();
 	void updateOutPutRelatedUI();
 	void updateButtonsState();
 	void checkOutputTipsVisible();
 	void updateOutputTipsUI();
 	void setVisibleOfOutputTips(bool visible = true);
 	void onOutputTipsVisibilityChanged(bool visible);
-	void reloadOutputRelatedSettings();
 
 	void SimpleStreamAudioEncoderChanged();
 	void AdvAudioEncodersChanged();
@@ -518,10 +546,11 @@ private slots:
 	void SimpleStreamEncoderCheckWarnings();
 	void calculateErrorMsgSize();
 
-	void showNormalSetting();
-	void showDualoutputSetting();
+	void showNormalSetting(bool bVideoPage, bool bStreamPage);
+	void showDualoutputSetting(bool bVideoPage, bool bStreamPage);
 
 protected:
+	void keyPressEvent(QKeyEvent *event) override;
 	virtual void closeEvent(QCloseEvent *event) override;
 	void reject() override;
 	bool eventFilter(QObject *watched, QEvent *event) override;
@@ -543,7 +572,9 @@ public:
 
 signals:
 	void updateStreamEncoderPropsSize(PLSPropertiesView *view);
-	void sigSaveVideoFailed();
+
+private:
+	bool m_hotkeySearchClearedByButton = false;
 };
 
 class BlockLayoutEnable {

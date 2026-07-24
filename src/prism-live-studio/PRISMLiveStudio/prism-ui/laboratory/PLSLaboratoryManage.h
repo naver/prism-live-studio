@@ -124,7 +124,6 @@ private:
 	void checkThreadPoolIfDone() const;
 
 	bool isValidFileList(const QStringList &filePathList) const;
-	int compareVersion(const QString &v1, const QString &v2) const;
 	void deleteOrUpdateAppDllFolder();
 	void deleteAppDllWithLabId(const QString &labId);
 	void deleteAppDllWithDllName(const QString &dllName) const;

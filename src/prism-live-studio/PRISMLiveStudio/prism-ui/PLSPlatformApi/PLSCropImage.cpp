@@ -175,10 +175,12 @@ void PLSCropImage::on_slider_valueChanged(int value)
 void PLSCropImage::on_smallButton_clicked()
 {
 	ui->slider->setValue(int(minScaleFactor * SCALE_FACTOR));
+	PLS_UI_ACTION("PLSCropImage Small Button Clicked Done");
 }
 void PLSCropImage::on_largeButton_clicked()
 {
 	ui->slider->setValue(int(maxScaleFactor * SCALE_FACTOR));
+	PLS_UI_ACTION("PLSCropImage Large Button Clicked Done");
 }
 void PLSCropImage::on_backButton_clicked()
 {
@@ -187,8 +189,38 @@ void PLSCropImage::on_backButton_clicked()
 void PLSCropImage::on_okButton_clicked()
 {
 	QRect middleRect = middle->geometry();
-	QRect grabRect(image->mapFromParent(middleRect.topLeft()), middleRect.size());
-	cropedImage = image->grab(grabRect);
+	QRect imageRect = image->geometry();
+
+	QPoint relativeTopLeft = middleRect.topLeft() - imageRect.topLeft();
+	QSize relativeSize = middleRect.size();
+
+	double currentScale = ui->slider->value() / SCALE_FACTOR;
+	QSize originalImageSize = originalImage.size();
+
+	QPoint originalTopLeft;
+	originalTopLeft.setX(qRound(relativeTopLeft.x() / currentScale));
+	originalTopLeft.setY(qRound(relativeTopLeft.y() / currentScale));
+
+	QSize originalCropSize;
+	originalCropSize.setWidth(qRound(relativeSize.width() / currentScale));
+	originalCropSize.setHeight(qRound(relativeSize.height() / currentScale));
+
+	originalTopLeft.setX(qMax(0, originalTopLeft.x()));
+	originalTopLeft.setY(qMax(0, originalTopLeft.y()));
+	originalCropSize.setWidth(qMin(originalCropSize.width(), originalImageSize.width() - originalTopLeft.x()));
+	originalCropSize.setHeight(qMin(originalCropSize.height(), originalImageSize.height() - originalTopLeft.y()));
+
+	QRect cropRect(originalTopLeft, originalCropSize);
+	if (cropRect.isValid() && !cropRect.isEmpty()) {
+		cropedImage = originalImage.copy(cropRect);
+		if (cropedImage.size().width() < cropImageSize.width() && cropedImage.size().height() < cropImageSize.height()) {
+			cropedImage = cropedImage.scaled(cropImageSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+		}
+	} else {
+		QRect grabRect(image->mapFromParent(middleRect.topLeft()), middleRect.size());
+		cropedImage = image->grab(grabRect);
+	}
+
 	done(Button::Ok);
 }
 void PLSCropImage::on_cancelButton_clicked()

@@ -1,5 +1,6 @@
 #include "PLSWindow.h"
 #include "ui_PLSWindow.h"
+#include "PLSTrackers.h"
 
 #include <qapplication.h>
 #include <qscreen.h>
@@ -28,13 +29,15 @@ constexpr const char *TOPLEVELVIEW_MODULE = "ToplevelView";
 
 const QString CONTENT = QStringLiteral("content");
 
-PLSWindow::PLSWindow(QWidget *parent, Qt::WindowFlags f) : PLSToplevelView<QWidget>(parent, f)
+PLSWindow::PLSWindow(QWidget *parent, Qt::WindowFlags f, CreateWinId createWinId) : PLSToplevelView<QWidget>(createWinId, parent, f)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	ui = pls_new<Ui::PLSWindow>();
 
 	ui->setupUi(this);
 #if defined(Q_OS_WIN)
-	ui->min->setAttribute(Qt::WA_NativeWindow);
+	ui->titleBar->installEventFilter(this);
+	ui->content->setAttribute(Qt::WA_NativeWindow);
 #endif
 	closeEventCallback = [this](QCloseEvent *e) {
 		callBaseCloseEvent(e);
@@ -42,13 +45,14 @@ PLSWindow::PLSWindow(QWidget *parent, Qt::WindowFlags f) : PLSToplevelView<QWidg
 	};
 
 #if defined(Q_OS_MACOS)
-
 	ui->titleBar->hide();
-
 	setHasMinButton(hasMinButton);
 	setHasMaxResButton(hasMaxResButton);
-
 #else
+	if (!isAfterWin10()) {
+		ui->mainLayout->setContentsMargins(1, 1, 1, 1);
+	}
+
 	this->ui->min->setVisible(hasMinButton);
 	this->ui->maxres->setVisible(hasMaxResButton);
 
@@ -58,6 +62,7 @@ PLSWindow::PLSWindow(QWidget *parent, Qt::WindowFlags f) : PLSToplevelView<QWidg
 		}
 	});
 	QObject::connect(ui->maxres, &QToolButton::clicked, [this]() {
+		resizeTracker()->disableTracking();
 		if (!getMaxState() && !getFullScreenState()) {
 			showMaximized();
 		} else {
@@ -65,15 +70,19 @@ PLSWindow::PLSWindow(QWidget *parent, Qt::WindowFlags f) : PLSToplevelView<QWidg
 		}
 		pls_flush_style(ui->maxres);
 	});
-	connect(ui->min, &QToolButton::clicked, [this]() { showMinimized(); });
+	connect(ui->min, &QToolButton::clicked, [this]() {
+		resizeTracker()->disableTracking();
+		showMinimized();
+	});
 
 #endif
 
 	this->ui->helpBtn->setVisible(hasHelpButton);
 	ui->helpBtn->installEventFilter(this);
-	setCustomChecker(ui->content);
+	ui->helpBtn->setProperty("ignoreHideToolTip", true);
+	setMoveExcludeChecker(ui->titleBar);
 
-	connect(this, &PLSWindow::windowTitleChanged, this, &PLSWindow::SetNameLabelText, Qt::QueuedConnection);
+	connect(this, &PLSWindow::windowTitleChanged, this, [this]() { updateTitleBarLayout(ui->titleBar->size()); });
 	connect(ui->content, &QWidget::windowTitleChanged, this, &PLSWindow::setWindowTitle);
 
 	ui->content->setObjectName(QString());
@@ -83,11 +92,23 @@ PLSWindow::PLSWindow(QWidget *parent, Qt::WindowFlags f) : PLSToplevelView<QWidg
 			ui->content->setObjectName(CONTENT);
 		}
 	});
+
+	pls_uistep_v2_set_title(this, [this]() { return this->windowTitle().toUtf8(); });
+	pls_uistep_v2_set_name(ui->helpBtn, QStringLiteral("TitleBar Button"));
+	pls_uistep_v2_set_custom_enter_leave_name(ui->helpBtn, QByteArrayLiteral("TitleBar Button Help"));
+	pls_uistep_v2_set_info(ui->min, QStringLiteral("TitleBar Button"), QStringLiteral("Minimize"));
+	pls_uistep_v2_set_info(ui->maxres, QStringLiteral("TitleBar Button"), [this]() { return isMaximized() ? QStringLiteral("Restore") : QStringLiteral("Maximize"); });
+	pls_uistep_v2_set_info(ui->close, QStringLiteral("TitleBar Button"), QStringLiteral("Close"));
 }
 
 PLSWindow::~PLSWindow()
 {
 	pls_delete(ui, nullptr);
+}
+
+QWidget *PLSWindow::titleBar() const
+{
+	return ui->titleBar;
 }
 
 QWidget *PLSWindow::content() const
@@ -102,15 +123,76 @@ QWidget *PLSWindow::widget() const
 
 void PLSWindow::setWidget(QWidget *widget)
 {
+	if (this->owidget != nullptr) {
+		ui->content->layout()->removeWidget(this->owidget);
+		this->owidget->setParent(nullptr);
+		pls_delete(this->owidget, nullptr);
+	}
 	this->owidget = widget;
 	widget->setParent(ui->content);
 	connect(widget, &QWidget::windowTitleChanged, this, &PLSWindow::setWindowTitle);
 	setWindowTitle(widget->windowTitle());
 
-	QHBoxLayout *l = pls_new<QHBoxLayout>(ui->content);
-	l->setContentsMargins(0, 0, 0, 0);
-	l->setSpacing(0);
-	l->addWidget(widget);
+	auto layout = ui->content->layout();
+	if (!layout) {
+		layout = pls_new<QHBoxLayout>(ui->content);
+		layout->setContentsMargins(0, 0, 0, 0);
+		layout->setSpacing(0);
+	}
+	layout->addWidget(widget);
+}
+
+QWidget *PLSWindow::titleWidget() const
+{
+	return otitleWidget;
+}
+void PLSWindow::setTitleWidget(QWidget *widget, std::function<void(QWidget *titleWidget, const QSize &size)> &&resizeCb)
+{
+	if (otitleWidget != nullptr) {
+		ui->titleBar->layout()->removeWidget(otitleWidget);
+		otitleWidget->setParent(nullptr);
+		pls_delete(otitleWidget, nullptr);
+	}
+	otitleWidget = widget;
+	titleWidgetResizeCb = std::move(resizeCb);
+	widget->setParent(ui->titleBar);
+	if (titleWidgetResizeCb) {
+		titleWidgetResizeCb(widget, ui->titleBar->size());
+	} else {
+		auto layout = ui->titleBar->layout();
+		if (!layout) {
+			layout = pls_new<QHBoxLayout>(ui->titleBar);
+			layout->setContentsMargins(0, 0, 0, 0);
+			layout->setSpacing(0);
+		}
+		layout->addWidget(widget);
+	}
+
+	widget->lower();
+	widget->setAttribute(Qt::WA_NativeWindow, false);
+}
+
+int PLSWindow::getCaptionBarHeight() const
+{
+	return captionBarHeight;
+}
+void PLSWindow::setCaptionBarHeight(int captionBarHeight)
+{
+	this->captionBarHeight = captionBarHeight;
+	if (captionBarHeight > 0) {
+		ui->titleLabel->setVisible(true);
+		ui->helpBtn->setVisible(hasHelpButton);
+		ui->min->setVisible(hasMinButton);
+		ui->maxres->setVisible(hasMaxResButton);
+		ui->close->setVisible(hasCloseButton);
+		updateTitleBarLayout(ui->titleBar->size());
+	} else {
+		ui->titleLabel->setVisible(false);
+		ui->helpBtn->setVisible(false);
+		ui->min->setVisible(false);
+		ui->maxres->setVisible(false);
+		ui->close->setVisible(false);
+	}
 }
 
 int PLSWindow::getCaptionHeight() const
@@ -118,10 +200,15 @@ int PLSWindow::getCaptionHeight() const
 	return captionHeight;
 }
 
-void PLSWindow::setCaptionHeight(int captionHeight_)
+void PLSWindow::setCaptionHeight(int captionHeight)
 {
-	this->captionHeight = captionHeight_;
-	ui->titleBar->setFixedHeight(this->captionHeight);
+	this->captionHeight = captionHeight;
+	if (captionHeight > 0) {
+		ui->titleBar->setFixedHeight(captionHeight);
+	} else {
+		ui->titleBar->setMinimumHeight(0);
+		ui->titleBar->setMaximumHeight(QWIDGETSIZE_MAX);
+	}
 }
 
 int PLSWindow::getCaptionButtonSize() const
@@ -129,12 +216,10 @@ int PLSWindow::getCaptionButtonSize() const
 	return captionButtonSize;
 }
 
-void PLSWindow::setCaptionButtonSize(int captionButtonSize_)
+void PLSWindow::setCaptionButtonSize(int captionButtonSize)
 {
-	this->captionButtonSize = captionButtonSize_;
-	ui->min->setFixedSize(captionButtonSize, captionButtonSize);
-	ui->maxres->setFixedSize(captionButtonSize, captionButtonSize);
-	ui->close->setFixedSize(captionButtonSize, captionButtonSize);
+	this->captionButtonSize = captionButtonSize;
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 int PLSWindow::getCaptionButtonMargin() const
@@ -142,10 +227,9 @@ int PLSWindow::getCaptionButtonMargin() const
 	return captionButtonMargin;
 }
 
-void PLSWindow::setCaptionButtonMargin(int captionButtonMargin_)
+void PLSWindow::setCaptionButtonMargin(int captionButtonMargin)
 {
-	this->captionButtonMargin = captionButtonMargin_;
-	ui->titleButtonLayout->setSpacing(captionButtonMargin);
+	this->captionButtonMargin = captionButtonMargin;
 }
 
 int PLSWindow::getTextMarginLeft() const
@@ -153,12 +237,20 @@ int PLSWindow::getTextMarginLeft() const
 	return textMarginLeft;
 }
 
-void PLSWindow::setTextMarginLeft(int textMarginLeft_)
+void PLSWindow::setTextMarginLeft(int textMarginLeft)
 {
-	this->textMarginLeft = textMarginLeft_;
-	QMargins margins = ui->titleBarLayout->contentsMargins();
-	margins.setLeft(textMarginLeft);
-	ui->titleBarLayout->setContentsMargins(margins);
+	this->textMarginLeft = textMarginLeft;
+	updateTitleBarLayout(ui->titleBar->size());
+}
+
+int PLSWindow::getTextMarginRight() const
+{
+	return textMarginRight;
+}
+void PLSWindow::setTextMarginRight(int textMarginRight)
+{
+	this->textMarginRight = textMarginRight;
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 int PLSWindow::getCloseButtonMarginRight() const
@@ -166,12 +258,10 @@ int PLSWindow::getCloseButtonMarginRight() const
 	return closeButtonMarginRight;
 }
 
-void PLSWindow::setCloseButtonMarginRight(int closeButtonMarginRight_)
+void PLSWindow::setCloseButtonMarginRight(int closeButtonMarginRight)
 {
-	this->closeButtonMarginRight = closeButtonMarginRight_;
-	QMargins margins = ui->titleBarLayout->contentsMargins();
-	margins.setRight(closeButtonMarginRight);
-	ui->titleBarLayout->setContentsMargins(margins);
+	this->closeButtonMarginRight = closeButtonMarginRight;
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 bool PLSWindow::getHasCaption() const
@@ -179,15 +269,14 @@ bool PLSWindow::getHasCaption() const
 	return hasCaption;
 }
 
-void PLSWindow::setHasCaption(bool hasCaption_)
+void PLSWindow::setHasCaption(bool hasCaption)
 {
-	this->hasCaption = hasCaption_;
+	this->hasCaption = hasCaption;
+
 #if defined(Q_OS_WIN)
-	ui->close->setVisible(hasCaption);
-	ui->min->setVisible(hasCaption && hasMinButton);
 	ui->titleBar->setVisible(hasCaption);
 #elif defined(Q_OS_MACOS)
-	if (!hasCaption_) {
+	if (!hasCaption) {
 		setWindowFlags(windowFlags() | Qt::FramelessWindowHint);
 	} else {
 		setWindowFlags(windowFlags() & ~Qt::FramelessWindowHint);
@@ -200,9 +289,9 @@ bool PLSWindow::getHasHLine() const
 	return hasHLine;
 }
 
-void PLSWindow::setHasHLine(bool hasHLine_)
+void PLSWindow::setHasHLine(bool hasHLine)
 {
-	this->hasHLine = hasHLine_;
+	this->hasHLine = hasHLine;
 	ui->hline->setVisible(hasHLine);
 }
 
@@ -210,45 +299,45 @@ bool PLSWindow::getHasMinButton() const
 {
 	return hasMinButton;
 }
+void PLSWindow::setHasMinButton(bool hasMinButton)
+{
+	this->hasMinButton = hasMinButton;
+#if defined(Q_OS_WIN)
+	ui->min->setVisible(hasMinButton);
+#elif defined(Q_OS_MACOS)
+	customMacWindow()->setMinButtonHidden(!hasMinButton);
+#endif
+	updateTitleBarLayout(ui->titleBar->size());
+}
 
 bool PLSWindow::getHasMaxResButton() const
 {
 	return hasMaxResButton;
 }
-
-void PLSWindow::setHasMaxResButton(bool hasMaxResButton_)
+void PLSWindow::setHasMaxResButton(bool hasMaxResButton)
 {
-	this->hasMaxResButton = hasMaxResButton_;
+	this->hasMaxResButton = hasMaxResButton;
 #if defined(Q_OS_WIN)
 	ui->maxres->setVisible(hasMaxResButton);
 #elif defined(Q_OS_MACOS)
-	customMacWindow()->setMaxButtonHidden(!hasMaxResButton_);
+	customMacWindow()->setMaxButtonHidden(!hasMaxResButton);
 #endif
-}
-
-void PLSWindow::setHasMinButton(bool hasMinButton_)
-{
-	this->hasMinButton = hasMinButton_;
-#if defined(Q_OS_WIN)
-	ui->min->setVisible(hasMinButton);
-#elif defined(Q_OS_MACOS)
-	customMacWindow()->setMinButtonHidden(!hasMinButton_);
-#endif
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 bool PLSWindow::getHasCloseButton() const
 {
 	return hasCloseButton;
 }
-
-void PLSWindow::setHasCloseButton(bool hasCloseButton_)
+void PLSWindow::setHasCloseButton(bool hasCloseButton)
 {
-	this->hasCloseButton = hasCloseButton_;
+	this->hasCloseButton = hasCloseButton;
 #if defined(Q_OS_WIN)
 	ui->close->setVisible(hasCloseButton);
 #elif defined(Q_OS_MACOS)
-	customMacWindow()->setCloseButtonHidden(!hasCloseButton_);
+	customMacWindow()->setCloseButtonHidden(!hasCloseButton);
 #endif
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 bool PLSWindow::getHasHelpButton() const
@@ -256,10 +345,11 @@ bool PLSWindow::getHasHelpButton() const
 	return hasHelpButton;
 }
 
-void PLSWindow::setHasHelpButton(bool hasHelpButton_)
+void PLSWindow::setHasHelpButton(bool hasHelpButton)
 {
-	hasHelpButton = hasHelpButton_;
+	this->hasHelpButton = hasHelpButton;
 	ui->helpBtn->setVisible(hasHelpButton);
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 QColor PLSWindow::getTitleBarBkgColor() const
@@ -290,24 +380,18 @@ void PLSWindow::setEscapeCloseEnabled(bool enabled)
 
 int PLSWindow::getCaptionButtonTopMargin() const
 {
-	return ui->titleButtonLayout->contentsMargins().top();
+	return captionButtonTopMargin;
 }
 
 void PLSWindow::setCaptionButtonTopMargin(int captionButtonTopMargin)
 {
-	QMargins margins = ui->titleButtonLayout->contentsMargins();
-	margins.setTop(captionButtonTopMargin);
-	ui->titleButtonLayout->setContentsMargins(margins);
+	this->captionButtonTopMargin = captionButtonTopMargin;
+	updateTitleBarLayout(ui->titleBar->size());
 }
 
 QWidget *PLSWindow::titleLabel() const
 {
 	return ui->titleLabel;
-}
-
-int PLSWindow::setTitleCustomWidth(int width)
-{
-	return titleCustomWidth = width;
 }
 
 void PLSWindow::setCloseEventCallback(const std::function<bool(QCloseEvent *)> &closeEventCallback_)
@@ -396,6 +480,66 @@ void PLSWindow::addMacTopMargin()
 #endif
 }
 
+void PLSWindow::updateTitleBarLayout(const QSize &titleBarSize)
+{
+#if defined(Q_OS_WIN)
+	if (!hasCaption)
+		return;
+
+	if (captionBarHeight > 0) {
+		int buttonLeft = titleBarSize.width() - closeButtonMarginRight;
+		int buttonTop = captionButtonTopMargin;
+		if (hasCloseButton) {
+			buttonLeft -= captionButtonSize;
+			ui->close->setGeometry(buttonLeft, buttonTop, captionButtonSize, captionButtonSize);
+		}
+
+		if (hasMaxResButton) {
+			if (hasCloseButton)
+				buttonLeft -= captionButtonMargin;
+			buttonLeft -= captionButtonSize;
+			ui->maxres->setGeometry(buttonLeft, buttonTop, captionButtonSize, captionButtonSize);
+		}
+
+		if (hasMinButton) {
+			if (hasMaxResButton || hasCloseButton)
+				buttonLeft -= captionButtonMargin;
+			buttonLeft -= captionButtonSize;
+			ui->min->setGeometry(buttonLeft, buttonTop, captionButtonSize, captionButtonSize);
+		}
+
+		int titleWidth = 0;
+
+		auto title = windowTitle();
+		int availWidth = titleBarSize.width() - textMarginLeft - textMarginRight - getVisibleButtonWidth(ui->helpBtn) - (titleBarSize.width() - buttonLeft);
+		QFontMetrics fm = ui->titleLabel->fontMetrics();
+		if (int realWidth = fm.horizontalAdvance(title); realWidth > availWidth) {
+			ui->titleLabel->setText(fm.elidedText(title, Qt::ElideRight, availWidth));
+			titleWidth = availWidth;
+		} else {
+			ui->titleLabel->setText(title);
+			titleWidth = realWidth;
+		}
+
+		auto captionBarHeight = getCaptionBarHeight();
+		titleWidth = getTitleWidth(titleWidth);
+		ui->titleLabel->setFixedWidth(titleWidth);
+		ui->titleLabel->setGeometry(textMarginLeft, 0, titleWidth, captionBarHeight);
+
+		if (hasHelpButton) {
+			auto helpSize = ui->helpBtn->size();
+			auto helpButtonLeft = textMarginLeft + titleWidth + textMarginRight;
+			auto helpButtonTop = (captionBarHeight - helpSize.height()) / 2;
+			ui->helpBtn->move(helpButtonLeft, helpButtonTop);
+		}
+	}
+
+	if (otitleWidget && titleWidgetResizeCb) {
+		titleWidgetResizeCb(otitleWidget, titleBarSize);
+	}
+#endif
+}
+
 void PLSWindow::flushMaxFullScreenStateStyle()
 {
 	pls_flush_style(ui->maxres);
@@ -418,7 +562,9 @@ void PLSWindow::closeEvent(QCloseEvent *event)
 void PLSWindow::showEvent(QShowEvent *event)
 {
 	PLSToplevelView<QWidget>::showEvent(event);
+	PLS_UI_ACTION("PLSWindow %s Show", this->metaObject()->className());
 	disableWinSystemBorder();
+	updateTitleBarLayout(ui->titleBar->size());
 	emit shown();
 }
 
@@ -426,6 +572,7 @@ void PLSWindow::hideEvent(QHideEvent *event)
 {
 	PLSToplevelView<QWidget>::hideEvent(event);
 	pls_check_app_exiting();
+	PLS_UI_ACTION("PLSWindow %s Hide", this->metaObject()->className());
 
 	QWidget *parent = this->parentWidget();
 	if (parent) {
@@ -473,11 +620,11 @@ bool PLSWindow::eventFilter(QObject *watcher, QEvent *event)
 		}
 	}
 
-	if (watcher == this && event->type() == QEvent::WindowActivate && !pls_is_visible_in_some_screen(this->geometry())) {
+	else if (watcher == this && event->type() == QEvent::WindowActivate && !pls_is_visible_in_some_screen(this->geometry())) {
 		restoreGeometry(saveGeometry());
 	}
 
-	if ((watcher == ui->min) || (watcher == ui->maxres) || (watcher == ui->close)) {
+	else if ((watcher == ui->min) || (watcher == ui->maxres) || (watcher == ui->close)) {
 		switch (event->type()) {
 		case QEvent::KeyPress:
 		case QEvent::KeyRelease:
@@ -487,7 +634,7 @@ bool PLSWindow::eventFilter(QObject *watcher, QEvent *event)
 		}
 	}
 
-	if (watcher == ui->helpBtn) {
+	else if (watcher == ui->helpBtn) {
 		if (event->type() == QMouseEvent::Enter) {
 			QPoint pos = this->rect().topLeft();
 			QPoint global = mapToGlobal(pos);
@@ -497,23 +644,13 @@ bool PLSWindow::eventFilter(QObject *watcher, QEvent *event)
 		}
 	}
 
-	return PLSToplevelView<QWidget>::eventFilter(watcher, event);
-}
+	else if (watcher == ui->titleBar) {
+		if (event->type() == QEvent::Resize) {
+			updateTitleBarLayout(static_cast<QResizeEvent *>(event)->size());
+		}
+	}
 
-bool PLSWindow::event(QEvent *event)
-{
-	switch (event->type()) {
-	case QEvent::Resize:
-		SetNameLabelText(windowTitle());
-		break;
-	case QEvent::Move: {
-		int aa = 1;
-		break;
-	}
-	default:
-		break;
-	}
-	return PLSToplevelView<QWidget>::event(event);
+	return PLSToplevelView<QWidget>::eventFilter(watcher, event);
 }
 
 void PLSWindow::windowStateChanged(QWindowStateChangeEvent *event)
@@ -522,25 +659,26 @@ void PLSWindow::windowStateChanged(QWindowStateChangeEvent *event)
 	pls_flush_style(ui->maxres);
 }
 
-void PLSWindow::SetNameLabelText(const QString &title)
+void PLSWindow::resizeEvent(QResizeEvent *event)
 {
-	if (title.isEmpty()) {
-		ui->titleLabel->setFixedWidth(titleCustomWidth);
-		ui->titleLabel->setText(title);
+	PLSToplevelView<QWidget>::resizeEvent(event);
+	updateTitleBarLayout(ui->titleBar->size());
+	if (event && stabilizeFixedSizeOnResize()) {
 		return;
 	}
-	int availWidth = this->width() - ui->titleBarLayout->spacing() - ui->titleButtonLayout->spacing() - getVisibleButtonWidth(ui->helpBtn) - getVisibleButtonWidth(ui->close) -
-			 getVisibleButtonWidth(ui->min) - getVisibleButtonWidth(ui->maxres) - textMarginLeft;
+	resizing(event->size());
+}
 
-	QFontMetrics font(ui->titleLabel->font());
-	int realWidth = font.horizontalAdvance(title);
+void PLSWindow::paintEvent(QPaintEvent *event)
+{
+	PLSToplevelView<QWidget>::paintEvent(event);
 
-	if (realWidth > availWidth) {
-		ui->titleLabel->setFixedWidth(availWidth);
-		ui->titleLabel->setText(font.elidedText(title, Qt::ElideRight, availWidth));
-
-	} else {
-		ui->titleLabel->setFixedWidth(realWidth);
-		ui->titleLabel->setText(title);
+#if defined(Q_OS_WIN)
+	if (!isAfterWin10()) {
+		QPainter painter(this);
+		painter.setPen(QPen(QColor(17, 17, 17), 1, Qt::SolidLine));
+		painter.setBrush(Qt::transparent);
+		painter.drawRect(rect());
 	}
+#endif
 }

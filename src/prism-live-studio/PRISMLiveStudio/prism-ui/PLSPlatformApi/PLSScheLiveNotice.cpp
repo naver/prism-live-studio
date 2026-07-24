@@ -20,7 +20,7 @@ PLSScheLiveNotice::PLSScheLiveNotice(const PLSPlatformBase *, const QString &tit
 #if defined(Q_OS_WIN)
 	initSize({410, 297});
 #elif defined(Q_OS_MACOS)
-	initSize({410, 257});
+	initSize({410, 297 - PLS_TITLE_BAR_HEIGHT});
 #endif
 
 	ui->scheLiveTitleLabel->installEventFilter(this);

@@ -20,6 +20,8 @@
 #include "util.hpp"
 #include "audio-visualizer.hpp"
 #include "prism-visualizer-source.hpp"
+#include <cstdint>
+#include <unordered_map>
 #include <vector>
 
 const int DEAD_BAR_OFFSET = 0; /* The last five bars seem to always be silent, so we cut them off */
@@ -85,6 +87,25 @@ private:
 
 	float m_corner_radius = 0;
 	std::vector<struct vec2> m_circle_points;
+
+	/*
+	 * Rounded-bar VB cache: key = bar height in pixels (see .cpp). Invalidate when any input to
+	 * build_rounded_rectangle_vb() changes except height: corner_points & radius (→ m_circle_points
+	 * in update()), bar_width (diameter + odd-width strip). Also cleared when rounded_corners off,
+	 * and on plugin destroy. stereo / stereo_space only affect matrix position, not mesh.
+	 */
+	std::unordered_map<uint32_t, gs_vertbuffer_t *> m_rounded_rect_vb_cache;
+	uint32_t m_rounded_rect_cache_key_cp = UINT32_MAX;
+	float m_rounded_rect_cache_key_radius = -1.f;
+	uint32_t m_rounded_rect_cache_key_bw = UINT32_MAX;
+
+	gs_vertbuffer_t *build_rounded_rectangle_vb(uint32_t height_px);
+
+protected:
+	/* GPU VB cache for fillet bars; must be cleared on mode/size change (graphics context). */
+	void destroy_rounded_rect_vb_cache();
+	/* Call at start of each frame (graphics thread) so radius/corner/bar_width changes rebuild caches. */
+	void sync_rounded_rectangle_vb_cache_for_render(bool rounded_corners, uint32_t corner_points, float radius, uint32_t bar_width);
 
 public:
 	explicit spectrum_visualizer(config *cfg);

@@ -7,6 +7,7 @@
 #include <array>
 #include <initializer_list>
 #include <map>
+#include <unordered_map>
 #include <mutex>
 #include <type_traits>
 #include <utility>
@@ -33,6 +34,8 @@
 #include <qcborvalue.h>
 #include <qset.h>
 #include <qversionnumber.h>
+#include <qmetaobject.h>
+#include <qwindowdefs.h>
 
 #if defined(Q_OS_WIN)
 #include <malloc.h>
@@ -43,10 +46,67 @@
 #include "libutils-export.h"
 #include "libutils-gpu-cpu-monitor-info.h"
 
+namespace pls {
+extern const char *KIdentifier_PRISM;
+extern const char *KIdentifier_LENS;
+}
+
 LIBUTILSAPI_API std::recursive_mutex &pls_global_mutex();
+
+enum class pls_product_type_t { Unknown, Prism, Lens, Installer };
+LIBUTILSAPI_API pls_product_type_t pls_product_type();
+inline bool pls_product_is_prism()
+{
+	return pls_product_type() == pls_product_type_t::Prism;
+}
+inline bool pls_product_is_lens()
+{
+	return pls_product_type() == pls_product_type_t::Lens;
+}
+inline bool pls_product_is_installer()
+{
+	return pls_product_type() == pls_product_type_t::Installer;
+}
+enum class pls_process_type_t { Unknown, Prism, Lens, Logger, Daemon, Installer };
+LIBUTILSAPI_API pls_process_type_t pls_process_type();
+inline bool pls_process_is_prism()
+{
+	return pls_process_type() == pls_process_type_t::Prism;
+}
+inline bool pls_process_is_lens()
+{
+	return pls_process_type() == pls_process_type_t::Lens;
+}
+inline bool pls_process_is_logger()
+{
+	return pls_process_type() == pls_process_type_t::Logger;
+}
+inline bool pls_process_is_daemon()
+{
+	return pls_process_type() == pls_process_type_t::Daemon;
+}
+inline bool pls_process_is_installer()
+{
+	return pls_process_type() == pls_process_type_t::Installer;
+}
 
 LIBUTILSAPI_API uint32_t pls_last_error();
 LIBUTILSAPI_API void pls_set_last_error(uint32_t last_error);
+
+LIBUTILSAPI_API QString pls_get_gcc();
+LIBUTILSAPI_API void pls_set_gcc(const QString &gcc);
+
+// Pr*
+LIBUTILSAPI_API QString pls_get_user_id();
+LIBUTILSAPI_API void pls_set_user_id(const QString &user_id);
+// Hr_*
+LIBUTILSAPI_API QString pls_get_hash_user_id();
+LIBUTILSAPI_API void pls_set_hash_user_id(const QString &hash_user_id);
+
+LIBUTILSAPI_API QString pls_get_prism_session();
+LIBUTILSAPI_API void pls_set_prism_session(const QString &prism_session);
+LIBUTILSAPI_API QString pls_get_prism_subsession();
+LIBUTILSAPI_API void pls_set_prism_subsession(const QString &prism_subsession);
 
 LIBUTILSAPI_API bool pls_object_is_valid(const QObject *object);
 LIBUTILSAPI_API bool pls_object_is_valid(const QObject *object, const std::function<bool(const QObject *object)> &is_valid);
@@ -130,14 +190,93 @@ LIBUTILSAPI_API bool pls_decrypt_json(QJsonObject &object, const QString &encryp
 LIBUTILSAPI_API bool pls_decrypt_json(QVariantMap &map, const QString &encrypt_file_path, QString *error = nullptr);
 LIBUTILSAPI_API bool pls_decrypt_json(QVariantHash &hash, const QString &encrypt_file_path, QString *error = nullptr);
 
+LIBUTILSAPI_API QList<bool> pls_to_bool_list(const QJsonArray &array);
+LIBUTILSAPI_API QList<qint64> pls_to_int_list(const QJsonArray &array);
+LIBUTILSAPI_API QList<double> pls_to_double_list(const QJsonArray &array);
 LIBUTILSAPI_API QStringList pls_to_string_list(const QJsonArray &array);
 LIBUTILSAPI_API QVariantList pls_to_variant_list(const QJsonArray &array);
+LIBUTILSAPI_API QJsonArray pls_to_json_array(const QList<bool> &bool_list);
+LIBUTILSAPI_API QJsonArray pls_to_json_array(const QList<qint64> &int_list);
+LIBUTILSAPI_API QJsonArray pls_to_json_array(const QList<double> &double_list);
 LIBUTILSAPI_API QJsonArray pls_to_json_array(const QStringList &string_list);
 LIBUTILSAPI_API QJsonArray pls_to_json_array(const QVariantList &variant_list);
 LIBUTILSAPI_API QString pls_to_string(const QJsonArray &array);
 LIBUTILSAPI_API QString pls_to_string(const QJsonObject &object);
 LIBUTILSAPI_API QJsonArray pls_to_json_array(const QString &jsonArray);
 LIBUTILSAPI_API QJsonObject pls_to_json_object(const QString &jsonObject);
+LIBUTILSAPI_API QJsonObject pls_to_json_object(const QMap<QString, QString> &map);
+LIBUTILSAPI_API QJsonObject pls_to_json_object(const QHash<QString, QString> &hash);
+
+struct pls_config_t;
+LIBUTILSAPI_API pls_config_t *pls_config_open(const QString &config_path, bool existing = false);
+LIBUTILSAPI_API void pls_config_save(pls_config_t *config);
+LIBUTILSAPI_API bool pls_config_close(pls_config_t *config);
+LIBUTILSAPI_API bool pls_config_is_valid(pls_config_t *config);
+LIBUTILSAPI_API void pls_config_close_all(bool save = false);
+
+LIBUTILSAPI_API bool pls_app_config_open(const QString &config_path, bool existing = false);
+LIBUTILSAPI_API void pls_app_config_save();
+LIBUTILSAPI_API void pls_app_config_close();
+LIBUTILSAPI_API pls_config_t *pls_app_config();
+
+LIBUTILSAPI_API bool pls_user_config_open(const QString &config_path, bool existing = false);
+LIBUTILSAPI_API void pls_user_config_save();
+LIBUTILSAPI_API void pls_user_config_close();
+LIBUTILSAPI_API pls_config_t *pls_user_config();
+
+LIBUTILSAPI_API QStringList pls_config_keys(pls_config_t *config);
+LIBUTILSAPI_API void pls_config_clear(pls_config_t *config);
+LIBUTILSAPI_API bool pls_config_has_key(pls_config_t *config, const QStringList &keys);
+LIBUTILSAPI_API void pls_config_remove_key(pls_config_t *config, const QStringList &keys);
+
+LIBUTILSAPI_API std::optional<QJsonArray> pls_config_get_array(pls_config_t *config, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QJsonObject> pls_config_get_object(pls_config_t *config, const QStringList &keys);
+LIBUTILSAPI_API std::optional<bool> pls_config_get_bool(pls_config_t *config, const QStringList &keys);
+LIBUTILSAPI_API std::optional<qint64> pls_config_get_int(pls_config_t *config, const QStringList &keys);
+LIBUTILSAPI_API std::optional<double> pls_config_get_double(pls_config_t *config, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QString> pls_config_get_string(pls_config_t *config, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QList<bool>> pls_config_get_bool_list(pls_config_t *config, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QList<qint64>> pls_config_get_int_list(pls_config_t *config, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QList<double>> pls_config_get_double_list(pls_config_t *config, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QStringList> pls_config_get_string_list(pls_config_t *config, const QStringList &keys);
+
+LIBUTILSAPI_API bool pls_config_set_array(pls_config_t *config, const QStringList &keys, const QJsonArray &value);
+LIBUTILSAPI_API bool pls_config_set_object(pls_config_t *config, const QStringList &keys, const QJsonObject &value);
+LIBUTILSAPI_API bool pls_config_set_bool(pls_config_t *config, const QStringList &keys, bool value);
+LIBUTILSAPI_API bool pls_config_set_int(pls_config_t *config, const QStringList &keys, qint64 value);
+LIBUTILSAPI_API bool pls_config_set_double(pls_config_t *config, const QStringList &keys, double value);
+LIBUTILSAPI_API bool pls_config_set_string(pls_config_t *config, const QStringList &keys, const QString &value);
+LIBUTILSAPI_API bool pls_config_set_bool_list(pls_config_t *config, const QStringList &keys, const QList<bool> &value);
+LIBUTILSAPI_API bool pls_config_set_int_list(pls_config_t *config, const QStringList &keys, const QList<qint64> &value);
+LIBUTILSAPI_API bool pls_config_set_double_list(pls_config_t *config, const QStringList &keys, const QList<double> &value);
+LIBUTILSAPI_API bool pls_config_set_string_list(pls_config_t *config, const QStringList &keys, const QStringList &value);
+
+LIBUTILSAPI_API QStringList pls_config_keys(const QJsonObject &object);
+LIBUTILSAPI_API void pls_config_clear(QJsonObject &object);
+LIBUTILSAPI_API bool pls_config_has_key(const QJsonObject &object, const QStringList &keys);
+LIBUTILSAPI_API void pls_config_remove_key(QJsonObject &object, const QStringList &keys);
+
+LIBUTILSAPI_API std::optional<QJsonArray> pls_config_get_array(const QJsonObject &object, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QJsonObject> pls_config_get_object(const QJsonObject &object, const QStringList &keys);
+LIBUTILSAPI_API std::optional<bool> pls_config_get_bool(const QJsonObject &object, const QStringList &keys);
+LIBUTILSAPI_API std::optional<qint64> pls_config_get_int(const QJsonObject &object, const QStringList &keys);
+LIBUTILSAPI_API std::optional<double> pls_config_get_double(const QJsonObject &object, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QString> pls_config_get_string(const QJsonObject &object, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QList<bool>> pls_config_get_bool_list(const QJsonObject &object, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QList<qint64>> pls_config_get_int_list(const QJsonObject &object, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QList<double>> pls_config_get_double_list(const QJsonObject &object, const QStringList &keys);
+LIBUTILSAPI_API std::optional<QStringList> pls_config_get_string_list(const QJsonObject &object, const QStringList &keys);
+
+LIBUTILSAPI_API bool pls_config_set_array(QJsonObject &object, const QStringList &keys, const QJsonArray &value);
+LIBUTILSAPI_API bool pls_config_set_object(QJsonObject &object, const QStringList &keys, const QJsonObject &value);
+LIBUTILSAPI_API bool pls_config_set_bool(QJsonObject &object, const QStringList &keys, bool value);
+LIBUTILSAPI_API bool pls_config_set_int(QJsonObject &object, const QStringList &keys, qint64 value);
+LIBUTILSAPI_API bool pls_config_set_double(QJsonObject &object, const QStringList &keys, double value);
+LIBUTILSAPI_API bool pls_config_set_string(QJsonObject &object, const QStringList &keys, const QString &value);
+LIBUTILSAPI_API bool pls_config_set_bool_list(QJsonObject &object, const QStringList &keys, const QList<bool> &value);
+LIBUTILSAPI_API bool pls_config_set_int_list(QJsonObject &object, const QStringList &keys, const QList<qint64> &value);
+LIBUTILSAPI_API bool pls_config_set_double_list(QJsonObject &object, const QStringList &keys, const QList<double> &value);
+LIBUTILSAPI_API bool pls_config_set_string_list(QJsonObject &object, const QStringList &keys, const QStringList &value);
 
 // Only search all objects recursively, do not process arrays
 LIBUTILSAPI_API std::optional<QJsonValue> pls_find_attr(const QJsonObject &object, const QString &name, bool recursion = true, const std::optional<QJsonValue::Type> &type = std::nullopt);
@@ -167,12 +306,34 @@ LIBUTILSAPI_API std::optional<QVariant> pls_get_attr(const QVariantMap &attrs, c
 LIBUTILSAPI_API std::optional<QVariant> pls_get_attr(const QVariantHash &attrs, const QStringList &names, qsizetype from = 0, qsizetype n = -1);
 LIBUTILSAPI_API std::optional<QVariant> pls_get_attr(const QVariantMap &attrs, const QStringList &names, qsizetype from = 0, qsizetype n = -1);
 
+// get app install directory
+// windows: ${app install directory}
+// macos: Contents/MacOS
 LIBUTILSAPI_API QString pls_get_app_dir();
+// windows: ${app install directory}/data/${name}
+// macos: Contents/Resources/data/${name}
+LIBUTILSAPI_API QString pls_get_app_data_path(const QString &name = QString());
+// windows: ${app install directory}/../../data/{prism-studio|prism-lens}/${name}
+// macos: Contents/Resources/data/{prism-studio|prism-lens}/${name}
+LIBUTILSAPI_API QString pls_get_app_data_path_pn(const QString &name = QString());
+// get app user data directory
+// windows: C:/Users/${user name}/AppData/Roaming/${name}
+// macos: ~/Library/Application Support/${name}
+LIBUTILSAPI_API QString pls_get_app_user_data_dir_path(const QString &name = QString(), bool mkdir = true);
+// windows: C:/Users/${user name}/AppData/Roaming/{PRISMLiveStudio|PRISMLens}/${name}
+// macos: ~/Library/Application Support/{PRISMLiveStudio|PRISMLens}/${name}
+LIBUTILSAPI_API QString pls_get_app_user_data_dir_path_pn(const QString &name = QString(), bool mkdir = true);
+// get app user data file path
+// windows: C:/Users/${user name}/AppData/Roaming/${name}
+// macos: ~/Library/Application Support/${name}
+LIBUTILSAPI_API QString pls_get_app_user_data_file_path(const QString &name = QString(), bool mkdir = true);
+// windows: C:/Users/${user name}/AppData/Roaming/{PRISMLiveStudio|PRISMLens}/${name}
+// macos: ~/Library/Application Support/{PRISMLiveStudio|PRISMLens}/${name}
+LIBUTILSAPI_API QString pls_get_app_user_data_file_path_pn(const QString &name = QString(), bool mkdir = true);
+// get app process name
+LIBUTILSAPI_API QString pls_get_app_pn();
 LIBUTILSAPI_API QString pls_get_dll_dir(const QString &dll_name);
 LIBUTILSAPI_API QString pls_get_temp_dir(const QString &name);
-LIBUTILSAPI_API QString pls_get_app_data_dir(const QString &name = QString());
-LIBUTILSAPI_API QString pls_get_app_data_dir_pn(const QString &name); // with process name
-LIBUTILSAPI_API QString pls_get_app_pn();                             // process name
 LIBUTILSAPI_API bool pls_is_abs_path(const QString &path);
 LIBUTILSAPI_API QString pls_to_abs_path(const QString &path);
 LIBUTILSAPI_API bool pls_is_path_sep(char ch);
@@ -181,6 +342,7 @@ LIBUTILSAPI_API const char *pls_get_path_file_name(const char *path);
 LIBUTILSAPI_API const wchar_t *pls_get_path_file_name(const wchar_t *path);
 LIBUTILSAPI_API QString pls_get_path_file_name(const QString &path);
 LIBUTILSAPI_API QString pls_get_path_file_suffix(const QString &path);
+LIBUTILSAPI_API QString pls_remove_path_file_name(const QString &path);
 LIBUTILSAPI_API bool pls_enum_dir(const QString &dir, const std::function<bool(const QString &reldir, const QFileInfo &fi)> &result,
 				  const std::function<bool(const QString &reldir, const QFileInfo &fi)> &filter = nullptr, bool recursion = true,
 				  QDir::Filters filters = QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot, QDir::SortFlags sort = QDir::DirsFirst | QDir::Name);
@@ -195,7 +357,6 @@ LIBUTILSAPI_API bool pls_remove_dir(const QString &path, QString *error = nullpt
 LIBUTILSAPI_API bool pls_rename_file(const QString &old_file, const QString &new_file, QString *error = nullptr);
 LIBUTILSAPI_API bool pls_copy_file(const QString &src_file, const QString &dest_file, QString *error = nullptr);
 LIBUTILSAPI_API bool pls_copy_dir(const QString &src_dir, const QString &dest_dir, QString *error = nullptr);
-LIBUTILSAPI_API QString pls_get_prism_subpath(const QString &subpath, bool creatIfNotExist = false);
 LIBUTILSAPI_API QString pls_get_installed_obs_version();
 
 class pls_process_t;
@@ -225,14 +386,24 @@ LIBUTILSAPI_API bool pls_sem_release(pls_sem_t *sem, int count = 1);
 LIBUTILSAPI_API bool pls_sem_try_acquire(pls_sem_t *sem);
 LIBUTILSAPI_API bool pls_sem_acquire(pls_sem_t *sem);
 
+LIBUTILSAPI_API QString pls_shm_generate_unique_name();
+LIBUTILSAPI_API QString pls_shm_generate_cache_file_path(const QString &name);
+
+class pls_shm_base_t;
+LIBUTILSAPI_API pls_shm_base_t *pls_shm_base_create(const QString &name, int max_data_size);
+LIBUTILSAPI_API int pls_shm_base_read(pls_shm_base_t *shm, char *buf, int length);
+LIBUTILSAPI_API int pls_shm_base_write(pls_shm_base_t *shm, const char *buf, int length);
+LIBUTILSAPI_API void pls_shm_base_destroy(pls_shm_base_t *shm);
+LIBUTILSAPI_API int pls_shm_base_get_max_data_size(pls_shm_base_t *shm);
+
 class pls_shm_t;
-LIBUTILSAPI_API pls_shm_t *pls_shm_create(const QString &name, int max_data_size, bool for_send);
-LIBUTILSAPI_API void pls_shm_destroy(pls_shm_t *shm);
-LIBUTILSAPI_API void pls_shm_close(pls_shm_t *shm);
 struct pls_shm_msg_t {
 	int length;
 	char *data;
 };
+LIBUTILSAPI_API pls_shm_t *pls_shm_create(const QString &name, int max_data_size, bool for_send, const QString &cache_file_path = QString());
+LIBUTILSAPI_API void pls_shm_destroy(pls_shm_t *shm);
+LIBUTILSAPI_API void pls_shm_close(pls_shm_t *shm);
 using pls_shm_msg_destroy_cb_t = std::function<void(pls_shm_msg_t *msg)>;
 using pls_shm_get_msg_cb_t = std::function<bool(pls_shm_msg_t *msg, int remaining, int max_data_size)>;
 using pls_shm_result_cb_t = std::function<void(int count)>;
@@ -244,6 +415,52 @@ LIBUTILSAPI_API int pls_shm_get_max_data_size(pls_shm_t *shm);
 LIBUTILSAPI_API bool pls_shm_is_online(pls_shm_t *shm);
 LIBUTILSAPI_API bool pls_shm_is_sender_online(pls_shm_t *shm);
 LIBUTILSAPI_API bool pls_shm_is_receiver_online(pls_shm_t *shm);
+
+using pls_ipc_t = QPointer<QObject>;
+LIBUTILSAPI_API pls_ipc_t pls_ipc_listen(const QString &name);
+LIBUTILSAPI_API pls_ipc_t pls_ipc_connect(const QString &name);
+LIBUTILSAPI_API void pls_ipc_destroy(pls_ipc_t ipc);
+LIBUTILSAPI_API void pls_ipc_connect(pls_ipc_t ipc);
+LIBUTILSAPI_API bool pls_ipc_is_connected(pls_ipc_t ipc);
+LIBUTILSAPI_API uint32_t pls_ipc_get_peer_process_id(pls_ipc_t ipc);
+enum class pls_ipc_event_t { Connected, Disconnected, Message };
+struct pls_ipc_message_t {
+	int type;
+	QJsonValue data;
+};
+using pls_ipc_on_connected_t = std::function<void(pls_ipc_t ipc)>;
+using pls_ipc_on_disconnected_t = std::function<void(pls_ipc_t ipc)>;
+using pls_ipc_on_message_t = std::function<void(pls_ipc_t ipc, const pls_ipc_message_t &message)>;
+enum class pls_ipc_inner_message_t { PeerProcessId, WakeUp, PeerAppActived, PeerAnyWindowShow, PeerMainWindowShow, PeerAnyWindowActived, PeerMainWindowActived };
+using pls_ipc_on_inner_message_t = std::function<void(pls_ipc_inner_message_t inner_message, const QJsonValue &data)>;
+LIBUTILSAPI_API void pls_ipc_on_connected(pls_ipc_t ipc, const pls_ipc_on_connected_t &on_connected);
+LIBUTILSAPI_API void pls_ipc_on_disconnected(pls_ipc_t ipc, const pls_ipc_on_disconnected_t &on_disconnected);
+LIBUTILSAPI_API void pls_ipc_on_message(pls_ipc_t ipc, const pls_ipc_on_message_t &on_message);
+LIBUTILSAPI_API void pls_ipc_on_inner_message(pls_ipc_t ipc, const pls_ipc_on_inner_message_t &on_inner_message);
+template<pls_ipc_event_t E> auto pls_ipc_on(pls_ipc_t ipc, const pls_ipc_on_connected_t &on_connected) -> std::enable_if_t<E == pls_ipc_event_t::Connected, void>
+{
+	pls_ipc_on_connected(ipc, on_connected);
+}
+template<pls_ipc_event_t E> auto pls_ipc_on(pls_ipc_t ipc, const pls_ipc_on_disconnected_t &on_disconnected) -> std::enable_if_t<E == pls_ipc_event_t::Disconnected, void>
+{
+	pls_ipc_on_disconnected(ipc, on_disconnected);
+}
+template<pls_ipc_event_t E> auto pls_ipc_on(pls_ipc_t ipc, const pls_ipc_on_message_t &on_message) -> std::enable_if_t<E == pls_ipc_event_t::Message, void>
+{
+	pls_ipc_on_message(ipc, on_message);
+}
+// type must be > 0
+LIBUTILSAPI_API void pls_ipc_send(pls_ipc_t ipc, int type, const QJsonValue &data);
+inline void pls_ipc_send(pls_ipc_t ipc, const pls_ipc_message_t &message)
+{
+	pls_ipc_send(ipc, message.type, message.data);
+}
+LIBUTILSAPI_API void pls_ipc_send_wake_up(pls_ipc_t ipc, const QStringList &args);
+LIBUTILSAPI_API void pls_ipc_send_app_actived(pls_ipc_t ipc, bool actived);
+LIBUTILSAPI_API void pls_ipc_send_any_window_show(pls_ipc_t ipc);
+LIBUTILSAPI_API void pls_ipc_send_main_window_show(pls_ipc_t ipc);
+LIBUTILSAPI_API void pls_ipc_send_any_window_actived(pls_ipc_t ipc);
+LIBUTILSAPI_API void pls_ipc_send_main_window_actived(pls_ipc_t ipc);
 
 struct pls_datetime_t {
 	int year;
@@ -258,6 +475,7 @@ struct pls_datetime_t {
 LIBUTILSAPI_API void pls_get_current_datetime(pls_datetime_t &datetime);
 LIBUTILSAPI_API QString pls_datetime_to_string(const pls_datetime_t &datetime); // yyyy-mm-dd hh:mm:ss.zzz+00:00
 LIBUTILSAPI_API time_t pls_datetime_to_time_t(const pls_datetime_t &datetime);
+LIBUTILSAPI_API uint64_t pls_datetime_to_ms(const pls_datetime_t &datetime);
 
 //key=value;key=value
 //key=value\nkey=value
@@ -285,15 +503,43 @@ LIBUTILSAPI_API void pls_mac_printf(const char *format, ...);
 LIBUTILSAPI_API void pls_sync_invoke(QObject *object, const std::function<void()> &fn);
 LIBUTILSAPI_API void pls_async_invoke(QObject *object, const std::function<void()> &fn);
 LIBUTILSAPI_API void pls_async_invoke(QObject *object, const char *fn);
-LIBUTILSAPI_API void pls_async_invoke(std::function<void()> &&fn);
+LIBUTILSAPI_API void pls_async_invoke(const std::function<void()> &fn);
+LIBUTILSAPI_API void pls_async_invoke(const std::function<void(QThread *thread)> &fn);
 
-LIBUTILSAPI_API bool pls_prism_is_dev();
-LIBUTILSAPI_API bool pls_prism_save_local_log();
-LIBUTILSAPI_API QVariant pls_prism_get_qsetting_value(QString key, QVariant defaultVal = {});
-LIBUTILSAPI_API void pls_prism_set_qsetting_value(QString key, QVariant val);
+LIBUTILSAPI_API QVariant pls_get_qsetting_value(pls_product_type_t product_type, const QString &key, const QVariant &defaultVal = QVariant());
+LIBUTILSAPI_API void pls_set_qsetting_value(pls_product_type_t product_type, const QString &key, const QVariant &value);
+LIBUTILSAPI_API QVariant pls_get_qsetting_value(const QString &key, const QVariant &defaultVal = QVariant());
+LIBUTILSAPI_API void pls_set_qsetting_value(const QString &key, const QVariant &value);
+LIBUTILSAPI_API bool pls_is_dev();
+LIBUTILSAPI_API bool pls_save_local_log();
 
-LIBUTILSAPI_API void pls_prism_set_locale(const std::string &locale);
-LIBUTILSAPI_API QString pls_prism_get_locale();
+enum class pls_locale_attr_t {
+	LID,  // int, locale id
+	Name, // QString, locale name
+};
+/**
+ * ["en-US"] -> {{LID, 1033}, {Name, "English"}}
+ */
+LIBUTILSAPI_API QMap<QString /* en-US, ko-KR, pt-BR, ... */, QMap<pls_locale_attr_t, QVariant>> pls_get_locales();
+#define pls_get_languages() pls_get_locales()
+LIBUTILSAPI_API void pls_set_locale(const QString &locale);
+LIBUTILSAPI_API QString pls_get_locale();
+// windows: ${app install directory}/../../data/{prism-studio|prism-lens}/locale
+// macos: Contents/Resources/data/{prism-studio|prism-lens}/locale
+LIBUTILSAPI_API QString pls_get_locale_dir();
+
+LIBUTILSAPI_API QString pls_get_current_language();
+/**
+  * pt-BR -> pt
+  */
+LIBUTILSAPI_API QString pls_get_current_language_short_str();
+/**
+  * pt-BR -> BR
+  */
+LIBUTILSAPI_API QString pls_get_current_country_short_str();
+#define IS_ENGLISH() (pls_get_current_language() == QStringLiteral("en-US"))
+#define IS_KR() (pls_get_current_language() == QStringLiteral("ko-KR"))
+
 LIBUTILSAPI_API QString pls_get_local_ip();
 LIBUTILSAPI_API QString pls_get_local_mac();
 LIBUTILSAPI_API QList<QHostAddress> pls_get_valid_hosts();
@@ -301,6 +547,9 @@ LIBUTILSAPI_API QList<QHostAddress> pls_get_valid_hosts();
 LIBUTILSAPI_API const char *pls_bool_2_string(bool b);
 
 LIBUTILSAPI_API bool pls_show_in_graphical_shell(const QString &pathIn);
+
+LIBUTILSAPI_API void pls_bring_window_to_front(WId winId);
+
 struct pls_win_ver_t {
 	int major;
 	int minor;
@@ -314,6 +563,7 @@ LIBUTILSAPI_API pls_win_ver_t pls_get_win_ver();
 LIBUTILSAPI_API bool pls_is_after_win10();
 LIBUTILSAPI_API QString pls_get_win_name();
 LIBUTILSAPI_API QString pls_get_win_name_with_arch();
+LIBUTILSAPI_API void pls_bring_win_window_to_front(WId winId);
 #elif defined(Q_OS_MACOS)
 LIBUTILSAPI_API pls_mac_ver_t pls_get_mac_systerm_ver();
 LIBUTILSAPI_API bool pls_unZipFile(const QString &dstDirPath, const QString &srcFilePath);
@@ -332,7 +582,7 @@ LIBUTILSAPI_API QString pls_get_app_plugin_dir();
 LIBUTILSAPI_API QString pls_get_app_macos_dir();
 LIBUTILSAPI_API QString pls_get_bundle_dir();
 LIBUTILSAPI_API bool pls_is_install_app(const QString &identifier, QString &appPath);
-LIBUTILSAPI_API void pls_get_install_app_list(const QString &identifier, QStringList &appList);
+LIBUTILSAPI_API QString pls_get_install_app(const QString &identifier);
 LIBUTILSAPI_API bool pls_check_mac_app_is_existed(const wchar_t *executableName);
 LIBUTILSAPI_API QString pls_get_mac_app_data_dir();
 LIBUTILSAPI_API bool pls_activiate_mac_app();
@@ -347,6 +597,7 @@ LIBUTILSAPI_API bool pls_launch_app(const char *bundle_id, const char *app_name)
 LIBUTILSAPI_API QString pls_get_current_system_language_id();
 #endif
 LIBUTILSAPI_API QString pls_get_os_ver_string();
+LIBUTILSAPI_API QString pls_get_user_agent();
 
 LIBUTILSAPI_API std::wstring pls_utf8_to_unicode(const char *utf8);
 LIBUTILSAPI_API std::string pls_unicode_to_utf8(const wchar_t *unicode);
@@ -361,10 +612,24 @@ LIBUTILSAPI_API void pls_env_add_paths(const QByteArrayList &paths);
 LIBUTILSAPI_API void pls_env_add_path(const QString &path);
 LIBUTILSAPI_API void pls_env_add_paths(const QStringList &paths);
 
+typedef enum {
+	SHOWN = 0,
+	NO_SHOW,
+	PROCESS_NOT_FOUND
+
+} LENS_WINDOWS_STATUS;
+
 #if defined(Q_OS_WIN)
 LIBUTILSAPI_API bool pls_is_process_running(const wchar_t *executableName, int &pid);
+LIBUTILSAPI_API LENS_WINDOWS_STATUS pls_is_cam_window_visible(uint32_t processId);
+LIBUTILSAPI_API bool pls_request_lens_exit();
+LIBUTILSAPI_API bool pls_request_lens_show_settings();
 #elif defined(Q_OS_MACOS)
 LIBUTILSAPI_API bool pls_is_process_running(const char *executableName, int &pid);
+LIBUTILSAPI_API LENS_WINDOWS_STATUS pls_is_cam_window_visible();
+LIBUTILSAPI_API bool pls_active_cam_window();
+LIBUTILSAPI_API bool pls_request_lens_exit();
+LIBUTILSAPI_API bool pls_request_lens_show_settings();
 #endif
 
 LIBUTILSAPI_API uint64_t pls_get_prism_version();
@@ -391,10 +656,13 @@ LIBUTILSAPI_API bool pls_check_qobject_id(const QObject *object, qulonglong obje
 LIBUTILSAPI_API bool pls_check_qobject_id(const QObject *object, qulonglong object_id, const std::function<bool(const QObject *object)> &is_valid);
 
 using pls_getter_t = std::function<QVariant()>;
+LIBUTILSAPI_API bool pls_has_object_getter(const QObject *object, const QByteArray &name);
 LIBUTILSAPI_API bool pls_add_object_getter(const QObject *object, const QByteArray &name, const pls_getter_t &getter);
 LIBUTILSAPI_API void pls_remove_object_getter(const QObject *object, const QByteArray &name);
 LIBUTILSAPI_API QVariant pls_call_object_getter(const QObject *object, const QByteArray &name);
+LIBUTILSAPI_API bool pls_call_object_getter(QVariant &result, const QObject *object, const QByteArray &name);
 using pls_setter_t = std::function<void(QVariant)>;
+LIBUTILSAPI_API bool pls_has_object_setter(const QObject *object, const QByteArray &name);
 LIBUTILSAPI_API bool pls_add_object_setter(const QObject *object, const QByteArray &name, const pls_setter_t &setter);
 LIBUTILSAPI_API void pls_remove_object_setter(const QObject *object, const QByteArray &name);
 LIBUTILSAPI_API void pls_call_object_setter(const QObject *object, const QByteArray &name, const QVariant &value);
@@ -440,12 +708,19 @@ LIBUTILSAPI_API bool pls_is_mouse_pressed(Qt::MouseButton button);
 
 #if defined(Q_OS_MACOS)
 LIBUTILSAPI_API void pls_set_current_lens(int index);
+LIBUTILSAPI_API void pls_open_app(const QString &program, const QStringList &arguments, const std::function<void(const bool created, const bool launched)> &callback);
+struct pls_open_app_cb_t {
+	std::function<void(const bool isCreated, const bool isLaunched)> callback;
+};
 #endif
 
 LIBUTILSAPI_API bool pls_is_os_sys_macos();
 
 //only attach, not crate or keep sharememory
 LIBUTILSAPI_API bool pls_set_temp_sharememory(const QString &key, const QString &val);
+
+LIBUTILSAPI_API void pls_generate_prism_session_subsession(QString &session, QString &subsession);
+LIBUTILSAPI_API void pls_generate_prism_session_subsession(std::string &session, std::string &subsession);
 
 namespace pls {
 template<typename QtApp> class Application : public QtApp {
@@ -653,12 +928,125 @@ struct QMetaObjectConnectionDeleter {
 };
 using MetaObjectConnection = AutoObject<QMetaObject::Connection, QMetaObjectConnectionDeleter>;
 template<typename T, typename... TSet> constexpr bool is_any_of_v = (std::is_same_v<T, TSet> || ...);
+
+template<typename T> class AsyncResultImpl : public std::enable_shared_from_this<AsyncResultImpl<T>> {
+	using _base = std::enable_shared_from_this<AsyncResultImpl<T>>;
+
+	mutable std::mutex m_mutex;
+	bool m_ready = false;
+	QEventLoop m_el;
+	T m_value{};
+
+public:
+	bool isReady() const
+	{
+		std::lock_guard guard(m_mutex);
+		return m_ready;
+	}
+	T value()
+	{
+		{
+			std::lock_guard guard(m_mutex);
+			if (m_ready)
+				return m_value;
+		}
+
+		pls_async_call(&m_el, [w = _base::weak_from_this()]() {
+			if (auto self = w.lock(); self && self->isReady())
+				self->m_el.quit();
+		});
+		m_el.exec();
+
+		std::lock_guard guard(m_mutex);
+		return m_value;
+	}
+	void setValue(const T &value, bool isForce)
+	{
+		std::lock_guard guard(m_mutex);
+		if (m_ready && !isForce)
+			return;
+
+		m_value = value;
+		m_ready = true;
+		m_el.quit();
+	}
+};
+template<typename T> class AsyncResult {
+	std::shared_ptr<AsyncResultImpl<T>> m_impl;
+
+public:
+	AsyncResult() : m_impl(std::make_shared<AsyncResultImpl<T>>()) {}
+	AsyncResult(const AsyncResult &other) : m_impl(other.m_impl) {}
+	AsyncResult(AsyncResult &&other) : m_impl(std::move(other.m_impl)) {}
+	~AsyncResult() = default;
+
+	bool isReady() const { return m_impl->isReady(); }
+	T value() { return m_impl->value(); }
+	void setValue(const T &value, bool isForce = false) { m_impl->setValue(value, isForce); }
+};
+template<typename T, bool IsEnum = std::is_enum_v<T>> struct ConfigItem;
+template<> struct ConfigItem<QJsonArray, false> {
+	static QJsonArray get(pls_config_t *config, const QStringList &keys, const QJsonArray &defaultValue = {}) { return pls_config_get_array(config, keys).value_or(defaultValue); }
+	static void set(pls_config_t *config, const QStringList &keys, const QJsonArray &value) { pls_config_set_array(config, keys, value); }
+};
+template<> struct ConfigItem<QJsonObject, false> {
+	static QJsonObject get(pls_config_t *config, const QStringList &keys, const QJsonObject &defaultValue = {}) { return pls_config_get_object(config, keys).value_or(defaultValue); }
+	static void set(pls_config_t *config, const QStringList &keys, const QJsonObject &value) { pls_config_set_object(config, keys, value); }
+};
+template<> struct ConfigItem<bool, false> {
+	static bool get(pls_config_t *config, const QStringList &keys, bool defaultValue = false) { return pls_config_get_bool(config, keys).value_or(defaultValue); }
+	static void set(pls_config_t *config, const QStringList &keys, bool value) { pls_config_set_bool(config, keys, value); }
+};
+template<> struct ConfigItem<int, false> {
+	static int get(pls_config_t *config, const QStringList &keys, int defaultValue = 0) { return static_cast<int>(pls_config_get_int(config, keys).value_or(defaultValue)); }
+	static void set(pls_config_t *config, const QStringList &keys, int value) { pls_config_set_int(config, keys, value); }
+};
+template<> struct ConfigItem<qint64, false> {
+	static qint64 get(pls_config_t *config, const QStringList &keys, qint64 defaultValue = 0) { return pls_config_get_int(config, keys).value_or(defaultValue); }
+	static void set(pls_config_t *config, const QStringList &keys, qint64 value) { pls_config_set_int(config, keys, value); }
+};
+template<> struct ConfigItem<float, false> {
+	static float get(pls_config_t *config, const QStringList &keys, float defaultValue = 0.0f) { return static_cast<float>(pls_config_get_double(config, keys).value_or(defaultValue)); }
+	static void set(pls_config_t *config, const QStringList &keys, float value) { pls_config_set_double(config, keys, value); }
+};
+template<> struct ConfigItem<double, false> {
+	static double get(pls_config_t *config, const QStringList &keys, double defaultValue = 0.0) { return pls_config_get_double(config, keys).value_or(defaultValue); }
+	static void set(pls_config_t *config, const QStringList &keys, double value) { pls_config_set_double(config, keys, value); }
+};
+template<> struct ConfigItem<QString, false> {
+	static QString get(pls_config_t *config, const QStringList &keys, const QString &defaultValue = {}) { return pls_config_get_string(config, keys).value_or(defaultValue); }
+	static void set(pls_config_t *config, const QStringList &keys, const QString &value) { pls_config_set_string(config, keys, value); }
+};
+template<> struct ConfigItem<QList<bool>, false> {
+	static QList<bool> get(pls_config_t *config, const QStringList &keys, const QList<bool> &defaultValue = {}) { return pls_config_get_bool_list(config, keys).value_or(defaultValue); }
+	static void set(pls_config_t *config, const QStringList &keys, const QList<bool> &value) { pls_config_set_bool_list(config, keys, value); }
+};
+template<> struct ConfigItem<QList<qint64>, false> {
+	static QList<qint64> get(pls_config_t *config, const QStringList &keys, const QList<qint64> &defaultValue = {}) { return pls_config_get_int_list(config, keys).value_or(defaultValue); }
+	static void set(pls_config_t *config, const QStringList &keys, const QList<qint64> &value) { pls_config_set_int_list(config, keys, value); }
+};
+template<> struct ConfigItem<QList<double>, false> {
+	static QList<double> get(pls_config_t *config, const QStringList &keys, const QList<double> &defaultValue = {}) { return pls_config_get_double_list(config, keys).value_or(defaultValue); }
+	static void set(pls_config_t *config, const QStringList &keys, const QList<double> &value) { pls_config_set_double_list(config, keys, value); }
+};
+template<> struct ConfigItem<QStringList, false> {
+	static QStringList get(pls_config_t *config, const QStringList &keys, const QStringList &defaultValue = {}) { return pls_config_get_string_list(config, keys).value_or(defaultValue); }
+	static void set(pls_config_t *config, const QStringList &keys, const QStringList &value) { pls_config_set_string_list(config, keys, value); }
+};
+template<typename T> struct ConfigItem<T, true> {
+	static T get(pls_config_t *config, const QStringList &keys, T defaultValue) { return static_cast<T>(ConfigItem<int>::get(config, keys, static_cast<int>(defaultValue))); }
+	static void set(pls_config_t *config, const QStringList &keys, T value) { ConfigItem<int>::set(config, keys, static_cast<int>(value)); }
+};
 }
 
 template<typename T, typename Deleter> using PLSAutoObject = pls::AutoObject<T, Deleter>;
 template<typename T, typename Deleter = pls::AutoPtrDeleter<T>> using PLSAutoPtr = pls::AutoPtr<T, Deleter>;
 template<typename Handle, typename Deleter> using PLSAutoHandle = pls::AutoHandle<Handle, Deleter>;
 using PLSMetaObjectConnection = pls::MetaObjectConnection;
+
+// clang-format off
+#define PLS_CONCAT_I(a, b) a##b
+#define PLS_CONCAT(a, b) PLS_CONCAT_I(a, b)
 
 #define PLS_NEW_DELETE_FRIENDS                                                            \
 	template<typename T, typename... Args> friend T *pls_new(Args &&...args);         \
@@ -685,6 +1073,44 @@ using PLSMetaObjectConnection = pls::MetaObjectConnection;
 			abort();    \
 		}                   \
 	} while (0)
+
+#define PLS_CONFIG_TREE(name, config, ...) \
+	struct pls_config_tree_##name##_t { \
+		using my_t = pls_config_tree_##name##_t; \
+		static pls_config_t *getConfig() { return config; } \
+		static QStringList getKeys() { return QStringList(); } \
+		static const pls_config_tree_##name##_t &instance() { static pls_config_tree_##name##_t s_instance; return s_instance; } \
+		void save() const { pls_config_save(getConfig()); } \
+		__VA_ARGS__ \
+	}; \
+	inline const pls_config_tree_##name##_t &g_##name = pls_config_tree_##name##_t::instance()
+#define PLS_CONFIG_TREE_OBJECT(name, defaultValue, ...) \
+	template<typename Owner##name> \
+	struct pls_config_tree_object_##name##_t { \
+		using my_t = pls_config_tree_object_##name##_t<Owner##name>; \
+		using owner_t = Owner##name; \
+		static QStringList getKeys() { return owner_t::getKeys() << QStringLiteral(#name); } \
+		operator QJsonObject() const { return pls::ConfigItem<QJsonObject>::get(getConfig(), getKeys(), defaultValue); } \
+		template<typename T> T get(const QString &key, const T &defval) const { return get(getConfig(), getKeys() << key, defval); } \
+		template<typename T> T get(const QStringList &keys, const T &defval) const { return pls::ConfigItem<T>::get(getConfig(), getKeys() << keys, defval); } \
+		template<typename T> void set(const QString &key, const T &value) const { pls::ConfigItem<T>::set(getConfig(), getKeys() << key, value); } \
+		template<typename T> void set(const QStringList &keys, const T &value) const { pls::ConfigItem<T>::set(getConfig(), getKeys() << keys, value); } \
+		__VA_ARGS__ \
+	}; \
+	pls_config_tree_object_##name##_t<my_t> m_##name;
+#define PLS_CONFIG_TREE_ITEM(type, name, defaultValue) \
+	template<typename Owner##name> \
+	struct pls_config_tree_item_##name##_t { \
+		using my_t = pls_config_tree_item_##name##_t<Owner##name>; \
+		using owner_t = Owner##name; \
+		static QStringList getKeys() { return owner_t::getKeys() << QStringLiteral(#name); } \
+		operator type() const { return pls::ConfigItem<type>::get(getConfig(), getKeys(), defaultValue); } \
+		void operator=(const type &value) const { pls::ConfigItem<type>::set(getConfig(), getKeys(), value); } \
+		void reset() const { pls::ConfigItem<type>::set(getConfig(), getKeys(), defaultValue); } \
+		void save() const { pls_config_save(getConfig()); } \
+	}; \
+	pls_config_tree_item_##name##_t<my_t> m_##name;
+// clang-format on
 
 template<typename T, typename... Args> T *pls_new(Args &&...args)
 {
@@ -733,6 +1159,13 @@ template<typename T, typename Deleter> void pls_delete(T *&object, Deleter delet
 		object = nullptr;
 	}
 }
+template<typename T, typename Deleter> void pls_delete(QPointer<T> &object, Deleter deleter, std::nullptr_t)
+{
+	if (object) {
+		deleter(object);
+		object = nullptr;
+	}
+}
 
 template<typename T> void pls_delete_array(T *array)
 {
@@ -772,6 +1205,7 @@ template<typename T> void pls_delete_later(pls::QObjectPtr<T> &object)
 template<typename T> void pls_delete_thread(T thread)
 {
 	if (thread) {
+		thread->requestInterruption();
 		thread->quit();
 		thread->wait();
 		delete thread;
@@ -1858,6 +2292,12 @@ template<typename Value, typename K, typename V, typename DefVal> Value pls_get_
 		return iter->second;
 	return defval;
 }
+template<typename Value, typename K, typename V, typename DefVal> Value pls_get_value(const std::unordered_map<K, V> &map, const K &key, const DefVal &defval)
+{
+	if (auto iter = map.find(key); iter != map.end())
+		return iter->second;
+	return defval;
+}
 template<typename Value, typename K, typename V, typename DefVal> Value pls_get_value(const QHash<K, V> &hash, const K &key, const DefVal &defval)
 {
 	if (auto iter = hash.find(key); iter != hash.end())
@@ -2191,6 +2631,10 @@ inline bool pls_locked_queue_pop(pls_locked_queue_t *locked_queue, pls_queue_ite
 class pls_thread_t;
 using pls_thread_entry_t = std::function<void(pls_thread_t *thread)>;
 LIBUTILSAPI_API pls_thread_t *pls_thread_create(const pls_thread_entry_t &entry, bool delay_start = false);
+template<typename Context> pls_thread_t *pls_thread_create(const std::function<void(pls_thread_t *thread, Context *context)> &entry, Context *context, bool delay_start = false)
+{
+	return pls_thread_create([entry, context](pls_thread_t *thread) { entry(thread, context); }, delay_start);
+}
 LIBUTILSAPI_API void pls_thread_destroy(pls_thread_t *thread);
 LIBUTILSAPI_API bool pls_thread_running(pls_thread_t *thread);
 LIBUTILSAPI_API void pls_thread_start(pls_thread_t *thread);
@@ -2220,5 +2664,26 @@ template<typename T> QByteArray pls_enum_2_string(T v)
 	static_assert(QtPrivate::IsQEnumHelper<T>::Value, "pls_enum_2_string only works with enums declared as Q_ENUM, Q_ENUM_NS, Q_FLAG or Q_FLAG_NS");
 	return QVariant::fromValue(v).toString().toUtf8();
 }
+
+template<typename T> std::optional<T> pls_string_2_enum(const QString &str)
+{
+	static_assert(QtPrivate::IsQEnumHelper<T>::Value, "pls_string_2_enum only works with enums declared as Q_ENUM, Q_ENUM_NS, Q_FLAG or Q_FLAG_NS");
+	bool ok = false;
+	QMetaEnum metaEnum = QMetaEnum::fromType<T>();
+	int value = metaEnum.keyToValue(str.toUtf8().constData(), &ok);
+	if (ok)
+		return static_cast<T>(value);
+	return std::nullopt;
+}
+
+/**
+ ** v1 > v2  --> 1;
+ ** v1 < v2  --> -1;
+ ** v1 == v2 --> 0;
+ */
+LIBUTILSAPI_API int pls_compare_version(const QString &v1, const QString &v2);
+
+// Record exit time to streaming_state.json for crash recovery
+LIBUTILSAPI_API void pls_update_exit_time();
 
 #endif // _PRISM_COMMON_LIBUTILSAPI_LIBUTILSAPI_H

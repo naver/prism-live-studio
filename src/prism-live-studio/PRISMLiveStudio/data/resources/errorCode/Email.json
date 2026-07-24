@@ -1,0 +1,145 @@
+{
+    "data": [
+        {
+            "phase": "login",
+            "api": {
+                "code": "1110"
+            },
+            "err": {
+                "prismCode": 25000,
+                "prismName": "PRISM_LOGIN_EMAIL_NOT_EXIST_USER",
+                "msgKey": "login.prism.user.not.exist",
+                "msgText": "The Email does not exist.",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "login",
+            "api": {
+                "code": "1120"
+            },
+            "err": {
+                "prismCode": 25001,
+                "prismName": "PRISM_LOGIN_EMAIL_RESTRICT_USER",
+                "msgKey": "login.account.block",
+                "msgText": "This account is blocked. Please contact us at prismlive@prismlive.com",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "login",
+            "api": {
+                "code": "1210"
+            },
+            "err": {
+                "prismCode": 25002,
+                "prismName": "PRISM_LOGIN_EMAIL_PW_FAIL",
+                "msgKey": "login.error.idpassnotmatch",
+                "msgText": "The Email and password do not match.",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "login",
+            "api": {
+                "code": "1220"
+            },
+            "err": {
+                "prismCode": 25003,
+                "prismName": "PRISM_LOGIN_EMAIL_RETRY_EXCEED",
+                "msgKey": "login.password.retry.exceed",
+                "msgText": "You have entered the password incorrectly\n5 times. Please try again in an hour.",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "login",
+            "api": {
+                "$statusCode": "501",
+                "code": "-1"
+            },
+            "err": {
+                "prismCode": 25004,
+                "prismName": "PRISM_LOGIN_EMAIL_UNSUPPORTED_METHOD",
+                "msgKey": "login.unsupported.method",
+                "msgText": "This is an unsupported login method.",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "login",
+            "api": {
+                "code": "2120"
+            },
+            "err": {
+                "prismCode": 25005,
+                "prismName": "PRISM_LOGIN_EMAIL_SIGN_USER_EXIST",
+                "msgKey": "login.prism.already.sign.up",
+                "buttons": "[{\"button\":\"Ok\"},{\"button\":\"Cancel\"}]",
+                "msgText": "An account already exists for this email.\nWould you like to login?",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "phase": "login",
+            "api": {
+                "code": "2400"
+            },
+            "err": {
+                "prismCode": 25006,
+                "prismName": "PRISM_LOGIN_EMAIL_SIGN_NVALID_PASSWORD",
+                "msgKey": "login.prism.error.invalid.password",
+                "msgText": "Passwords must contain letters, numbers, and a special character, and be between 8-20 characters.",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "api": {
+                "code": "9010"
+            },
+            "err": {
+                "prismCode": 25007,
+                "prismName": "PRISM_LOGIN_EMAIL_RESET_PWD_NOT_FOUND_EMAIL",
+                "msgKey": "login.can.not.find.email",
+                "msgText": "Email address is not found.",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "400",
+                "code": "5060"
+            },
+            "err": {
+                "prismCode": 25008,
+                "prismName": "PRISM_LOGIN_EMAIL_CHANGE_PWD_SAME",
+                "msgKey": "login.same.as.exist.password",
+                "msgText": "The new password cannot be the same\nas your old password.",
+                "alertType": "Normal_Code"
+            }
+        },
+        {
+            "api": {
+                "$statusCode": "400",
+                "code": "5050"
+            },
+            "err": {
+                "prismCode": 25009,
+                "prismName": "PRISM_LOGIN_EMAIL_CHANGE_PWD_NOT_MATCH",
+                "msgKey": "login.exist.password.not.match",
+                "msgText": "Your current password is incorrect.",
+                "alertType": "Normal_Code"
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "code": [
+                "code"
+            ]
+        },
+        "inherit": [
+            "PRISM"
+        ]
+    }
+}

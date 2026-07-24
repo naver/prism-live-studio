@@ -127,6 +127,8 @@ gs_texture_t *mix_textures(composite_blur_filter_data_t *data,
 	return gs_texrender_get_texture(data->render);
 }
 
+static const uint32_t MIN_DOWNSAMPLE_SIZE = 2;
+
 static void dual_kawase_blur(composite_blur_filter_data_t *data)
 {
 	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
@@ -150,6 +152,9 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 	int last_pass = 1;
 	// Down Sampling Loop
 	for (int i = 2; i <= data->kawase_passes; i *= 2) {
+		if (data->width / (uint32_t)i < MIN_DOWNSAMPLE_SIZE ||
+		    data->height / (uint32_t)i < MIN_DOWNSAMPLE_SIZE)
+			break;
 		texture = down_sample(data, texture, i, 1.0);
 		last_pass = i;
 	}
@@ -158,17 +163,21 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 		int next_pass = last_pass * 2;
 		float ratio = (float)residual / (float)(next_pass - last_pass);
 
-		// Downsample one more step
-		texture = down_sample(data, texture, next_pass, 1.0);
-		// Extract renderer from end of down sampling loop
-		base_render = data->render2;
-		data->render2 = NULL;
-		// Upsample one more step
-		texture = up_sample(data, texture, last_pass, 1.0);
-		gs_texture_t *base = gs_texrender_get_texture(base_render);
-		// Mix the end of the downsample loop with additional step.
-		// Use the residual ratio for mixing.
-		texture = mix_textures(data, base, texture, ratio);
+		if (data->width / (uint32_t)next_pass >= MIN_DOWNSAMPLE_SIZE &&
+		    data->height / (uint32_t)next_pass >= MIN_DOWNSAMPLE_SIZE) {
+			// Downsample one more step
+			texture = down_sample(data, texture, next_pass, 1.0);
+			// Extract renderer from end of down sampling loop
+			base_render = data->render2;
+			data->render2 = NULL;
+			// Upsample one more step
+			texture = up_sample(data, texture, last_pass, 1.0);
+			gs_texture_t *base =
+				gs_texrender_get_texture(base_render);
+			// Mix the end of the downsample loop with additional step.
+			// Use the residual ratio for mixing.
+			texture = mix_textures(data, base, texture, ratio);
+		}
 	}
 	// Upsample Loop
 	for (int i = last_pass / 2; i >= 1; i /= 2) {

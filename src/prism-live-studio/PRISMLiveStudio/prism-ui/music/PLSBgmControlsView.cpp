@@ -15,6 +15,7 @@ using namespace common;
 #include <QRadioButton>
 #include <QTimer>
 #include <QLabel>
+#include <QMetaEnum>
 
 PLSBgmControlsView::PLSBgmControlsView(QWidget *parent) : PLSBgmControlsBase(parent)
 {
@@ -27,13 +28,16 @@ PLSBgmControlsView::PLSBgmControlsView(QWidget *parent) : PLSBgmControlsBase(par
 	loopBtn = pls_new<QRadioButton>(this);
 	loopBtn->setObjectName("loopBtn");
 	loopBtn->setToolTip(QTStr("Bgm.Repeat"));
+	pls_flush_style(loopBtn, "loopMode", QMetaEnum::fromType<LoopMode>().valueToKey(static_cast<int>(LoopMode::LoopAll)));
 	connect(loopBtn, &QRadioButton::clicked, this, &PLSBgmControlsView::OnLoopButtonClicked);
+	pls_uistep_v2_set_name(loopBtn, "Loop Button");
 
 	modeBtn = pls_new<QPushButton>(this);
 	modeBtn->setObjectName("modeBtn");
 	modeBtn->setToolTip(QTStr("Bgm.Shuffle"));
 	pls_flush_style(modeBtn, "playMode", "random");
 	connect(modeBtn, &QPushButton::clicked, this, &PLSBgmControlsView::OnModeButtonClicked);
+	pls_uistep_v2_set_name(modeBtn, "Mode Button");
 
 	preBtn = pls_new<PLSDelayResponseButton>(this);
 	preBtn->setObjectName("preBtn");
@@ -94,7 +98,7 @@ PLSBgmControlsView::PLSBgmControlsView(QWidget *parent) : PLSBgmControlsBase(par
 	connect(&seekTimer, &QTimer::timeout, this, &PLSBgmControlsView::SeekTimerCallback, Qt::QueuedConnection);
 }
 
-void PLSBgmControlsView::OnMediaLoopStateChanged(bool loop)
+void PLSBgmControlsView::OnMediaLoopStateChanged(int loop)
 {
 	SetLoopState();
 }
@@ -118,10 +122,19 @@ void PLSBgmControlsView::SetSliderPos()
 	slider->setValue((int)sliderPosition);
 }
 
-void PLSBgmControlsView::OnLoopButtonClicked(bool checked)
+void PLSBgmControlsView::OnLoopButtonClicked()
 {
-	pls_flush_style(loopBtn, STATUS_PRESSED, checked);
-	PLSBgmControlsBase::OnLoopButtonClicked(checked);
+	LoopMode mode;
+	if (m_loopMode == LoopMode::LoopAll) {
+		mode = LoopMode::LoopOne;
+	} else if (m_loopMode == LoopMode::LoopOne) {
+		mode = LoopMode::NoLoop;
+	} else {
+		mode = LoopMode::LoopAll;
+	}
+	this->m_loopMode = mode;
+	refreshLoopUi();
+	PLSBgmControlsBase::setLoopMode(m_loopMode);
 }
 
 void PLSBgmControlsView::OnModeButtonClicked()
@@ -167,9 +180,13 @@ void PLSBgmControlsView::UpdateUI()
 	if (!source) {
 		SetDisabledState(true);
 		return;
+	} else if (!obs_sceneitem_visible(pls_get_sceneitem_by_pointer_address((void *)sceneitem))) {
+		SetDisabledState(true);
+		return;
 	}
 	SetSliderPos();
 	SetModeState();
+	SetLoopState();
 	obs_media_state state = obs_source_media_get_state(source);
 	OnMediaStateChanged(state);
 }
@@ -184,7 +201,8 @@ void PLSBgmControlsView::SetDisabledState(bool disable)
 	if (disable) {
 		StopSliderPlayingTimer();
 		currentTimeLabel->setText("00:00");
-		durationLabel->setText("00:00");
+		auto data = PLSBasic::instance()->getMusicPlaylistCurrentRow();
+		durationLabel->setText(PLSBgmDataViewManager::Instance()->ConvertIntToTimeString(data.GetDuration(data.id)));
 		slider->setValue(0);
 		pls_flush_style(currentTimeLabel, "playing", false);
 	}
@@ -197,7 +215,7 @@ void PLSBgmControlsView::SetDisabledState(bool disable)
 	slider->setDisabled(disable);
 	QString status = disable ? STATUS_DISABLE : STATUS_ENABLE;
 	pls_flush_style(slider, STATUS_ENTER, !disable);
-	pls_flush_style(playBtn, STATUS_STATE, status);
+	pls_flush_style(playBtn, STATUS, status);
 	pls_flush_style(loopBtn, STATUS, status);
 	pls_flush_style(modeBtn, STATUS, status);
 	pls_flush_style(preBtn, STATUS, status);
@@ -223,9 +241,34 @@ void PLSBgmControlsView::SetPauseState()
 		return;
 	}
 	StopSliderPlayingTimer();
+	SetDisabledState(false);
 
 	pls_flush_style(playBtn, STATUS_STATE, STATUS_PLAY);
 	playBtn->setToolTip(QTStr("Bgm.Play"));
+}
+
+void PLSBgmControlsView::setSelectState(const PLSBgmItemData &data)
+{
+	pls_flush_style(playBtn, STATUS_STATE, STATUS_PLAY);
+	pls_flush_style(preBtn, STATUS, STATUS_ENABLE);
+	pls_flush_style(nextBtn, STATUS, STATUS_ENABLE);
+	playBtn->setToolTip(QTStr("Bgm.Play"));
+	currentTimeLabel->setText("00:00");
+	durationLabel->setText(PLSBgmDataViewManager::Instance()->ConvertIntToTimeString(data.GetDuration(data.id)));
+	slider->setValue(0);
+	slider->setDisabled(true);
+	loopBtn->setDisabled(false);
+	modeBtn->setDisabled(false);
+	playBtn->setDisabled(false);
+	preBtn->setDisabled(false);
+	nextBtn->setDisabled(false);
+	pls_flush_style(slider, STATUS_ENTER, false);
+	pls_flush_style(playBtn, STATUS, STATUS_ENABLE);
+	pls_flush_style(preBtn, STATUS, STATUS_ENABLE);
+	pls_flush_style(nextBtn, STATUS, STATUS_ENABLE);
+	pls_flush_style(loopBtn, STATUS, STATUS_ENABLE);
+	pls_flush_style(modeBtn, STATUS, STATUS_ENABLE);
+	pls_flush_style(currentTimeLabel, "playing", false);
 }
 
 void PLSBgmControlsView::SetLoopState()
@@ -236,13 +279,13 @@ void PLSBgmControlsView::SetLoopState()
 	}
 
 	OBSDataAutoRelease settings = obs_source_get_private_settings(source);
-	bool loop = obs_data_get_bool(settings, IS_LOOP);
-	if (loopBtn->isChecked() == loop) {
+	auto loopStr = obs_data_get_string(settings, "loopMode");
+	auto loop = static_cast<LoopMode>(QMetaEnum::fromType<LoopMode>().keyToValue(loopStr));
+	if (m_loopMode == loop) {
 		return;
 	}
-
-	loopBtn->setChecked(loop);
-	pls_flush_style(loopBtn, STATUS_PRESSED, loop);
+	m_loopMode = loop;
+	refreshLoopUi();
 }
 
 void PLSBgmControlsView::SetModeState()
@@ -277,5 +320,19 @@ void PLSBgmControlsView::SeekTo(int val)
 		obs_source_media_set_time(source, seekTo);
 		slider->setValue(val);
 		currentTimeLabel->setText(PLSBgmDataViewManager::Instance()->ConvertIntToTimeString((int)(static_cast<float>(seekTo) / 1000.0f)));
+	}
+}
+
+void PLSBgmControlsView::refreshLoopUi()
+{
+	if (m_loopMode == LoopMode::LoopOne) {
+		loopBtn->setToolTip(QTStr("Bgm.Repeat.One"));
+		pls_flush_style(loopBtn, "loopMode", QMetaEnum::fromType<LoopMode>().valueToKey(static_cast<int>(LoopMode::LoopOne)));
+	} else if (m_loopMode == LoopMode::NoLoop) {
+		loopBtn->setToolTip(QTStr("Bgm.No.Repeat"));
+		pls_flush_style(loopBtn, "loopMode", QMetaEnum::fromType<LoopMode>().valueToKey(static_cast<int>(LoopMode::NoLoop)));
+	} else {
+		loopBtn->setToolTip(QTStr("Bgm.Repeat"));
+		pls_flush_style(loopBtn, "loopMode", QMetaEnum::fromType<LoopMode>().valueToKey(static_cast<int>(LoopMode::LoopAll)));
 	}
 }

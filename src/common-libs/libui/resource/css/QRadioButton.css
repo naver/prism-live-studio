@@ -1,11 +1,11 @@
 QRadioButton {
 	outline: none;
-	spacing: /*hdpi*/ 6px;
+	spacing: 6px;
 }
 QRadioButton::indicator {
-	padding-top: /*hdpi*/1px;
-	width: /*hdpi*/ 18px;
-	height: /*hdpi*/ 18px;
+	padding-top:1px;
+	width:18px;
+	height:18px;
 }
 QRadioButton::indicator:checked {
 	image:url(":/libui/resource/images/radio-button-checked.svg");

@@ -6,14 +6,14 @@
 #include "LogPredefine.h"
 #include "PLSChannelsVirualAPI.h"
 #include "PLSComboBox.h"
-#include "PLSMessageBox.h"
+#include "frontend-api.h"
 #include "PLSSyncServerManager.hpp"
 #include "ui_ChannelsSettingsWidget.h"
 using namespace item_data_role;
 
 ChannelsSettingsWidget::ChannelsSettingsWidget(QWidget *parent) : PLSDialogView(parent), ui(new Ui::ChannelsSettingsWidget)
 {
-	//dpiHelper.setCss(this, {PLSCssIndex::ChannelsSettingsWidget});
+	PLS_DISABLE_UISTEP_V2(this);
 	setResizeEnabled(false);
 	//setIsMoveInContent(true);
 	pls_add_css(this, {"ChannelsSettingsWidget"});
@@ -32,6 +32,9 @@ ChannelsSettingsWidget::ChannelsSettingsWidget(QWidget *parent) : PLSDialogView(
 	ui->CenterStack->setFocus();
 	ui->LogoLabel->setScaledContents(true);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelModified, this, &ChannelsSettingsWidget::updateChannelUi, Qt::QueuedConnection);
+	pls_uistep_v2_set_title(this, QStringLiteral("My Channel Setting View"));
+	pls_uistep_v2_enable(ui->channelsListWidget, false);
+	pls_uistep_v2_set_name(ui->ChannelsListCombox, "Platform Combobox");
 }
 
 ChannelsSettingsWidget::~ChannelsSettingsWidget()
@@ -137,17 +140,15 @@ void ChannelsSettingsWidget::applyChanges()
 {
 	m_bClose = true;
 	HolderReleaser releaser(&PLSChannelDataAPI::holdOnChannelArea, PLSCHANNELS_API);
-	auto lstIte = mLastChannelsInfo.cbegin();
-	for (; lstIte != mLastChannelsInfo.cend(); ++lstIte) {
-		QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+	for (auto lstIte = mLastChannelsInfo.cbegin(); lstIte != mLastChannelsInfo.cend(); ++lstIte) {
 		const auto &varMap = lstIte.value();
-
 		if (auto orginalInfo = mOriginalInfo.value(lstIte.key()); getInfo(varMap, ChannelData::g_displayState, true) == getInfo(orginalInfo, ChannelData::g_displayState, true)) {
 			continue;
 		}
 		PLSCHANNELS_API->setChannelInfos(varMap, false);
 		auto uuid = getInfo(varMap, ChannelData::g_channelUUID, QString());
 		PLSCHANNELS_API->addChannelForDashBord(uuid);
+		QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 	}
 }
 
@@ -180,7 +181,6 @@ template<typename FuncType, typename ListType> void checkItemVisibility(int rowC
 void ChannelsSettingsWidget::on_ChannelsListCombox_currentTextChanged(const QString &)
 {
 	auto platform = ui->ChannelsListCombox->currentData(ChannelItemData).toString();
-	PRE_LOG_UI_MSG(QString("Channels Filter changed to " + platform).toStdString().c_str(), ChannelsSettingsWidget)
 	int rowCount = ui->channelsListWidget->count();
 	if (rowCount == 0) {
 		return;
@@ -227,6 +227,7 @@ void ChannelsSettingsWidget::on_ChannelsListCombox_currentTextChanged(const QStr
 	} else {
 		ui->CenterStack->setCurrentIndex(0);
 	}
+	PLS_UI_ACTION("In My Channel Setting View,Page Switching Done");
 }
 
 void ChannelsSettingsWidget::onSelectionChanged(const QString &uuid, bool isSelected)
@@ -245,27 +246,26 @@ void ChannelsSettingsWidget::onSelectionChanged(const QString &uuid, bool isSele
 void ChannelsSettingsWidget::on_ApplySettingsBtn_clicked()
 {
 	if (!hasSelected()) {
-		PLSMessageBox::warning(this, tr("Alert.Title"), CHANNELS_TR(NoChannelSelected));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHANNELS_SETTINGS_NO_CHANNEL_SELECTED, PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData("Channel settings apply with no selection"), this);
 		return;
 	}
-	PRE_LOG_UI_MSG("try apply changes  ", ChannelsSettingsWidget)
 	applyChanges();
 	this->accept();
 }
 
 void ChannelsSettingsWidget::on_Cancel_clicked()
 {
-	PRE_LOG_UI_MSG("cancel   ", ChannelsSettingsWidget)
 	this->reject();
 }
 
 void ChannelsSettingsWidget::on_GotoLoginBtn_clicked()
 {
 	if (!hasSelected()) {
-		PLSAlertView::warning(this, tr("Alert.Title"), CHANNELS_TR(AtLeastOneSelected));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHANNELS_SETTINGS_AT_LEAST_ONE_FOR_CONNECT, PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData("Channel settings connect with no selection"), this);
 		return;
 	}
-	PRE_LOG_UI_MSG("try to go to login page   ", ChannelsSettingsWidget)
 	applyChanges();
 	this->accept();
 	QString cmd = ui->ChannelsListCombox->currentData(ChannelItemData).toString();
@@ -286,7 +286,7 @@ void ChannelsSettingsWidget::setGuidePageInfo(const QString &platfom)
 
 	ui->GuideLabel->setText(guidInfo);
 	ui->GotoLoginBtn->setText(guidBtnText);
-
+	pls_uistep_v2_set_value(ui->GotoLoginBtn, QStringLiteral("*"), platfom + " Connect account");
 	auto pixPath = getPlatformImageFromName(platfom, channel_data::ImageType::channelSettingBigIcon, "addch-", "-large");
 	QPixmap pix;
 	auto size = ui->LogoLabel->size();

@@ -1,0 +1,1041 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SettingAdvancedPage</class>
+ <widget class="QWidget" name="SettingAdvancedPage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QScrollArea" name="scrollArea">
+     <property name="frameShape">
+      <enum>QFrame::Shape::NoFrame</enum>
+     </property>
+     <property name="widgetResizable">
+      <bool>true</bool>
+     </property>
+     <widget class="QWidget" name="scrollAreaWidgetContents">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>783</width>
+        <height>872</height>
+       </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_23">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>25</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QFrame" name="widget_11">
+         <layout class="QVBoxLayout" name="verticalLayout_24">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QGroupBox" name="advancedGeneralGroupBox">
+            <property name="title">
+             <string>Basic.Settings.General</string>
+            </property>
+            <layout class="QFormLayout" name="formLayout_22">
+             <property name="fieldGrowthPolicy">
+              <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+             </property>
+             <property name="horizontalSpacing">
+              <number>20</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>10</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QLabel" name="processPriorityLabel">
+               <property name="text">
+                <string>Basic.Settings.Advanced.General.ProcessPriority</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="PLSComboBox" name="processPriority"/>
+             </item>
+             <item row="1" column="1">
+              <widget class="PLSCheckBox" name="confirmOnExit">
+               <property name="text">
+                <string>Basic.Settings.Advanced.General.ConfirmOnExit</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_70">
+               <property name="text">
+                <string/>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="advancedVideoContainer">
+            <property name="title">
+             <string>Basic.Settings.Video</string>
+            </property>
+            <layout class="QFormLayout" name="formLayout_14">
+             <property name="fieldGrowthPolicy">
+              <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+             </property>
+             <property name="horizontalSpacing">
+              <number>20</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>10</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QLabel" name="rendererLabel">
+               <property name="text">
+                <string>Basic.Settings.Video.Renderer</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="PLSComboBox" name="renderer">
+               <property name="currentText">
+                <string notr="true"/>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="adapterLabel">
+               <property name="text">
+                <string>Basic.Settings.Video.Adapter</string>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="PLSComboBox" name="adapter">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="currentText">
+                <string notr="true"/>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="label_30">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Basic.Settings.Advanced.Video.ColorFormat</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="PLSComboBox" name="colorFormat"/>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="label_33">
+               <property name="text">
+                <string>Basic.Settings.Advanced.Video.ColorSpace</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_20">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="PLSComboBox" name="colorSpace"/>
+               </item>
+               <item alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+                <widget class="QLabel" name="label_34">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>Basic.Settings.Advanced.Video.ColorRange</string>
+                 </property>
+                 <property name="useFor" stdset="0">
+                  <string notr="true">FormLabelRole</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="PLSComboBox" name="colorRange"/>
+               </item>
+              </layout>
+             </item>
+             <item row="4" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_sdrPaperWhite">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="PLSSpinBox" name="sdrWhiteLevel">
+                 <property name="suffix">
+                  <string notr="true"> nits</string>
+                 </property>
+                 <property name="minimum">
+                  <number>80</number>
+                 </property>
+                 <property name="maximum">
+                  <number>480</number>
+                 </property>
+                </widget>
+               </item>
+               <item alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+                <widget class="QLabel" name="label_hdrNominalPeakLevel">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>Basic.Settings.Advanced.Video.HdrNominalPeakLevel</string>
+                 </property>
+                 <property name="useFor" stdset="0">
+                  <string notr="true">FormLabelRole</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="PLSSpinBox" name="hdrNominalPeakLevel">
+                 <property name="suffix">
+                  <string notr="true"> nits</string>
+                 </property>
+                 <property name="minimum">
+                  <number>400</number>
+                 </property>
+                 <property name="maximum">
+                  <number>10000</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="4" column="0">
+              <widget class="QLabel" name="label_sdrWhiteLevel">
+               <property name="text">
+                <string>Basic.Settings.Advanced.Video.SdrWhiteLevel</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_18">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="PLSCheckBox" name="disableOSXVSync">
+                 <property name="text">
+                  <string>DisableOSXVSync</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="PLSCheckBox" name="resetOSXVSync">
+                 <property name="text">
+                  <string>ResetOSXVSyncOnExit</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="groupBox_6">
+            <property name="title">
+             <string>Basic.Settings.Output.Adv.Recording</string>
+            </property>
+            <layout class="QFormLayout" name="formLayout_17">
+             <property name="fieldGrowthPolicy">
+              <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+             </property>
+             <property name="horizontalSpacing">
+              <number>20</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>10</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item row="0" column="1">
+              <widget class="QLineEdit" name="filenameFormatting"/>
+             </item>
+             <item row="2" column="1">
+              <widget class="PLSCheckBox" name="overwriteIfExists">
+               <property name="text">
+                <string>Basic.Settings.Output.Adv.Recording.OverwriteIfExists</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="PLSCheckBox" name="autoRemux">
+               <property name="text">
+                <string>Basic.Settings.Advanced.AutoRemux</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_14">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QLineEdit" name="simpleRBPrefix"/>
+               </item>
+               <item alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+                <widget class="QLabel" name="label_58">
+                 <property name="text">
+                  <string>Basic.Settings.Output.ReplayBuffer.Suffix</string>
+                 </property>
+                 <property name="useFor" stdset="0">
+                  <string notr="true">FormLabelRole</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLineEdit" name="simpleRBSuffix"/>
+               </item>
+              </layout>
+             </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_7">
+               <property name="text">
+                <string>Basic.Settings.Output.Adv.Recording.Filename</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="0">
+              <widget class="QLabel" name="label_57">
+               <property name="text">
+                <string>Basic.Settings.Output.ReplayBuffer.Prefix</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="groupBox_5">
+            <property name="title">
+             <string>Basic.Settings.Advanced.StreamDelay</string>
+            </property>
+            <layout class="QFormLayout" name="formLayout_18">
+             <property name="fieldGrowthPolicy">
+              <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+             </property>
+             <property name="horizontalSpacing">
+              <number>20</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>10</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item row="0" column="1">
+              <widget class="PLSCheckBox" name="streamDelayEnable">
+               <property name="text">
+                <string>Enable</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="QFrame" name="widget_12">
+               <property name="enabled">
+                <bool>true</bool>
+               </property>
+               <layout class="QHBoxLayout" name="horizontalLayout_13">
+                <property name="spacing">
+                 <number>5</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="PLSCheckBox" name="streamDelayPreserve">
+                  <property name="text">
+                   <string>Basic.Settings.Advanced.StreamDelay.Preserve</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_10">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="PLSSpinBox" name="streamDelaySec">
+                 <property name="enabled">
+                  <bool>true</bool>
+                 </property>
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="minimumSize">
+                  <size>
+                   <width>80</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                 <property name="suffix">
+                  <string notr="true"> s</string>
+                 </property>
+                 <property name="minimum">
+                  <number>1</number>
+                 </property>
+                 <property name="maximum">
+                  <number>1800</number>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="streamDelayInfo">
+                 <property name="text">
+                  <string notr="true">Estimated RAM goes here</string>
+                 </property>
+                 <property name="useFor" stdset="0">
+                  <string notr="true">WhiteLable</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_56">
+               <property name="text">
+                <string>Basic.Settings.Advanced.StreamDelay.Duration</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="groupBox_7">
+            <property name="title">
+             <string>Basic.Settings.Output.Reconnect</string>
+            </property>
+            <layout class="QFormLayout" name="formLayout_19">
+             <property name="fieldGrowthPolicy">
+              <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+             </property>
+             <property name="horizontalSpacing">
+              <number>20</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>10</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item row="0" column="1">
+              <widget class="PLSCheckBox" name="reconnectEnable">
+               <property name="text">
+                <string>Enable</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_19">
+               <property name="spacing">
+                <number>10</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="PLSSpinBox" name="reconnectRetryDelay">
+                 <property name="suffix">
+                  <string> s</string>
+                 </property>
+                 <property name="minimum">
+                  <number>1</number>
+                 </property>
+                 <property name="maximum">
+                  <number>30</number>
+                 </property>
+                </widget>
+               </item>
+               <item alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+                <widget class="QLabel" name="label_22">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>Basic.Settings.Output.MaxRetries</string>
+                 </property>
+                 <property name="useFor" stdset="0">
+                  <string notr="true">FormLabelRole</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="PLSSpinBox" name="reconnectMaxRetries">
+                 <property name="minimum">
+                  <number>1</number>
+                 </property>
+                 <property name="maximum">
+                  <number>10000</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_17">
+               <property name="text">
+                <string>Basic.Settings.Output.RetryDelay</string>
+               </property>
+               <property name="wordWrap">
+                <bool>true</bool>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="advNetworkGroupBox">
+            <property name="title">
+             <string>Basic.Settings.Advanced.Network</string>
+            </property>
+            <layout class="QFormLayout" name="formLayout_23">
+             <property name="fieldGrowthPolicy">
+              <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+             </property>
+             <property name="horizontalSpacing">
+              <number>20</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>10</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item row="6" column="1">
+              <widget class="PLSCheckBox" name="enableNewSocketLoop">
+               <property name="text">
+                <string>Basic.Settings.Advanced.Network.EnableNewSocketLoop</string>
+               </property>
+              </widget>
+             </item>
+             <item row="7" column="1">
+              <widget class="PLSCheckBox" name="enableLowLatencyMode">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="text">
+                <string>Basic.Settings.Advanced.Network.EnableLowLatencyMode</string>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="1">
+              <widget class="PLSCheckBox" name="dynBitrate">
+               <property name="toolTip">
+                <string>Basic.Settings.Output.DynamicBitrate.TT</string>
+               </property>
+               <property name="text">
+                <string>Basic.Settings.Output.DynamicBitrate.Beta</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="PLSComboBox" name="bindToIP"/>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="bindToIPLabel">
+               <property name="text">
+                <string>Basic.Settings.Advanced.Network.BindToIP</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="ipFamilyLabel">
+               <property name="text">
+                <string>Basic.Settings.Advanced.Network.IPFamily</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="PLSComboBox" name="ipFamily"/>
+             </item>
+             <item row="1" column="0" colspan="2">
+              <widget class="QLabel" name="advNetworkDisabled">
+               <property name="text">
+                <string>Basic.Settings.Advanced.Network.Disabled</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="sourcesGroup">
+            <property name="title">
+             <string>Basic.Main.Sources</string>
+            </property>
+            <layout class="QFormLayout" name="formLayout_34">
+             <property name="fieldGrowthPolicy">
+              <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+             </property>
+             <property name="horizontalSpacing">
+              <number>20</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>10</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item row="0" column="1">
+              <widget class="PLSCheckBox" name="browserHWAccel">
+               <property name="text">
+                <string>BrowserSource.EnableHardwareAcceleration</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_69">
+               <property name="text">
+                <string/>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="groupBox_17">
+            <property name="title">
+             <string>Basic.Settings.Hotkeys</string>
+            </property>
+            <layout class="QFormLayout" name="formLayout_33">
+             <property name="fieldGrowthPolicy">
+              <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+             </property>
+             <property name="horizontalSpacing">
+              <number>20</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>10</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_21">
+               <property name="text">
+                <string>Basic.Settings.Advanced.Hotkeys.HotkeyFocusBehavior</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="PLSComboBox" name="hotkeyFocusType"/>
+             </item>
+             <item row="1" column="0">
+              <spacer name="spacer_1">
+               <property name="orientation">
+                <enum>Qt::Orientation::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>170</width>
+                 <height>0</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <spacer name="verticalSpacer_13">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Expanding</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>0</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PLSComboBox</class>
+   <extends>QComboBox</extends>
+   <header>PLSComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSCheckBox</class>
+   <extends>QCheckBox</extends>
+   <header>PLSCheckBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSSpinBox</class>
+   <extends>QSpinBox</extends>
+   <header>PLSSpinBox.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>streamDelayEnable</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>streamDelaySec</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>521</x>
+     <y>429</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>327</x>
+     <y>460</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>streamDelayEnable</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>streamDelayPreserve</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>521</x>
+     <y>429</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>521</x>
+     <y>501</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>streamDelayEnable</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>streamDelayInfo</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>521</x>
+     <y>429</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>566</x>
+     <y>460</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>streamDelayEnable</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>label_56</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>521</x>
+     <y>429</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>133</x>
+     <y>460</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>enableNewSocketLoop</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>enableLowLatencyMode</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>510</x>
+     <y>745</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>510</x>
+     <y>775</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

@@ -161,6 +161,7 @@ void PLSMenuPushButton::mousePressEvent(QMouseEvent *event)
 		event->ignore();
 		return;
 	}
+	pls_uistep_v2(this, "Click", "Menu", name);
 
 	setMouseStatus(STATUS_PRESSED);
 	emit PopupClicked();

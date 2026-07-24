@@ -25,12 +25,15 @@ constexpr auto g_vst_state_none = -1;
 
 PLSVstFilterView::PLSVstFilterView(OBSData settings, OBSSource source, QWidget *parent) : QWidget(parent), filterSource(source), filterSettings(settings)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	ui = pls_new<Ui::PLSVstFilterView>();
 	ui->setupUi(this);
 	pls_set_css(this, {"PLSVstFilterView"});
 	resetUi();
 
 	qRegisterMetaType<uint64_t>("uint64_t");
+
+	pls_uistep_v2_auto_bind(this);
 
 	connect(ui->comboBox_vst_list, qOverload<int>(&QComboBox::currentIndexChanged), this, &PLSVstFilterView::selectVstPlugin);
 	connect(ui->checkBox_open_when_activate, &PLSCheckBox::clicked, this, &PLSVstFilterView::onOpenWhenActiveClicked);
@@ -321,7 +324,7 @@ void PLSVstFilterView::selectVstPlugin(int index)
 {
 	auto plugin_path = ui->comboBox_vst_list->itemData(index).toString();
 	auto plugin_name = ui->comboBox_vst_list->itemText(index);
-	obs_data_set_string(filterSettings, g_vst_path, plugin_path.toStdString().c_str());
+	obs_data_set_string(filterSettings, g_vst_path, plugin_path.toUtf8().constData());
 	obs_source_update(filterSource, filterSettings);
 	if (plugin_path.isEmpty()) {
 		resetUi();

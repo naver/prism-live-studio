@@ -48,6 +48,7 @@ public:
 	QVariant data(const QModelIndex &index, int role) const override;
 	void doMediaStatusRole(const QModelIndex &index, const QVariant &value);
 	bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
+	void clearAllDropIndicators();
 	Qt::ItemFlags flags(const QModelIndex &index) const override;
 	Qt::DropActions supportedDropActions() const override;
 };

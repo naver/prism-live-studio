@@ -41,7 +41,12 @@ static void keyDownCallback(KeyMask mask, void *param)
 	}
 }
 
-RegionCapture::RegionCapture(QWidget *parent) : QWidget(parent)
+RegionCapture::RegionCapture(QWidget *parent)
+	: QWidget(parent)
+#if defined(_WIN32) && defined(PLS_UI_ACTION_STATS)
+	  ,
+	  signal(SELECT_REGION_SHOW_SIGNAL, false)
+#endif
 {
 	this->setMouseTracking(true);
 	this->setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
@@ -241,6 +246,15 @@ void RegionCapture::keyPressEvent(QKeyEvent *event)
 	QWidget::keyPressEvent(event);
 }
 
+void RegionCapture::showEvent(QShowEvent *event)
+{
+	QWidget::showEvent(event);
+
+#if defined(_WIN32) && defined(PLS_UI_ACTION_STATS)
+	signal.set_sign(true);
+#endif
+}
+
 void RegionCapture::CheckMoveToDown(int &startX, int &startY) const
 {
 	//top of pressed point
@@ -352,7 +366,7 @@ void RegionCapture::Init()
 
 QRect RegionCapture::CalculateFrameSize()
 {
-	screenShots.clear();
+	// screenShots.clear();  // Removed: CalculateFrameSize only needs the merged rect; grabbing each screen is expensive and unused.
 	QList<QScreen *> listScreen = QGuiApplication::screens();
 	int index = 0;
 	int left = 0;
@@ -378,11 +392,10 @@ QRect RegionCapture::CalculateFrameSize()
 		if (rect.bottom() > bottom) {
 			bottom = rect.bottom();
 		}
-
-		ScreenShotData screenData;
-		screenData.pixmap = screen->grabWindow(0);
-		screenData.geometry = rect;
-		screenShots << screenData;
+		// ScreenShotData screenData;
+		// screenData.pixmap = screen->grabWindow(0);  // Removed: grabWindow(0) is slow and the result was never used.
+		// screenData.geometry = rect;
+		// screenShots << screenData;
 	}
 	return {QPoint(left, top), QPoint(right, bottom)};
 }

@@ -1,7 +1,6 @@
 /*
 * @file		PLSLiveInfoBase.h
 * @brief	A base class to support moving the window in any client area
-* @author	wu.longyue@navercorp.com
 * @date		2020-01-06
 */
 
@@ -11,6 +10,7 @@
 #include "PLSDialogView.h"
 #include "loading-event.hpp"
 #include <QLabel>
+#include "libui.h"
 
 namespace channel_data {
 enum ChannelDualOutput;
@@ -33,7 +33,7 @@ signals:
 
 protected:
 	void updateStepTitle(QPushButton *button);
-	void showLoading(QWidget *parent);
+	void showLoading(QWidget *parent, int maskHeight = -1);
 	void hideLoading();
 	void showEvent(QShowEvent *event) override;
 	bool eventFilter(QObject *watcher, QEvent *event) override;
@@ -46,6 +46,7 @@ private:
 	PLSLoadingEvent m_loadingEvent;
 	QPointer<QObject> m_pWidgetLoadingBGParent = nullptr;
 	QPointer<QWidget> m_pWidgetLoadingBG = nullptr;
+	int m_loadingBGMaskHeight{-1};
 
 	QString channelUUid;
 	bool m_isRunLoading{false};

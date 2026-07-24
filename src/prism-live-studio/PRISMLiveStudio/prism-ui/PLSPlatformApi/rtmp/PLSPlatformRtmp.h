@@ -1,7 +1,6 @@
 /*
 * @file		PLSPlatformRtmp.h
 * @brief	for rtmp, no additional http api request
-* @author	wu.longyue@navercorp.com
 * @date		2020-01-06
 */
 

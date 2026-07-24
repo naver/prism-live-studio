@@ -45,8 +45,14 @@ public:
 	std::thread th;
 
 	int stage = 0;
+	bool screenshotFailed = false;
 	bool showtips = true;
 	bool isVerticalPreview = false;
+
+#if defined(PLS_PERFORMANCE_STATS)
+	// Performance parent id for PLS_PERFORMANCE_GLOBAL (e.g. "ScreenshotScene", "ScreenshotSource"). Empty = no root block.
+	std::string m_performanceParent;
+#endif
 
 public slots:
 	void Save();

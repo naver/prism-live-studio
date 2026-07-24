@@ -11,3 +11,9 @@ void mac_get_latest_dump_data(ProcessInfo const &info, std::string &dump_data, s
 bool mac_send_data(std::string post_body);
 
 bool mac_remove_crash_logs(ProcessInfo const &info);
+
+// Install fallback signal handlers for crash detection
+void mac_install_fallback_crash_handlers();
+
+// Check if a crash dump exists for the given process info (session + pid)
+bool mac_has_crash_dump(ProcessInfo const &info);

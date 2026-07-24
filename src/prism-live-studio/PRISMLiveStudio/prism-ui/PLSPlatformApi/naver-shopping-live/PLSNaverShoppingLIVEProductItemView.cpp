@@ -25,7 +25,10 @@ PLSNaverShoppingLIVEProductItemView::PLSNaverShoppingLIVEProductItemView(QWidget
 	ui->setupUi(this);
 	naverShoppingLIVEProductItemView_init(this, ui->nameLabel);
 	ui->nameSpacer->installEventFilter(this);
-	connect(ui->addRemoveButton, &QPushButton::clicked, this, [this]() { PLSNaverShoppingLIVEProductItemView::addRemoveButtonClicked(this, details.productNo); });
+	connect(ui->addRemoveButton, &QPushButton::clicked, this, [this]() {
+		PLSNaverShoppingLIVEProductItemView::addRemoveButtonClicked(this, details.productNo);
+		pls_async_call(this, [this]() { pls_uistep_v2(ui->addRemoveButton, "Click", getName(), ui->addRemoveButton->property("added").toBool() ? "Selected" : "unSelected"); });
+	});
 }
 
 PLSNaverShoppingLIVEProductItemView::~PLSNaverShoppingLIVEProductItemView()

@@ -37,7 +37,6 @@ public:
 	static PLSSceneitemMapManager *Instance();
 	~PLSSceneitemMapManager();
 
-	OBSDataArray saveVerticalSceneitemInfo();
 	void loadVerticalSceneitemInfo(obs_data_array_t *arrays);
 
 	void switchToDualOutputMode();
@@ -57,6 +56,8 @@ public:
 	OBSSceneItem getCurVerticalSceneitem(OBSSceneItem horItem);
 
 	bool isMappedVerticalSceneItem(OBSSceneItem verItem);
+	bool getMappedVerticalSceneItemLocked(const char *mappedScene);
+	OBSSceneItem getMappedVerticalSceneItem(const char *mappedScene);
 	const char *getMappedVerticalSceneName(OBSSceneItem verItem);
 	const char *getMappedOriginalSceneName(OBSSceneItem verItem);
 
@@ -77,7 +78,7 @@ public:
 
 private:
 	explicit PLSSceneitemMapManager();
-	void switchToDualOutputMode(OBSScene scene, QMap<QString, DisplayId> &ItemInfoRequestFunction);
+	void switchToDualOutputMode(OBSScene scene, QMap<QString, DisplayId> &ItemInfoRequestFunction, OBSScene topScene = nullptr);
 
 	QString generateKey(int64_t horizontalId, const char *uuid);
 	std::pair<int64_t, QString> getIdAndUuid(const QString &key);
@@ -100,6 +101,7 @@ private:
 					     OBSSceneItem horSceneitem, OBSSceneItem verSceneitem);
 	std::pair<int64_t, OBSSceneItem> duplicateSceneItem(OBSScene scene, OBSSceneItem item);
 	void removeGroupSelectedStatus();
+	void resetUuid(OBSSceneItem horSceneitem, OBSSceneItem verSceneitem);
 	void addUuid(QMap<QString, DisplayId> &newSceneData, const char *sceneName, OBSScene scene, const char *uuid, int display, int64_t id, OBSSceneItem horItem, OBSSceneItem verItem);
 	void setDisplayId(DisplayId &displayId, const char *sceneName, OBSScene scene, int display, int64_t id, OBSSceneItem horItem, OBSSceneItem verItem);
 	void addUuidConfig(const QMap<QString, DisplayId> &ungroupItems);

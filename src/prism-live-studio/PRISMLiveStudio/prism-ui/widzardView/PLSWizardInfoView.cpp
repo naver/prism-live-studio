@@ -3,7 +3,7 @@
 #include <qtimer.h>
 #include "pls-shared-functions.h"
 #include "libutils-api.h"
-
+#include "libui.h"
 #define Loading QObject::tr("WizardView.LoadingSchedule")
 
 PLSWizardInfoView::PLSWizardInfoView(ViewType type, QWidget *parent) : QPushButton(parent), m_type(type)
@@ -16,6 +16,7 @@ PLSWizardInfoView::PLSWizardInfoView(ViewType type, QWidget *parent) : QPushButt
 	loading(false);
 	this->layout()->setContentsMargins(0, 0, 0, 0);
 	ui->contentFrame->setAttribute(Qt::WA_TransparentForMouseEvents);
+	pls_uistep_v2_set_custom_show_hide_name(ui->loading, "Schedule Loading");
 }
 
 PLSWizardInfoView::~PLSWizardInfoView()

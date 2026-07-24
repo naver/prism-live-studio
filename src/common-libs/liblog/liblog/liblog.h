@@ -31,10 +31,12 @@
 #define PTS_TYPE_UISTEP_STEP "uiStep" // field value for UI STEP
 
 enum pls_log_level_t {
-	PLS_LOG_ERROR, // error
-	PLS_LOG_WARN,  // warning
-	PLS_LOG_INFO,  // information
-	PLS_LOG_DEBUG  // debug
+	PLS_LOG_ERROR,     // error
+	PLS_LOG_WARN,      // warning
+	PLS_LOG_INFO,      // information
+	PLS_LOG_DEBUG,     // debug
+	PLS_LOG_UI_STEP,   // ui step
+	PLS_LOG_UI_ACTION, // action log
 };
 
 enum pls_set_tag_t {
@@ -89,8 +91,9 @@ using pls_ui_step_log_handler_t = void (*)(const char *module_name, const pls_da
   *     true for success, false for failed
   */
 LIBLOG_API bool pls_log_init(const char *project_name, const char *project_token, const char *project_name_kr, const char *project_token_kr, const char *project_version, const char *log_source,
-			     const char *local_log_session = nullptr);
-LIBLOG_API bool pls_prism_log_init(const char *project_version, const char *log_source, const char *local_log_session);
+			     const char *local_log_session, const char *local_log_sub_session);
+LIBLOG_API bool pls_prism_log_init(const char *project_version, const char *log_source, const char *local_log_session, const char *local_log_sub_session);
+LIBLOG_API bool pls_lens_log_init(const char *project_version, const char *log_source, const char *local_log_session, const char *local_log_sub_session);
 /**
   * log cleanup
   */
@@ -329,8 +332,6 @@ LIBLOG_API void pls_crash_flag();
 
 LIBLOG_API void pls_subprocess_exception(const char *process, const char *pid);
 
-LIBLOG_API void pls_set_gcc(const char *gcc);
-
 LIBLOG_API std::vector<uint32_t> pls_get_logger_pids();
 
 /**
@@ -406,5 +407,17 @@ LIBLOG_API std::vector<uint32_t> pls_get_logger_pids();
   */
 #define PLS_UI_STEP(module_name, controls, action) pls_ui_step(false, module_name, controls, action, __FILE__, __LINE__)
 #define PLS_UI_STEP_KR(module_name, controls, action) pls_ui_step(true, module_name, controls, action, __FILE__, __LINE__)
+
+/**
+  * print ui action log
+  * param:
+  *     [in] format: format string
+  *     [in] ...: variadic params
+  */
+#if defined(PLS_UI_ACTION_STATS)
+#define PLS_UI_ACTION(format, ...) pls_logex(false, PLS_LOG_UI_ACTION, "ui action", __FILE__, __LINE__, {}, format, ##__VA_ARGS__)
+#else
+#define PLS_UI_ACTION(format, ...)
+#endif
 
 #endif // _PRISM_COMMON_LIBLOG_LIBLOG_LIBLOG_H

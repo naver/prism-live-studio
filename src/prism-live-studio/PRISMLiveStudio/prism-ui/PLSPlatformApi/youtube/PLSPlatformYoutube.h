@@ -1,7 +1,6 @@
 /*
 * @file		PlatformYoutube.h
 * @brief	All youtube relevant api is implemented in this file
-* @author	ren.jinbo@navercorp.com
 * @date		2020-xx-xx
 */
 
@@ -21,7 +20,6 @@ extern const QString s_latencyNormal;
 extern const QString s_latencyUltraLow;
 extern const QString s_closed_captions_type;
 extern const QString s_youtube_private_en;
-extern const QString s_description_default_add;
 
 struct PLSYoutubeCategory {
 	QString _id;
@@ -78,16 +76,15 @@ public:
 
 	bool isNormalLive = true; //true is live now , false is scheduled live.
 	bool isForKids = false;
-	bool iskidsUserSelect = false;
 	bool isCaptions = false;
 
 	PLSYoutubeStart startData;
 
 	//schedule parameter
-	QJsonObject livebroadcastAPIData;
-	QJsonObject streamAPIData;
-	QJsonObject statusData{};  //get in the video api
-	QJsonObject snippetData{}; //get in the video api
+	QJsonObject livebroadcastAPIData; //not need in resume
+	QJsonObject streamAPIData;        //not need in resume
+	QJsonObject statusData{};         //get in the video api, not need in resume
+	QJsonObject snippetData{};        //get in the video api, not need in resume
 
 	Latency latency = Latency::Normal;
 
@@ -104,10 +101,6 @@ class PLSPlatformYoutube : public PLSPlatformBase {
 	Q_OBJECT
 
 public:
-	enum class PLSYoutubeApiType { Normal = 0, StartLive = 1, Update = 2, Rehearsal = 3 };
-	enum UpdateValue { None = 0x00, Thum = 0x01, Category = 0x01 << 1, Kids = 0x01 << 2 };
-	Q_DECLARE_FLAGS(UpdateValues, UpdateValue)
-
 	PLSPlatformYoutube();
 
 	PLSServiceType getServiceType() const override;
@@ -172,6 +165,9 @@ public:
 	QString getShareUrl() override;
 	QString getShareUrlEnc() override;
 
+	void onResumeStreaming(const QMap<QString, QVariant> &params) override;
+	QMap<QString, QVariant> getResumeStreamingParams() const override;
+
 	bool isPrivateStatus() const;
 	bool isKidsLiving() const;
 	void downloadThumImage(const std::function<void()> &onNext, const QString &url, const QObject *receiver, bool notShowThisPix = false);
@@ -189,9 +185,9 @@ public:
 
 	bool showAlertPreAction();
 	PLSErrorHandler::ExtraData getErrorExtraData(const QString &urlEn, const QString &urlKr = {});
-	void showAlert(const PLSErrorHandler::NetworkData &netData, const QString &customErrName, const QString &logFrom, const QString &errorReason = {});
-	void showAlertByCustName(const QString &customErrName, const QString &logFrom, const QString &errorReason = {});
-	void showAlertByPrismCode(PLSErrorHandler::ErrCode prismCode, const QString &customErrName, const QString &logFrom, const QString &errorReason = {});
+	void showAlert(const PLSErrorHandler::NetworkData &netData, const QString &customErrName, const QString &logFrom, const QString &errorReason = {}, bool isShowAlert = true);
+	void showAlertByCustName(const QString &customErrName, const QString &logFrom, const QString &errorReason = {}, bool isShowAlert = true);
+	void showAlertByPrismCode(PLSErrorHandler::ErrCode prismCode, const QString &customErrName, const QString &logFrom, const QString &errorReason = {}, bool isShowAlert = true);
 	void showAlertPostAction(const PLSErrorHandler::RetData &retData, const QString &errorReason = {});
 
 public slots:
@@ -256,11 +252,11 @@ private:
 
 	void requestLiveStreamKey(const std::function<void(bool)> &onNext, const QObject *receiver);
 	void dealStreamKeySucceed(const QJsonDocument &doc, const std::function<void(bool)> &onNext);
-	void requestUpdateVideoData(const std::function<void(bool)> &onNext, const PLSYoutubeLiveinfoData &infoData, const QObject *receiver, UpdateValues requestValues = UpdateValue::None);
+	void requestUpdateVideoData(const std::function<void(bool)> &onNext, const PLSYoutubeLiveinfoData &infoData, const QObject *receiver, UpdateTypes requestValues = UpdateType::None);
 	void requestStatisticsInfo() const;
-	void requestLiveBroadcastsUpdate(const PLSYoutubeStart &startData, const std::function<void(bool)> &onNext);
+	void requestLiveBroadcastsUpdate(const PLSYoutubeStart &startData, const std::function<void(bool)> &onNext, UpdateTypes requestValues);
 
-	void dealLiveBroadcastsUpdateSucceed(const QByteArray &data, const std::function<void(bool)> &onNext);
+	void dealLiveBroadcastsUpdateSucceed(const QByteArray &data, const std::function<void(bool)> &onNext, bool isCanFailed);
 
 	void forceToRefreshToken(const std::function<void(bool)> &onNext);
 
@@ -276,8 +272,8 @@ private:
 
 	void saveTheScheduleSetting(const std::function<void(bool)> &onNext, bool isNeedUpdate, const QObject *receiver);
 	bool isNeedUpdateLatency(const PLSYoutubeLiveinfoData &tryData) const;
-	bool isNeedCallUpdateBroadcastAPIWhenSchedule(const PLSYoutubeLiveinfoData &tryData) const;
-	bool isNeedCallUpdateVideoAPIWhenSchedule(const PLSYoutubeLiveinfoData &tryData, UpdateValues &requestValues) const;
+	bool isNeedCallUpdateBroadcastAPIWhenSchedule(const PLSYoutubeLiveinfoData &tryData, UpdateTypes &requestValues) const;
+	bool isNeedCallUpdateVideoAPIWhenSchedule(const PLSYoutubeLiveinfoData &tryData, UpdateTypes &requestValues) const;
 
 	bool isValidDownloadUrl(const QString &url);
 	void showFailedAPIToast() const;
@@ -300,6 +296,4 @@ private:
 	QString m_startFailedStr{};
 
 	mutable std::mutex m_channelScheduleMutex;
-
-	UpdateValues m_failedValues = UpdateValue::None;
 };

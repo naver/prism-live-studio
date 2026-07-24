@@ -36,14 +36,14 @@ bool PLSNaverShoppingLIVEDataHandler::tryToUpdate(const QVariantMap &srcInfo, co
 		return false;
 	}
 	PLS_INFO(MODULE_PlatformService, "PlatformAPI tryToUpdate Naver Shopping platform, channel type is %d , channel uuid is %s", srcInfo.value(ChannelData::g_data_type).toInt(),
-		 channelUUID.toStdString().c_str());
+		 channelUUID.toUtf8().constData());
 	auto naverShoppingLIVE = dynamic_cast<PLSPlatformNaverShoppingLIVE *>(PLS_PLATFORM_API->getPlatformById(channelUUID, srcInfo));
 	if (!naverShoppingLIVE) {
 		PLS_ERROR(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "%s %s Naver Shopping LIVE refresh failed, platform not exists", PrepareInfoPrefix, __FUNCTION__);
 		callback({makeErrorInfo(srcInfo)});
 		return false;
 	}
-	PLS_INFO(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "%s %s channelUUID(%s) NaverShopping platform(%p) refresh", PrepareInfoPrefix, __FUNCTION__, channelUUID.toStdString().c_str(),
+	PLS_INFO(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "%s %s channelUUID(%s) NaverShopping platform(%p) refresh", PrepareInfoPrefix, __FUNCTION__, channelUUID.toUtf8().constData(),
 		 naverShoppingLIVE);
 	naverShoppingLIVE->setInitData(srcInfo);
 	QMetaObject::invokeMethod(naverShoppingLIVE,

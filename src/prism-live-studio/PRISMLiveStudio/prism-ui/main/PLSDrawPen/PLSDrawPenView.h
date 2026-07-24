@@ -24,6 +24,7 @@ public:
 
 private:
 	void createCustomGroup(QButtonGroup *&group, QGridLayout *&gLayout, QString name, int row, int colum) const;
+	void updateGroupState(QWidget *parentWidget, int selected);
 	void setViewEnabled(bool visible);
 	void shapeGroupButtonChangedInternal(int index);
 
@@ -46,6 +47,7 @@ private slots:
 	void on_pushButton_Redo_clicked() const;
 	void on_pushButton_Clear_clicked() const;
 	void on_pushButton_Visible_clicked();
+	void on_pushButton_Exit_clicked();
 
 	void OnUndoDisabled(bool disabled);
 	void OnRedoDisabled(bool disabled);
@@ -59,6 +61,7 @@ protected:
 private:
 	Ui::PLSDrawPenView *ui;
 
+	bool isUpdatingView = false;
 	bool drawVisible = true;
 	QButtonGroup *drawGroup = nullptr;
 	QWidget *shapePopup = nullptr;

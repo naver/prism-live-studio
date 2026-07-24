@@ -229,50 +229,56 @@ bool enum_scenes_callback(void *param, obs_source_t *src)
 
 void PLSInfoCollector::logMsg(std::string type, OBSOutput output)
 {
-	QJsonObject json;
-	QJsonObject scenes;
-	obs_enum_scenes(enum_scenes_callback, &scenes);
+	try {
+		QJsonObject json;
+		QJsonObject scenes;
+		obs_enum_scenes(enum_scenes_callback, &scenes);
 
-	QJsonObject aDevices;
-	auto EnumDefaultAudioSources = [](void *param, obs_source_t *source) {
-		if (!source)
+		QJsonObject aDevices;
+		auto EnumDefaultAudioSources = [](void *param, obs_source_t *source) {
+			if (!source)
+				return true;
+
+			QJsonObject &aDevices_ = *static_cast<QJsonObject *>(param);
+			if (obs_source_get_flags(source) & DEFAULT_AUDIO_DEVICE_FLAG) {
+				const char *name = obs_source_get_name(source);
+				const char *id = obs_source_get_id(source);
+
+				std::array<char, 64> devicePtr;
+				sprintf(devicePtr.data(), "%p", source);
+
+				QString key = QString(name) + " (" + QString(id) + " : " + devicePtr.data() + " )";
+
+				QJsonObject sourceData;
+				logSource(source, sourceData);
+				aDevices_.insert(key, sourceData);
+			}
 			return true;
+		};
 
-		QJsonObject &aDevices_ = *static_cast<QJsonObject *>(param);
-		if (obs_source_get_flags(source) & DEFAULT_AUDIO_DEVICE_FLAG) {
-			const char *name = obs_source_get_name(source);
-			const char *id = obs_source_get_id(source);
+		obs_enum_sources(EnumDefaultAudioSources, &aDevices);
 
-			std::array<char, 64> devicePtr;
-			sprintf(devicePtr.data(), "%p", source);
+		json.insert("scenes[" + QString::number(scenes.size()) + "]", scenes);
+		if (!aDevices.isEmpty())
+			json.insert("audio devices[" + QString::number(aDevices.size()) + "]", aDevices);
 
-			QString key = QString(name) + " (" + QString(id) + " : " + devicePtr.data() + " )";
-
-			QJsonObject sourceData;
-			logSource(source, sourceData);
-			aDevices_.insert(key, sourceData);
+		if (type.find("Stop") == std::string::npos) {
+			QJsonObject encoders;
+			logEncoder(output, encoders);
+			if (!encoders.isEmpty())
+				json.insert("encoders[" + QString::number(encoders.size()) + "]", encoders);
 		}
-		return true;
-	};
 
-	obs_enum_sources(EnumDefaultAudioSources, &aDevices);
+		QByteArray jsonString = QJsonDocument(json).toJson(QJsonDocument::Indented);
 
-	json.insert("scenes[" + QString::number(scenes.size()) + "]", scenes);
-	if (!aDevices.isEmpty())
-		json.insert("audio devices[" + QString::number(aDevices.size()) + "]", aDevices);
+		PLS_INFO(INFO_COLLECTOE, "------------------------------------------------");
+		PLS_LOGEX(PLS_LOG_INFO, INFO_COLLECTOE, {{"TraceMsg", type.c_str()}}, "[TRACE-MSG] %s Msg: %s", type.c_str(), jsonString.constData());
+		PLS_INFO(INFO_COLLECTOE, "------------------------------------------------");
 
-	if (type.find("Stop") == std::string::npos) {
-		QJsonObject encoders;
-		logEncoder(output, encoders);
-		if (!encoders.isEmpty())
-			json.insert("encoders[" + QString::number(encoders.size()) + "]", encoders);
+	} catch (const std::exception &e) {
+		PLS_WARN(INFO_COLLECTOE, "[TRACE-MSG] logMsg exception \n%s", e.what());
+		return;
 	}
-
-	QByteArray jsonString = QJsonDocument(json).toJson(QJsonDocument::Indented);
-
-	PLS_INFO(INFO_COLLECTOE, "------------------------------------------------");
-	PLS_LOGEX(PLS_LOG_INFO, INFO_COLLECTOE, {{"TraceMsg", type.c_str()}}, "[TRACE-MSG] %s Msg: %s", type.c_str(), jsonString.constData());
-	PLS_INFO(INFO_COLLECTOE, "------------------------------------------------");
 }
 
 QString PLSInfoCollector::getFilterList(obs_source_t *source)

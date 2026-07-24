@@ -170,6 +170,7 @@ const UInt32 kVendorIDBroadcom = 0x14E4;
 	return [result copy];
 }
 
+// reference from https://github.com/0xbb/gpu-switch/blob/master/osx/gpu_switch/GSGPU.m
 + (NSString *)getIntelGPUInfo
 {
 	NSMutableArray *cachedGPUs = [NSMutableArray array];

@@ -125,7 +125,9 @@ configure-prism() {
 		 -DPRISM_BUNDLE_CODESIGN_TEAM="${PRISM_CODESIGN_TEAM:--}" \
 		 -DPRISM_VERSION_SHORT="${short_version}" \
 		 -DPRISM_VERSION_BUILD="${build_version}"\
-         -DENABLE_TEST="${ENABLE_TEST:-OFF}"
+		 -DENABLE_TEST="${ENABLE_TEST:-OFF}" \
+		 -DPERFORMANCE_STATS="${PERFORMANCE_STATS_ARG:-OFF}" \
+		 -DUI_ACTION_STATS="${UI_ACTION_STATS_ARG:-OFF}" 
 
 # --log-level=DEBUG \
 	cmake -Wno-dev \
@@ -141,7 +143,10 @@ configure-prism() {
 		 -DPRISM_BUNDLE_CODESIGN_TEAM="${PRISM_CODESIGN_TEAM:--}" \
 		 -DPRISM_VERSION_SHORT="${short_version}" \
 		 -DPRISM_VERSION_BUILD="${build_version}" \
-         -DENABLE_TEST="${ENABLE_TEST:-OFF}"
+		 -DENABLE_TEST="${ENABLE_TEST:-OFF}" \
+		 -DPERFORMANCE_STATS="${PERFORMANCE_STATS_ARG:-OFF}" \
+		 -DUI_ACTION_STATS="${UI_ACTION_STATS_ARG:-OFF}" 
+
 	step "PRISM All configuring done"
 }
 

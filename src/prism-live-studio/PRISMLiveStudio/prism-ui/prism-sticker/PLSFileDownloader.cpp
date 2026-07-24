@@ -7,6 +7,7 @@
 #include "liblog.h"
 #include "platform.hpp"
 #include "utils-api.h"
+#include <QtConcurrent/QtConcurrent>
 
 using namespace downloader;
 
@@ -15,8 +16,11 @@ PLSFileDownloader::PLSFileDownloader(QObject *parent) : QObject(parent)
 	pls_network_state_monitor([this_guard = QPointer<PLSFileDownloader>(this)](bool accessible) {
 		if (pls_is_app_exiting())
 			return;
+
 		if (!this_guard)
 			return;
+
+		// Put the time-consuming or background logic into the child thread for execution
 		this_guard->OnNetworkAccessChanged(accessible);
 	});
 }
@@ -54,17 +58,33 @@ bool PLSFileDownloader::IsRunning() const
 
 void PLSFileDownloader::Retry(retryCallback_t callback)
 {
-	mutex.lock();
-	auto tasks = tasksRetry;
-	mutex.unlock();
-	if (tasks.isEmpty())
-		return;
-	qDebug("retry task size=%d,retry download...", tasks.size());
-	auto sizeTask = tasks.size();
-	for (qsizetype i = 0; i < sizeTask; ++i) {
-		DownloadTaskData task = tasks.dequeue();
-		if (callback && !callback(task))
-			continue;
+	// First collect the tasks that need to be retried
+	QList<DownloadTaskData> tasksToRetry;
+	{
+		QMutexLocker locker(&mutex);
+
+		if (tasksRetry.isEmpty())
+			return;
+
+		qDebug("Retry status: retry task size=%d, PLSFileDownloader::Retry retry download...", tasksRetry.size());
+
+		// Collect eligible tasks
+		auto iter = tasksRetry.begin();
+		while (iter != tasksRetry.end()) {
+			DownloadTaskData task = iter.value();
+			if (callback && !callback(task)) {
+				++iter;
+				continue;
+			}
+			tasksToRetry.append(task);
+			iter = tasksRetry.erase(iter); // Remove from retry list
+		}
+	}
+
+	// Execute retry task outside the lock
+	for (const auto &task : tasksToRetry) {
+
+		//Calling the version that does not hold a lock
 		Get(task, false);
 	}
 }
@@ -104,6 +124,8 @@ void PLSFileDownloader::DownloadSuccess(TaskResponData responData, const pls::ht
 		}
 	}
 
+	responData.rawData = rawData;
+
 	if (responData.taskData.rawDataCallback) {
 		responData.taskData.rawDataCallback(rawData, responData);
 		emit downloadResult(responData);
@@ -115,6 +137,7 @@ void PLSFileDownloader::DownloadSuccess(TaskResponData responData, const pls::ht
 		if (responData.taskData.callback) {
 			responData.taskData.callback(responData);
 		}
+
 		emit downloadResult(responData);
 
 	} else {
@@ -157,8 +180,9 @@ void PLSFileDownloader::DownloadFlow(const DownloadTaskData &taskData)
 	if (!pls_get_network_state()) {
 		if (taskData.needRetry) {
 			QMutexLocker locer(&mutex);
-			qDebug("Network is not accessible,add task to retry list, current retry task size is:%llu", tasksRetry.size());
-			tasksRetry.enqueue(taskData);
+			QUrl url = QUrl::fromEncoded(taskData.url.toLocal8Bit());
+			qDebug("Retry status: Network is not accessible, add task to retry list, current retry task size is:%llu", tasksRetry.size());
+			tasksRetry.insert(url, taskData);
 		}
 		QString errorString("Network is not accessible");
 		TaskResponData responData;
@@ -181,6 +205,10 @@ void PLSFileDownloader::DownloadFlow(const DownloadTaskData &taskData)
 void PLSFileDownloader::StartRequest(const DownloadTaskData &taskData)
 {
 	QUrl url = QUrl::fromEncoded(taskData.url.toLocal8Bit());
+	{
+		QMutexLocker locker(&mutex);
+		taskDownloads.insert(url, taskData);
+	}
 	pls::http::request(pls::http::Request()
 				   .method(pls::http::Method::Get) //
 				   .hmacUrl(url, "")               //
@@ -195,7 +223,17 @@ void PLSFileDownloader::StartRequest(const DownloadTaskData &taskData)
 					   responData.fileName = url.fileName();
 					   emit downloadProgress(responData, reply.downloadedBytes(), reply.downloadTotalBytes());
 				   })
-				   .result([this, taskData](const pls::http::Reply &reply) {
+				   .result([this, taskData, url](const pls::http::Reply &reply) {
+					   {
+						   QMutexLocker locker(&mutex);
+						   taskDownloads.remove(url);
+					   }
+
+					   if (taskData.needRetry && !reply.isOk()) {
+						   QMutexLocker locker(&mutex);
+						   tasksRetry.insert(url, taskData);
+					   }
+
 					   if (reply.isTimeout()) {
 						   OnRequestTimeout(taskData);
 					   } else {
@@ -231,10 +269,6 @@ void PLSFileDownloader::downloadFinished(const pls::http::Reply &reply, const Do
 	TaskResponData responData;
 	responData.taskData = downloaData;
 	if (QNetworkReply::NoError != reply.error()) {
-		if (responData.taskData.needRetry) {
-			QMutexLocker locer(&mutex);
-			tasksRetry.enqueue(responData.taskData);
-		}
 		PLS_ERROR(MAIN_FILE_DOWNLOADER, "Download of %s failed: %s\n", url.toEncoded().constData(), qUtf8Printable(reply.errors()));
 		responData.errorString = QString::asprintf("Download of %s failed: %s", url.toEncoded().constData(), qUtf8Printable(reply.errors()));
 		responData.resultType = ResultStatus::ERROR_OCCUR;
@@ -259,24 +293,36 @@ void PLSFileDownloader::downloadFinished(const pls::http::Reply &reply, const Do
 
 void PLSFileDownloader::OnNetworkAccessChanged(bool accessible)
 {
-	mutex.lock();
-	auto tasks = tasksRetry;
-	mutex.unlock();
+	QMutexLocker locker(&mutex);
 	if (accessible) {
-		if (tasks.isEmpty())
+
+		if (tasksRetry.isEmpty())
 			return;
-		qDebug("retry task size=%d,retry download...", tasks.size());
-		auto sizeTask = tasks.size();
-		for (qsizetype i = 0; i < sizeTask; ++i) {
-			DownloadTaskData task = tasks.dequeue();
-			excuteTask(task, false);
-			QThread::msleep(50);
+
+		qDebug("Retry status: retry task size=%d, PLSFileDownloader::OnNetworkAccessChanged retry download...", tasksRetry.size());
+
+		QList<DownloadTaskData> tasksToExecute;
+		auto iter = tasksRetry.begin();
+		while (iter != tasksRetry.end()) {
+			tasksToExecute.append(iter.value());
+			iter = tasksRetry.erase(iter);
 		}
+
+		// Release the lock before executing the task
+		locker.unlock();
+
+		// Execute tasks (without holding locks)
+		for (const auto &task : tasksToExecute) {
+			excuteTask(task, false);
+		}
+
 	} else {
+
+		qDebug("Retry status: download task size=%d, tasksRetry task size=%d, PLSFileDownloader::OnNetworkAccessChanged retry download...", taskDownloads.size(), tasksRetry.size());
 		auto iter = taskDownloads.begin();
 		while (iter != taskDownloads.end()) {
 			if (iter->needRetry)
-				tasks.enqueue(iter.value());
+				tasksRetry.insert(iter.key(), iter.value());
 			iter = taskDownloads.erase(iter);
 		}
 	}

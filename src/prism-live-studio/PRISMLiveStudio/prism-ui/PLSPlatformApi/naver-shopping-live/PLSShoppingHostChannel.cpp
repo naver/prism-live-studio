@@ -15,9 +15,9 @@ PLSShoppingHostChannel::PLSShoppingHostChannel(QWidget *parent) : PLSDialogView(
 	pls_set_css(this, {"PLSShoppingHostChannel"});
 	setupUi(ui);
 	setWindowTitle(tr("Alert.Title"));
-#if defined(Q_OS_MAC)
-	setFixedSize({410, 233});
-	initSize({410, 233});
+#if defined(Q_OS_MACOS)
+	setFixedSize({410, 273 - PLS_TITLE_BAR_HEIGHT});
+	initSize({410, 273 - PLS_TITLE_BAR_HEIGHT});
 #else
 	setFixedSize({410, 273});
 	initSize({410, 273});

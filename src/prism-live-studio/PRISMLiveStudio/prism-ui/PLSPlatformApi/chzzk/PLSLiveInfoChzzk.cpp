@@ -12,6 +12,8 @@
 #include "utils-api.h"
 #include "libui.h"
 #include "PLSGuideButton.h"
+#include "PLSErrorHandler.h"
+#include "libutils-api.h"
 #include <QShowEvent>
 #include <QTextDocument>
 
@@ -74,9 +76,14 @@ PLSLiveInfoChzzk::PLSLiveInfoChzzk(PLSPlatformBase *pPlatformBase, QWidget *pare
 	ui = pls_new<Ui::PLSLiveInfoChzzk>();
 	pls_add_css(this, {"PLSLiveInfoChzzk"});
 	setupUi(ui);
+}
+void PLSLiveInfoChzzk::initUI()
+{
 	connect(ui->okButton, &QPushButton::clicked, this, &PLSLiveInfoChzzk::okButtonClicked);
 	connect(ui->cancelButton, &QPushButton::clicked, this, &PLSLiveInfoChzzk::cancelButtonClicked);
 	updateStepTitle(ui->okButton);
+
+	pls_uistep_v2_set_title(this, QStringLiteral("Live Information: %1").arg(pls_uistep_v2_get_english("chzzk.liveinfo.title")));
 
 	ui->dualWidget->setText(tr("chzzk.liveinfo.title"))->setUUID(m_platform->getChannelUUID());
 
@@ -91,12 +98,14 @@ PLSLiveInfoChzzk::PLSLiveInfoChzzk(PLSPlatformBase *pPlatformBase, QWidget *pare
 
 	setupFirstUI();
 	setupGuideButton();
-	PLSAPICommon::createHelpIconWidget(ui->leftTitle_category, tr("chzzk.category.tooltip"), ui->formLayout, this, &PLSLiveInfoChzzk::shown);
-	PLSAPICommon::createHelpIconWidget(ui->leftTitle_age, tr("chzzk.age.limit.tooltip"), ui->formLayout, this, &PLSLiveInfoChzzk::shown);
-	PLSAPICommon::createHelpIconWidget(ui->leftTitle_money, tr("chzzk.need.money.tooltip"), ui->formLayout, this, &PLSLiveInfoChzzk::shown);
+	PLSAPICommon::createHelpIconWidget(ui->leftTitle_category, tr("chzzk.category.tooltip"), ui->formLayout, this);
+	PLSAPICommon::createHelpIconWidget(ui->leftTitle_age, tr("chzzk.age.limit.tooltip"), ui->formLayout, this);
+	PLSAPICommon::createHelpIconWidget(ui->leftTitle_money, tr("chzzk.need.money.tooltip"), ui->formLayout, this);
 	replaceHtmlTooltipByRecursive(content());
-}
 
+	ui->followHelp->setReleateText(ui->radioButton_chat_follow->text());
+	ui->adminHelp->setReleateText(ui->radioButton_chat_manager->text());
+}
 PLSLiveInfoChzzk::~PLSLiveInfoChzzk()
 {
 	pls_delete(ui);
@@ -104,6 +113,7 @@ PLSLiveInfoChzzk::~PLSLiveInfoChzzk()
 
 void PLSLiveInfoChzzk::setupFirstUI()
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	ui->liveTitleLabel->setText(QString(common::LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("LiveInfo.base.Title")));
 
 	ui->lineEditTitle->setText("");
@@ -141,13 +151,17 @@ void PLSLiveInfoChzzk::setupFirstUI()
 	});
 	connect(ui->lineEditCategory, &PLSSearchCombobox::startSearchText, m_platform, &PLSPlatformChzzk::requestSearchCategory);
 	connect(m_platform, &PLSPlatformChzzk::onGetCategory, ui->lineEditCategory, &PLSSearchCombobox::receiveSearchData);
-	connect(ui->pushButton_age, &QPushButton::clicked, []() { QDesktopServices::openUrl(QUrl(QString("%1/content-guidelines").arg(g_plsChzzkStudioHost))); });
+	connect(ui->pushButton_age, &QPushButton::clicked, []() {
+		pls_async_invoke([]() { QDesktopServices::openUrl(QString("%1/content-guidelines").arg(g_plsChzzkStudioHost)); });
+		PLS_UI_ACTION("PLSLiveInfoChzzk Age Learn More Open");
+	});
 
 	refreshUI();
 }
 
 void PLSLiveInfoChzzk::refreshUI()
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	refreshThumButton();
 
 	const auto &data = m_platform->getSelectData();
@@ -170,7 +184,12 @@ void PLSLiveInfoChzzk::setupGuideButton()
 {
 	auto widget = pls_new<QWidget>();
 	widget->setObjectName("guideBackView");
-	auto manageButton = pls_new<GuideButton>(tr("chzzk.goto.studio"), false, nullptr, []() { QDesktopServices::openUrl(QUrl(g_plsChzzkStudioHost)); });
+	auto manageButton = pls_new<GuideButton>(tr("chzzk.goto.studio"), false, nullptr, [this]() {
+		pls_uistep_v2(this, "Click", "Button", QStringLiteral("Chzzk Studio"));
+		pls_async_invoke([]() { QDesktopServices::openUrl(QUrl(g_plsChzzkStudioHost)); });
+		PLS_UI_ACTION("Open PLSLiveInfoChzzk Studio finished");
+	});
+
 	manageButton->setObjectName("manageButton");
 	manageButton->setProperty("showHandCursor", true);
 
@@ -230,7 +249,9 @@ void PLSLiveInfoChzzk::titleEdited()
 	doUpdateOkState();
 
 	if (isLargeToMax) {
-		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(s_titleLengthLimit).arg(m_platform->getChannelName()));
+		PLSErrorHandler::ExtraData extraData("PLSLiveInfoChzzk::titleEdited");
+		extraData.defaultArg = {QString::number(s_titleLengthLimit), m_platform->getChannelName()};
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LIVEINFO_TITLE_TOO_LONG, PLSErrKeyAllAlert, {}, extraData);
 	}
 }
 
@@ -251,8 +272,13 @@ void PLSLiveInfoChzzk::okButtonClicked()
 		PLS_INFO(MODULE_PLATFORM_CHZZK, "Chzzk ignore OK Button Click, because is loading");
 		return;
 	}
+	if (!ui->lineEditCategory->isValidInput()) {
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_CHZZK_CATEGORY_INVALID, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("PLSLiveInfoChzzk::okButtonClicked"));
+		return;
+	}
 
 	showLoading(content());
+	PLS_UI_ACTION("Widget PLSLiveInfoChzzk Loading Show");
 	auto _onNext = [this](bool isSucceed) {
 		hideLoading();
 		PLS_INFO(MODULE_PLATFORM_CHZZK, "Chzzk liveinfo Save %s", (isSucceed ? "succeed" : "failed"));
@@ -297,7 +323,9 @@ void PLSLiveInfoChzzk::cancelButtonClicked()
 void PLSLiveInfoChzzk::showEvent(QShowEvent *event)
 {
 	Q_UNUSED(event)
+	PLSLiveInfoBase::showEvent(event);
 	showLoading(content());
+	initUI();
 	auto _onNextVideo = [this](bool value) {
 		refreshUI();
 		hideLoading();
@@ -308,5 +336,4 @@ void PLSLiveInfoChzzk::showEvent(QShowEvent *event)
 		}
 	};
 	m_platform->requestLiveInfo(this, _onNextVideo);
-	PLSLiveInfoBase::showEvent(event);
 }

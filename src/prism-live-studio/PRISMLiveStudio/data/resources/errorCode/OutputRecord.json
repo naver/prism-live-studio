@@ -1,0 +1,59 @@
+{
+    "data": [
+        {
+            "api": {
+                "errorCode": "-6"
+            },
+            "err": {
+                "prismCode": 57994,
+                "prismName": "PRISM_OUTPUT_UNSUPPORTED",
+                "msgKey": "Output.RecordFail.Unsupported",
+                "title": "Output.RecordFail.Title",
+                "msgText": "The output format is either unsupported or does not support more than one audio track. Please check your settings and try again."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-7"
+            },
+            "err": {
+                "prismCode": 57993,
+                "prismName": "PRISM_OUTPUT_NO_SPACE",
+                "msgKey": "Output.RecordNoSpace.Msg",
+                "title": "Output.RecordNoSpace.Title",
+                "msgText": "There is not sufficient disk space to continue recording."
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-8"
+            },
+            "err": {
+                "prismCode": 57992,
+                "prismName": "PRISM_OUTPUT_ENCODE_ERROR",
+                "msgKey": "Output.RecordError.EncodeErrorMsg",
+                "title": "Output.RecordError.Title",
+                "msgText": "An encoder error occurred while recording"
+            }
+        },
+        {
+            "api": {
+                "errorCode": "-8",
+                "hasErrorCode": "1"
+            },
+            "err": {
+                "prismCode": 57992,
+                "prismName": "PRISM_OUTPUT_ENCODE_ERROR",
+                "msgKey": "Output.RecordError.EncodeErrorMsg.LastError",
+                "arg": "{{arg_lastError}}",
+                "title": "Output.RecordError.Title",
+                "msgText": "An encoder error occurred while recording:%1"
+            }
+        }
+    ],
+    "extra": {
+        "append": [
+            "\n\n{{lastError}}"
+        ]
+    }
+}

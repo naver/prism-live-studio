@@ -25,13 +25,14 @@
 #include <set>
 #include "window-basic-main.hpp"
 #include "PLSBasic.h"
+#include <QtConcurrent/QtConcurrent>
 
 constexpr auto TAB_INDEX = "tabIndex";
 constexpr auto API_KEY = "";
 constexpr auto API = "";
-constexpr auto PAGE_TYPE = "";
-constexpr auto SEARCH_API = "";
-constexpr auto TRENDING_API = "";
+constexpr auto PAGE_TYPE = "pageType";
+constexpr auto SEARCH_API = "search";
+constexpr auto TRENDING_API = "trending";
 
 namespace {
 struct LocalGlobalVars {
@@ -69,6 +70,9 @@ PLSGiphyStickerView::PLSGiphyStickerView(DialogInfo info, QWidget *parent) : PLS
 	setHasMaxResButton(true);
 	setCaptionButtonMargin(9);
 	setWindowTitle(QTStr(MIAN_GIPHY_STICKER_TITLE));
+	auto titleEn = pls_uistep_v2_to_english(QTStr(MIAN_GIPHY_STICKER_TITLE));
+	pls_uistep_v2_set_title(this, titleEn);
+
 	QFrame *titleFrame = this->findChild<QFrame *>("titleBar");
 	if (titleFrame)
 		titleFrame->setFocusPolicy(Qt::ClickFocus);
@@ -89,6 +93,14 @@ PLSGiphyStickerView::PLSGiphyStickerView(DialogInfo info, QWidget *parent) : PLS
 		ui->btn_recent->setFixedWidth(widthRecent + 20);
 		ui->btn_trending->setFixedWidth(widthTrending + 20);
 	});
+
+#if defined(Q_OS_MACOS)
+	setMinimumSize(300, 455 - PLS_TITLE_BAR_HEIGHT);
+	setMaximumSize(1472, 1076 - PLS_TITLE_BAR_HEIGHT);
+#else
+	setMinimumSize(300, 455);
+	setMaximumSize(1472, 1076);
+#endif
 }
 
 PLSGiphyStickerView::~PLSGiphyStickerView()
@@ -160,7 +172,13 @@ void PLSGiphyStickerView::Init()
 		}
 	});
 	connect(ui->lineEdit_search, &PLSSearchLineEdit::textEdited, [this](const QString &key) { OnSearchMenuRequested(key.isEmpty()); });
-	connect(ui->lineEdit_search, &PLSSearchLineEdit::SearchMenuRequested, this, &PLSGiphyStickerView::OnSearchMenuRequested, Qt::QueuedConnection);
+	connect(
+		ui->lineEdit_search, &PLSSearchLineEdit::SearchMenuRequested, this,
+		[this](bool show) {
+			PLS_UI_ACTION("Giphy Sticker View Click Search Line Edit");
+			OnSearchMenuRequested(show);
+		},
+		Qt::QueuedConnection);
 	ui->btn_cancel->hide();
 
 	InitMenuList();
@@ -327,43 +345,9 @@ void PLSGiphyStickerView::StartDownloader() const
 	GiphyDownloader::instance()->Start();
 }
 
-const std::map<std::string, std::string, std::less<>> supportedLocal = {{"en", "English"},
-									{"es", "Spanish"},
-									{"pt", "Portuguese"},
-									{"id", "Indonesian"},
-									{"fr", "French"},
-									{"ar", "Arabic"},
-									{"tr", "Turkish"},
-									{"th", "Thai"},
-									{"vi", "Vietnamese"},
-									{"de", "German"},
-									{"it", "Italian"},
-									{"ja", "Japanese"},
-									{"zh-CN", "Chinese Simplified"},
-									{"zh-TW", "Chinese Traditional"},
-									{"ru", "Russian"},
-									{"ko", "Korean"},
-									{"pl", "Polish"},
-									{"nl", "Dutch"},
-									{"ro", "Romanian"},
-									{"hu", "Hungarian"},
-									{"sv", "Swedish"},
-									{"cs", "Czech"},
-									{"hi", "Hindi"},
-									{"bn", "Bengali"},
-									{"da", "Danish"},
-									{"fa", "Farsi"},
-									{"tl", "Filipino"},
-									{"fi", "Finnish"},
-									{"he", "Hebrew"},
-									{"ms", "Malay"},
-									{"no", "Norwegian"},
-									{"uk", "Ukrainian"}};
-
-QString PLSGiphyStickerView::GetRequestUrl(const QString &apiType, int limit, int offset) const
+QString PLSGiphyStickerView::GetRequestUrl(const QString & /*apiType*/, int /*limit*/, int /*offset*/) const
 {
-	QString url(API);
-	return url;
+	return QString();
 }
 
 void PLSGiphyStickerView::ClearTrendingList()
@@ -644,12 +628,22 @@ void PLSGiphyStickerView::DeleteHistoryItem(const QString &key)
 
 void PLSGiphyStickerView::QuerySearch(const QString &keyword, int limit, int offset)
 {
-	
+	QString url = GetRequestUrl(SEARCH_API, limit, offset);
+	url.append("&q=").append(keyword.toUtf8());
+	RequestTaskData task;
+	task.randomId = ConvertPointer(searchResultList);
+	task.url = url;
+	task.keyword = keyword;
+	webHandler->Get(task);
 }
 
 void PLSGiphyStickerView::QueryTrending(int limit, int offset)
 {
-	
+	QString url = GetRequestUrl(TRENDING_API, limit, offset);
+	RequestTaskData task;
+	task.randomId = ConvertPointer(trendingScrollList);
+	task.url = url;
+	webHandler->Get(task);
 }
 
 void PLSGiphyStickerView::ShowSearchPage()
@@ -909,7 +903,7 @@ void PLSGiphyStickerView::SetSearchData(const ResponData &data)
 		return;
 	ShowSearchPage();
 	auto size = data.giphyData.size();
-	PLS_INFO(MAIN_GIPHY_STICKER_MODULE, "request search '%s' data size=%d", data.task.keyword.toStdString().c_str(), size);
+	PLS_INFO(MAIN_GIPHY_STICKER_MODULE, "request search '%s' data size=%d", data.task.keyword.toUtf8().constData(), size);
 	bool noData = (size == 0);
 	if (data.pageData.offset == 0) {
 		stopProcess = true;
@@ -1484,7 +1478,10 @@ void MovieLabel::DownloadPreview()
 	currentTask.uniqueId = giphyData.id;
 	currentTask.type = StickerDownloadType::THUMBNAIL;
 	currentTask.randomId = PLSGiphyStickerView::ConvertPointer(this);
-	emit excuteTask(currentTask);
+	QtConcurrent::run([currentTask, this]() {
+		emit excuteTask(currentTask);
+		QThread::msleep(50);
+	});
 }
 
 void MovieLabel::mousePressEvent(QMouseEvent *ev)
@@ -1495,6 +1492,7 @@ void MovieLabel::mousePressEvent(QMouseEvent *ev)
 	}
 
 	PLS_UI_STEP(MAIN_GIPHY_STICKER_MODULE, "Sticker movie label", ACTION_CLICK);
+	pls_uistep_v2(this, "Click", "Giphy Item", giphyData.title);
 	if (LocalGlobalVars::g_prevClickedItem && LocalGlobalVars::g_prevClickedItem != this) {
 		LocalGlobalVars::g_prevClickedItem->SetClicked(false);
 	}

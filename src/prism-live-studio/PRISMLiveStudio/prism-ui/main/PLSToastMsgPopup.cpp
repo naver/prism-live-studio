@@ -4,6 +4,8 @@
 #include "libutils-api.h"
 
 constexpr auto MSGTYPE = "toastWaning";
+constexpr int TOAST_CONTENT_PADDING = 12;
+constexpr int TOAST_CONTENT_HEIGHT_MARGIN = 4;
 
 PLSToastMsgPopup::PLSToastMsgPopup(QWidget *parent) : QLabel(parent)
 {
@@ -12,6 +14,8 @@ PLSToastMsgPopup::PLSToastMsgPopup(QWidget *parent) : QLabel(parent)
 	m_timer = pls_new<QTimer>(this);
 	ui->setupUi(this);
 	setFixedWidth(325);
+	setMargin(TOAST_CONTENT_PADDING);
+	setScaledContents(false);
 	connect(m_timer, &QTimer::timeout, [this]() {
 		m_timer->stop();
 		this->hide();
@@ -42,11 +46,12 @@ void PLSToastMsgPopup::showMsg(const QString &msg, pls_toast_info_type type)
 	default:
 		break;
 	}
-	this->style()->unpolish(this);
-	this->style()->polish(this);
-
+	pls_flush_style(this);
 	setText(msg);
-	adjustSize();
+	const int contentMargin = margin();
+	const int contentWidth = qMax(1, width() - contentMargin * 2);
+	const auto size = pls_calculate_size_for_width(msg, font(), contentWidth);
+	resize(width(), qMax(minimumHeight(), size.height() + contentMargin * 2 + TOAST_CONTENT_HEIGHT_MARGIN));
 }
 
 void PLSToastMsgPopup::mousePressEvent(QMouseEvent *event)

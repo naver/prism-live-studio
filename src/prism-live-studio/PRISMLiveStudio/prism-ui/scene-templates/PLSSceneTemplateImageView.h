@@ -23,6 +23,7 @@ public:
 	void setSceneName(const QString &sceneName);
 
 	void showAIBadge(const QPixmap &pixmap, bool bLongAIBadge);
+	void showPlusBadge(const QPixmap &pixmap);
 
 protected:
 	bool eventFilter(QObject *watched, QEvent *event) override;
@@ -37,6 +38,7 @@ private:
 	Ui::PLSSceneTemplateImageView *ui;
 	QString m_path;
 	QPixmap imagePix;
+	QPixmap m_defaultImage;
 };
 
 #endif // PLSSCENETEMPLATEIMAGEVIEW_H

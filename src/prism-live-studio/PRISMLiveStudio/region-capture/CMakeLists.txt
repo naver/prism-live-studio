@@ -22,6 +22,10 @@ add_executable(region-capture
 main.cpp 
 region-capture.h 
 region-capture.cpp
+region-capture-service.h
+region-capture-service.cpp
+win-signal.h 
+win-signal.cpp
 PLSHookKeyboard.h
 PLSHookKeyboard-win.cpp
 region-capture.qrc
@@ -31,14 +35,16 @@ add_executable(region-capture
 main.cpp 
 region-capture.h 
 region-capture.cpp
+region-capture-service.h
+region-capture-service.cpp
 PLSHookKeyboard.h
 PLSHookKeyboard-mac.mm
 region-capture.qrc)
 endif()
 
-find_package(Qt6 COMPONENTS Widgets)
+find_package(Qt6 COMPONENTS Widgets Network)
 
-target_link_libraries(region-capture OBS::libobs common-libs::utils-api common-libs::ui Qt6::Widgets)
+target_link_libraries(region-capture OBS::libobs common-libs::utils-api common-libs::ui Qt6::Widgets Qt6::Network)
 add_dependencies(region-capture obs-build)
 
 set_target_properties(region-capture PROPERTIES FOLDER prism/frontend)

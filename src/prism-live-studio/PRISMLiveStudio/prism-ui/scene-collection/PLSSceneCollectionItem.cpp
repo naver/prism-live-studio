@@ -8,6 +8,7 @@
 #include <QPainter>
 #include <QToolTip>
 #include <QMouseEvent>
+#include <QShowEvent>
 #include "log/module_names.h"
 #include "action.h"
 #include "log/log.h"
@@ -24,6 +25,7 @@ PLSSceneCollectionItem::PLSSceneCollectionItem(const QString &name, const QStrin
 	ui->setupUi(this);
 	setMouseTracking(true);
 	ui->horizontalLayout->setContentsMargins(12, 0, 12, 0);
+	setProperty("posFollowCursor", true);
 
 #ifdef Q_OS_WIN
 	this->setProperty("platform", "win");
@@ -45,6 +47,11 @@ PLSSceneCollectionItem::PLSSceneCollectionItem(const QString &name, const QStrin
 	SetButtonVisible(false);
 	SetCurrentStyles(current);
 	setProperty("showHandCursor", true);
+	pls_uistep_v2_set_value(ui->advBtn, QStringLiteral("Advanced"));
+	pls_uistep_v2_set_custom_enter_leave_name(this, "Scene collection item");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->applyBtn, "Apply Button");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->deleteBtn, "Delete Button");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->renameBtn, "Rename Button");
 
 	connect(ui->applyBtn, &QPushButton::clicked, this, &PLSSceneCollectionItem::OnApplyBtnClicked);
 	connect(ui->deleteBtn, &QPushButton::clicked, this, &PLSSceneCollectionItem::OnDeleteBtnClicked);
@@ -139,18 +146,31 @@ void PLSSceneCollectionItem::DrawDropLine(DropLine type)
 void PLSSceneCollectionItem::mousePressEvent(QMouseEvent *event)
 {
 	if (textMode) {
-		QString log = QString("scene collection menu item [%1]").arg(fileName);
-		PLS_UI_STEP(MAIN_SCENE_COLLECTION, log.toStdString().c_str(), ACTION_LBUTTON_CLICK);
+		pls_uistep_v2(this, "Click", "Button", fileName.toUtf8().constData());
 		emit applyClicked(fileName, filePath, true);
 	}
 
 	QFrame::mousePressEvent(event);
 }
 
+void PLSSceneCollectionItem::showEvent(QShowEvent *event)
+{
+	QFrame::showEvent(event);
+	enter = false;
+	SetMouseStatus(PROPERTY_VALUE_MOUSE_STATUS_NORMAL);
+	SetButtonVisible(false);
+}
+
+void PLSSceneCollectionItem::hideEvent(QHideEvent *event)
+{
+	SetEnterStyles(false);
+	SetMouseStatus(PROPERTY_VALUE_MOUSE_STATUS_NORMAL);
+	QFrame::hideEvent(event);
+}
+
 void PLSSceneCollectionItem::mouseDoubleClickEvent(QMouseEvent *event)
 {
-	QString log = QString("scene collection item [%1]").arg(fileName);
-	PLS_UI_STEP(MAIN_SCENE_COLLECTION, log.toStdString().c_str(), ACTION_DBCLICK);
+	pls_uistep_v2(this, "Double Click", "Button", fileName.toUtf8().constData());
 	emit applyClicked(fileName, filePath, false);
 	QFrame::mouseDoubleClickEvent(event);
 }
@@ -159,7 +179,9 @@ void PLSSceneCollectionItem::mouseMoveEvent(QMouseEvent *event)
 {
 	QRect rect(leftMargin, 0, nameRealWidth, height());
 	if (rect.contains(event->pos())) {
-		QToolTip::showText(QCursor::pos(), fileName, this);
+		setToolTip(fileName);
+	} else {
+		setToolTip("");
 	}
 	QFrame::mouseMoveEvent(event);
 }
@@ -171,14 +193,12 @@ void PLSSceneCollectionItem::enterEvent(QEvent *event)
 #endif
 {
 	SetEnterStyles(true);
-
 	emit triggerEnterEvent(fileName, filePath);
 	QFrame::enterEvent(event);
 }
 
 void PLSSceneCollectionItem::leaveEvent(QEvent *event)
 {
-	QToolTip::hideText();
 	SetEnterStyles(false);
 	QFrame::leaveEvent(event);
 }
@@ -271,8 +291,13 @@ void PLSSceneCollectionItem::OnAdvBtnClicked()
 	connect(duplicateAction, &QAction::triggered, this, &PLSSceneCollectionItem::OnDuplicateBtnClicked);
 	connect(exportAction, &QAction::triggered, this, &PLSSceneCollectionItem::OnExportBtnClicked);
 
+	pls_uistep_v2_set_value(duplicateAction, QStringLiteral("Duplicate"));
+	pls_uistep_v2_set_value(exportAction, QStringLiteral("Export"));
+
 	popup.addAction(duplicateAction);
 	popup.addAction(exportAction);
+
+	PLS_UI_ACTION("In scene set management window, the advance menu has been created.");
 
 	pls_push_modal_view(&popup);
 	advMenuShow = true;
@@ -343,7 +368,7 @@ int PLSSceneCollectionItem::GetButtonWidth()
 
 void PLSSceneCollectionItem::SetLeftRightMargin()
 {
-	leftMargin = 12;
+	leftMargin = textMode ? 19 : 12;
 	rightMargin = leftMargin;
 	if (buttonVisible) {
 		rightMargin = 9;

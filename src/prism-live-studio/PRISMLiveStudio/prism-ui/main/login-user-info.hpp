@@ -83,14 +83,15 @@ public:
 	QJsonObject &getDataObj();
 	void selfFlag(bool isSelf);
 	bool isSelf() const;
-	QString getNCPPlatformToken();
-	QString getNCPPlatformRefreshToken();
-	qint64 getNCPPlatformExpiresTime();
+	QString getSNSPlatformTokenType();
+	QString getSNSPlatformToken();
+	QString getSNSPlatformRefreshToken();
+	qint64 getSNSPlatformExpiresTime();
 	QString getNCPPlatformServiceName();
 	QString getNCPPlatformServiceId();
 	QString getLoginPlatformName();
 	QString getNCPPlatformServiceAuthUrl();
-	void updateNCB2BTokenInfo(const QString &token, const QString &refreshToken, const qint64 &expiresTime);
+	void updateNCB2BTokenInfo(const QString &token, const QString &refreshToken, const qint64 &expiresTime, const QString &tokenType = QString());
 
 private:
 	explicit PLSLoginUserInfo();
@@ -99,6 +100,7 @@ private:
 	QByteArray m_prismCookies;
 	QByteArray m_sessionCookies;
 	QJsonObject m_userObj;
+	QString m_naverCookie;
 	bool m_isSelf = true;
 };
 #define PLSLOGINUSERINFO PLSLoginUserInfo::getInstance()

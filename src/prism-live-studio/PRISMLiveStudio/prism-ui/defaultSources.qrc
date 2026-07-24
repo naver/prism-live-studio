@@ -1,2 +1,31 @@
 <RCC>
+    <qresource prefix="/Configs">
+        <file>resource/DefaultResources/GuideInformation.json</file>
+        <file>resource/DefaultResources/GuideInformation-kr.json</file>
+        <file>resource/DefaultResources/navershoppingCategory.json</file>
+        <file>resource/DefaultResources/recordDisabledWidgets.json</file>
+        <file>resource/DefaultResources/ResolutionGuide.json</file>
+        <file>resource/DefaultResources/twitch.js</file>
+        <file>resource/DefaultResources/pls_navershopping_policy.js</file>
+        <file>resource/DefaultResources/Policy_Platform.json</file>
+        <file>resource/DefaultResources/Policy_Publish.json</file>
+        <file>resource/DefaultResources/win/gpop.json</file>
+        <file>resource/DefaultResources/mac/gpop.json</file>
+        <file>resource/DefaultResources/GpuModels.json</file>
+        <file>resource/DefaultResources/OpenSource.json</file>
+        <file>resource/DefaultResources/Laboratory.json</file>
+        <file>resource/DefaultResources/Policy_Outro_Config.json</file>
+        <file>resource/DefaultResources/Policy_Watermark_Config.json</file>
+        <file>resource/DefaultResources/SceneTemplates.json</file>
+        <file>resource/DefaultResources/chatv2source.json</file>
+        <file>resource/DefaultResources/textmotion.json</file>
+        <file>resource/DefaultResources/category.json</file>
+        <file>resource/DefaultResources/music.json</file>
+        <file>resource/DefaultResources/virtual_bg.json</file>
+        <file>resource/DefaultResources/scene_templates.json</file>
+        <file>resource/DefaultResources/textTemplatePC.json</file>
+        <file>resource/DefaultResources/library.json</file>
+        <file>resource/DefaultResources/reaction.json</file>
+        <file>resource/DefaultResources/chatBackground.json</file>
+    </qresource>
 </RCC>

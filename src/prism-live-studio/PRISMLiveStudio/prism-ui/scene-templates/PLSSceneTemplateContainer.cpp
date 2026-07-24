@@ -3,7 +3,7 @@
 #include "obs-app.hpp"
 #include "PLSSceneTemplateMediaManage.h"
 
-PLSSceneTemplateContainer::PLSSceneTemplateContainer(DialogInfo info, QWidget *parent) : PLSSideBarDialogView(info, parent), ui(new Ui::PLSSceneTemplateContainer)
+PLSSceneTemplateContainer::PLSSceneTemplateContainer(DialogInfo info, QWidget *parent) : PLSSideBarDialogView(info, parent, CreateWinId::Create), ui(new Ui::PLSSceneTemplateContainer)
 {
 	setupUi(ui);
 	pls_add_css(this, {"PLSSceneTemplateContainer"});
@@ -14,12 +14,15 @@ PLSSceneTemplateContainer::PLSSceneTemplateContainer(DialogInfo info, QWidget *p
 	setMaximumSize(1145, 762);
 	initSize(1145, 762);
 #else
-	setMinimumSize(902, 574);
-	setMaximumSize(1145, 728);
-	initSize(1145, 728);
+	setMinimumSize(902, 602 - PLS_TITLE_BAR_HEIGHT);
+	setMaximumSize(1145, 762 - PLS_TITLE_BAR_HEIGHT);
+	initSize(1145, 762 - PLS_TITLE_BAR_HEIGHT);
 #endif
 
 	PLS_SCENE_TEMPLATE_MEDIA_MANAGE->setSceneTemplateContainer(this);
+
+	pls_uistep_v2_set_title(this, QStringLiteral("SceneTemplate"));
+	pls_uistep_v2_auto_bind(this);
 }
 
 PLSSceneTemplateContainer::~PLSSceneTemplateContainer()
@@ -29,12 +32,14 @@ PLSSceneTemplateContainer::~PLSSceneTemplateContainer()
 
 void PLSSceneTemplateContainer::showMainSceneTemplatePage()
 {
+	PLS_UI_ACTION("In Scene Template Window, the main scene template page has been displayed.");
 	ui->rightPage->hide();
 	ui->leftPage->show();
 }
 
 void PLSSceneTemplateContainer::showDetailSceneTemplatePage(const SceneTemplateItem &model)
 {
+	PLS_UI_ACTION("In Scene Template Window, the detail scene template page has been displayed.");
 	ui->leftPage->hide();
 	ui->rightPage->show();
 	ui->rightPage->updateUI(model);
@@ -52,6 +57,12 @@ void PLSSceneTemplateContainer::hideEvent(QHideEvent *event)
 {
 	PLSSideBarDialogView::hideEvent(event);
 	App()->getMainView()->updateSideBarButtonStyle(ConfigId::SceneTemplateConfig, false);
+
+	for (auto view : findChildren<PLSMediaRender *>()) {
+		if (auto mediaPlayer = view->getMediaPlayer(); nullptr != mediaPlayer) {
+			mediaPlayer->stop();
+		}
+	}
 }
 
 QPixmap &PLSSceneTemplateContainer::getAIBadge()
@@ -85,22 +96,4 @@ QPixmap &PLSSceneTemplateContainer::getAILongBadge()
 	}
 
 	return m_pixmapAILongBadge;
-}
-
-QPixmap &PLSSceneTemplateContainer::getPlusBadge()
-{
-	if (m_pixmapPlusBadge.isNull()) {
-		m_pixmapPlusBadge = pls_load_pixmap("://resource/images/scene-template/plus.svg", QSize(50 * 4, 27 * 4));
-	}
-
-	return m_pixmapPlusBadge;
-}
-
-QPixmap &PLSSceneTemplateContainer::getPlusDetailBadge()
-{
-	if (m_pixmapPlusDetailBadge.isNull()) {
-		m_pixmapPlusDetailBadge = pls_load_pixmap("://resource/images/scene-template/plus_detail.svg", QSize(60 * 4, 32 * 4));
-	}
-
-	return m_pixmapPlusDetailBadge;
 }

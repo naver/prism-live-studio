@@ -17,9 +17,11 @@
 #include "pls/pls-dual-output.h"
 #include "qt-wrappers.hpp"
 #include <QDesktopServices>
+#include <QApplication>
 #include "PLSNewIconActionWidget.hpp"
 #include "PLSAboutView.hpp"
-#include "PLSNoticeView.hpp"
+#include "PLSNoticePopupDialog.hpp"
+#include "PLSNoticeUpdateTypes.hpp"
 #include "PLSDrawPen/PLSDrawPenMgr.h"
 #include "PLSBackgroundMusicView.h"
 #include "PLSPlatformPrism.h"
@@ -28,6 +30,7 @@
 #include "PLSLaunchWizardView.h"
 #include "PLSMessageBox.h"
 #include "ui-validation.hpp"
+#include "frontend-api.h"
 #include "PLSPlatformApi.h"
 #include "pls-shared-values.h"
 #include "window-basic-settings.hpp"
@@ -41,9 +44,7 @@
 #include "PLSLiveInfoNaverShoppingLIVEProductItemView.h"
 #include "PLSNaverShoppingLIVEProductItemView.h"
 #include "PLSNaverShoppingLIVESearchKeywordItemView.h"
-#include "PLSAction.h"
 #include "platform.hpp"
-#include "PLSBasicStatusBar.hpp"
 #include "PLSAudioControl.h"
 #include "PLSLaboratory.h"
 #include "PLSLaboratoryManage.h"
@@ -52,11 +53,13 @@
 #include "window-basic-main-outputs.hpp"
 #include "PLSContactView.hpp"
 #include "PLSOpenSourceView.h"
-
+#include "PLSNoticePopupDialog.hpp"
 #include "PLSLoginDataHandler.h"
+#include "PLSLoginMainView.h"
 #include "window-dock-browser.hpp"
 #include "PLSPreviewTitle.h"
 #include "pls-frontend-api.h"
+#include "PLSErrorHandler.h"
 #include "GiphyDownloader.h"
 #include "PLSInfoCollector.h"
 #include "log/log.h"
@@ -69,6 +72,15 @@
 #include "PLSNCB2bBrowserSettings.h"
 #include "MutiLanguageTestView.h"
 #include "PLSSceneitemMapManager.h"
+#include "PLSNCB2bBrowserDock.h"
+#include "pls-performance.h"
+#include "PLSOnBoardingDlg.h"
+#include "pls/pls-base.h"
+#include "pls/pls-lens-event.h"
+#include "PLSNoticeUpdateCoordinator.hpp"
+#include "PLSNoticeUpdateRepository.hpp"
+#include <QEventLoop>
+#include <QScrollArea>
 
 #if defined(Q_OS_WIN)
 #include <Windows.h>
@@ -170,7 +182,7 @@ QStringList getActivedChatChannels()
 	activedPlatforms.sort([](const PLSPlatformBase *a, const PLSPlatformBase *b) { return a->getChannelOrder() < b->getChannelOrder(); });
 
 	QStringList activedChatChannels;
-	for (PLSPlatformBase *platform : PLS_PLATFORM_ACTIVIED) {
+	for (PLSPlatformBase *platform : activedPlatforms) {
 		auto index = PLS_CHAT_HELPER->getIndexFromInfo(platform->getInitData());
 		if (!PLS_CHAT_HELPER->isCefWidgetIndex(index)) {
 			continue;
@@ -446,43 +458,71 @@ std::string GameCaptureResult::getLastFailedResult()
 	return ret;
 }
 
-CheckCamProcessWorker::~CheckCamProcessWorker()
+void CheckCamProcessWorker::initCamProcessWorker()
 {
-	if (!checkTimer) {
-		return;
-	}
-	checkTimer->stop();
-	delete checkTimer;
+	QString processName;
+#if defined(Q_OS_WIN)
+	processName = QString(PRISM_CAM_PRODUCTION_NAME) + ".exe";
+#elif defined(Q_OS_MACOS)
+	processName = PRISM_CAM_PRODUCTION_NAME;
+#endif
+	m_camProcessName = processName;
+	m_checkVisbleTimer = pls_new<QTimer>(this);
+	connect(m_checkVisbleTimer.data(), &QTimer::timeout, this, &CheckCamProcessWorker::checkWindowVisible);
+	checkCamProcessIsRunning();
 }
 
-void CheckCamProcessWorker::Check()
+CheckCamProcessWorker::~CheckCamProcessWorker()
+{
+	pls_delete(m_checkVisbleTimer);
+	pls_delete(m_checkRunningTimer);
+}
+
+void CheckCamProcessWorker::checkWindowVisible()
 {
 	int pid = 0;
 
 #if defined(Q_OS_WIN)
-	bool processRun = pls_is_process_running(processName.toStdWString().c_str(), pid);
+	LENS_WINDOWS_STATUS isProcessIsVisible = pls_is_cam_window_visible(pid);
 #elif defined(Q_OS_MACOS)
-	bool processRun = pls_is_process_running(processName.toUtf8().constData(), pid);
+	LENS_WINDOWS_STATUS isProcessIsVisible = pls_is_cam_window_visible();
 #endif
 
-	if (processIsExisted != processRun) {
-		emit checkFinished(processRun);
+	if (isProcessIsVisible != LENS_WINDOWS_STATUS::NO_SHOW) {
+		m_checkVisbleTimer->stop();
+		emit checkVisble(false);
 	}
-
-	processIsExisted = processRun;
 }
 
-void CheckCamProcessWorker::CheckCamProcessIsExisted(const QString &name)
+void CheckCamProcessWorker::checkProcessRunning()
 {
-	processName = name;
+	int pid = 0;
+#if defined(Q_OS_WIN)
+	bool processRun = pls_is_process_running(m_camProcessName.toStdWString().c_str(), pid);
+#elif defined(Q_OS_MACOS)
+	bool processRun = pls_is_process_running(m_camProcessName.toUtf8().constData(), pid);
+#endif
 
-	if (checkTimer) {
-		return;
-	}
+	m_camIsRuning = processRun;
+	emit checkRunning(processRun);
+}
 
-	checkTimer = pls_new<QTimer>(this);
-	connect(checkTimer.data(), &QTimer::timeout, this, &CheckCamProcessWorker::Check);
-	checkTimer->start(2000);
+bool CheckCamProcessWorker::getCamProcessState()
+{
+	return m_camIsRuning;
+}
+
+void CheckCamProcessWorker::checkCamProcessIsRunning()
+{
+	m_checkRunningTimer = pls_new<QTimer>(this);
+	connect(m_checkRunningTimer.data(), &QTimer::timeout, this, &CheckCamProcessWorker::checkProcessRunning);
+	m_checkRunningTimer->start(2000);
+}
+
+void CheckCamProcessWorker::checkCamProcessIsVisible()
+{
+	checkWindowVisible();
+	m_checkVisbleTimer->start(800);
 }
 
 QString getOsVersion()
@@ -521,10 +561,10 @@ void httpRequestHead(QVariantMap &headMap, bool hasGacc)
 	headMap[HEADER_PRISM_DEVICE] = QStringLiteral("Mac OS");
 #endif
 	if (hasGacc) {
-		headMap[HEADER_PRISM_GCC] = GlobalVars::gcc.c_str();
+		headMap[HEADER_PRISM_GCC] = pls_get_gcc();
 	}
 	headMap[HEADER_PRISM_USERCODE] = GlobalVars::logUserID.c_str();
-	headMap[HEADER_PRISM_LANGUAGE] = pls_prism_get_locale();
+	headMap[HEADER_PRISM_LANGUAGE] = pls_get_locale();
 	headMap[HEADER_PRISM_APPVERSION] = PLS_VERSION;
 	headMap[HEADER_PRISM_IP] = pls_get_local_ip();
 	headMap[HEADER_PRISM_OS] = getOsVersion();
@@ -533,12 +573,15 @@ void httpRequestHead(QVariantMap &headMap, bool hasGacc)
 
 PLSBasic::PLSBasic(PLSMainView *mainView) : OBSBasic(mainView)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	LocalVars::s_basic = this;
 #if defined(Q_OS_WIN)
 	installNativeEventFilter();
 #endif
 
 	mainView->installEventFilter(this);
+	ui->previewXContainer->installEventFilter(this);
+	installEventFilter(this);
 
 	ui->actionRemoveSource->setShortcutContext(Qt::WidgetWithChildrenShortcut);
 	ui->actionRemoveScene->setShortcutContext(Qt::WidgetWithChildrenShortcut);
@@ -553,6 +596,10 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : OBSBasic(mainView)
 	connect(
 		PLSBasic::instance(), &PLSBasic::outputStateChanged, mainView,
 		[this]() {
+			const size_t prsActiveOutputCount = pls_get_active_output_count();
+			const bool prsOutputActived = pls_is_output_actived();
+			PLS_INFO(MAINFRAME_MODULE, "[prs_active_output] outputStateChanged: pls_get_active_output_count=%zu pls_is_output_actived=%d update_title_enabled=%d", prsActiveOutputCount,
+				 prsOutputActived ? 1 : 0, prsOutputActived ? 0 : 1);
 #if defined(Q_OS_WIN)
 			if (logOut) {
 				logOut->setEnabled(!pls_is_output_actived());
@@ -565,6 +612,7 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : OBSBasic(mainView)
 			if (m_checkUpdateWidget) {
 				m_checkUpdateWidget->setItemDisabled(pls_is_output_actived());
 			}
+			getMainView()->updateTipsEnableChanged(!pls_is_output_actived());
 			if (!pls_is_without_third_output_actived()) {
 				pls_async_call(this, [this]() {
 					checkNoticeAndForceUpdate();
@@ -587,6 +635,7 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : OBSBasic(mainView)
 		[this]() {
 			PLSSceneitemMapMgrInstance->switchToDualOutputMode();
 			ReorderBgmSourceList();
+			ui->scenesFrame->RefreshSceneThumbnail();
 			emit itemsReorderd();
 		},
 		Qt::QueuedConnection);
@@ -617,7 +666,7 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : OBSBasic(mainView)
 		},
 		Qt::QueuedConnection);
 
-	auto interval = pls_prism_get_qsetting_value("FUTI", 60 * 60).toInt();
+	auto interval = pls_get_qsetting_value("FUTI", 600).toInt();
 	m_noticeTimer.setInterval((interval > 0 ? interval : 600) * 1000);
 
 	connect(&m_noticeTimer, &QTimer::timeout, [this]() {
@@ -664,21 +713,81 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : OBSBasic(mainView)
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelRefreshEnd, this, &PLSBasic::setAllChzzkSourceSetting, Qt::QueuedConnection);
 	auto goLivePannel = mainView->statusBar()->getGoLivePannel();
 	connect(this, &PLSBasic::goLiveCheckTooltip, goLivePannel, &GoLivePannel::setRecTooltip, Qt::QueuedConnection);
+	connect(
+		PLSCHANNELS_API, &PLSChannelDataAPI::sigRtmpUrlIsInvalid, this,
+		[this](const QString &channelName) {
+			setAlertParentWithBanner([channelName](QWidget *parent) {
+				PLSErrorHandler::ExtraData extraData("RTMP channel URL invalid after sync");
+				extraData.defaultArg = {channelName};
+				PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ErrCode::ALERT_CHANNELS_RTMP_URL_INVALID, PLSErrKeyAllAlert, {}, extraData, parent);
+			});
+		},
+		Qt::QueuedConnection);
+	connect(
+		PLSCHANNELS_API, &PLSChannelDataAPI::sigEndRefreshRtmp, this,
+		[this]() {
+			pls_check_app_exiting();
+			m_rtmpUpdateDone = true;
+			if (m_libraryUpdateDone && m_rtmpUpdateDone) {
+				PLSCHANNELS_API->checkAllRtmpUrlIsValid();
+			}
+		},
+		Qt::QueuedConnection);
+	connect(
+		PLSSyncServerManager::instance(), &PLSSyncServerManager::libraryUpdateDone, this,
+		[this]() {
+			pls_check_app_exiting();
+			m_libraryUpdateDone = true;
+			if (m_libraryUpdateDone && m_rtmpUpdateDone) {
+				PLSCHANNELS_API->checkAllRtmpUrlIsValid();
+			}
+		},
+		Qt::QueuedConnection);
+
 #if defined(Q_OS_WIN)
 	m_checkUpdateWidgetAction = new QWidgetAction(this);
 	m_checkUpdateWidget = pls_new<PLSNewIconActionWidget>(ui->actionCheckForUpdates->text());
 	m_checkUpdateWidget->setTextMarginLeft(20);
 	m_checkUpdateWidget->setProperty("type", "mainMenu");
 
-	connect(m_checkUpdateWidgetAction, SIGNAL(triggered()), this, SLOT(on_checkUpdate_triggered()));
+	connect(m_checkUpdateWidgetAction, SIGNAL(triggered()), this, SLOT(on_actionShowAbout_triggered()));
 	m_checkUpdateWidgetAction->setDefaultWidget(m_checkUpdateWidget);
 	replaceMenuActionWithWidgetAction(ui->menubar, ui->actionCheckForUpdates, m_checkUpdateWidgetAction);
 
 #endif
+
+	QString updateFileFolder = PLSLoginFunc::getUserPath("updates");
+
+#if defined(Q_OS_WIN)
+	//delete update exe file
+	QDir dir(updateFileFolder);
+	dir.setFilter(QDir::NoDotAndDotDot | QDir::Files);
+	const QFileInfoList fileList = dir.entryInfoList();
+	for (const QFileInfo &fileInfo : fileList) {
+		QString fileName = fileInfo.fileName();
+		if (!fileName.endsWith(".exe")) {
+			continue;
+		}
+		QStringList list = fileName.split("_");
+		if (list.count() < 4) {
+			continue;
+		}
+		QString packageVersion = list.last().remove(".exe");
+		if (pls_compare_version(packageVersion, PLS_VERSION) == 1) {
+			continue;
+		}
+		fileInfo.dir().remove(fileName);
+	}
+#elif defined(Q_OS_MACOS)
+	pls_remove_all_downloaded_mac_app_small_equal_version(updateFileFolder, PLS_VERSION);
+#endif
+
+	pls_start_monitor_lens_events();
 }
+
 PLSBasic::~PLSBasic()
 {
-	pls_delete(backgroundMusicView);
+	pls_stop_monitor_lens_events();
 	pls_delete(sceneCollectionView, nullptr);
 	if (giphyStickerView)
 		pls_delete(giphyStickerView);
@@ -691,6 +800,7 @@ PLSBasic::~PLSBasic()
 	if (m_sceneTemplate)
 		pls_delete(m_sceneTemplate);
 
+	PLS_INFO(MAINFRAME_MODULE, "~PLSBasic() middle handle");
 	PLSDrawPenMgr::Instance()->Release();
 	PLSAudioControl::instance()->ClearObsSignals();
 	LocalVars::s_basic = nullptr;
@@ -710,15 +820,24 @@ PLSBasic::~PLSBasic()
 			  "    game_title: %s\n"
 			  "    event: %s",
 			  game.second->sourceName.c_str(), game.second->gameExe.c_str(), game.second->exeVersion.c_str(), game.second->gameTitle.c_str(), result.c_str());
-
-		QVariantMap info = {{"gameTitle", game.second->gameTitle.c_str()}, {"gameExe", game.second->gameExe.c_str()}, {"captureResult", result.c_str()}};
-		pls_send_analog(AnalogType::ANALOG_ADD_SOURCE, {{ANALOG_SOURCE_TYPE_KEY, action::GetActionSourceID(game.second->sourceId.c_str())}, {ANALOG_ITEM_KEY, ""}, {ANALOG_DETAIL_KEY, info}});
 	}
 	m_gameCaptureResultMap.clear();
+	PLS_INFO(MAINFRAME_MODULE, "~PLSBasic() done");
 }
 
 void PLSBasic::getLocalUpdateResult()
 {
+	PLS_PERFORMANCE_FUNCTION();
+	m_checkUpdateResult = PLSLOGINDATAHANDLER->getUpdateResult();
+	m_updateForceUpdate = PLSLOGINDATAHANDLER->isForcePrismAppUpdate();
+	m_updateVersion = PLSLOGINDATAHANDLER->getUpdateVersion();
+	m_updateFileUrl = PLSLOGINDATAHANDLER->getInstallFileUrl();
+	m_updateInfoUrl = PLSLOGINDATAHANDLER->getUpdateInfoUrl();
+	//Print the update data of the launcher
+	PLS_INFO(UPDATE_MODULE, "Get the update data of the launcher, m_updateForceUpdate is %s , m_updateVersion is %s , m_updateFileUrl is %s , m_updateInfoUrl is %s , updateResult is %d",
+		 m_updateForceUpdate ? "true" : "false", m_updateVersion.toUtf8().constData(), m_updateFileUrl.toUtf8().constData(), m_updateInfoUrl.toUtf8().constData(), m_checkUpdateResult);
+
+	CheckAppUpdateFinished(false);
 }
 
 void OBSBasic::UpdateStudioModeUI(bool studioMode)
@@ -790,7 +909,7 @@ void PLSBasic::removeConfig(const char *config)
 }
 void PLSBasic::backupSceneCollection(QString &secneCollectionName, QString &sceneCollectionFile)
 {
-	QString path = pls_get_app_data_dir() + "/" + QString::fromUtf8("PRISMLiveStudio/global.ini");
+	QString path = pls_get_app_user_data_file_path_pn(QStringLiteral("/global.ini"));
 	QFile file(path);
 	if (!file.exists()) {
 		PLS_INFO(LAUNCHER_LOGIN, "Failed to backup scene collection file: 'global.ini' does not exsit.");
@@ -809,7 +928,7 @@ static void createSceneCollectionConfigFile(const QString &secneCollectionName, 
 	if (secneCollectionName.isEmpty() || sceneCollectionFile.isEmpty())
 		return;
 
-	QString path = pls_get_app_data_dir() + "/" + QString::fromUtf8("PRISMLiveStudio/global.ini");
+	QString path = pls_get_app_user_data_file_path_pn(QStringLiteral("/global.ini"));
 	QSettings settings(path, QSettings::IniFormat);
 	settings.beginGroup("Basic");
 	settings.setValue("SceneCollection", secneCollectionName);
@@ -822,14 +941,106 @@ void PLSBasic::clearPrismConfigInfo()
 
 	removeConfig("PRISMLiveStudio/user/cache");
 	removeConfig("PRISMLiveStudio/Cache");
-	removeConfig("PRISMLiveStudio/plugin_config");
 	removeConfig("PRISMLiveStudio/user/gcc.json");
 	removeConfig("PRISMLiveStudio/user/config.ini");
 	removeConfig("PRISMLiveStudio/global.ini");
 	removeConfig("PRISMLiveStudio/naver_shopping");
+	removeConfig("PRISMLiveStudio/plugin_config/obs-browser");
 
 	// Do not clear scene collection info when logout
-	QFile::rename(pls_get_app_data_dir() + "/" + "PRISMLiveStudio/global.bak", pls_get_app_data_dir() + "/" + "PRISMLiveStudio/global.ini");
+	QFile::rename(pls_get_app_user_data_file_path_pn(QStringLiteral("/global.bak")), pls_get_app_user_data_file_path_pn(QStringLiteral("/global.ini")));
+}
+
+QString PLSBasic::getFailedGuideText(obs_source_failed_status_sub_code sub_code)
+{
+	QString guideText;
+	switch (sub_code) {
+	case OBS_SOURCE_STATUS_SUCCESS:
+		guideText = QString();
+		break;
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_OPEN_TARGET_PROCESS:
+		guideText = QObject::tr("gamecapture.error.open.target.process");
+		break;
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_BLACKLISTED_PROCESS:
+		guideText = QObject::tr("gamecapture.error.blacklisted.process");
+		break;
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_TARGET_SUSPENDED:
+		guideText = QObject::tr("gamecapture.error.target.suspended");
+		break;
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_INIT_PIPE:
+		guideText = QObject::tr("gamecapture.error.init.pipe");
+		break;
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_HOOK_DIRECT_FAIL:
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_HOOK_DIRECT_HELPER_FAIL:
+		guideText = QObject::tr("gamecapture.error.hook.direct.fail");
+		break;
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_INIT_CAPTURE_DATA_FAIL:
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_CREATE_TEXTURE_FAIL:
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_OPEN_SHARED_HANDLE_FAIL:
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_NO_INJECT_HELPER:
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_NO_INJECT_DLL:
+	case OBS_SOURCE_GAME_CAPTURE_FAILED_SUB_CODE_INIT_KEEPALIVE:
+		guideText = QObject::tr("gamecapture.error.other");
+		break;
+	case OBS_SOURCE_WINDOW_CAPTURE_FAILED_SUB_CODE_WINDOW_INVALID:
+		guideText = QObject::tr("windowcapture.error.windowclosed");
+		break;
+	case OBS_SOURCE_WINDOW_CAPTURE_FAILED_SUB_CODE_WINDOW_INVISIBE:
+		guideText = QObject::tr("windowcapture.error.windowinvisibe");
+		break;
+	case OBS_SOURCE_MONITOR_CAPTURE_FAILED_SUB_CODE_MONITOR_INVALID:
+		guideText = QObject::tr("monitorcapture.error.nodisplay");
+		break;
+	case OBS_SOURCE_MONITOR_CAPTURE_FAILED_SUB_CODE_UNKNOWN:
+	case OBS_SOURCE_WINDOW_CAPTURE_FAILED_SUB_CODE_UNKNOWN:
+		guideText = QObject::tr("window.monitor.capture.error.unknown");
+		break;
+	case OBS_SOURCE_MAC_CAPTURE_FAILED_SUB_CODE_NO_PERMISSION:
+		guideText = QObject::tr("capture.mac.error.no.permission");
+		break;
+	case OBS_SOURCE_MAC_CAPTURE_FAILED_SUB_CODE_NO_CONTENT:
+		guideText = QObject::tr("capture.mac.error.no.content");
+		break;
+	case OBS_SOURCE_MAC_CAPTURE_FAILED_SUB_CODE_UNKNOWN:
+		guideText = QObject::tr("capture.mac.error.unknown");
+		break;
+	case OBS_SOURCE_MAC_AVCAPTURE_FAILED_SUB_DEVICE_NO_PERMISSION:
+		guideText = QObject::tr("camera.capture.mac.error.no.permission");
+		break;
+	case OBS_SOURCE_DSHOW_CAPTURE_FAILED_SUB_DEVICE_REMOVED:
+	case OBS_SOURCE_MAC_AVCAPTURE_FAILED_SUB_DEVICE_REMOVED:
+		guideText = QObject::tr("camera.capture.error.device.removed");
+		break;
+	case OBS_SOURCE_DSHOW_CAPTURE_FAILED_SUB_DEVICE_IN_USED:
+		guideText = QObject::tr("camera.capture.win.error.device.used");
+		break;
+	case OBS_SOURCE_MAC_AVCAPTURE_FAILED_SUB_DEVICE_IN_USED:
+		guideText = QObject::tr("camera.capture.mac.error.device.used");
+		break;
+	case OBS_SOURCE_DSHOW_CAPTURE_FAILED_SUB_DEVICE_NOT_FOUND:
+	case OBS_SOURCE_MAC_AVCAPTURE_FAILED_SUB_DEVICE_NOT_FOUND:
+		guideText = QObject::tr("camera.capture.error.device.notfound");
+		break;
+	case OBS_SOURCE_DSHOW_CAPTURE_FAILED_SUB_DEVICE_NOT_SUPPORT_HDR:
+		guideText = QObject::tr("camera.capture.win.error.notsupport.hdr");
+		break;
+	case OBS_SOURCE_DSHOW_CAPTURE_FAILED_SUB_DEVICE_NOT_SUPPORT_POPERTY:
+	case OBS_SOURCE_MAC_AVCAPTURE_FAILED_SUB_DEVICE_NOT_SUPPORT_POPERTY:
+		guideText = QObject::tr("camera.capture.error.notsupport.poperty");
+		break;
+	case OBS_SOURCE_DSHOW_CAPTURE_FAILED_SUB_UNKNOWN:
+	case OBS_SOURCE_MAC_AVCAPTURE_FAILED_SUB_UNKNOWN:
+		guideText = QObject::tr("camera.capture.error.unknown");
+		break;
+	case OBS_SOURCE_DSHOW_CAPTURE_LENS_FAILED_SUB_NOT_ACTIVE:
+	case OBS_SOURCE_MAC_AVCAPTURE_LENS_FAILED_SUB_NOT_ACTIVE:
+		guideText = QObject::tr("property.lens.tip.activedevice");
+		break;
+	default:
+		guideText = QString();
+		break;
+	}
+	return guideText;
 }
 
 void OBSBasic::setDocksVisible(bool visible)
@@ -860,7 +1071,7 @@ void OBSBasic::setDocksVisible(bool visible)
 void OBSBasic::setDocksVisibleProperty()
 {
 	QList<PLSDock *> docks;
-	docks << ui->scenesDock << ui->sourcesDock << ui->mixerDock << ui->chatDock;
+	docks << ui->scenesDock << ui->sourcesDock << ui->mixerDock << ui->chatDock << ui->bgmDock;
 
 	for (auto dock : docks) {
 		if (dock) {
@@ -882,23 +1093,17 @@ void OBSBasic::setDockDisplayAsynchronously(PLSDock *dock, bool visible)
 	dock->setVisible(false);
 }
 
-BrowserDock *OBSBasic::addNcb2bCustomDock(const QString &title, const QString &url, const QString &uuid, bool firstCreate, QByteArray geometry)
+void OBSBasic::addNcb2bCustomDock(const QString &title, const QString &uuid, const QString &selectedTitle, bool firstCreate)
 {
-	BrowserDock *dock = createBrowserDock(title, url, uuid, firstCreate, geometry, true);
-	ncb2bCustomDocks.push_back(std::shared_ptr<QDockWidget>(dock));
-	ncb2bCustomDockNames.push_back(title);
-	ncb2bCustomDockUrls.push_back(url);
-	return dock;
+	if (createNcb2bBrowserDock(title, uuid, selectedTitle, firstCreate)) {
+		ncb2bCustomDocks.push_back(std::shared_ptr<QDockWidget>(ncb2bDock.get()));
+		ncb2bCustomDockNames.push_back(title);
+	}
 }
 
-QList<std::shared_ptr<QDockWidget>> OBSBasic::getNcb2bCustomDocks()
+PLSNCB2bBrowserDock *OBSBasic::getNcb2bDock()
 {
-	return ncb2bCustomDocks;
-}
-
-QList<QString> OBSBasic::getNcb2bCustomDocksUrls()
-{
-	return ncb2bCustomDockUrls;
+	return ncb2bDock;
 }
 
 QList<QString> OBSBasic::getNcb2bCustomDocksNames()
@@ -906,48 +1111,126 @@ QList<QString> OBSBasic::getNcb2bCustomDocksNames()
 	return ncb2bCustomDockNames;
 }
 
-std::shared_ptr<QDockWidget> OBSBasic::getNcb2bCustomDock(const QString &title)
-{
-	if (!ncb2bCustomDockNames.contains(title)) {
-		return nullptr;
-	}
-	int index = ncb2bCustomDockNames.indexOf(title);
-	if (index < 0 || index >= ncb2bCustomDocks.count()) {
-		return nullptr;
-	}
-	return ncb2bCustomDocks[index];
-}
-
-void OBSBasic::updateNcb2bDockUrl(int index, const QString &url)
-{
-	if (index < 0 || index >= ncb2bCustomDockUrls.count()) {
-		return;
-	}
-	ncb2bCustomDockUrls[index] = url;
-}
-
-void OBSBasic::updateNcb2bDockName(int index, const QString &name)
-{
-	if (index < 0 || index >= ncb2bCustomDockNames.count()) {
-		return;
-	}
-	ncb2bCustomDockNames[index] = name;
-}
-
 bool PLSBasic::willshow()
 {
-	return true;
+	PLS_PERFORMANCE_FUNCTION();
+
+	bool isDebugger = pls_is_debugger_present();
+	PLS_INFO(MAINFRAME_MODULE, "the prism app is in debugger mode: %s", isDebugger ? "YES" : "NO");
+
+#ifdef Q_OS_MACOS
+	if (!GlobalVars::isStartByDaemon) {
+		QString appDir = pls_get_app_dir() + "/" + "PRISMDaemon";
+		QStringList params;
+		params.append(shared_values::k_launcher_command_prism_pid + QString::number(pls_current_process_id()));
+		params.append(shared_values::k_launcher_command_update_gcc + pls_get_gcc_data());
+		params.append(shared_values::k_launcher_command_log_prism_session + GlobalVars::prismSession.c_str());
+		params.append(shared_values::k_launcher_command_log_sub_prism_session + GlobalVars::prismSubSession.c_str());
+		params.append(shared_values::k_launcher_prism_version + PLS_VERSION);
+		if (isDebugger) {
+			params.append(shared_values::k_daemon_parent_is_debugger);
+		}
+		auto daemonPro = pls_process_create(appDir, params, "", true);
+		if (!daemonPro) {
+			PLS_ERROR(MAINFRAME_MODULE, "create daemon process failed, error: %d", pls_last_error());
+		} else {
+			PLS_INFO(MAINFRAME_MODULE, "create daemon process succeed");
+			pls_process_destroy(daemonPro);
+		}
+	}
+#endif
+
+	auto showLoginViewAndWait = []() -> bool {
+		PLSApp::plsApp()->destoryLoadingApp();
+		bool isSuccess = false;
+		QEventLoop loop;
+		connect(PLSLoginMainView::instance(), &QDialog::finished, &loop, [&loop, &isSuccess](int result) {
+			isSuccess = QDialog::Accepted == result;
+			loop.quit();
+		});
+		PLSLoginMainView::instance()->show();
+		printTotalStartTime();
+		loop.exec();
+		return isSuccess;
+	};
+
+	auto sendLoginAnalog = [](bool isSuccess) {
+		auto name = PLSLoginUserInfo::getInstance()->getLoginPlatformName();
+		auto serviceName = PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName();
+		if (isSuccess) {
+			PLS_LOGEX(PLS_LOG_INFO, LAUNCHER_LOGIN, {{"prismLogin", name.toUtf8().constData()}}, "prism login success name = %s", name.toUtf8().constData());
+			if (name == NCB2B) {
+				PLS_LOGEX(PLS_LOG_INFO, LAUNCHER_LOGIN, {{"b2bServiceName", serviceName.toUtf8().constData()}}, "b2b login success");
+			}
+		}
+	};
+	bool isSuccess = false;
+
+	App()->DisableHotkeys();
+	auto restartType = pls_cmdline_get_uint32_arg(pls_cmdline_args(), shared_values::k_launcher_command_type);
+
+	if ((restartType == static_cast<int>(RestartAppType::Update))) {
+		auto appInstallFileUrl = pls_cmdline_get_arg(pls_cmdline_args(), shared_values::k_launcher_command_update_file);
+		PLS_INFO(LAUNCHER_LOGIN, "appInstallFileUrl = %s", appInstallFileUrl.value().toUtf8().constData());
+		PLSLoginMainView::instance()->changeView(pls_window_type::PLS_UPDATING_VIEW);
+		PLSLoginMainView::instance()->startdownloadNewInstallPackage(appInstallFileUrl.value(), pls_get_gcc());
+		isSuccess = showLoginViewAndWait();
+
+	} else if (restartType == static_cast<int>(RestartAppType::Logout)) {
+		PLSApp::plsApp()->destoryLoadingApp();
+		PLSLoginMainView::instance()->changeView(pls_window_type::PLS_LOGIN_VIEW);
+		if (!PLSLoginMainView::instance()->updateTipHandler()) {
+			return false;
+		}
+		GlobalVars::isLogined = false;
+		isSuccess = showLoginViewAndWait();
+		sendLoginAnalog(isSuccess);
+	} else if (PLSLoginDataHandler::instance()->isNeedLogin()) {
+		PLSApp::plsApp()->destoryLoadingApp();
+		PLSLoginMainView::instance()->showNoticeView();
+		if (!PLSLoginMainView::instance()->updateTipHandler()) {
+			return false;
+		}
+		GlobalVars::isLogined = false;
+		isSuccess = showLoginViewAndWait();
+		sendLoginAnalog(isSuccess);
+	} else {
+		isSuccess = true;
+	}
+
+	if (isSuccess) {
+		if (PLSLOGINUSERINFO->getNCPPlatformServiceName().isEmpty()) {
+			PLS_LOGEX(PLS_LOG_INFO, LAUNCHER_LOGIN, {{"loginPlatform", PLSLOGINUSERINFO->getLoginPlatformName().toUtf8().constData()}}, "prism auth is success.");
+		} else {
+			PLS_LOGEX(PLS_LOG_INFO, LAUNCHER_LOGIN,
+				  {{"serviceName", PLSLOGINUSERINFO->getNCPPlatformServiceName().toUtf8().constData()},
+				   {"loginPlatform", PLSLOGINUSERINFO->getLoginPlatformName().toUtf8().constData()}},
+				  "prism auth is success.");
+		}
+		App()->UpdateHotkeyFocusSetting();
+		if (!GlobalVars::isLogined) {
+			PLSApp::plsApp()->createLoadingApp();
+			PLS_INFO(LAUNCHER_LOGIN, "login finished, start request thumbnail and get paid status, paid term status");
+			PLSSyncServerManager::instance()->updateChatTagIcon();
+			PLSLoginDataHandler::instance()->initCustomChannelObj();
+			PLSLoginDataHandler::instance()->getPrismThumbnail(nullptr);
+			PLSSyncServerManager::instance()->updateSupportedPlatforms();
+		}
+	}
+	return isSuccess;
 }
 
 extern void intializeOutNode();
 void PLSBasic::PLSInit()
 {
+	PLS_PERFORMANCE_FUNCTION();
 #if defined(Q_OS_WINDOWS)
 	LabManage->checkLabDllUpdate();
 #endif
 
 	//scene menu
 	adjustFileMenu();
+
 	auto sceneCollectionActions = ui->sceneCollectionMenu->actions();
 	for (const auto &action : sceneCollectionActions) {
 		if (action->isSeparator() || action->objectName() == "actionShowMissingFiles") {
@@ -1007,16 +1290,19 @@ void PLSBasic::PLSInit()
 	ui->menuBasic_MainMenu_Help->setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
 
 	adjustedMenu();
+	pls_uistep_v2_set_info(mainView->menuButton(), QStringLiteral("TitleBar Button"), "Main Menu");
+
 	connect(mainView->menuButton(), &QPushButton::clicked, this, &PLSBasic::onShowMainMenu);
 #endif
 
 	pls_add_css(this, {"SettingsDialog", "ConnectInfo", "SourceToolBar"});
 
 	// scene display mode
-	int displayMethod = GetSceneDisplayMethod();
+	auto displayMethod = GetSceneDisplayMethod();
 	SetSceneDisplayMethod(displayMethod);
-
+	PLS_PERFORMANCE_START(initConnect);
 	initConnect();
+	PLS_PERFORMANCE_END(initConnect);
 
 	QString udpateUrl(config_get_string(App()->GetUserConfig(), "AppUpdate", "updateUrl"));
 	QString updateGcc(config_get_string(App()->GetUserConfig(), "AppUpdate", "updateGcc"));
@@ -1031,9 +1317,9 @@ void PLSBasic::PLSInit()
 #if defined(Q_OS_WINDOWS)
 	LabManage->checkLabZipUpdate();
 #endif
+
 	PLSLaunchWizardView::instance();
 	PLS_PLATFORM_API->initialize();
-
 	initChannelUI();
 	intializeOutNode();
 
@@ -1047,16 +1333,19 @@ void PLSBasic::PLSInit()
 	bool muteState = PLSAudioControl::instance()->GetMuteState();
 	actionAudioMasterCtrl->setProperty("muteAllAudio", muteState);
 	actionAudioMasterCtrl->setToolTip(muteState ? QTStr("Basic.Main.UnmuteAllAudio") : QTStr("Basic.Main.MuteAllAudio"));
+	pls_uistep_v2_set_value(actionAudioMasterCtrl, [] { return PLSAudioControl::instance()->GetMuteState() ? "Audio Mixer Mute All Button" : "Audio Mixer Unmute All Button"; });
 
 	//audio mixer
 	auto actionAudioAdvance = pls_new<QAction>(QTStr("Basic.MainMenu.Edit.AdvAudio"), ui->hMixerScrollArea);
 	actionAudioAdvance->setObjectName("audioAdvanced");
 	connect(actionAudioAdvance, &QAction::triggered, this, &PLSBasic::OnActionAdvAudioPropertiesTriggered, Qt::DirectConnection);
+	pls_uistep_v2_set_value(actionAudioAdvance, pls_uistep_v2_get_english("Basic.MainMenu.Edit.AdvAudio"));
 	listActions.push_back(actionAudioAdvance);
 
 	actionSperateMixer = pls_new<QAction>(ui->hMixerScrollArea);
 	actionSperateMixer->setObjectName("detachBtn");
 	SetAttachWindowBtnText(actionSperateMixer, ui->mixerDock->isFloating());
+	pls_uistep_v2_set_name(actionSperateMixer, QString("Dock Title AdvButton Popup Menu"));
 
 	connect(actionSperateMixer, &QAction::triggered, this, &PLSBasic::OnMixerDockSeperateBtnClicked);
 	connect(ui->mixerDock, &QDockWidget::topLevelChanged, this, &PLSBasic::OnMixerDockLocationChanged);
@@ -1064,13 +1353,13 @@ void PLSBasic::PLSInit()
 	bool vertical = config_get_bool(App()->GetUserConfig(), "BasicWindow", "VerticalVolControl");
 	actionMixerLayout = pls_new<QAction>(vertical ? QTStr("Basic.MainMenu.Mixer.Horizontal") : QTStr("Basic.MainMenu.Mixer.Vertical"), ui->hMixerScrollArea);
 	connect(actionMixerLayout, &QAction::triggered, this, &PLSBasic::OnMixerLayoutTriggerd);
+	pls_uistep_v2_set_name(actionMixerLayout, QString("Dock Title AdvButton Popup Menu"));
 
 	ui->mixerDock->titleWidget()->setAdvButtonActions({actionSperateMixer, actionMixerLayout});
 	ui->mixerDock->titleWidget()->setButtonActions(listActions);
+	pls_uistep_v2_set_title(ui->mixerDock, "Audio Mixer Dock");
 
-	bool docksLocked = config_get_bool(App()->GetUserConfig(), "BasicWindow", "DocksLocked");
-	setDockDetachEnabled(docksLocked);
-
+	connect(PLSLOGINDATAHANDLER, &PLSLoginDataHandler::updatePrismLogo, this, &PLSBasic::setUserIcon, Qt::QueuedConnection);
 	setUserIcon();
 
 	ui->actionHelpPortal->disconnect();
@@ -1089,10 +1378,14 @@ void PLSBasic::PLSInit()
 	connect(ui->actionWebsite, &QAction::triggered, this, &PLSBasic::on_actionWebsite_triggered);
 	connect(ui->actionShowAbout, &QAction::triggered, this, &PLSBasic::on_actionShowAbout_triggered);
 	connect(ui->actionContactUs, &QAction::triggered, this, [this]() { on_actionContactUs_triggered(); });
+	connect(ui->actionUserGuide, &QAction::triggered, this, &PLSBasic::on_actionUserGuide_triggered);
 	connect(ui->actionRepair, &QAction::triggered, this, &PLSBasic::on_actionRepair_triggered);
 	connect(ui->actionStudioMode, &QAction::triggered, this, &PLSBasic::on_actionStudioMode_triggered);
 	connect(ui->stats, &QAction::triggered, this, &PLSBasic::on_stats_triggered);
 	connect(ui->actionPrismPolicy, &QAction::triggered, this, &PLSBasic::on_actionPrismPolicy_triggered);
+	actionNoticeAndUpdate = pls_new<QAction>(QTStr("NoticeAndUpdateMsg"), this);
+	connect(actionNoticeAndUpdate, &QAction::triggered, this, &PLSBasic::onNoticeUpdateMsgTirggered);
+	ui->menuBasic_MainMenu_Help->insertAction(ui->menuLogFiles->menuAction(), actionNoticeAndUpdate);
 
 	auto text = ui->actionRepair->text();
 	text.replace("PRISM", "OBS");
@@ -1102,16 +1395,16 @@ void PLSBasic::PLSInit()
 	ui->menuBasic_MainMenu_Help->addAction(ui->actionCheckForUpdates);
 	ui->actionCheckForUpdates->setVisible(true);
 	ui->actionCheckForUpdates->setEnabled(true);
-	connect(ui->actionCheckForUpdates, SIGNAL(triggered()), this, SLOT(on_checkUpdate_triggered()));
+	connect(ui->actionCheckForUpdates, SIGNAL(triggered()), this, SLOT(on_actionShowAbout_triggered()));
 #endif
 
 	CreatePreviewTitle();
 	CreateToolArea();
+
 	if (drawPenView)
 		drawPenView->UpdateView(GetCurrentScene());
 
-	InitInteractData();
-	auto isTest = pls_prism_get_qsetting_value("MultiLanguageTest").toBool();
+	auto isTest = pls_get_qsetting_value("MultiLanguageTest").toBool();
 	if (isTest) {
 		ui->menuBasic_MainMenu_Help->addAction("MultiLanguageTest Tool", [this]() {
 			MutiLanguageTestView view;
@@ -1123,6 +1416,7 @@ void PLSBasic::PLSInit()
 //just once
 void PLSBasic::adjustFileMenu()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	static bool isAdjusted = false;
 	if (isAdjusted) {
 		return;
@@ -1153,6 +1447,7 @@ void PLSBasic::adjustFileMenu()
 
 void PLSBasic::initVirtualCamMenu()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (virtualCamMenu == nullptr) {
 		virtualCamMenu = new QMenu(QTStr("Basic.MainMenu.virtualCamera"), this);
 		virtualCamMenu->setObjectName("camMenu");
@@ -1180,6 +1475,7 @@ void PLSBasic::initVirtualCamMenu()
 
 void PLSBasic::initLabMenu()
 {
+	PLS_PERFORMANCE_FUNCTION();
 #if defined(Q_OS_WIN)
 	if (prismLab == nullptr) {
 		prismLab = new QAction(QTStr("Basic.MainMenu.File.laboratory"), this);
@@ -1191,6 +1487,17 @@ void PLSBasic::initLabMenu()
 
 QList<QAction *> PLSBasic::adjustedMenu()
 {
+	PLS_PERFORMANCE_FUNCTION();
+	pls_uistep_v2_set_custom_show_hide_name(ui->menu_File, "Settings Menu");
+	pls_uistep_v2_set_custom_show_hide_name(ui->menuBasic_MainMenu_Help, "Help Menu");
+	pls_uistep_v2_set_custom_show_hide_name(ui->sceneCollectionMenu, "Scene Collection Menu");
+	pls_uistep_v2_set_custom_show_hide_name(ui->menuBasic_MainMenu_Edit, "Edit Menu");
+	pls_uistep_v2_set_custom_show_hide_name(ui->viewMenu, "View Menu");
+	pls_uistep_v2_set_custom_show_hide_name(ui->menuDocks, "Docks Menu");
+	pls_uistep_v2_set_custom_show_hide_name(ui->profileMenu, "Profile Menu");
+	pls_uistep_v2_set_custom_show_hide_name(ui->menuTools, "Tools Menu");
+	pls_uistep_v2_set_custom_show_hide_name(virtualCamMenu, "Virtual Cam Menu");
+
 	QList<QAction *> ret;
 	ret << ui->menu_File->menuAction() << ui->menuBasic_MainMenu_Help->menuAction() << ui->sceneCollectionMenu->menuAction() << ui->menuBasic_MainMenu_Edit->menuAction()
 	    << ui->viewMenu->menuAction() << ui->menuDocks->menuAction() << ui->profileMenu->menuAction() << ui->menuTools->menuAction() << virtualCamMenu->menuAction() << prismLab;
@@ -1201,7 +1508,8 @@ QList<QAction *> PLSBasic::adjustedMenu()
 		logOut = new QAction(QTStr("Basic.MainMenu.File.Logout"), this);
 		this->addAction(logOut);
 		connect(logOut, &QAction::triggered, this, [this]() {
-			if (PLSAlertView::question(this, tr("Confirm"), tr("main.message.logout_alert"), PLSAlertView::Button::Yes | PLSAlertView::Button::No) == PLSAlertView::Button::Yes) {
+			auto ret = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_LOGOUT_CONFIRM, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("PLSBasic::logOut"), this);
+			if (ret.clickedBtn == QDialogButtonBox::Yes) {
 				PLSApp::plsApp()->backupGolbalConfig();
 				pls_prism_logout();
 			}
@@ -1233,10 +1541,13 @@ void PLSBasic::onShowMainMenu()
 		m_mainMenuShow = true;
 
 		QPushButton *menuButton = dynamic_cast<QPushButton *>(sender());
+
 		auto pos = menuButton->mapToGlobal(menuButton->rect().bottomLeft() + QPoint(0, 5));
 		QMenu mainMenu(this);
 		pls_push_modal_view(&mainMenu);
+		pls_uistep_v2_set_custom_show_hide_name(&mainMenu, "Main Menu");
 		mainMenu.setObjectName("mainMenu");
+
 		mainMenu.setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
 		mainMenu.addActions(adjustedMenu());
 		auto bOutputActived = pls_is_output_actived();
@@ -1308,9 +1619,12 @@ void PLSBasic::OnPrismStickerClicked()
 		prismStickerView->raise();
 	} else {
 		bool visible = !prismStickerView->isVisible();
-		prismStickerView->setVisible(visible);
-		if (visible)
+		if (visible) {
+			prismStickerView->setVisible(visible);
 			prismStickerView->raise();
+		} else {
+			prismStickerView->requestCloseStickerView();
+		}
 	}
 }
 
@@ -1343,6 +1657,7 @@ void SetStickerSourceSetting(OBSSource source, const QString &file, const GiphyD
 
 void PLSBasic::OnStickerApply(const QString &fileName, const GiphyData &giphyData)
 {
+
 	OBSSource newSource;
 	AddGiphyStickerSource(fileName, giphyData, newSource);
 	if (!newSource)
@@ -1421,12 +1736,10 @@ void PLSBasic::AddGiphyStickerSource(const QString &file, const GiphyData &giphy
 	if (!CreateSource(id, newSource))
 		return;
 
+	PLS_UI_ACTION("Giphy Sticker View Add Giphy Source");
+	pls_on_source_property_changed(newSource, "giphy resource");
+
 	sourceOut = newSource;
-
-	action::SendActionToNelo(id, action::ACTION_ADD_EVENT, id);
-	action::SendActionLog(action::ActionInfo(action::EVENT_MAIN_ADD, action::EVENT_SUB_SOURCE_ADDED, action::EVENT_TYPE_CONFIRMED, action::GetActionSourceID(id)));
-
-	action::SendPropToNelo(id, "stickerId", qUtf8Printable(giphyData.originalUrl));
 
 	SetStickerSourceSetting(newSource, file, giphyData);
 
@@ -1522,6 +1835,7 @@ void PLSBasic::OnDrawPenClicked() const
 	}
 
 	PLS_UI_STEP(DRAWPEN_MODULE, QString("Drawpen mode switched to ").append(drawPenMode ? "on" : "off").toUtf8().constData(), ACTION_CLICK);
+	PLS_UI_ACTION(QString("Drawpen mode switched to ").append(drawPenMode ? "on" : "off").toUtf8().constData());
 }
 
 void PLSBasic::OnSceneTemplateClicked(ShowType iState)
@@ -1573,141 +1887,127 @@ static bool isMatchSystemVersion()
 }
 #endif
 
-void PLSBasic::OnCamStudioClicked(QStringList arguments, QWidget *parent)
+void PLSBasic::OnCamStudioClicked(QStringList arguments, QWidget *parent, bool)
 {
-	bool appInstalled = false;
-	QString installLocation;
-	QString program;
+	PLSUiApp::instance()->openApp(arguments, this, [parent, this](pls_app_state_t state) {
+		qDebug() << "open app state: " << pls_app_state_to_string(state);
+		switch (state) {
+		case pls_app_state_t::AppNotInstalled:
+			ShowInstallCamStudioTips(parent, QTStr("Alert.Title"), QTStr("Main.Install.Cam.Studio"), QTStr("Main.cam.install.now"), QTStr("OK"));
+			return false;
+		case pls_app_state_t::OpenProcessOk:
+			return true;
+		case pls_app_state_t::OpenProcessFailed:
+		case pls_app_state_t::ProcessExited:
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_MAIN_START_LENS_FAILED, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("OnCamStudioClicked"),
+							      pls_get_toplevel_view(parent));
+			return false;
+		default:
+			return false;
+		}
+	});
+}
 
-	appInstalled = CheckCamStudioInstalled(program);
-	if (!appInstalled) {
+void PLSBasic::OnOpenCamStudio(QStringList arguments, QWidget *parent, bool isMobile)
+{
+	if (!parent) {
+		assert(false);
+		return;
+	}
+
+	QString program;
+	if (!pls_is_app_installed(pls_product_type_t::Lens, &program)) {
 		ShowInstallCamStudioTips(parent, QTStr("Alert.Title"), QTStr("Main.Install.Cam.Studio"), QTStr("Main.cam.install.now"), QTStr("OK"));
 		return;
 	}
 
-#if defined(Q_OS_MACOS)
-	auto startCallback = [](void *inUserData, bool isSucceed, int) {
-		if (pls_is_app_exiting()) {
-			return;
-		}
-		auto basicClass = static_cast<PLSBasic *>(inUserData);
-		if (!isSucceed) {
-			PLS_ERROR(MAIN_CAM_STUDIO, "create cam process failed, error: %d", pls_last_error());
-			App()->getMainView()->updateSideBarButtonStyle(ConfigId::CamStudioConfig, false);
-			return;
-		}
-		basicClass->getMainView()->updateSideBarButtonStyle(ConfigId::CamStudioConfig, true);
-		QString processName;
-		basicClass->CreateCheckCamProcessThread(processName);
-		PLS_LOGEX(PLS_LOG_INFO, MAIN_CAM_STUDIO, {{"toolUsage", "CamStudio"}}, "call open cam studio success");
-	};
-	pls_libutil_api_mac::pls_mac_create_process_with_not_inherit(program, arguments, this, startCallback);
-#else
-	QString processName;
-	// check process running
-	camStudioProcess = pls_process_create(program, arguments, "");
-	if (!camStudioProcess) {
-		PLS_ERROR(MAIN_CAM_STUDIO, "create cam process failed, error: %d", pls_last_error());
-		App()->getMainView()->updateSideBarButtonStyle(ConfigId::CamStudioConfig, false);
-		return;
+	if (!pls_is_lens_running()) {
+		PLS_UI_ACTION("start loading button for opening lens");
+		m_isOpeningLens = true;
+		emit onLensOpening(true);
 	}
-	pls_process_destroy(camStudioProcess);
-	camStudioProcess = nullptr;
-	getMainView()->updateSideBarButtonStyle(ConfigId::CamStudioConfig, true);
-	CreateCheckCamProcessThread(processName);
-	PLS_LOGEX(PLS_LOG_INFO, MAIN_CAM_STUDIO, {{"toolUsage", "CamStudio"}}, "call open cam studio success");
-#endif
-}
 
-bool PLSBasic::CheckCamStudioInstalled(QString &program)
-{
-	bool appInstalled = false;
-	QString installLocation;
-	QString processName;
+	PLS_LOG(PLS_LOG_INFO, MAIN_CAM_STUDIO, "%s start open lens app", __FUNCTION__);
 
-	// check install
+	auto view = dynamic_cast<OBSPropertiesView *>(parent);
 #if defined(Q_OS_WIN)
-	QSettings settings("HKEY_CURRENT_USER\\Software\\NAVER Corporation\\PRISM Lens", QSettings::NativeFormat);
-	installLocation = settings.value("InstallDir").toString();
-	if (!installLocation.isEmpty()) {
-		appInstalled = true;
-	}
-	processName = QString(PRISM_CAM_PRODUCTION_NAME) + ".exe";
-	program = installLocation + QDir::separator() + processName;
+	PLSUiApp::instance()->openApp(arguments, this, [this, propertyView = QPointer<OBSPropertiesView>(view), isMobile](pls_app_state_t state) {
+		PLS_LOG(PLS_LOG_INFO, MAIN_CAM_STUDIO, "%s event of lens process arrived, state=%d", __FUNCTION__, (int)state);
 
-#elif defined(Q_OS_MACOS)
-	QStringList appList;
-	pls_get_install_app_list("com.prismlive.camstudio", appList);
-	if (appList.isEmpty()) {
-		appInstalled = false;
-	} else {
-		for (int i = 0; i < appList.size(); i++) {
-			QString appPath = appList[i];
-			if (appPath.contains(".app/")) {
-				continue;
-			}
-			if (appPath.startsWith("/Applications")) {
-				appInstalled = true;
-				installLocation = appPath;
-				break;
+		if (pls_app_state_t::OpenProcessOk == state)
+			return true; // succeeded to run CreateProcess, should wait for more events
+
+		PLS_UI_ACTION("stop loading button for opening lens");
+		m_isOpeningLens = false;
+		emit onLensOpening(false);
+
+		if (propertyView) {
+			if (pls_app_state_t::OpenProcessFailed == state)
+				propertyView->showOpenLensNotice(isMobile);
+			else if (pls_app_state_t::ProcessExited == state && !pls_is_lens_running()) {
+				PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_MAIN_START_LENS_FAILED, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("OnCamStudioClicked"),
+								      pls_get_toplevel_view(propertyView));
 			}
 		}
-	}
 
-	program = installLocation;
-	processName = PRISM_CAM_PRODUCTION_NAME;
+		return false;
+	});
+#elif defined(Q_OS_MACOS)
+	QDir appDir(QFileInfo(program).absoluteDir());
+	appDir.cdUp();
+	appDir.cdUp();
+	pls_open_app(appDir.absolutePath(), arguments, [this, propertyView = QPointer<OBSPropertiesView>(view), isMobile](bool created, bool launched) {
+		PLS_UI_ACTION("stop loading button for opening lens");
+		m_isOpeningLens = false;
+		emit onLensOpening(false);
+
+		if (propertyView) {
+			if (!created) {
+				propertyView->showOpenLensNotice(isMobile);
+			} else if (!launched) {
+				PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_MAIN_START_LENS_FAILED, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("OnCamStudioClicked"),
+								      pls_get_toplevel_view(propertyView));
+			}
+		}
+	});
 #endif
-
-	return appInstalled;
 }
 
 void PLSBasic::ShowInstallCamStudioTips(QWidget *parent, QString title, QString content, QString okTip, QString cancelTip)
 {
-	QMap<PLSAlertView::Button, QString> buttons = {{PLSAlertView::Button::Ok, okTip}, {PLSAlertView::Button::Cancel, cancelTip}};
+	QMap<PLSAlertView::Button, pls_text_t> buttons = {{PLSAlertView::Button::Ok, okTip}, {PLSAlertView::Button::Cancel, cancelTip}};
 	auto ret = PLSAlertView::question(parent, title, content, buttons);
 	if (ret == PLSAlertView::Button::Ok) {
-		QString lang = pls_prism_get_locale();
+		QString lang = pls_get_locale();
 		QString linkUrl;
 		if (0 == lang.compare("ko-KR", Qt::CaseInsensitive)) {
 			linkUrl = "https://prismlive.com/ko_kr/lens.html";
 		} else {
 			linkUrl = "https://prismlive.com/en_us/lens.html";
 		}
-		QDesktopServices::openUrl(QUrl(linkUrl, QUrl::TolerantMode));
+		pls_async_invoke([linkUrl]() { QDesktopServices::openUrl(QUrl(linkUrl, QUrl::TolerantMode)); });
 	}
 }
 
-void PLSBasic::InitCamStudioSidebarState()
-{
-	QString processName;
-
-#if defined(Q_OS_WIN)
-	processName = QString(PRISM_CAM_PRODUCTION_NAME) + ".exe";
-#elif defined(Q_OS_MACOS)
-	processName = PRISM_CAM_PRODUCTION_NAME;
-#endif
-	if (processName.isEmpty()) {
-		App()->getMainView()->updateSideBarButtonStyle(ConfigId::CamStudioConfig, false);
-		return;
-	}
-	CreateCheckCamProcessThread(processName);
-}
-
-void PLSBasic::CreateCheckCamProcessThread(const QString &processName)
+void PLSBasic::createCheckCamThread()
 {
 	if (!checkCamProcessWorker) {
 		checkCamProcessWorker = pls_new<CheckCamProcessWorker>();
 		connect(
-			checkCamProcessWorker, &CheckCamProcessWorker::checkFinished, this,
-			[this](bool isExisted) { App()->getMainView()->updateSideBarButtonStyle(ConfigId::CamStudioConfig, isExisted); }, Qt::QueuedConnection);
+			checkCamProcessWorker, &CheckCamProcessWorker::checkVisble, this, [this](bool isVisible) { mainView->updateLoadingState(ConfigId::CamStudioConfig, isVisible); },
+			Qt::QueuedConnection);
+		connect(
+			checkCamProcessWorker, &CheckCamProcessWorker::checkRunning, this, [this](bool isRunning) { mainView->updateSideBarButtonStyle(ConfigId::CamStudioConfig, isRunning); },
+			Qt::QueuedConnection);
+		connect(&checkCamThread, &QThread::started, checkCamProcessWorker, &CheckCamProcessWorker::initCamProcessWorker);
 		checkCamProcessWorker->moveToThread(&checkCamThread);
 		checkCamThread.start();
-		QMetaObject::invokeMethod(checkCamProcessWorker, "CheckCamProcessIsExisted", Qt::QueuedConnection, Q_ARG(const QString &, processName));
 	}
 }
 
 void PLSBasic::CreatePreviewTitle()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (previewProgramTitle) {
 		return;
 	}
@@ -1721,17 +2021,52 @@ void PLSBasic::CreatePreviewTitle()
 
 void PLSBasic::checkNoticeAndForceUpdate()
 {
-	
+	if (isAppUpadting()) {
+
+		return;
+	}
+
+	PLS_INIT_INFO(MAINFRAME_MODULE, "start request prism notice info.");
+
+	pls_get_new_notice_Info([this](const QList<PLSNoticeUpdateItem> &noticeInfos) {
+		PLS_INFO(MAINFRAME_MODULE, "start request update api to check force update");
+		CheckAppUpdate(false);
+		pls_check_app_exiting();
+		auto versions = PLSLoginFunc::getUpdateInfo({common::UPDATE_NEXT_VERSION_INFO, common::UPDATE_VERSION});
+		auto updateVersion = versions.value(common::UPDATE_NEXT_VERSION_INFO).toString();
+
+		bool isShowUpdate = m_updateVersion != updateVersion || m_updateForceUpdate;
+		bool isOutputActived = pls_is_without_third_output_actived();
+		PLS_INFO(MAINMENU_MODULE, "checkForceUpdateApp, isShowUpdate = %s, isOutputActived = %s, isForceUpdate = %s", BOOL2STR(isShowUpdate), BOOL2STR(isOutputActived),
+			 BOOL2STR(m_updateForceUpdate));
+
+		pls_async_call(this, [noticeInfos, this]() {
+			if (!noticeInfos.isEmpty() && !pls_is_main_window_closing()) {
+				PLSNoticeUpdateCoordinator::instance()->handlePollingNoticeResult(noticeInfos);
+			}
+		});
+
+		if (getUpdateResult() == AppUpdateResult::AppHasUpdate && isShowUpdate && !isOutputActived) {
+			PLS_INFO(MAINMENU_MODULE, "show update view ");
+			if (ShowUpdateView(App()->GetMainWindow())) {
+				startDownloading(m_updateForceUpdate);
+			}
+		}
+	});
 }
 
-void PLSBasic::OnPRISMStickerApplied(const StickerHandleResult &stickerData)
+void PLSBasic::OnPRISMStickerAddedApplied(const StickerHandleResult &stickerData)
 {
+
 	QString log("User apply prism sticker: '%1/%2'");
 	PLS_UI_STEP(MAIN_PRISM_STICKER, qUtf8Printable(log.arg(stickerData.data.category).arg(stickerData.data.id)), ACTION_CLICK);
 	OBSSource newSource = nullptr;
 	AddPRISMStickerSource(stickerData, newSource);
 	if (!newSource)
 		return;
+
+	PLS_UI_ACTION("Sticker View Add Sticker Source");
+	pls_on_source_property_changed(newSource, "sticker resource");
 
 	/* register undo/redo */
 	const char *id = PRISM_STICKER_SOURCE_ID;
@@ -1767,6 +2102,255 @@ void PLSBasic::OnPRISMStickerApplied(const StickerHandleResult &stickerData)
 	undo_s.add_action(QTStr("Undo.Add").arg(newName), undo, redo, std::string(obs_source_get_name(newSource)), std::string(obs_data_get_json(wrapper)));
 }
 
+QString PLSBasic::getStickerSourceResourceId(obs_source_t *source)
+{
+	OBSDataAutoRelease priv_settings = obs_source_get_private_settings(source);
+	return obs_data_get_string(priv_settings, "resourceId");
+}
+
+bool PLSBasic::updateStickerIsChanged(obs_source_t *source)
+{
+	if (!m_restoreUpdateStickerPtr) {
+		return false;
+	}
+
+	QString resourceId = getStickerSourceResourceId(source);
+	return (m_restoreUpdateStickerPtr->resourceId != resourceId);
+}
+
+PLSAlertView::Button PLSBasic::showStickerChangeAlertView(QWidget *parent)
+{
+	const PLSErrorHandler::RetData ret = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_STICKER_CHANGE_STICKER_WARNING, PLSErrKeyAllAlert, QString(),
+										   PLSErrorHandler::ExtraData("show change sticker alert"), parent);
+	return ret.clickedBtn;
+}
+
+void PLSBasic::OnEnterStickerUpdateMode(obs_source_t *source)
+{
+	CreatePrismStickerView();
+	if (prismStickerView) {
+		prismStickerView->EnterUpdateStickerMode(source, updateStickerIsChanged(source), getStickerSourceResourceId(source));
+		if (prismStickerView->isVisible()) {
+			PLS_UI_ACTION("In PRISM Sticker, Widget PRISM STICKER Show");
+		}
+		prismStickerView->show();
+		prismStickerView->raise();
+	}
+}
+
+void PLSBasic::OnEnterStickerAddedMode()
+{
+	CreatePrismStickerView();
+	if (prismStickerView) {
+		prismStickerView->LeaveUpdateStickerMode();
+		prismStickerView->show();
+		prismStickerView->raise();
+	}
+}
+
+void PLSBasic::OnPRISMStickerUpdateApplied(obs_source_t *source)
+{
+	OnLeaveStickerUpdateMode();
+	if (m_restoreUpdateStickerPtr) {
+		delete m_restoreUpdateStickerPtr;
+		m_restoreUpdateStickerPtr = nullptr;
+	}
+}
+
+bool PLSBasic::OnCancelStickerUpdate(obs_source_t *source)
+{
+	if (!m_restoreUpdateStickerPtr) {
+		OnLeaveStickerUpdateMode();
+		return true;
+	}
+
+	if (!updateStickerIsChanged(source)) {
+		OnLeaveStickerUpdateMode();
+		return true;
+	}
+
+	if (pls_is_main_window_closing()) {
+		OnRestoreStickerUpdated(source);
+		return true;
+	}
+
+	PLSAlertView::Button button = showStickerChangeAlertView(properties);
+	if (PLSAlertView::Button::Yes == button) {
+		OnRestoreStickerUpdated(source);
+		OnLeaveStickerUpdateMode();
+		return true;
+	}
+
+	return false;
+}
+
+void PLSBasic::OnLeaveStickerUpdateMode()
+{
+	if (prismStickerView) {
+		prismStickerView->LeaveUpdateStickerMode();
+	}
+
+	if (m_restoreUpdateStickerPtr) {
+		delete m_restoreUpdateStickerPtr;
+		m_restoreUpdateStickerPtr = nullptr;
+	}
+}
+
+static void UpdateStickerTransformFunc(void *_data, obs_scene_t *scene)
+{
+	auto data = static_cast<UpdateStickerData *>(_data);
+	obs_source_t *source = data->source;
+
+	if (!source)
+		return;
+
+	OBSSceneItemAutoRelease sceneitem = obs_scene_sceneitem_from_source(scene, source);
+	if (!sceneitem)
+		return;
+
+	obs_video_info ovi;
+	obs_get_video_info(&ovi);
+	if (!ovi.base_width || !ovi.base_height) {
+		return;
+	}
+
+	obs_transform_info itemInfo;
+	obs_sceneitem_get_info2(sceneitem, &itemInfo);
+
+	vec2 baseSize;
+	baseSize.x = static_cast<float>(obs_source_get_width(source));
+	baseSize.y = static_cast<float>(obs_source_get_height(source));
+
+	constexpr float epsilon = 0.000001f;
+	if (baseSize.x < epsilon || baseSize.y < epsilon) {
+		return;
+	}
+
+	vec2 last_source_size;
+	vec2_set(&last_source_size, data->last_source_size.x * itemInfo.scale.x, data->last_source_size.y * itemInfo.scale.y);
+	float last_source_aspect_width = last_source_size.x / static_cast<float>(ovi.base_width);
+	float last_source_aspect_height = last_source_size.y / static_cast<float>(ovi.base_height);
+	float last_source_aspect = (last_source_aspect_width > last_source_aspect_height) ? last_source_aspect_width : last_source_aspect_height;
+
+	float bounds_width = static_cast<float>(ovi.base_width) * last_source_aspect;
+	float bounds_height = static_cast<float>(ovi.base_height) * last_source_aspect;
+	float bounds_aspect = bounds_width / bounds_height;
+	float item_aspect = baseSize.x / baseSize.y;
+
+	bool use_width = (bounds_aspect < item_aspect);
+	float mul = use_width ? bounds_width / baseSize.x : bounds_height / baseSize.y;
+
+	vec2_set(&itemInfo.scale, mul, mul);
+
+	obs_sceneitem_set_info2(sceneitem, &itemInfo);
+}
+
+void PLSBasic::OnPRISMStickerUpdatedResource(const StickerHandleResult &data, obs_source_t *source)
+{
+	if (!pls_is_alive(source)) {
+		return;
+	}
+	UpdateStickerData updateData;
+	updateData.last_source_size.x = static_cast<float>(obs_source_get_width(source));
+	updateData.last_source_size.y = static_cast<float>(obs_source_get_height(source));
+
+	QString log("User update prism sticker: '%1/%2'");
+	PLS_UI_STEP(MAIN_PRISM_STICKER, qUtf8Printable(log.arg(data.data.category).arg(data.data.id)), ACTION_CLICK);
+	PLS_UI_ACTION("Sticker View Update Sticker Source");
+	pls_on_source_property_changed(source, "sticker resource");
+
+	OBSDataAutoRelease settings = obs_source_get_settings(source);
+	OBSDataAutoRelease priv_settings = obs_source_get_private_settings(source);
+	if (!m_restoreUpdateStickerPtr) {
+		m_restoreUpdateStickerPtr = new RestoreUpdateStickerData();
+		m_restoreUpdateStickerPtr->landscapeVideo = obs_data_get_string(priv_settings, "landscapeVideo");
+		m_restoreUpdateStickerPtr->landscapeImage = obs_data_get_string(priv_settings, "landscapeImage");
+		m_restoreUpdateStickerPtr->portraitVideo = obs_data_get_string(priv_settings, "portraitVideo");
+		m_restoreUpdateStickerPtr->portraitImage = obs_data_get_string(priv_settings, "portraitImage");
+		m_restoreUpdateStickerPtr->resourceId = obs_data_get_string(priv_settings, "resourceId");
+		m_restoreUpdateStickerPtr->resourceUrl = obs_data_get_string(priv_settings, "resourceUrl");
+		m_restoreUpdateStickerPtr->category = obs_data_get_string(priv_settings, "category");
+		m_restoreUpdateStickerPtr->version = obs_data_get_int(priv_settings, "version");
+		m_restoreUpdateStickerPtr->source_size.x = static_cast<float>(obs_source_get_width(source));
+		m_restoreUpdateStickerPtr->source_size.y = static_cast<float>(obs_source_get_height(source));
+	}
+
+	obs_data_set_string(priv_settings, "landscapeVideo", qUtf8Printable(data.landscapeVideoFile));
+	obs_data_set_string(priv_settings, "landscapeImage", qUtf8Printable(data.landscapeImage));
+	obs_data_set_string(priv_settings, "portraitVideo", qUtf8Printable(data.portraitVideo));
+	obs_data_set_string(priv_settings, "portraitImage", qUtf8Printable(data.portraitImage));
+	obs_data_set_string(priv_settings, "resourceId", qUtf8Printable(data.data.id));
+	obs_data_set_string(priv_settings, "resourceUrl", qUtf8Printable(data.data.resourceUrl));
+	obs_data_set_string(priv_settings, "category", qUtf8Printable(data.data.category));
+	obs_data_set_int(priv_settings, "version", data.data.version);
+	obs_source_update(source, settings);
+
+	/*obs_scene_t *scene = GetCurrentScene();
+	if (scene) {
+		updateData.source = source;
+
+		obs_enter_graphics();
+		obs_scene_atomic_update(scene, UpdateStickerTransformFunc, &updateData);
+		obs_leave_graphics();
+	}*/
+
+	if (prismStickerView) {
+		prismStickerView->EnterUpdateStickerMode(source, (m_restoreUpdateStickerPtr->resourceId != data.data.id), getStickerSourceResourceId(source));
+	}
+}
+
+void PLSBasic::OnDefaultsStickerUpdated(obs_source_t *source)
+{
+	if (!pls_is_alive(source)) {
+		return;
+	}
+
+	OnRestoreStickerUpdated(source);
+	OnLeaveStickerUpdateMode();
+}
+
+void PLSBasic::OnRestoreStickerUpdated(obs_source_t *source)
+{
+	if (!pls_is_alive(source)) {
+		return;
+	}
+
+	if (!m_restoreUpdateStickerPtr) {
+		return;
+	}
+
+	PLS_UI_ACTION("Sticker View Restore Sticker Source");
+	pls_on_source_property_changed(source, "sticker resource");
+
+	UpdateStickerData updateData;
+	updateData.last_source_size.x = static_cast<float>(obs_source_get_width(source));
+	updateData.last_source_size.y = static_cast<float>(obs_source_get_height(source));
+
+	OBSDataAutoRelease settings = obs_source_get_settings(source);
+	OBSDataAutoRelease priv_settings = obs_source_get_private_settings(source);
+
+	obs_data_set_string(priv_settings, "landscapeVideo", qUtf8Printable(m_restoreUpdateStickerPtr->landscapeVideo));
+	obs_data_set_string(priv_settings, "landscapeImage", qUtf8Printable(m_restoreUpdateStickerPtr->landscapeImage));
+	obs_data_set_string(priv_settings, "portraitVideo", qUtf8Printable(m_restoreUpdateStickerPtr->portraitVideo));
+	obs_data_set_string(priv_settings, "portraitImage", qUtf8Printable(m_restoreUpdateStickerPtr->portraitImage));
+	obs_data_set_string(priv_settings, "resourceId", qUtf8Printable(m_restoreUpdateStickerPtr->resourceId));
+	obs_data_set_string(priv_settings, "resourceUrl", qUtf8Printable(m_restoreUpdateStickerPtr->resourceUrl));
+	obs_data_set_string(priv_settings, "category", qUtf8Printable(m_restoreUpdateStickerPtr->category));
+	obs_data_set_int(priv_settings, "version", m_restoreUpdateStickerPtr->version);
+	obs_source_update(source, settings);
+
+	/*obs_scene_t *scene = GetCurrentScene();
+	if (scene) {
+		updateData.source = source;
+		obs_enter_graphics();
+		obs_scene_atomic_update(scene, UpdateStickerTransformFunc, &updateData);
+		obs_leave_graphics();
+	}*/
+
+	delete m_restoreUpdateStickerPtr;
+	m_restoreUpdateStickerPtr = nullptr;
+}
+
 static GiphyData GetStickerSourceData(const obs_source_t *source)
 {
 	obs_data_t *settings = obs_source_get_settings(source);
@@ -1795,7 +2379,18 @@ static GiphyData GetStickerSourceData(const obs_source_t *source)
 
 static void DownloadSticker(const GiphyData &data, uint64_t randomId)
 {
-	
+	if (data.sizeOriginal.isEmpty())
+		return;
+
+	DownloadTaskData task;
+	task.randomId = randomId;
+	task.SourceSize = data.sizeOriginal;
+	task.type = StickerDownloadType::ORIGINAL;
+	task.url = data.originalUrl;
+	task.uniqueId = data.id;
+	if (!GiphyDownloader::instance()->IsRunning())
+		GiphyDownloader::instance()->Start();
+	GiphyDownloader::instance()->Get(task);
 }
 
 static void SetFileForStickerSource(obs_source_t *source, const QString &file)
@@ -1889,10 +2484,7 @@ void PLSBasic::InitDualOutputEnabled()
 	}
 
 	connect(PLS_PLATFORM_API, &PLSPlatformApi::liveEnded, this, std::bind(&PLSBasic::changeOutputCount, this, -1));
-	connect(this, &PLSBasic::sigOutputActiveChanged, this, [this](bool bValue) {
-		getMainView()->setSidebarButtonEnabled(ConfigId::DualOutputConfig, !bValue);
-		getMainView()->updateTipsEnableChanged(!bValue);
-	});
+	connect(this, &PLSBasic::sigOutputActiveChanged, this, [this](bool bValue) { getMainView()->setSidebarButtonEnabled(ConfigId::DualOutputConfig, !bValue); });
 }
 
 void PLSBasic::OnMixerOrderChanged()
@@ -1947,6 +2539,47 @@ void PLSBasic::initNcb2bBrowserSettingsVisible()
 	}
 }
 
+PLSErrorHandler::ErrCode PLSBasic::getBrowserSettingsErrorCode()
+{
+	if (!ncb2bBrowserSettings) {
+		createNcb2bBrowserSettings();
+	}
+	return ncb2bBrowserSettings->getErrorCode();
+}
+
+bool OBSBasic::createNcb2bBrowserDock(const QString &title, const QString &uuid, const QString &selectedTitle, bool firstCreate)
+{
+	if (ncb2bDock) {
+		return false;
+	}
+	ncb2bDock = pls_new<PLSNCB2bBrowserDock>(title, selectedTitle, this);
+	pls_add_css(ncb2bDock, {"BrowserDock"});
+	PLSBasic::instance()->getMainView()->addCloseListener([dock = QPointer<PLSNCB2bBrowserDock>(ncb2bDock)]() {
+		if (dock) {
+			dock->closeBrowser();
+		}
+	});
+
+	QString bId(uuid.isEmpty() ? QUuid::createUuid().toString() : uuid);
+	ncb2bDock->setProperty("uuid", bId);
+	PLSBasic::instance()->CreateAdvancedButtonForBrowserDock(ncb2bDock, bId, true);
+	AddDockWidget(ncb2bDock, Qt::RightDockWidgetArea, false, true);
+	if (firstCreate) {
+		ncb2bDock->setFloating(true);
+		ncb2bDock->resize(460, 600);
+		ncb2bDock->setMinimumSize(80, 80);
+		QPoint curPos = pos();
+		QSize wSizeD2 = size() / 2;
+		QSize dSizeD2 = ncb2bDock->size() / 2;
+		curPos.setX(curPos.x() + qAbs(wSizeD2.width() - dSizeD2.width()));
+		curPos.setY(curPos.y() + qAbs(wSizeD2.height() - dSizeD2.height()));
+		ncb2bDock->move(curPos);
+		ncb2bDock->setVisible(true);
+		ncb2bDock->setProperty("vis", true);
+	}
+	return true;
+}
+
 void PLSBasic::on_actionShowAbout_triggered()
 {
 	PLSAboutView aboutView(this);
@@ -1957,7 +2590,9 @@ void PLSBasic::on_actionShowAbout_triggered()
 
 void PLSBasic::on_actionHelpPortal_triggered()
 {
-	QDesktopServices::openUrl(QUrl(QString("http://prismlive.com/%1/faq/faq.html?app=pcapp").arg(getSupportLanguage()), QUrl::TolerantMode));
+	const QUrl url(QString("http://prismlive.com/%1/faq/faq.html?app=pcapp").arg(getSupportLanguage()), QUrl::TolerantMode);
+	pls_async_invoke([url]() { QDesktopServices::openUrl(url); });
+	PLS_UI_ACTION("show help web view");
 }
 
 void PLSBasic::on_actionHelpOpenSource_triggered()
@@ -1969,32 +2604,39 @@ void PLSBasic::on_actionHelpOpenSource_triggered()
 
 void PLSBasic::on_actionDiscord_triggered() const
 {
-	QDesktopServices::openUrl(QUrl(PLSSyncServerManager::instance()->getDiscordUrl(), QUrl::TolerantMode));
+	const QUrl url(PLSSyncServerManager::instance()->getDiscordUrl(), QUrl::TolerantMode);
+	pls_async_invoke([url]() { QDesktopServices::openUrl(url); });
+	PLS_UI_ACTION("show discord web view");
 }
 
 void PLSBasic::on_actionWebsite_triggered() const
 {
 	if (IS_KR()) {
-		QDesktopServices::openUrl(QUrl(QString(""), QUrl::TolerantMode));
+		pls_async_invoke([]() { QDesktopServices::openUrl(QUrl(QString("https://prismlive.com/ko_kr/"), QUrl::TolerantMode)); });
 	} else {
-		QDesktopServices::openUrl(QUrl(QString(""), QUrl::TolerantMode));
+		pls_async_invoke([]() { QDesktopServices::openUrl(QUrl(QString("https://prismlive.com/en_us/"), QUrl::TolerantMode)); });
 	}
+	PLS_UI_ACTION("show prismlive web view");
 }
 
-void PLSBasic::on_actionContactUs_triggered(const QString &message, const QString &additionalMessage)
+void PLSBasic::on_actionContactUs_triggered(const QString &message, const QString &code, const QString &additionalMessage)
 {
-	PLSContactView view(message, additionalMessage, this);
+	PLSContactView view(message, code, additionalMessage, this);
 	view.exec();
 }
 
 void PLSBasic::on_actionRepair_triggered() const
 {
-	QUrl url = QUrl("", QUrl::TolerantMode);
-	QDesktopServices::openUrl(url);
+	QUrl url = QUrl("https://obsproject.com/help", QUrl::TolerantMode);
+	pls_async_invoke([url]() { QDesktopServices::openUrl(url); });
+	PLS_UI_ACTION("show OBS FAQ web view");
 }
 
-void PLSBasic::on_actionUserGuide_triggered() const {}
-
+void PLSBasic::on_actionUserGuide_triggered() const
+{
+	pls_async_invoke([]() { QDesktopServices::openUrl(QUrl(g_userGuide, QUrl::TolerantMode)); });
+	PLS_UI_ACTION("show UserGuide web view");
+}
 
 void PLSBasic::on_stats_triggered()
 {
@@ -2023,19 +2665,45 @@ void PLSBasic::on_actionShowVideosFolder_triggered() const
 	const char *adv_path = strcmp(type, "Standard") ? config_get_string(activeConfiguration, "AdvOut", "FFFilePath") : config_get_string(activeConfiguration, "AdvOut", "RecFilePath");
 	const char *path = strcmp(mode, "Advanced") ? config_get_string(activeConfiguration, "SimpleOutput", "FilePath") : adv_path;
 	QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+	PLS_UI_ACTION("Show Video Settings View");
 }
 
 void PLSBasic::on_actionPrismPolicy_triggered() const
 {
 	if (!strcmp(App()->GetLocale(), "ko-KR")) {
-		QDesktopServices::openUrl(QUrl("", QUrl::TolerantMode));
+		pls_async_invoke([]() { QDesktopServices::openUrl(QUrl("https://prismlive.com/ko_kr/policy/privacy_content.html", QUrl::TolerantMode)); });
 	} else {
-		QDesktopServices::openUrl(QUrl("", QUrl::TolerantMode));
+		pls_async_invoke([]() { QDesktopServices::openUrl(QUrl("https://prismlive.com/en_us/policy/privacy_content.html", QUrl::TolerantMode)); });
 	}
+	PLS_UI_ACTION("show PRISM Policy web view");
 }
 
 void PLSBasic::on_checkUpdate_triggered()
 {
+	CheckAppUpdate(true, true);
+	pls_modal_check_app_exiting();
+
+	if (getUpdateResult() == AppUpdateResult::AppHasUpdate || isForceUpdateApp()) {
+		PLS_INFO(MAINMENU_MODULE, "on_actionCheckUpdate_triggered ShowUpdateView");
+		if (ShowUpdateView(App()->GetMainWindow())) {
+			startDownloading(m_updateForceUpdate);
+		}
+	} else if (getUpdateResult() == AppUpdateResult::AppNoUpdate) {
+		PLS_INFO(MAINMENU_MODULE, "on_actionCheckUpdate_triggered Show Lastest Version View");
+		PLSNoticePopupDialog dlg(m_updateInfoUrl, false, false, QString(), this);
+#if defined(Q_OS_MACOS)
+		dlg.setWindowTitle(tr("Mac.Title.Update"));
+#endif
+		dlg.exec();
+		PLS_INFO(MAINMENU_MODULE, "on_actionCheckUpdate_triggered Finished Show Lastest Version View");
+	}
+}
+
+void PLSBasic::onNoticeUpdateMsgTirggered()
+{
+	if (auto mainView = getMainView())
+		mainView->consumeNoticeMenuBadge();
+	PLSNoticeUpdateCoordinator::instance()->openCenterFromMenu();
 }
 
 void PLSBasic::actionLaboratory_triggered()
@@ -2072,7 +2740,7 @@ void PLSBasic::OnSideBarButtonClicked(int buttonId)
 		break;
 	case ConfigId::BgmConfig:
 		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Music Playlist Button", ACTION_CLICK);
-		OnBgmClicked();
+		onBgmClicked();
 		break;
 	case ConfigId::LivingMsgView:
 		mainView->on_alert_clicked();
@@ -2090,14 +2758,10 @@ void PLSBasic::OnSideBarButtonClicked(int buttonId)
 		break;
 	case ConfigId::DrawPenConfig:
 		PLS_LOGEX(PLS_LOG_INFO, DRAWPEN_MODULE, {{"X-DP-USE-COUNT", "DrawPenUse"}}, "Draw Pen Side Bar Clicked");
-		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView sidebar Drawpen button", ACTION_CLICK);
 		OnDrawPenClicked();
 		break;
-	case ConfigId::RemoteControlConfig:
-		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView sidebar remote control button", ACTION_CLICK);
-		break;
 	case ConfigId::CamStudioConfig:
-		OnCamStudioClicked({"--display_control=top"}, this);
+		OnCamStudioClicked({"--display_control=top"}, this, false);
 		break;
 	case ConfigId::Ncb2bBrowserSettings:
 		onBrowserSettingsClicked();
@@ -2143,10 +2807,10 @@ void PLSBasic::OnTransitionDurationValueChanged(int value)
 void PLSBasic::addActionPasteMenu()
 {
 	//#4189 by zengqin Disable the reference paste group option in the same scene
-	//OBSSource source = obs_get_source_by_name(copyString.toStdString().c_str());
+	//OBSSource source = obs_get_source_by_name(copyString.toUtf8().constData());
 	//if (source) {
 	//	if (obs_source_is_group(source)) {
-	//		if (!!obs_scene_get_group(GetCurrentScene(), copyString.toStdString().c_str())) {
+	//		if (!!obs_scene_get_group(GetCurrentScene(), copyString.toUtf8().constData())) {
 	//			ui->actionPasteRef->setEnabled(false);
 	//		} else
 	//			ui->actionPasteRef->setEnabled(true);
@@ -2180,16 +2844,21 @@ void PLSBasic::setUserIcon() const
 
 void PLSBasic::initConnect()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	// scene action
 	auto actionExport = pls_new<QAction>(ui->scenesFrame);
 	actionExport->setObjectName(OBJECT_NMAE_EXPORT_BUTTON);
 
 	actionExport->setText(QTStr("Scene.Collection.Export"));
 	auto actionAdd = pls_new<QAction>(ui->scenesFrame);
+	pls_uistep_v2_set_value(actionAdd, QStringLiteral("Add Scene"));
 
 	actionAdd->setObjectName(OBJECT_NMAE_ADD_BUTTON);
+	actionAdd->setToolTip(tr("main.scenes.add"));
 	auto actionSwitchEffect = pls_new<QAction>(ui->scenesFrame);
 	actionSwitchEffect->setObjectName(OBJECT_NMAE_SWITCH_EFFECT_BUTTON);
+	actionSwitchEffect->setToolTip(tr("main.scenes.switch.scene"));
+	pls_uistep_v2_set_value(actionSwitchEffect, QStringLiteral("Open scene transition window"));
 
 	actionSeperateScene = pls_new<QAction>(ui->scenesFrame);
 	SetAttachWindowBtnText(actionSeperateScene, ui->scenesDock->isFloating());
@@ -2211,6 +2880,8 @@ void PLSBasic::initConnect()
 	// source action
 	auto actionAddSource = pls_new<QAction>(ui->sources);
 	actionAddSource->setObjectName(OBJECT_NMAE_ADD_SOURCE_BUTTON);
+	actionAddSource->setToolTip(tr("main.sources.tree.add"));
+	pls_uistep_v2_set_value(actionAddSource, QStringLiteral("Add Source"));
 	actionSeperateSource = pls_new<QAction>(ui->sources);
 	actionSeperateSource->setObjectName("detachBtn");
 	SetAttachWindowBtnText(actionSeperateSource, ui->sourcesDock->isFloating());
@@ -2233,6 +2904,30 @@ void PLSBasic::initConnect()
 	ui->chatDock->titleWidget()->setCloseButtonVisible(true);
 	ui->chatDock->setAttribute(Qt::WA_NativeWindow);
 	connect(ui->chatDock, &QDockWidget::topLevelChanged, this, &PLSBasic::OnChatDockTopLevelChanged);
+
+	actionSeperateBgm = pls_new<QAction>(ui->bgmDock);
+	actionSeperateBgm->setObjectName("detachBtn");
+	connect(actionSeperateBgm, &QAction::triggered, this, &PLSBasic::OnBgmDockSeperatedBtnClicked);
+	SetAttachWindowBtnText(actionSeperateBgm, ui->bgmDock->isFloating());
+	ui->bgmDock->titleWidget()->setAdvButtonActions({actionSeperateBgm});
+	ui->bgmDock->titleWidget()->setHasCloseButton(true);
+	ui->bgmDock->titleWidget()->setCloseButtonVisible(true);
+	backgroundMusicView = pls_new<PLSBackgroundMusicView>();
+	ui->bgmDock->setWidget(backgroundMusicView);
+	connect(ui->bgmDock, &PLSDock::dockReallyShown, backgroundMusicView, &PLSBackgroundMusicView::OnDockReallyShown);
+	connect(ui->bgmDock, &QDockWidget::topLevelChanged, this, &PLSBasic::OnBgmDockTopLevelChanged);
+	connect(
+		backgroundMusicView, &PLSBackgroundMusicView::RefreshSourceProperty, this,
+		[this](const QString &name, bool) {
+			if (!properties) {
+				return;
+			}
+
+			if (name == obs_source_get_name(properties->GetSource())) {
+				properties->ReloadProperties();
+			}
+		},
+		Qt::QueuedConnection);
 }
 
 void PLSBasic::OnExportSceneCollectionClicked()
@@ -2245,6 +2940,7 @@ void PLSBasic::OnExportSceneCollectionClicked()
 
 void PLSBasic::StartUpdateSceneCollectionTimeTimer()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	updateSceneCollectionTimeTimer.setInterval(10000);
 	connect(&updateSceneCollectionTimeTimer, &QTimer::timeout, this, &PLSBasic::OnUpdateSceneCollectionTimeTimerTriggered);
 	updateSceneCollectionTimeTimer.start();
@@ -2252,78 +2948,76 @@ void PLSBasic::StartUpdateSceneCollectionTimeTimer()
 
 void PLSBasic::ShowLoadSceneCollectionError()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (showLoadSceneCollectionError) {
-		PLSAlertView::warning(this, QTStr("Alert.title"), showLoadSceneCollectionErrorStr);
+		PLSErrorHandler::showAlertByPrismCode(static_cast<PLSErrorHandler::ErrCode>(showLoadSceneCollectionErrorPrismCode), PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral("PLSBasic::ShowLoadSceneCollectionError")), this);
 		showLoadSceneCollectionError = false;
-		showLoadSceneCollectionErrorStr = "";
+		showLoadSceneCollectionErrorPrismCode = 0;
 	}
-}
-
-void OBSBasic::checkSceneDisplayMethod()
-{
-	auto basic = PLSBasic::instance();
-	if (!basic) {
-		return;
-	}
-
-	//When the number of scenes is greater than 10
-	if (PLSSceneDataMgr::Instance()->GetSceneSize() > SCENE_RENDER_NUMBER) {
-		if (alreadyShowSceneMethodAlert) {
-			return;
-		}
-
-		if (basic->GetSceneDisplayMethod() != static_cast<int>(DisplayMethod::DynamicRealtimeView)) {
-			return;
-		}
-		PLS_INFO(MAINFRAME_MODULE, "Scene display mode automatically switches from real-time mode to thumbnail mode.");
-		basic->SetSceneDisplayMethod(static_cast<int>(DisplayMethod::ThumbnailView));
-
-		alreadyShowSceneMethodAlert = true;
-		if (loadingScene) {
-			// alert need to be shown after mainview is visible
-			deferShowSceneMethodAlert = true;
-		} else {
-			PLSAlertView::information(this, QTStr("Alert.Title"), QTStr("Scene.Realtime.Limit.Tips"));
-		}
-
-		return;
-	}
-
-	//When the number of scenes is less than or equal to 10
-	alreadyShowSceneMethodAlert = false;
 }
 
 void PLSBasic::showChangeSceneDisplayAlert()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (deferShowSceneMethodAlert) {
 		deferShowSceneMethodAlert = false;
-		PLSAlertView::information(this, QTStr("Alert.Title"), QTStr("Scene.Realtime.Limit.Tips"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_SCENE_REALTIME_LIMIT_TIPS, PLSErrKeyAllAlert, QString(),
+						      PLSErrorHandler::ExtraData(QStringLiteral("PLSBasic::showChangeSceneDisplayAlert")), this);
 	}
 }
 
-void PLSBasic::SetSceneDisplayMethod(int method)
+void PLSBasic::SetSceneDisplayMethod(DisplayMethod method)
 {
 	ui->scenesFrame->SetSceneDisplayMethod(method);
-
-	auto config = App()->GetUserConfig();
-	config_set_int(config, "BasicWindow", "SceneDisplayMethod", method);
-	config_save(config);
-
-	auto curMethod = static_cast<DisplayMethod>(method);
-	PLS_INFO(MAINSCENE_MODULE, "current scene display method : %s", ui->scenesFrame->getSceneDisplayMethodStr(curMethod));
+	auto methodStr = pls_enum_2_string(method);
+	if (methodStr.isEmpty()) {
+		return;
+	}
+	if (auto config = App()->GetUserConfig(); config) {
+		config_set_string(config, "BasicWindow", "SceneDisplayMethod", methodStr.constData());
+		config_save(config);
+	}
+	PLS_INFO(MAINSCENE_MODULE, "current scene display method : %s", methodStr.constData());
+	PLS_UI_ACTION("current scene display method : %s", methodStr.constData());
 }
 
-int PLSBasic::GetSceneDisplayMethod() const
+DisplayMethod PLSBasic::GetSceneDisplayMethod() const
 {
+	PLS_PERFORMANCE_FUNCTION();
+	auto setTextView = [this]() {
+		config_set_bool(App()->GetUserConfig(), "BasicWindow", "SceneDisplayForceUpdateTextMode", true);
+		return DisplayMethod::TextView;
+	};
 	if (!config_has_user_value(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod")) {
-		config_set_int(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod", 0);
-		return 0;
+		return setTextView();
 	}
-	int displayMethod = (int)config_get_int(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod");
-	if (displayMethod < 0 || displayMethod > static_cast<int>(DisplayMethod::TextView)) {
-		return 0;
+
+	QString displayMethod = config_get_string(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod");
+	if (displayMethod.isEmpty()) {
+		return setTextView();
 	}
-	return displayMethod;
+
+	auto method = static_cast<DisplayMethod>(QMetaEnum::fromType<DisplayMethod>().keyToValue(displayMethod.toUtf8().constData()));
+	if (method < DisplayMethod::TextView || method >= DisplayMethod::InvalidMethod) {
+		return setTextView();
+	}
+
+	if (config_get_bool(App()->GetUserConfig(), "BasicWindow", "SceneDisplayForceUpdateTextMode")) {
+		return method;
+	}
+	PLS_INFO(MAINFRAME_MODULE, "After the user upgrades, they will need to be forced to update to text mode for the first time.");
+	return setTextView();
+}
+
+void PLSBasic::showSceneDisplayConfirmAndSet(DisplayMethod method, const QString &text)
+{
+	if (GetSceneDisplayMethod() == method) {
+		return;
+	}
+	if (PLSAlertView::Button::Ok == PLSMessageBox::question(this, tr("Confirm"), text, PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel, PLSAlertView::Button::Cancel)) {
+		SetSceneDisplayMethod(method);
+	}
 }
 
 QMenu *PLSBasic::CreateSceneDisplayMenu()
@@ -2331,29 +3025,24 @@ QMenu *PLSBasic::CreateSceneDisplayMenu()
 	auto displayMethodMenu = pls_new<QMenu>(QTStr("Setting.Scene.Display.Method"), ui->scenesFrame);
 	displayMethodMenu->setObjectName("displayMethodMenu");
 	connect(displayMethodMenu, &QMenu::aboutToShow, this, [this]() {
-		int displayMethod = GetSceneDisplayMethod();
-		actionRealTime->setChecked(0 == displayMethod);
-		actionRealTime->setEnabled(PLSSceneDataMgr::Instance()->GetSceneSize() <= SCENE_RENDER_NUMBER);
-		actionThumbnail->setChecked(1 == displayMethod);
-		actionText->setChecked(2 == displayMethod);
+		auto displayMethod = static_cast<DisplayMethod>(GetSceneDisplayMethod());
+		actionThumbnail->setChecked(DisplayMethod::ThumbnailView == displayMethod);
+		actionText->setChecked(DisplayMethod::TextView == displayMethod);
 	});
 
-	actionRealTime = pls_new<QAction>(QTStr("Setting.Scene.Display.Realtime.View"), ui->scenesFrame);
-	actionRealTime->setCheckable(true);
-
 	actionThumbnail = pls_new<QAction>(QTStr("Setting.Scene.Display.Thumbnail.View"), ui->scenesFrame);
+	pls_uistep_v2_set_value(actionThumbnail, QStringLiteral("Thumbnail Auto update when changed"));
 	actionThumbnail->setCheckable(true);
 
 	actionText = pls_new<QAction>(QTStr("Setting.Scene.Display.Text.View"), ui->scenesFrame);
+	pls_uistep_v2_set_value(actionText, QStringLiteral("Text"));
 	actionText->setCheckable(true);
 
-	connect(actionRealTime, &QAction::triggered, this, [this]() { SetSceneDisplayMethod(0); });
-	connect(actionThumbnail, &QAction::triggered, this, [this]() { SetSceneDisplayMethod(1); });
-	connect(actionText, &QAction::triggered, this, [this]() { SetSceneDisplayMethod(2); });
+	connect(actionThumbnail, &QAction::triggered, this, [this]() { showSceneDisplayConfirmAndSet(DisplayMethod::ThumbnailView, tr("Scene.Collection.Confirm.Text.To.Thumbnail")); });
+	connect(actionText, &QAction::triggered, this, [this]() { showSceneDisplayConfirmAndSet(DisplayMethod::TextView, tr("Scene.Collection.Confirm.Thumbnail.To.Text")); });
 
-	displayMethodMenu->addAction(actionRealTime);
-	displayMethodMenu->addAction(actionThumbnail);
 	displayMethodMenu->addAction(actionText);
+	displayMethodMenu->addAction(actionThumbnail);
 	return displayMethodMenu;
 }
 
@@ -2508,11 +3197,12 @@ void PLSBasic::frontendEventHandler(obs_frontend_event event, void *private_data
 	case OBS_FRONTEND_EVENT_STREAMING_STOPPED:
 		runtime_stats(PLS_RUNTIME_STATS_TYPE_LIVE_END, std::chrono::steady_clock::now());
 		notifySourceLiveEnd();
+		PLS_INFO(MAINFRAME_MODULE, "[prs_active_output] STREAMING_STOPPED (emit outputStateChanged next): pls_get_active_output_count=%zu pls_is_output_actived=%d",
+			 pls_get_active_output_count(), pls_is_output_actived() ? 1 : 0);
 		emit main->outputStateChanged();
 		std::thread([]() { PLSInfoCollector::logMsg("Stop Streaming"); }).detach();
 		break;
 	case OBS_FRONTEND_EVENT_PROFILE_CHANGED:
-		main->ui->scenesFrame->RefreshSceneThumbnail();
 		break;
 	case OBS_FRONTEND_EVENT_FINISHED_LOADING: {
 		/*modified by xie-wei #3946*/
@@ -2531,6 +3221,8 @@ void PLSBasic::frontendEventHandler(obs_frontend_event event, void *private_data
 		PLSSceneitemMapMgrInstance->switchToDualOutputModeForAllScenes();
 		PLSSceneitemMapMgrInstance->bindMappedVerticalItemHotkeys();
 		main->showChangeSceneDisplayAlert();
+		pls_async_call(main, [main]() { main->UpdateEditMenu(); });
+		pls_async_call(main, [main]() { main->refreshSceneThumbnail(); });
 		break;
 	case OBS_FRONTEND_EVENT_STREAMING_STARTED:
 		includeHidenAudioToast(true);
@@ -2553,6 +3245,10 @@ void PLSBasic::frontendEventHandler(obs_frontend_event event, void *private_data
 		PLSSceneitemMapMgrInstance->switchToDualOutputMode();
 		main->updateSourceIcon();
 		pls_async_call_mt([main]() { main->ReorderAudioMixer(); });
+		break;
+	case OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED:
+	case OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED:
+		pls_async_call(main, [main]() { main->UpdateEditMenu(); });
 		break;
 	default:
 		break;
@@ -2594,6 +3290,9 @@ void PLSBasic::frontendEventHandler(pls_frontend_event event, const QVariantList
 			main->ForceUpdateGroupsSize();
 		}
 		break;
+	case pls_frontend_event::PLS_FRONT_EVENT_MUSIC_PLAYLIST_SELECT_CHANGED:
+		main->updateMusicToolbarUi();
+		break;
 	default:
 		break;
 	}
@@ -2607,31 +3306,60 @@ void PLSBasic::rehearsalSwitchedToLive()
 
 void PLSBasic::showMainViewAfter(QWidget *parentWidget)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	pls_check_app_exiting();
-	//notice view
-	PLS_INFO(MAINFRAME_MODULE, "start request prism notice info.");
-	pls_get_new_notice_Info([this, parentWidget](const QVariantMap &noticeInfo) {
-		bool updateNow = false;
-		pls_async_call(this, [this, noticeInfo]() {
-			if (noticeInfo.size()) {
-				PLS_INFO(MAINFRAME_MODULE, "show notice");
-				PLSNoticeView view(noticeInfo.value(NOTICE_CONTENE).toString(), noticeInfo.value(NOTICE_TITLE).toString(), noticeInfo.value(NOTICE_DETAIL_LINK).toString(), mainView);
 #if defined(Q_OS_MACOS)
-				view.setWindowTitle(tr("Mac.Title.Notice"));
+	pls_libutil_api_mac::pls_activate_prism_as_active_app();
+	pls_bring_mac_window_to_front(getMainView()->winId());
 #endif
-				view.exec();
+	//notice view
+	auto noticeCallback = [this, parentWidget](const QList<PLSNoticeUpdateItem> &noticeInfos) {
+		pls_check_app_exiting();
+		bool updateNow = false;
+		pls_async_call(this, [noticeInfos]() {
+			pls_check_app_exiting();
+			if (!noticeInfos.isEmpty()) {
+				PLSNoticeUpdateCoordinator::instance()->handleStartupNoticeResult(noticeInfos);
 			}
 		});
-
 		// if update view never shown
-
-		if (!updateNow) {
-
-			if (PLSLoginDataHandler::instance()->isNeedShowB2BServiceAlert()) {
-				pls_async_call_mt([]() { PLSAlertView::warning(nullptr, QObject::tr("Alert.Title"), QObject::tr("Ncb2b.Living.Service.Disable")); });
+		AppUpdateResult updateResult = PLSLoginDataHandler::instance()->getUpdateResult();
+		auto versions = PLSLoginFunc::getUpdateInfo({common::UPDATE_NEXT_VERSION_INFO, common::UPDATE_VERSION});
+		auto updateVersion = versions.value(common::UPDATE_NEXT_VERSION_INFO).toString();
+		if (updateResult == AppUpdateResult::AppHasUpdate && (m_updateVersion != updateVersion || m_updateForceUpdate)) {
+			PLS_INFO(UPDATE_MODULE, "show update window.");
+			if (ShowUpdateView(parentWidget)) {
+				pls_async_call_mt([this]() {
+					pls_check_app_exiting();
+					startDownloading(PLSLoginDataHandler::instance()->isForcePrismAppUpdate());
+				});
+				updateNow = true;
 			}
 		}
-	});
+		pls_check_app_exiting();
+		if (!updateNow) {
+			if (PLSLoginDataHandler::instance()->isNeedShowB2BServiceAlert()) {
+				pls_async_call_mt([]() {
+					PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NCB2B_SERVICE_DISABLE, PLSErrKeyAllAlert, {},
+									      PLSErrorHandler::ExtraData("PLSBasic::showMainViewAfter"));
+				});
+			}
+		}
+
+		pls_check_app_exiting();
+		mainViewIsShown();
+	};
+	if (GlobalVars::isLogined) {
+		noticeCallback(pls_get_new_notice_from_cache());
+	} else {
+		PLS_INFO(MAINFRAME_MODULE, "start request prism notice info.");
+		pls_get_new_notice_Info([noticeCallback](const QList<PLSNoticeUpdateItem> &noticeInfos) {
+			pls_check_app_exiting();
+			noticeCallback(noticeInfos);
+		});
+	}
+
+	pls::lens::showOnBoardingDialogIfNeed(this);
 }
 
 void PLSBasic::LogoutCallback(pls_frontend_event event, const QVariantList &l, void *v)
@@ -2755,7 +3483,9 @@ void OBSBasic::DeleteFiltersWindow(const obs_source_t *source) const
 void OBSBasic::loadProfile(const char *savePath, const char *sceneCollection, LoadSceneCollectionWay way)
 {
 	ProfileScope("OBSBasic::loadProfile");
-	if (QString runningPath = App()->getAppRunningPath(); !runningPath.isEmpty()) {
+	PLS_PERFORMANCE_FUNCTION();
+
+	if (QString runningPath = App()->openFilePath(); !runningPath.isEmpty()) {
 		if (bool fromUserPath = CheckPscFileInPrismUserPath(runningPath); fromUserPath) {
 			disableSaving--;
 			Load(runningPath.toUtf8().constData());
@@ -2791,9 +3521,6 @@ void OBSBasic::loadProfile(const char *savePath, const char *sceneCollection, Lo
 	}
 
 	disableSaving--;
-	//std::string strPath(savePath);
-	//strPath += sceneCollection;
-	//strPath += ".json";
 	Load(savePath);
 	disableSaving++;
 }
@@ -2833,7 +3560,6 @@ void PLSBasic::OnBrowserDockTopLevelChanged()
 		if (0 == action->property("uuid").toString().compare(uuid)) {
 			bool isFloating = dock->isFloating();
 			SetAttachWindowBtnText(action, isFloating);
-			dock->titleWidget()->setCloseButtonVisible(true);
 			return;
 		}
 	}
@@ -2857,29 +3583,9 @@ void PLSBasic::CreateAdvancedButtonForBrowserDock(OBSDock *dock, const QString &
 	}
 	connect(actionSeperateSource, &QAction::triggered, PLSBasic::instance(), &PLSBasic::OnBrowserDockSeperatedBtnClicked);
 	dock->titleWidget()->setHasCloseButton(true);
-	dock->titleWidget()->setCloseButtonVisible(isBrowerDock ? true : dock->isFloating());
+	dock->titleWidget()->setCloseButtonVisible(true);
 	dock->titleWidget()->setAdvButtonActions({actionSeperateSource});
 	connect(dock, &QDockWidget::topLevelChanged, PLSBasic::instance(), &PLSBasic::OnBrowserDockTopLevelChanged);
-}
-
-void PLSBasic::setDockDetachEnabled(bool dockLocked)
-{
-	ui->scenesDock->titleWidget()->setAdvButtonActionsEnabledByObjName("detachBtn", !dockLocked);
-	ui->sourcesDock->titleWidget()->setAdvButtonActionsEnabledByObjName("detachBtn", !dockLocked);
-	ui->mixerDock->titleWidget()->setAdvButtonActionsEnabledByObjName("detachBtn", !dockLocked);
-	ui->chatDock->titleWidget()->setAdvButtonActionsEnabledByObjName("detachBtn", !dockLocked);
-
-#define SET_DOCKLIST_DETACH_ENABLED(dockList, enable)                                          \
-	for (int i = dockList.size() - 1; i >= 0; i--) {                                       \
-		OBSDock *dock = dynamic_cast<OBSDock *>(dockList[i].get());                    \
-		if (!dock) {                                                                   \
-			continue;                                                              \
-		}                                                                              \
-		dock->titleWidget()->setAdvButtonActionsEnabledByObjName("detachBtn", enable); \
-	}
-	SET_DOCKLIST_DETACH_ENABLED(extraBrowserDocks, !dockLocked)
-	SET_DOCKLIST_DETACH_ENABLED(extraDocks, !dockLocked)
-	SET_DOCKLIST_DETACH_ENABLED(ncb2bCustomDocks, !dockLocked)
 }
 
 void PLSBasic::OnSourceDockSeperatedBtnClicked()
@@ -2897,6 +3603,16 @@ void PLSBasic::OnChatDockSeperatedBtnClicked()
 	changeDockState(ui->chatDock, actionSeperateChat);
 }
 
+void PLSBasic::OnBgmDockSeperatedBtnClicked()
+{
+	changeDockState(ui->bgmDock, actionSeperateBgm);
+}
+
+void PLSBasic::OnBgmDockTopLevelChanged()
+{
+	SetAttachWindowBtnText(actionSeperateBgm, ui->bgmDock->isFloating());
+	ui->bgmDock->titleWidget()->setCloseButtonVisible(true);
+}
 void PLSBasic::OnBrowserDockSeperatedBtnClicked()
 {
 	QAction *action = reinterpret_cast<QAction *>(sender());
@@ -2904,18 +3620,18 @@ void PLSBasic::OnBrowserDockSeperatedBtnClicked()
 		return;
 	}
 
-#define CHANGE_DOCKLIST_STATE(dockList, action)                                         \
-	for (int i = dockList.size() - 1; i >= 0; i--) {                                \
-		BrowserDock *dock = reinterpret_cast<BrowserDock *>(dockList[i].get()); \
-		if (!dock) {                                                            \
-			continue;                                                       \
-		}                                                                       \
-		QString title = action->property("uuid").toString();                    \
-		if (0 == dock->property("uuid").toString().compare(title)) {            \
-			changeDockState(dock, action);                                  \
-			dock->titleWidget()->updateTitle();                             \
-			return;                                                         \
-		}                                                                       \
+#define CHANGE_DOCKLIST_STATE(dockList, action)                                 \
+	for (int i = dockList.size() - 1; i >= 0; i--) {                        \
+		OBSDock *dock = reinterpret_cast<OBSDock *>(dockList[i].get()); \
+		if (!dock) {                                                    \
+			continue;                                               \
+		}                                                               \
+		QString title = action->property("uuid").toString();            \
+		if (0 == dock->property("uuid").toString().compare(title)) {    \
+			changeDockState(dock, action);                          \
+			dock->titleWidget()->updateTitle();                     \
+			return;                                                 \
+		}                                                               \
 	}
 	CHANGE_DOCKLIST_STATE(extraBrowserDocks, action)
 	CHANGE_DOCKLIST_STATE(extraDocks, action)
@@ -3019,25 +3735,44 @@ void OBSBasic::CreateTimerSourcePopupMenu(QMenu *menu, obs_source_t *source) con
 	});
 }
 
-void PLSBasic::InitChatDockGeometry()
+void PLSBasic::InitChatDockGeometry(bool inInnerMain)
 {
 
 	auto mainView = getMainView();
 	if (!mainView)
 		return;
 
-#ifdef __APPLE__
-	int topOffset = 28;
-#else
-	int topOffset = 0;
-#endif
+	if (inInnerMain) {
+		addDockWidget(Qt::RightDockWidgetArea, ui->chatDock);
+		return;
+	}
 
 	QPoint mainTopRight = mainView->mapToGlobal(QPoint(mainView->frameGeometry().width(), 0));
-	auto geometryOfNormal = QRect(mainTopRight.x() + 5, mainTopRight.y() - topOffset, 300, 817);
+	auto geometryOfNormal = QRect(mainTopRight.x() + 5, mainTopRight.y() - PLS_TITLE_BAR_HEIGHT, 300, 817);
 	ui->chatDock->printChatGeometryLog("InitChatDockGeometry before");
 	ui->chatDock->setGeometry(geometryOfNormal);
 	pls_window_left_right_margin_fit(ui->chatDock);
 	ui->chatDock->printChatGeometryLog("InitChatDockGeometry after");
+}
+
+void PLSBasic::InitBgmDockGeometry()
+{
+	if (!config_get_bool(App()->GetUserConfig(), "BgmConfig", "initializedGeometry") || config_get_bool(App()->GetUserConfig(), "BgmConfig", "isResetDockClicked")) {
+		ui->bgmDock->setFloating(true);
+		auto mainView = getMainView();
+		if (!mainView)
+			return;
+
+		QPoint mainTopRight = mainView->mapToGlobal(QPoint(mainView->frameGeometry().width(), 0));
+		auto geometryOfNormal = QRect(mainTopRight.x() + 5, mainTopRight.y() - PLS_TITLE_BAR_HEIGHT, 298, 817);
+		ui->bgmDock->setGeometry(geometryOfNormal);
+		pls_window_left_right_margin_fit(ui->bgmDock);
+		ui->bgmDock->setVisible(false);
+		config_set_bool(App()->GetUserConfig(), "BgmConfig", "initializedGeometry", true);
+		config_set_bool(App()->GetUserConfig(), "BgmConfig", "isResetDockClicked", false);
+		config_set_string(App()->GetUserConfig(), "BasicWindow", "DockState", saveState().toBase64().constData());
+		config_save(App()->GetUserConfig());
+	}
 }
 
 void PLSBasic::SetAttachWindowBtnText(QAction *action, bool isFloating) const
@@ -3046,8 +3781,10 @@ void PLSBasic::SetAttachWindowBtnText(QAction *action, bool isFloating) const
 		return;
 	}
 	if (isFloating) {
+		pls_uistep_v2_set_name(action, QStringLiteral("Attach"));
 		action->setText(QTStr(MAIN_MAINFRAME_TOOLTIP_REATTACH));
 	} else {
+		pls_uistep_v2_set_name(action, QStringLiteral("Detach"));
 		action->setText(QTStr(MAIN_MAINFRAME_TOOLTIP_DETACH));
 	}
 }
@@ -3088,7 +3825,23 @@ void PLSBasic::CreatePrismStickerView()
 {
 	if (nullptr == prismStickerView) {
 		prismStickerView = new PLSPrismSticker(nullptr);
-		connect(prismStickerView, &PLSPrismSticker::StickerApplied, this, &PLSBasic::OnPRISMStickerApplied);
+		connect(prismStickerView, &PLSPrismSticker::StickerAddedApplied, this, &PLSBasic::OnPRISMStickerAddedApplied);
+		connect(prismStickerView, &PLSPrismSticker::StickerUpdatedResource, this, &PLSBasic::OnPRISMStickerUpdatedResource);
+		connect(prismStickerView, &PLSPrismSticker::StickerUpdatedApplied, this, &PLSBasic::OnPRISMStickerUpdateApplied);
+		auto closeEvent = [this_guard = QPointer<PLSPrismSticker>(prismStickerView), this](obs_source_t *update_source) -> bool {
+			if (!update_source || !this_guard || !pls_is_alive(update_source) || !m_restoreUpdateStickerPtr || !updateStickerIsChanged(update_source)) {
+				return true;
+			}
+
+			PLSAlertView::Button button = showStickerChangeAlertView(this_guard);
+			if (PLSAlertView::Button::Yes == button) {
+				OnRestoreStickerUpdated(update_source);
+				OnLeaveStickerUpdateMode();
+				return true;
+			}
+			return false;
+		};
+		prismStickerView->setCloseEventCallback(closeEvent);
 	}
 }
 
@@ -3167,15 +3920,7 @@ bool PLSBasic::AddPRISMStickerSource(const StickerHandleResult &data, OBSSource 
 #endif
 	const char *id = PRISM_STICKER_SOURCE_ID;
 
-	action::SendActionToNelo(id, action::ACTION_ADD_EVENT, id);
-	QVariantMap stickerUploadVariantMap;
-	stickerUploadVariantMap.insert(ANALOG_TOUCH_STICKER_CATEGORY_ID_KEY, data.data.category);
-	stickerUploadVariantMap.insert(ANALOG_TOUCH_STICKER_ID_KEY, data.data.id);
-	action::SendActionLog(action::ActionInfo(action::EVENT_MAIN_ADD, action::EVENT_SUB_SOURCE_ADDED, action::EVENT_TYPE_CONFIRMED, action::GetActionSourceID(id)));
-	pls_send_analog(AnalogType::ANALOG_ADD_SOURCE, {{ANALOG_SOURCE_TYPE_KEY, action::GetActionSourceID(id)}, {ANALOG_DETAIL_KEY, stickerUploadVariantMap}});
-
 	OnSourceCreated(id);
-	action::SendPropsToNelo(id, {{"stickerId", qUtf8Printable(data.data.id)}, {"category", qUtf8Printable(data.data.category)}});
 
 #if PRISM_STICKER_CENTER_SHOW
 	// set initialize position to scene center.
@@ -3207,8 +3952,6 @@ bool PLSBasic::AddPRISMStickerSource(const StickerHandleResult &data, OBSSource 
 		obs_source_set_monitoring_type(newSource, OBS_MONITORING_TYPE_MONITOR_ONLY);
 	}
 
-	action::SendActionLog(action::ActionInfo(action::EVENT_MAIN_EDIT, action::ACT_SRC_STICKER, action::EVENT_TYPE_CONFIRMED, data.data.id));
-
 	return true;
 }
 
@@ -3225,7 +3968,7 @@ bool PLSBasic::CreateSource(const char *id, OBSSource &newSource, obs_data_t *se
 
 	OBSSourceAutoRelease source = obs_get_source_by_name(QT_TO_UTF8(newName));
 	if (source) {
-		OBSMessageBox::information(this, QTStr("Alert.Title"), QTStr("NameExists.Text"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_NAMEEXISTS_TEXT, PLSErrKeyAllAlert, QString(), PLSErrorHandler::ExtraData(QStringLiteral("PLSBasic::CreateSource")), this);
 		return false;
 	}
 
@@ -3313,7 +4056,7 @@ static void sourceNotifyAsyncChatUpdateParams(const OBSSource &source, int code)
 void PLSBasic::OnSourceNotifyAsync(QString name, int msg, int code)
 {
 	pls_check_app_exiting();
-	OBSSource source = pls_get_source_by_name(name.toStdString().c_str());
+	OBSSource source = pls_get_source_by_name(name.toUtf8().constData());
 	if (!source) {
 		return;
 	}
@@ -3342,8 +4085,7 @@ void PLSBasic::OnSourceNotifyAsync(QString name, int msg, int code)
 		return;
 	}
 
-	PLS_INFO(SOURCE_MODULE, "Recieved source notify from [%s]. msg:%d code:%d", name.toStdString().c_str(), msg, code);
-
+	PLS_UI_ACTION("Recieved source notify from [%s]. msg:%d code:%d", name.toUtf8().constData(), msg, code);
 	const char *pluginID = obs_source_get_id(source);
 
 	if (pls_is_in(msg, OBS_SOURCE_EXCEPTION_BG_FILE_ERROR, OBS_SOURCE_EXCEPTION_BG_FILE_NETWORK_ERROR)) {
@@ -3355,13 +4097,6 @@ void PLSBasic::OnSourceNotifyAsync(QString name, int msg, int code)
 			}*/
 			QMetaObject::invokeMethod(this, [name]() { PLSVirtualBgManager::checkResourceInvalid({}, name); }, Qt::QueuedConnection);
 		}
-	} else if (msg == OBS_SOURCE_PROPERTY_ERROR_STATUS) {
-		if (properties) {
-			if (code == 1) {
-				properties->showGuideText(QObject::tr("source.camera.notsupport.hdr"));
-			} else
-				properties->hideGuideText();
-		}
 	} else if (msg == OBS_SOURCE_MUSIC_STATE_CHANGED && backgroundMusicView) {
 		obs_media_state state = static_cast<obs_media_state>(code);
 		backgroundMusicView->OnMediaStateChanged(name, state);
@@ -3369,22 +4104,77 @@ void PLSBasic::OnSourceNotifyAsync(QString name, int msg, int code)
 		backgroundMusicView->OnLoopStateChanged(name);
 	} else if (msg == OBS_SOURCE_MUSIC_MODE_STATE_CHANGED && backgroundMusicView) {
 		backgroundMusicView->OnModeStateChanged(name);
+	} else if (msg == OBS_SOURCE_FAILED_STATUS) { //PRISM/FanZirong/20251103/PRISM_PC-3577/source capture failed guidance
+		handleSourceFailedGuide(source, code);
+		updateSourceTreeFailedUI(source, code);
+	}
+}
+
+void PLSBasic::OnSourceLoadingAsync(QString name, bool)
+{
+	pls_check_app_exiting();
+	OBSSource source = pls_get_source_by_name(name.toUtf8().constData());
+	if (!source || !properties) {
+		return;
+	}
+
+	const char *propSourceUuid = obs_source_get_uuid(properties->GetSource());
+	const char *sourceUuid = obs_source_get_uuid(source);
+	if (!pls_is_equal(sourceUuid, propSourceUuid)) {
+		return;
+	}
+
+	auto sub_code = properties->getFailedCode();
+	auto loading = pls_is_source_loading(source);
+	properties->setFailureState(getFailedGuideText(sub_code), loading);
+}
+
+//PRISM/chenguoxi/20251103/PRISM_PC-3578/window and monitor capture failed guidance
+void PLSBasic::handleSourceFailedGuide(OBSSource source, int code)
+{
+	if (!properties)
+		return;
+
+	const char *propSourceUuid = obs_source_get_uuid(properties->GetSource());
+	const char *sourceUuid = obs_source_get_uuid(source);
+	enum obs_source_failed_status_sub_code sub_code = pls_source_get_failed_status_sub_code(source);
+
+	if (pls_is_equal(sourceUuid, propSourceUuid) && properties->getFailedCode() != sub_code) {
+		QString guideText = getFailedGuideText(sub_code);
+		auto loading = pls_is_source_loading(source);
+		properties->setFailureState(guideText, loading);
+		properties->setFailedCode(sub_code);
+	}
+}
+
+void PLSBasic::updateSourceTreeFailedUI(OBSSource source, int code)
+{
+	for (auto i = 0; i < ui->sources->Count(); i++) {
+		obs_sceneitem_t *sceneItem = ui->sources->Get(i);
+		const obs_source_t *itemSource = obs_sceneitem_get_source(sceneItem);
+		if (!itemSource || itemSource != source) {
+			continue;
+		}
+		ui->sources->GetItemWidget(i)->UpdateSourceUI();
 	}
 }
 
 void PLSBasic::OnMainViewShow(bool isShow)
 {
+	pls_check_app_exiting();
 
+	PLS_PERFORMANCE_FUNCTION();
 	if (isFirstShow) {
 		PLS_INFO(MAINFRAME_MODULE, "start notice timer");
 		m_noticeTimer.start();
 	}
 	if (isShow && isFirstShow) {
 
+		isFirstShow = false;
 		PLS_INFO(UPDATE_MODULE, "enter OnMainViewShow(%d)", isShow);
+		pls_check_app_exiting();
 
 		getLocalUpdateResult();
-		isFirstShow = false;
 		PLS_INFO(UPDATE_MODULE, "enter ShowLoadSceneCollectionError");
 		ShowLoadSceneCollectionError();
 		PLS_INFO(UPDATE_MODULE, "enter showChangeSceneDisplayAlert");
@@ -3394,32 +4184,21 @@ void PLSBasic::OnMainViewShow(bool isShow)
 		PLS_INFO(UPDATE_MODULE, "enter QApplication::postEvent(ui->scenesDock->titleWidget(), new QEvent(QEvent::Resize))");
 		QApplication::postEvent(ui->scenesDock->titleWidget(), new QEvent(QEvent::Resize));
 		PLS_PRSIM_SHARE_MEMORY;
-
+		UpdateContextBarVisibility();
 		if (ncb2bBrowserSettings) {
 			ncb2bBrowserSettings->refreshUI();
 		}
 		PLSSceneitemMapMgrInstance->bindMappedVerticalItemHotkeys();
 		PLSSceneitemMapMgrInstance->switchToDualOutputMode();
-
-		PLSLaunchWizardView *banner = dynamic_cast<PLSLaunchWizardView *>(pls_get_banner_widget());
+		QPointer<PLSLaunchWizardView> banner = dynamic_cast<PLSLaunchWizardView *>(pls_get_banner_widget());
 		if (banner && banner->isNeedShow()) {
-			PLS_INFO(UPDATE_MODULE, "pls_get_banner_widget object is existed");
-			PLSShowWatcher *watcher = new PLSShowWatcher(banner);
-			QObject::connect(
-				watcher, &PLSShowWatcher::signalShow, banner,
-				[watcher, banner, this]() {
-					PLS_INFO(UPDATE_MODULE, "PLSShowWatcher notify banner show event");
-					watcher->deleteLater();
-					showMainViewAfter(banner);
-					banner->activateWindow();
-					banner->raise();
-				},
-				Qt::ConnectionType(Qt::QueuedConnection | Qt::SingleShotConnection));
+			setAlertParentWithBanner([this](QWidget *parentWidget) {
+				pls_check_app_exiting();
+				showMainViewAfter(parentWidget);
+			});
 		} else {
-			PLS_INFO(UPDATE_MODULE, "pls_get_banner_widget object is empty");
-			showMainViewAfter(getMainView());
+			showMainViewAfter(this);
 		}
-
 		PLSBasicStatusPanel::InitializeValues();
 	}
 
@@ -3493,6 +4272,7 @@ void OBSBasic::SetScene(OBSScene scene)
 		if (sceneChenged) {
 			m_currentScene = temp;
 			PLS_LOG(PLS_LOG_INFO, MAINSCENE_MODULE, "Current scene is changed : '%s' [%p]", obs_source_get_name(source), source);
+			PLS_UI_ACTION("Current scene is changed : '%s' [%p]", obs_source_get_name(source), source);
 		}
 	}
 }
@@ -3553,14 +4333,20 @@ void OBSBasic::OnVisibleItemChanged(OBSSceneItem item, bool visible)
 {
 	PLSAudioControl::instance()->OnSourceItemVisibleChanged(item, visible);
 	PLSBasic::instance()->SetBgmItemVisible(item, visible);
+
+	if (!pls_is_vertical_sceneitem(item)) {
+		ui->scenesFrame->RefreshSceneThumbnail();
+	}
 }
 
 void OBSBasic::OnSourceItemsRemove(QVector<OBSSceneItem> items)
 {
 	for (const auto &item : items) {
-		//	OnRemoveSourceTreeItem(item);
 		PLSAudioControl::instance()->OnSourceItemRemoved(item);
 		PLSBasic::instance()->RemoveBgmItem(item);
+	}
+	if (!items.isEmpty()) {
+		ui->scenesFrame->RefreshSceneThumbnail();
 	}
 }
 
@@ -3577,6 +4363,7 @@ void OBSBasic::OnMultiviewShowTriggered(bool checked)
 
 	obs_data_set_bool(data, "show_in_multiview", checked);
 	OBSProjector::UpdateMultiviewProjectors();
+	PLS_UI_ACTION("Multiview show triggered.");
 }
 
 void OBSBasic::OnMultiviewHideTriggered(bool checked)
@@ -3592,6 +4379,7 @@ void OBSBasic::OnMultiviewHideTriggered(bool checked)
 
 	obs_data_set_bool(data, "show_in_multiview", checked);
 	OBSProjector::UpdateMultiviewProjectors();
+	PLS_UI_ACTION("Multiview hide triggered.");
 }
 
 void OBSBasic::UpdateSceneSelection(OBSSource source)
@@ -3663,27 +4451,83 @@ void PLSBasic::replaceMenuActionWithWidgetAction(QMenuBar *menuBar, QAction *ori
 	}
 }
 
-void PLSBasic::CheckAppUpdate(bool isShowAlert) {
-	
-}
-
-void PLSBasic::CheckAppUpdateFinished(bool isShowAlert, const PLSErrorHandler::RetData &retData ) {
-	
-}
-
-int PLSBasic::compareVersion(const QString &v1, const QString &v2) const
+void PLSBasic::CheckAppUpdate(bool isShowAlert, bool isNeedLatestApi)
 {
-	return 0;
+	if (m_requestUpdate) {
+		return;
+	}
+	m_checkUpdateResult = AppUpdateResult::AppFailed;
+	m_requestUpdate = true;
+	m_updateForceUpdate = false;
+	m_updateVersion.clear();
+	m_updateFileUrl.clear();
+	m_updateInfoUrl.clear();
+	PLSErrorHandler::RetData retData;
+	pls_check_update_result_t check_update_result = pls_check_app_update(m_updateForceUpdate, m_updateVersion, m_updateFileUrl, m_updateInfoUrl, retData, isNeedLatestApi);
+	pls_modal_check_app_exiting();
+	if (check_update_result == pls_check_update_result_t::Failed) {
+		m_checkUpdateResult = AppUpdateResult::AppFailed;
+	} else if (check_update_result == pls_check_update_result_t::NoUpdate) {
+		m_checkUpdateResult = AppUpdateResult::AppNoUpdate;
+	} else if (check_update_result == pls_check_update_result_t::HasUpdate) {
+		m_checkUpdateResult = AppUpdateResult::AppHasUpdate;
+	} else if (check_update_result == pls_check_update_result_t::HmacExceedTime) {
+		m_checkUpdateResult = AppUpdateResult::AppHMacExceedTimeLimit;
+	}
+
+	//Print the update data of the launcher
+	PLS_INFO(UPDATE_MODULE, "main view get check update result, m_updateForceUpdate is %s , m_updateVersion is %s , m_updateFileUrl is %s , m_updateInfoUrl is %s , m_checkUpdateResult is %d",
+		 m_updateForceUpdate ? "true" : "false", m_updateVersion.toUtf8().constData(), m_updateFileUrl.toUtf8().constData(), m_updateInfoUrl.toUtf8().constData(),
+		 static_cast<int>(m_checkUpdateResult));
+
+	CheckAppUpdateFinished(isShowAlert, retData);
+	m_requestUpdate = false;
 }
 
-int PLSBasic::getUpdateResult() const
+void PLSBasic::CheckAppUpdateFinished(bool isShowAlert, const PLSErrorHandler::RetData &retData)
+{
+	if (isVisible() && isShowAlert) {
+		if (m_checkUpdateResult == AppUpdateResult::AppFailed) {
+			showAlertOnlyOnce(retData);
+		}
+	}
+	pls_modal_check_app_exiting();
+
+	// show main menu about update icon
+#if defined(Q_OS_WIN)
+	m_checkUpdateWidget->setBadgeVisible(m_checkUpdateResult == AppUpdateResult::AppHasUpdate);
+#endif
+	//Update the update style of the top left icon
+	getMainView()->setUpdateTipsStatus(AppUpdateResult::AppHasUpdate == m_checkUpdateResult);
+}
+
+AppUpdateResult PLSBasic::getUpdateResult() const
 {
 	return m_checkUpdateResult;
 }
 
 bool PLSBasic::ShowUpdateView(QWidget *parent)
 {
-	return false;
+	if (m_isShowedUpdateView) {
+		emit sigUpdateUrlChanged(m_updateInfoUrl);
+		return false;
+	}
+	m_isShowedUpdateView = true;
+	bool updatedResult = false;
+	if (pls_show_update_info_view(m_updateForceUpdate, m_updateVersion, m_updateFileUrl, m_updateInfoUrl, true, parent->isVisible() ? parent : getMainView())) {
+		updatedResult = true;
+	}
+	PLS_INFO(UPDATE_MODULE, "UPDATE STATUS: save the updateResult value is %s", updatedResult ? "true" : "false");
+	if (!updatedResult && !m_updateForceUpdate) {
+		PLSLoginFunc::saveUpdateInfo({{common::UPDATE_NEXT_VERSION_INFO, m_updateVersion}});
+	}
+	if (!updatedResult && m_updateForceUpdate) {
+		if (QWidget *mainView = getMainView()) {
+			mainView->close();
+		}
+	}
+	m_isShowedUpdateView = false;
+	return updatedResult;
 }
 
 QStringList PLSBasic::getRestartParams(bool isUpdate)
@@ -3754,16 +4598,17 @@ void PLSBasic::ClearStickerCache() const
 	}
 }
 
-void PLSBasic::InitInteractData() const
+void PLSBasic::InitInteractData(WId mainWId, const QFont &font)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	auto cx = (int)config_get_int(App()->GetUserConfig(), "InteractionWindow", "cx");
 	auto cy = (int)config_get_int(App()->GetUserConfig(), "InteractionWindow", "cy");
 
 	obs_data_t *browserData = obs_data_create();
 	obs_data_set_int(browserData, "interaction_cx", cx);
 	obs_data_set_int(browserData, "interaction_cy", cy);
-	obs_data_set_int(browserData, "prism_hwnd", mainView->window()->winId());
-	obs_data_set_string(browserData, "font", this->font().family().toStdString().c_str());
+	obs_data_set_int(browserData, "prism_hwnd", mainWId);
+	obs_data_set_string(browserData, "font", font.family().toUtf8().constData());
 	pls_plugin_set_private_data(BROWSER_SOURCE_ID, browserData);
 	obs_data_release(browserData);
 }
@@ -3816,7 +4661,13 @@ void PLSBasic::restartAppDirect(bool isUpdate)
 
 void PLSBasic::restartApp(const RestartAppType &restartType, const QStringList &params)
 {
+	PLSBasic::instance()->setRestartAppType(restartType);
+
+#if defined(Q_OS_WIN)
+	QString filePath = pls_get_app_dir() + "/" + "PRISMLiveStudio.exe";
+#elif defined(Q_OS_MACOS)
 	QString filePath = QApplication::applicationFilePath();
+#endif
 	QStringList allParams = params;
 	switch (restartType) {
 	case RestartAppType::Direct:
@@ -3862,7 +4713,16 @@ void PLSBasic::restartApp(const RestartAppType &restartType, const QStringList &
 
 void PLSBasic::startDownloading(bool forceDownload)
 {
-	
+	m_isAppUpdating = true;
+	//if the virtual camera is active, not restart app and check update
+	if (VirtualCamActive()) {
+		m_isAppUpdating = false;
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ErrCode::ALERT_UPDATE_FORCE_VIRTUAL_CAM_ACTIVE, PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData("Update force virtual camera active"), nullptr);
+		return;
+	}
+	//main close and restart app to download new package
+	pls_async_call_mt([this]() { restartPrismApp(RestartAppType::Update, {shared_values::k_launcher_command_update_file + m_updateFileUrl}); });
 }
 
 void PLSBasic::OpenRegionCapture()
@@ -3962,12 +4822,13 @@ void PLSBasic::AddSelectRegionSource(const char *id, const QRect &rectSelected)
 	}
 }
 
-void PLSBasic::restartPrismApp(bool isUpdated)
+void PLSBasic::restartPrismApp(RestartAppType restartAppType, const QStringList &params, bool isUpdated)
 {
 	if (mainView) {
 		PLS_INFO(MAINFRAME_MODULE, "prism app start restart.");
+		setRestartAppType(restartAppType);
 		mainView->close();
-		restartApp();
+		restartApp(restartAppType, params);
 	} else {
 		PLS_INFO(MAINFRAME_MODULE, "mainview pointer is nullptr");
 	}
@@ -4006,6 +4867,7 @@ void PLSBasic::closeMainBegin()
 		config_set_string(App()->GetUserConfig(), "BasicWindow", "DockState", saveState().toBase64().constData());
 	}
 
+	ui->chatWidget->quitAppToReleaseCefData();
 	HideAllInteraction(nullptr);
 	SaveInteractData();
 
@@ -4021,12 +4883,8 @@ void PLSBasic::closeMainBegin()
 
 	PLSFileDownloader::instance()->Stop();
 
-	if (nullptr != checkCamProcessWorker) {
-		checkCamProcessWorker->deleteLater();
-		checkCamProcessWorker = nullptr;
-	}
+	pls_delete_later(checkCamProcessWorker);
 
-	ui->chatWidget->quitAppToReleaseCefData();
 	checkCamThread.quit();
 	checkCamThread.wait();
 }
@@ -4058,29 +4916,26 @@ void PLSBasic::initSideBarWindowVisible()
 	// ncb2b
 	initNcb2bBrowserSettingsVisible();
 
-	//background music
-	bool bgmVisible = pls_config_get_bool(App()->GetUserConfig(), ConfigId::BgmConfig, CONFIG_SHOW_MODE);
-	OnSetBgmViewVisible(bgmVisible);
-
 	//toast
 	bool toastVisible = pls_config_get_bool(App()->GetUserConfig(), ConfigId::LivingMsgView, CONFIG_SHOW_MODE);
 	mainView->setToastMsgViewVisible(toastVisible);
 	//chat view
 	mainView->showChatView(false, true);
-
 	//virtual background
 	//bool virtualVisible = pls_config_get_bool(App()->GetUserConfig(), ConfigId::VirtualbackgroundConfig, CONFIG_SHOW_MODE);
 	//if (virtualVisible)
 	//OnVirtualBgClicked(true);
 
-	// cam studio
-	InitCamStudioSidebarState();
+	//cam studio
+	createCheckCamThread();
+	QMetaObject::invokeMethod(checkCamProcessWorker, "checkCamProcessIsVisible", Qt::QueuedConnection);
 
 	InitDualOutputEnabled();
 }
 
 void PLSBasic::CreateToolArea()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	QLayout *layout = ui->centralwidget->layout();
 	drawPenView = new PLSDrawPenView(this);
 	layout->addWidget(drawPenView);
@@ -4138,10 +4993,7 @@ bool PLSBasic::ShowStickerView(const char *id)
 	}
 
 	if (pls_is_equal(id, PRISM_STICKER_SOURCE_ID)) {
-		CreatePrismStickerView();
-		prismStickerView->hide();
-		prismStickerView->show();
-		prismStickerView->raise();
+		OnEnterStickerAddedMode();
 		return true;
 	}
 
@@ -4157,6 +5009,9 @@ void PLSBasic::OnSourceCreated(const char *id)
 		updateSourceIcon();
 	});
 	PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE, {{"addSource", id}}, "User add source: %s", id);
+	PLS_UI_ACTION("User add source: %s", id);
+	PLS_PERFORMANCE_GLOBAL_END("Sources_Click_ShowSource1-add-source");
+	PLS_PERFORMANCE_GLOBAL_END("Sources_Click_ShowSource1");
 }
 
 void PLSBasic::ShowAudioMixerAudioTrackTips(bool bEnabled)
@@ -4202,7 +5057,7 @@ QString PLSBasic::getOutputStreamErrorAlert(int code, const QString &last_error)
 		return QString();
 	}
 
-	PLSErrorHandler::ExtraData extra_data;
+	PLSErrorHandler::ExtraData extra_data("Output error no url");
 	bool encoder_error = (code == OBS_OUTPUT_ENCODE_ERROR);
 	bool use_last_error = pls_is_in(code, OBS_OUTPUT_DISCONNECTED, OBS_OUTPUT_ERROR, OBS_OUTPUT_CONNECT_FAILED);
 	if (encoder_error && !last_error.isEmpty()) {
@@ -4211,7 +5066,6 @@ QString PLSBasic::getOutputStreamErrorAlert(int code, const QString &last_error)
 	} else if (!last_error.isEmpty() && use_last_error && isVisible()) {
 		extra_data.pathValueMap.insert("lastError", last_error);
 	}
-	extra_data.urlEn = "Output error no url";
 
 	return PLSErrorHandler::getAlertStringByErrCode(QString::number(code), PLSErrApiKey_OutputStream, {}, extra_data).alertMsg;
 }
@@ -4221,7 +5075,22 @@ void PLSBasic::ShowOutputStreamErrorAlert(int code, QString last_error, bool ver
 	if (code == OBS_OUTPUT_SUCCESS)
 		return;
 
-	PLSErrorHandler::ExtraData extra_data;
+	QString streamUrlEn = "stream output";
+	if (outputHandler) {
+		if (vertical && outputHandler.voutput && outputHandler.voutput->streamOutput) {
+			const char *id = obs_output_get_id(outputHandler.voutput->streamOutput);
+			if (!pls_is_empty(id))
+				streamUrlEn = QString::fromUtf8(id);
+		} else if (!vertical && outputHandler->streamOutput) {
+			const char *id = obs_output_get_id(outputHandler->streamOutput);
+			if (!pls_is_empty(id))
+				streamUrlEn = QString::fromUtf8(id);
+		}
+	}
+	if (streamUrlEn.isEmpty())
+		streamUrlEn = "stream output";
+
+	PLSErrorHandler::ExtraData extra_data(streamUrlEn);
 	bool encoder_error = (code == OBS_OUTPUT_ENCODE_ERROR);
 	bool use_last_error = pls_is_in(code, OBS_OUTPUT_DISCONNECTED, OBS_OUTPUT_ERROR, OBS_OUTPUT_CONNECT_FAILED);
 	if (encoder_error && !last_error.isEmpty()) {
@@ -4231,16 +5100,6 @@ void PLSBasic::ShowOutputStreamErrorAlert(int code, QString last_error, bool ver
 		// the lastError is used to appended to the alert msg str.
 		extra_data.pathValueMap.insert("lastError", last_error);
 	}
-
-	// Set output plugin id as the urlEn
-	if (outputHandler) {
-		if (vertical && outputHandler.voutput && outputHandler.voutput->streamOutput) {
-			extra_data.urlEn = obs_output_get_id(outputHandler.voutput->streamOutput);
-		} else if (!vertical && outputHandler->streamOutput) {
-			extra_data.urlEn = obs_output_get_id(outputHandler->streamOutput);
-		}
-	}
-	extra_data.urlEn = extra_data.urlEn.isEmpty() ? "stream output" : extra_data.urlEn;
 
 	if (encoder_error || (!encoder_error && isVisible())) {
 		PLSErrorHandler::showAlertByErrCode(QString::number(code), PLSErrApiKey_OutputStream, {}, extra_data, parent);
@@ -4255,7 +5114,11 @@ void PLSBasic::ShowOutputRecordErrorAlert(int code, QString last_error, QWidget 
 	if (code == OBS_OUTPUT_SUCCESS)
 		return;
 
-	PLSErrorHandler::ExtraData extra_data;
+	QString recordUrlEn = "record output";
+	if (outputHandler && outputHandler->fileOutput && !pls_is_empty(obs_output_get_id(outputHandler->fileOutput)))
+		recordUrlEn = QString::fromUtf8(obs_output_get_id(outputHandler->fileOutput));
+
+	PLSErrorHandler::ExtraData extra_data(recordUrlEn);
 	bool encoder_error = (code == OBS_OUTPUT_ENCODE_ERROR);
 	if (encoder_error && !last_error.isEmpty()) {
 		extra_data.pathValueMap.insert("hasErrorCode", "1");
@@ -4264,12 +5127,6 @@ void PLSBasic::ShowOutputRecordErrorAlert(int code, QString last_error, QWidget 
 		// lastError is used to appended to the alert msg str.
 		extra_data.pathValueMap.insert("lastError", last_error);
 	}
-
-	// Set output plugin id as the urlEn
-	if (outputHandler && outputHandler->fileOutput && !pls_is_empty(obs_output_get_id(outputHandler->fileOutput)))
-		extra_data.urlEn = obs_output_get_id(outputHandler->fileOutput);
-	else
-		extra_data.urlEn = "record output";
 
 	if (isVisible()) {
 		PLSErrorHandler::showAlertByErrCode(QString::number(code), PLSErrApiKey_OutputRecord, //
@@ -4287,12 +5144,10 @@ void PLSBasic::ShowReplayBufferErrorAlert(int code, QString last_error, QWidget 
 	if (code == OBS_OUTPUT_SUCCESS)
 		return;
 
-	// Set output plugin id as the urlEn
-	PLSErrorHandler::ExtraData extra_data{};
+	QString replayUrlEn = "replay buffer";
 	if (outputHandler && outputHandler->replayBuffer && !pls_is_empty(obs_output_get_id(outputHandler->replayBuffer)))
-		extra_data.urlEn = obs_output_get_id(outputHandler->replayBuffer);
-	else
-		extra_data.urlEn = "replay buffer";
+		replayUrlEn = QString::fromUtf8(obs_output_get_id(outputHandler->replayBuffer));
+	PLSErrorHandler::ExtraData extra_data(replayUrlEn);
 
 	if (isVisible()) {
 		PLSErrorHandler::showAlertByErrCode(QString::number(code), PLSErrApiKey_OutputRecord, //
@@ -4516,6 +5371,7 @@ bool PLSBasic::CheckStreamEncoder() const
 
 int PLSBasic::showSettingView(const QString &tab, const QString &group)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	static bool settings_already_executing = false;
 
 	/* Do not load settings window if inside of a temporary event loop
@@ -4532,11 +5388,14 @@ int PLSBasic::showSettingView(const QString &tab, const QString &group)
 
 	settings_already_executing = true;
 
+	PLS_PERFORMANCE_START(SettingsFromInitToShow);
 	OBSBasicSettings settings(this);
+	connect(&settings, &OBSBasicSettings::shown, this, [&]() { PLS_PERFORMANCE_END(SettingsFromInitToShow); });
 	connect(this, &PLSBasic::mainClosing, &settings, &OBSBasicSettings::cancel);
 	settings.switchToDualOutputMode(tab, group);
 	settings.exec();
 	pls_modal_check_app_exiting(-1);
+
 	int result = settings.result();
 	SystemTray(false);
 
@@ -4550,26 +5409,58 @@ int PLSBasic::showSettingView(const QString &tab, const QString &group)
 
 void PLSBasic::setAlertParentWithBanner(setAlertParent cb)
 {
-	PLSLaunchWizardView *banner = dynamic_cast<PLSLaunchWizardView *>(pls_get_banner_widget());
+	if (!pls_current_is_main_thread()) {
+		pls_async_call_mt(this, [this, cb]() {
+			pls_check_app_exiting();
+			setAlertParentWithBanner(std::move(cb));
+		});
+		return;
+	}
+	QPointer<PLSLaunchWizardView> banner = dynamic_cast<PLSLaunchWizardView *>(pls_get_banner_widget());
 	if (banner && banner->isNeedShow()) {
 		PLS_INFO(UPDATE_MODULE, "pls_get_banner_widget object is existed");
 		PLSShowWatcher *watcher = new PLSShowWatcher(banner);
 		QObject::connect(
-			watcher, &PLSShowWatcher::signalShow, banner,
+			watcher, &PLSShowWatcher::signalShow, banner.data(),
 			[watcher, banner, cb]() {
 				PLS_INFO(UPDATE_MODULE, "PLSShowWatcher notify banner show event");
 				watcher->deleteLater();
-				cb(banner);
-				banner->activateWindow();
-				banner->raise();
+				if (pls_is_app_exiting() || !banner)
+					return;
+				cb(banner.data());
+				pls_check_app_exiting();
+				if (banner) {
+					banner->activateWindow();
+					banner->raise();
+				}
 			},
 			Qt::ConnectionType(Qt::QueuedConnection | Qt::SingleShotConnection));
 	} else {
 		PLS_INFO(UPDATE_MODULE, "pls_get_banner_widget object is empty");
-		cb(getMainView());
+		if (m_isMainViewShown) {
+			if (pls_is_app_exiting())
+				return;
+			if (QWidget *mv = getMainView())
+				cb(mv);
+			return;
+		}
+		m_delayShowQueue.push(std::move(cb));
 	}
 }
-
+void PLSBasic::mainViewIsShown()
+{
+	pls_check_app_exiting();
+	m_isMainViewShown = true;
+	while (!m_delayShowQueue.empty()) {
+		if (pls_is_app_exiting())
+			break;
+		pls_check_app_exiting();
+		auto toastFunc = m_delayShowQueue.front();
+		m_delayShowQueue.pop();
+		if (QWidget *mv = getMainView())
+			toastFunc(mv);
+	}
+}
 void PLSBasic::PrismLogout() const
 {
 	// do not clean scene collection info
@@ -4595,10 +5486,13 @@ void PLSBasic::UpdateStudioPortraitLayoutUI(bool studioMode, bool studioPortrait
 	if (studioPortraitLayout) {
 		ui->verticalLayout_3->insertWidget(0, previewProgramTitle->GetEditArea());
 		ui->verticalLayout_3->addWidget(previewProgramTitle->GetLiveArea());
-		ui->verticalLayout_3->addWidget(program);
+		ui->verticalLayout_3->addWidget(m_programMaskWidget);
 	} else {
 		ui->verticalLayout_3->insertWidget(0, previewProgramTitle->GetTotalArea());
-		ui->perviewLayoutHrz->addWidget(program);
+		programContainer = new QVBoxLayout();
+		programContainer->setContentsMargins(0, 0, 0, enablePreviewZoom ? ui->previewXContainer->height() + ui->gridLayout->verticalSpacing() : 0);
+		programContainer->addWidget(m_programMaskWidget);
+		ui->perviewLayoutHrz->addLayout(programContainer);
 	}
 
 	const char *editScene = obs_source_get_name(obs_scene_get_source(GetCurrentScene()));
@@ -4699,6 +5593,12 @@ bool PLSBasic::checkRecEncoder()
 	return shared;
 }
 
+bool PLSBasic::isAdvancedOutputMode() const
+{
+	const char *mode = config_get_string(activeConfiguration, "Output", "Mode");
+	return astrcmpi(mode, "Advanced") == 0;
+}
+
 void PLSBasic::createNcb2bBrowserSettings()
 {
 	if (ncb2bBrowserSettings) {
@@ -4706,8 +5606,17 @@ void PLSBasic::createNcb2bBrowserSettings()
 	}
 	DialogInfo info;
 	info.configId = ConfigId::Ncb2bBrowserSettings;
-	ncb2bBrowserSettings = pls_new<PLSNCB2bBrowserSettings>(info);
+	ncb2bBrowserSettings = pls_new<PLSNCB2bBrowserSettings>(info, getNcb2bDock());
 	ncb2bBrowserSettings->setVisible(false);
+}
+
+void PLSBasic::showNcb2bBrowserSettings()
+{
+	if (!ncb2bBrowserSettings) {
+		createNcb2bBrowserSettings();
+	}
+	ncb2bBrowserSettings->show();
+	ncb2bBrowserSettings->raise();
 }
 
 void PLSBasic::onBrowserSettingsClicked()
@@ -4813,15 +5722,10 @@ bool PLSBasic::bSuccessGetChzzkSourceUrl(QWidget *parent)
 	QString missionDonationUrl = obj.value("missionDonationUrl").toString();
 	if (chatDonationUrl.isEmpty() || videoDonationUrl.isEmpty() || missionDonationUrl.isEmpty()) {
 		PLS_WARN(MAINFRAME_MODULE, "Chzzk Platform DonationUrl is empty");
-		PLSAlertView::Button button = PLSAlertView::warning(
-			parent, QTStr("Alert.Title"), QTStr("CHZZKSponsor.GetUrlFail"),
-			QMap<PLSAlertView::Button, QString>({{PLSAlertView::Button::Open, QTStr("CHZZKSponsor.GotoVerification")}, {PLSAlertView::Button::Cancel, QTStr("Cancel")}}));
-		if (button == PLSAlertView::Button::Open) {
-			auto channelId = data.value(ChannelData::g_subChannelId).toString();
-			auto url = QString("%1/%2/createProfit").arg(g_plsChzzkStudioHost).arg(channelId);
-			QDesktopServices::openUrl(QUrl(url));
-		}
-
+		PLSErrorHandler::ExtraData chzzkAlertExtra("CHZZK sponsor get URL fail");
+		chzzkAlertExtra.pathValueMap.insert(QStringLiteral("chzzkSponsorCreateProfitUrl"),
+						    QStringLiteral("%1/%2/createProfit").arg(g_plsChzzkStudioHost).arg(data.value(ChannelData::g_subChannelId).toString()));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ErrCode::ALERT_CHZZK_SPONSOR_GET_URL_FAIL, PLSErrKeyAllAlert, {}, chzzkAlertExtra, parent);
 		return false;
 	}
 	return true;
@@ -4835,6 +5739,7 @@ void PLSBasic::onPopupSettingView(const QString &tab, const QString &group)
 
 	mainView->setSettingIconCheck(true);
 	int result = showSettingView(tab, group);
+	pls_check_app_exiting();
 	mainView->setSettingIconCheck(false);
 	if (result == static_cast<int>(LoginInfoType::PrismLogoutInfo)) {
 		m_isLogout = true;
@@ -4845,7 +5750,7 @@ void PLSBasic::onPopupSettingView(const QString &tab, const QString &group)
 		pls_prism_signout();
 	} else if (result == Qt::UserRole + RESTARTAPP) {
 		m_isUpdateLanguage = true;
-		restartPrismApp();
+		restartPrismApp(RestartAppType::ChangeLang);
 	} else if (result == Qt::UserRole + NEED_RESTARTAPP) {
 		PLSAlertView::Button button = PLSMessageBox::question(this, QTStr("Confirm"), QTStr("Basic.Settings.NeedRestart"), PLSAlertView::Button::Yes | PLSAlertView::Button::No);
 		if (button == PLSAlertView::Button::Yes) {
@@ -4869,7 +5774,7 @@ void PLSBasic::moveStatusPanel()
 	}
 }
 
-void PLSBasic::singletonWakeup()
+void PLSBasic::singletonWakeup(bool fromAppStart)
 {
 	PLS_INFO(MAINFRAME_MODULE, "singleton instance wakeup");
 
@@ -4878,8 +5783,7 @@ void PLSBasic::singletonWakeup()
 	}
 
 	if (PLSApp::plsApp()->isAppRunning()) {
-
-		RunPrismByPscPath();
+		RunPrismByPscPath(fromAppStart);
 
 		if (pls_is_main_window_closing()) {
 			PLS_INFO(MAINFRAME_MODULE, "application is closing, don't wakeup");
@@ -4892,12 +5796,22 @@ void PLSBasic::singletonWakeup()
 		// bring window to top
 		bringWindowToTop(mainView);
 	} else {
-		PLS_INFO(MAINFRAME_MODULE, "application is starting, don't wakeup");
+		// Application is starting (e.g. launched by double-clicking .psc on macOS).
+		if (App()->openFilePath().isEmpty()) {
+			PLS_INFO(MAINFRAME_MODULE, "application is starting, don't wakeup");
+			return;
+		}
+		if (loadingScene) {
+			QTimer::singleShot(50, this, [this]() { singletonWakeup(true); });
+			return;
+		}
+		RunPrismByPscPath(true);
 	}
 }
 
 void PLSBasic::showEncodingInStatusBar() const
 {
+	PLS_PERFORMANCE_FUNCTION();
 	mainView->statusBar()->setEncoding((int)config_get_int(activeConfiguration, "Video", "OutputCX"), (int)config_get_int(activeConfiguration, "Video", "OutputCY"));
 
 	uint32_t fpsNum = 0;
@@ -4910,12 +5824,14 @@ bool PLSBasic::toggleStatusPanel(int iSwitch)
 {
 	if (!m_dialogStatusPanel) {
 		m_dialogStatusPanel = pls_new<PLSBasicStatusPanel>(getMainView());
+		m_dialogStatusPanel->installEventFilter(this);
+		pls_uistep_v2_set_custom_show_hide_name(m_dialogStatusPanel, "Stats Panel");
 	}
 
 	switch (iSwitch) {
 	case -1:
 		if (m_dialogStatusPanel->isVisible()) {
-			m_dialogStatusPanel->close();
+			m_dialogStatusPanel->hide();
 		} else {
 			m_dialogStatusPanel->show();
 			m_dialogStatusPanel->adjustSize();
@@ -4923,13 +5839,10 @@ bool PLSBasic::toggleStatusPanel(int iSwitch)
 		break;
 
 	case 0:
-		m_dialogStatusPanel->close();
+		m_dialogStatusPanel->hide();
 		break;
 
 	case 1:
-		if (m_dialogStatusPanel->isVisible()) {
-			m_dialogStatusPanel->close();
-		}
 		m_dialogStatusPanel->show();
 		m_dialogStatusPanel->adjustSize();
 		break;
@@ -4940,11 +5853,19 @@ bool PLSBasic::toggleStatusPanel(int iSwitch)
 
 	if (m_dialogStatusPanel->isVisible()) {
 		moveStatusPanel();
-		ui->stats->setChecked(true);
-		mainView->statusBar()->setStatsOpen(true);
-	} else {
-		ui->stats->setChecked(false);
-		mainView->statusBar()->setStatsOpen(false);
+
+		auto *app = App();
+		app->setMousePressCB([this, app](QObject *receiver, QEvent *e) {
+			auto mouseEvent = static_cast<QMouseEvent *>(e);
+			auto status = mainView->statusBar()->getStatus();
+
+			if (!QRect(m_dialogStatusPanel->mapToGlobal(QPoint{0, 0}), m_dialogStatusPanel->size()).contains(mouseEvent->globalPos()) &&
+			    !QRect(status->mapToGlobal(QPoint{0, 0}), status->size()).contains(mouseEvent->globalPos())) {
+				m_dialogStatusPanel->hide();
+
+				app->setMousePressCB(nullptr);
+			}
+		});
 	}
 
 	return m_dialogStatusPanel->isVisible();
@@ -4957,10 +5878,13 @@ void PLSBasic::updateStatusPanel(PLSBasicStatusData &dataStatus) const
 	}
 }
 
-void PLSBasic::OnUseVideoException(void *data, calldata_t *calldata) {}
-
 void PLSBasic::showEvent(QShowEvent *event)
 {
+	if (!advAudioWindow) {
+		bool iconsVisible = config_get_bool(App()->GetUserConfig(), "BasicWindow", "ShowSourceIcons");
+		advAudioWindow = new OBSBasicAdvAudio(this);
+		advAudioWindow->SetIconsVisible(iconsVisible);
+	}
 	OBSBasic::showEvent(event);
 }
 
@@ -4986,6 +5910,25 @@ bool PLSBasic::eventFilter(QObject *watched, QEvent *event)
 			pls_async_call(this, [this]() { moveStatusPanel(); });
 		}
 	}
+
+	if (watched == m_dialogStatusPanel) {
+		if (event->type() == QEvent::Show) {
+			ui->stats->setChecked(true);
+			mainView->statusBar()->setStatsOpen(true);
+		} else if (event->type() == QEvent::Hide) {
+			ui->stats->setChecked(false);
+			mainView->statusBar()->setStatsOpen(false);
+		}
+	}
+
+	if (watched == ui->previewXContainer && nullptr != programContainer && event->type() == QEvent::Resize) {
+		programContainer->setContentsMargins(0, 0, 0, enablePreviewZoom ? ui->previewXContainer->height() + ui->gridLayout->verticalSpacing() : 0);
+	}
+
+	if (watched == this && event->type() == QEvent::CursorChange) {
+		return true;
+	}
+
 	return QWidget::eventFilter(watched, event);
 }
 
@@ -5062,7 +6005,11 @@ void PLSBasic::OnSourceInteractButtonClick(OBSSource source)
 		HideAllInteraction(source);
 		ShowInteractionUI(source, true);
 		interaction_sceneitem_pointer = item;
+#if defined(Q_OS_MACOS)
+		PLS_UI_ACTION("Widget PRISM Browser Interaction Dialog Show");
+#endif
 	}
+	PLS_UI_ACTION("In Main Window, the source interact handle finished.");
 }
 
 void PLSBasic::OnRemoveSceneItem(OBSSceneItem item)
@@ -5107,6 +6054,26 @@ void PLSBasic::OnSourceNotify(void *v, calldata_t *params)
 	}
 }
 
+void PLSBasic::OnSourceLoading(void *v, calldata_t *params)
+{
+	auto main = dynamic_cast<PLSBasic *>(App()->GetMainWindow());
+	if (!main) {
+		return;
+	}
+
+	auto source = (obs_source_t *)calldata_ptr(params, "source");
+	if (!source) {
+		return;
+	}
+
+	const char *name = obs_source_get_name(source);
+	if (!name) {
+		return;
+	}
+
+	QMetaObject::invokeMethod(main, "OnSourceLoadingAsync", Qt::QueuedConnection, Q_ARG(QString, name), Q_ARG(bool, calldata_bool(params, "loading")));
+}
+
 void PLSBasic::OnSourceMessage(void *data, calldata_t *calldata)
 {
 	auto main = dynamic_cast<PLSBasic *>(App()->GetMainWindow());
@@ -5145,6 +6112,11 @@ void PLSBasic::OnSourceMessage(void *data, calldata_t *calldata)
 			auto game = main->m_gameCaptureResultMap[key];
 			game->insertResult({reason, wasCaptured});
 		}
+		//PRISM/FanZirong/20260310/PRISM_PC-5472/Game source size display in fullscreen
+		/* When game source reports capture success (real size available), trigger pending game source layout check (apply auto layout only for items whose transform was not changed by user). */
+		if (type == PLS_SOURCE_GAME_CAPTURE_SUCCESS_MSG) {
+			QMetaObject::invokeMethod(main, "CheckPendingGameSourceLayout", Qt::QueuedConnection);
+		}
 	} else if (type == OBS_SOURCE_VST_CHANGED) { // VST plugin
 		auto vstPluginName = obs_data_get_string(msg_data, "vstPlugin");
 		if (vstPluginName) {
@@ -5155,7 +6127,36 @@ void PLSBasic::OnSourceMessage(void *data, calldata_t *calldata)
 	obs_data_release(msg_data);
 }
 
-void PLSBasic::RenderVerticalProgram(void *data, uint32_t cx, uint32_t cy) {}
+void PLSBasic::OnUseVideoException(void *data, calldata_t *param)
+{
+	auto main = dynamic_cast<PLSBasic *>(App()->GetMainWindow());
+	if (!main) {
+		return;
+	}
+
+	const char *output_name = calldata_string(param, "output_name");
+	const char *plugin_name = calldata_string(param, "plugin_name");
+
+	QString object_name = "";
+	if (output_name) {
+		object_name = QString::fromUtf8(output_name);
+	} else if (plugin_name) {
+		object_name = QString::fromUtf8(plugin_name);
+	} else {
+		assert(false); // Here should not be called since name can't be NULL before sending this signal
+		return;
+	}
+
+	pls_async_call_mt([basic = static_cast<PLSBasic *>(data), object_name]() {
+		if (basic) {
+			const char *format_str = Str("thirdpartyplugin.alert.video.invalid");
+			if (format_str) {
+				QString text = QString(QString::fromUtf8(format_str)).arg(object_name);
+				PLSAlertView::information(App()->getMainView(), QTStr("Alert.Title"), text);
+			}
+		}
+	});
+}
 
 bool PLSBasic::IsSupportEncoder(const QString &encoderId)
 {
@@ -5326,6 +6327,8 @@ void OBSBasic::updateLiveStartUI()
 	if (updatedLiveStart) {
 		return;
 	}
+	PLS_INFO(MAINFRAME_MODULE, "Receive live started signal and ready to refresh live ui.");
+
 	updatedLiveStart = true;
 	if (previewProgramTitle) {
 		previewProgramTitle->OnLiveStatus(true);
@@ -5336,6 +6339,8 @@ void OBSBasic::updateLiveStartUI()
 
 void OBSBasic::updateLiveEndUI()
 {
+	PLS_INFO(MAINFRAME_MODULE, "Receive live end signal and ready to refresh live ui.");
+
 	updatedLiveStart = false;
 	if (previewProgramTitle) {
 		previewProgramTitle->OnLiveStatus(false);
@@ -5446,6 +6451,62 @@ void PLSBasic::ForceUpdateGroupsSize()
 		this);
 }
 
+void PLSBasic::setRestartAppType(RestartAppType restartAppType)
+{
+	m_restartAppType = restartAppType;
+}
+
+RestartAppType PLSBasic::restartAppType() const
+{
+	return m_restartAppType;
+}
+
+void PLSBasic::AutoAddFilter(OBSSource source, QString filterId)
+{
+	if (!source || filterId.isEmpty()) {
+		return;
+	}
+
+	// Here we post it to ensure async-create-logic of filter dialog complete.
+	pls_async_call(this, [this, source, filterId]() {
+		if (!filters)
+			return;
+
+		auto id = filterId.toStdString();
+		filters->AutoAddNewFilter(id.c_str());
+	});
+}
+
+bool PLSBasic::IsOpeningLens()
+{
+	return m_isOpeningLens;
+}
+
+void PLSBasic::updateWebSources(const std::string &sourceId, int subCode)
+{
+	if (auto basic = instance(); !basic) {
+		pls_async_call_mt([sourceId, subCode]() { updateWebSources(sourceId, subCode); });
+	} else {
+		pls_async_call(basic, [basic, sourceId, subCode]() {
+			auto doUpdateWebSources = [sourceId, subCode]() {
+				PLS_INFO(MAINFRAME_MODULE, "update web sources %s", sourceId.c_str());
+
+				std::vector<OBSSource> sources;
+				pls_get_all_source(sources, sourceId.c_str(), nullptr, nullptr);
+				for (auto source : sources) {
+					pls_source_update_extern_params_json(source, "{}", subCode);
+				}
+			};
+
+			if (basic->loadingScene) {
+				connect(basic, &PLSBasic::loadSceneFinished, basic, doUpdateWebSources, static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+			} else {
+				doUpdateWebSources();
+			}
+		});
+	}
+}
+
 bool OBSBasic::queryRemoveSourceItem(OBSSceneItem item)
 {
 	obs_source_t *source = obs_sceneitem_get_source(item);
@@ -5485,13 +6546,28 @@ bool OBSBasic::queryRemoveSourceItem(OBSSceneItem item)
 void PLSBasic::onDualOutputClicked()
 {
 	bool onOff = !pls_is_dual_output_on();
-	setDualOutputEnabled(onOff, true);
+	PLS_PERFORMANCE_GLOBAL_START(onOff ? "DualOutputOn" : "DualOutputOff");
+	if (this->InterruptPrevTransiton()) {
+		QPointer<PLSBasic> pthis = this;
+		QMetaObject::invokeMethod(
+			App(),
+			[pthis, onOff]() {
+				if (pthis == nullptr)
+					return;
+				pthis->setDualOutputEnabled(onOff, true);
+			},
+			Qt::QueuedConnection);
+	} else {
+		this->setDualOutputEnabled(onOff, true);
+	}
 }
 
 bool PLSBasic::checkStudioMode()
 {
 	if (IsPreviewProgramMode()) {
-		if (PLSAlertView::Button::No == PLSAlertView::question(pls_get_toplevel_view(this), QTStr("DualOutput.Title"), QTStr("DualOutput.CloseStudioMode"))) {
+		auto closeStudioRet = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ErrCode::ALERT_DUAL_OUTPUT_CLOSE_STUDIO_MODE_CONFIRM, PLSErrKeyAllAlert, {},
+									    PLSErrorHandler::ExtraData("Dual output close studio mode confirm"), pls_get_toplevel_view(this));
+		if (closeStudioRet.clickedBtn == QDialogButtonBox::No) {
 			return false;
 		}
 
@@ -5509,7 +6585,9 @@ bool PLSBasic::setDualOutputEnabled(bool bEnabled, bool bInvokeCore)
 
 	//if not invoke core function, don't need check video is active or not
 	if (bInvokeCore && obs_video_active()) {
-		PLSAlertView::warning(this, QTStr("DualOutput.Title"), QTStr("DualOutput.3rd.Plugin.In.Using").arg(pls_get_active_output_name(0)));
+		PLSErrorHandler::ExtraData dualOutputPluginExtra("Dual output third plugin in using");
+		dualOutputPluginExtra.defaultArg = QStringList{pls_get_active_output_name(0)};
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ErrCode::ALERT_DUAL_OUTPUT_THIRD_PLUGIN_IN_USING, PLSErrKeyAllAlert, {}, dualOutputPluginExtra, this);
 		return false;
 	}
 
@@ -5527,7 +6605,7 @@ bool PLSBasic::setDualOutputEnabled(bool bEnabled, bool bInvokeCore)
 	if (bInvokeCore) {
 		pls_set_dual_output_on(bEnabled);
 	}
-
+	showDualOutputTitle(bEnabled);
 	sigOpenDualOutput(bEnabled);
 	if (api) {
 		api->on_event(bEnabled ? pls_frontend_event::PLS_FRONTEND_EVENT_DUAL_OUTPUT_ON : pls_frontend_event::PLS_FRONTEND_EVENT_DUAL_OUTPUT_OFF);
@@ -5545,14 +6623,7 @@ bool PLSBasic::setDualOutputEnabled(bool bEnabled, bool bInvokeCore)
 		ResetVideo();
 	}
 	ResetOutputs();
-
-	showDualOutputTitle(bEnabled);
-
 	if (bEnabled) {
-		if (ui->preview->isHidden()) {
-			ui->preview->show();
-		}
-
 		if (ui->previewDisabledWidget->isVisible()) {
 			setHorizontalPreviewEnabled(true);
 			EnablePreviewDisplay(true);
@@ -5565,8 +6636,8 @@ bool PLSBasic::setDualOutputEnabled(bool bEnabled, bool bInvokeCore)
 	} else {
 		RemoveVerticalVideo();
 
-		if (ui->preview->isHidden()) {
-			ui->preview->show();
+		if (ui->widgetPreviewContainer->isHidden()) {
+			ui->widgetPreviewContainer->show();
 		}
 
 		showVerticalDisplay(false);
@@ -5579,6 +6650,7 @@ bool PLSBasic::setDualOutputEnabled(bool bEnabled, bool bInvokeCore)
 
 void PLSBasic::showDualOutputTitle(bool bVisible)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	QMargins margins = ui->horizontalLayout_2->contentsMargins();
 
 	if (bVisible) {
@@ -5589,26 +6661,135 @@ void PLSBasic::showDualOutputTitle(bool bVisible)
 	ui->horizontalLayout_2->setContentsMargins(margins);
 
 	if (bVisible) {
-		dualOutputTitle = new PLSDualOutputTitle(ui->previewContainer);
+		if (!dualOutputTitle) {
+			dualOutputTitle = new PLSDualOutputTitle(ui->previewContainer);
+			ui->verticalLayout_3->insertWidget(0, dualOutputTitle, 0, Qt::AlignTop);
+		}
+		PLS_PERFORMANCE_GLOBAL_START("ShowDualOutputTitle", "DualOutputOn");
+		dualOutputTitle->setVisible(true);
+		PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(dualOutputTitle, PLS_PERFORMANCE_GLOBAL_END("ShowDualOutputTitle"));
 
-		ui->verticalLayout_3->insertWidget(0, dualOutputTitle, 0, Qt::AlignTop);
-		dualOutputTitle->setVisible(bVisible);
-	} else {
+	} else if (dualOutputTitle) {
 		dualOutputTitle->hide();
-		dualOutputTitle->deleteLater();
 	}
 
 	ui->previewContainer->repaint();
+	PLS_PERFORMANCE_GLOBAL_END(bVisible ? "DualOutputOn" : "DualOutputOff");
 }
 
 void PLSBasic::showVerticalDisplay(bool bVisible)
 {
-	if (bVisible) {
+	if (nullptr == m_widgetVerticalDisplayContainer) {
 		CreateVerticalDisplay();
 
-		ui->perviewLayoutHrz->addWidget(verticalDisplay);
+		m_widgetVerticalDisplayContainer = new QWidget(ui->previewContainer);
+		ui->perviewLayoutHrz->addWidget(m_widgetVerticalDisplayContainer);
+		m_widgetVerticalDisplayContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+		auto layoutVerticalDisplayContainer = new QGridLayout(m_widgetVerticalDisplayContainer);
+		layoutVerticalDisplayContainer->setHorizontalSpacing(0);
+		layoutVerticalDisplayContainer->setVerticalSpacing(0);
+		layoutVerticalDisplayContainer->setContentsMargins(QMargins());
+
+		m_verticalPreviewMaskWidget->show();
+		layoutVerticalDisplayContainer->addWidget(m_verticalPreviewMaskWidget, 0, 0);
+
+		previewYScrollBarV = new QScrollBar(m_widgetVerticalDisplayContainer);
+		layoutVerticalDisplayContainer->addWidget(previewYScrollBarV, 0, 1);
+		previewYScrollBarV->setObjectName("previewYScrollBarV");
+		previewYScrollBarV->setOrientation(Qt::Vertical);
+
+		m_widgetVerticalPreviewXContainer = new QWidget(m_widgetVerticalDisplayContainer);
+		layoutVerticalDisplayContainer->addWidget(m_widgetVerticalPreviewXContainer, 1, 0);
+
+		auto layoutVBox = new QVBoxLayout(m_widgetVerticalPreviewXContainer);
+		layoutVBox->setSpacing(0);
+		layoutVBox->setContentsMargins(QMargins());
+
+		previewXScrollBarV = new QScrollBar(m_widgetVerticalDisplayContainer);
+		layoutVBox->addWidget(previewXScrollBarV);
+		previewXScrollBarV->setObjectName("previewXScrollBarV");
+		previewXScrollBarV->setSizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Fixed);
+		previewXScrollBarV->setMinimum(-200);
+		previewXScrollBarV->setMaximum(200);
+		previewXScrollBarV->setSingleStep(10);
+		previewXScrollBarV->setOrientation(Qt::Horizontal);
+		previewXScrollBarV->setPageStep(100);
+
+		m_layoutVerticalScroll = new QHBoxLayout();
+		layoutVBox->addLayout(m_layoutVerticalScroll);
+		m_layoutVerticalScroll->setSpacing(10);
+
+		auto previewScalePercentV = new OBSPreviewScalingLabel(m_widgetVerticalDisplayContainer);
+		m_layoutVerticalScroll->addWidget(previewScalePercentV);
+		previewScalePercentV->setObjectName("previewScalePercentV");
+		previewScalePercentV->setSizePolicy(QSizePolicy::Policy::Maximum, QSizePolicy::Policy::Preferred);
+		previewScalePercentV->setText("100%");
+
+		previewScalingModeV = new OBSPreviewScalingComboBox(m_widgetVerticalDisplayContainer);
+		m_layoutVerticalScroll->addWidget(previewScalingModeV);
+		previewScalingModeV->setSizePolicy(QSizePolicy::Policy::Maximum, QSizePolicy::Policy::Preferred);
+		previewScalingModeV->setProperty(IS_VERTICAL_PREVIEW, true);
+		previewScalingModeV->addItem(tr("Basic.MainMenu.Edit.Scale.Window"));
+		previewScalingModeV->addItem(tr("Basic.MainMenu.Edit.Scale.Canvas"));
+		previewScalingModeV->setObjectName("previewScalingModeV");
+
+		m_layoutVerticalScroll->addStretch();
+
+		m_widgetVerticalPreviewXContainer->setVisible(enablePreviewZoom);
+		previewXScrollBarV->setVisible(enablePreviewZoom && showVScrollbar);
+		previewYScrollBarV->setVisible(enablePreviewZoom && showVScrollbar);
+
+		auto adjustMargin = [this] {
+			if (previewXScrollBarV->isVisible() != ui->previewXScrollBar->isVisible()) {
+				if (previewXScrollBarV->isVisible()) {
+					ui->horizontalLayout_5->setContentsMargins(0, 6 + previewXScrollBarV->height(), 0, 0);
+					m_layoutVerticalScroll->setContentsMargins(0, 6, 0, 0);
+				} else {
+					ui->horizontalLayout_5->setContentsMargins(0, 6, 0, 0);
+					m_layoutVerticalScroll->setContentsMargins(0, 6 + ui->previewXScrollBar->height(), 0, 0);
+				}
+			} else {
+				ui->horizontalLayout_5->setContentsMargins(0, 6, 0, 0);
+				m_layoutVerticalScroll->setContentsMargins(0, 6, 0, 0);
+			}
+		};
+
+		connect(verticalDisplay, &OBSBasicPreview::scalingChanged, previewScalePercentV, &OBSPreviewScalingLabel::PreviewScaleChanged);
+		connect(verticalDisplay, &OBSBasicPreview::scalingChanged, previewScalingModeV, &OBSPreviewScalingComboBox::PreviewScaleChanged);
+
+		connect(verticalDisplay, &OBSBasicPreview::fixedScalingChanged, this, [this, adjustMargin](bool bFixed) {
+			showVScrollbar = bFixed;
+			previewXScrollBarV->setVisible(enablePreviewZoom && showVScrollbar);
+			previewYScrollBarV->setVisible(enablePreviewZoom && showVScrollbar);
+			adjustMargin();
+		});
+		connect(verticalDisplay, &OBSBasicPreview::fixedScalingChanged, previewScalingModeV, &OBSPreviewScalingComboBox::PreviewFixedScalingChanged);
+
+		connect(previewScalingModeV, &OBSPreviewScalingComboBox::currentIndexChanged, this, &OBSBasic::PreviewScalingModeChanged);
+
+		previewScalingModeV->CanvasResized((uint32_t)config_get_uint(activeConfiguration, "Video", "BaseCXV"), (uint32_t)config_get_uint(activeConfiguration, "Video", "BaseCYV"));
+		previewScalingModeV->OutputResized((uint32_t)config_get_uint(activeConfiguration, "Video", "OutputCXV"), (uint32_t)config_get_uint(activeConfiguration, "Video", "OutputCYV"));
+		connect(this, &OBSBasic::CanvasResizedV, previewScalingModeV, &OBSPreviewScalingComboBox::CanvasResized);
+		connect(this, &OBSBasic::OutputResizedV, previewScalingModeV, &OBSPreviewScalingComboBox::OutputResized);
+
+		connect(previewXScrollBarV, &QScrollBar::valueChanged, verticalDisplay, &OBSBasicPreview::XScrollBarMoved);
+		connect(previewYScrollBarV, &QScrollBar::valueChanged, verticalDisplay, &OBSBasicPreview::YScrollBarMoved);
+
+		if (verticalDisplay->IsFixedScaling()) {
+			verticalDisplay->fixedScalingChanged(true);
+		} else {
+			showVScrollbar = false;
+			previewXScrollBarV->hide();
+			previewYScrollBarV->hide();
+		}
+		verticalDisplay->scalingChanged(verticalDisplay->GetScalingAmount());
+
+		m_widgetVerticalDisplayContainer->setVisible(bVisible);
+		adjustMargin();
+	} else {
+		m_widgetVerticalDisplayContainer->setVisible(bVisible);
 	}
-	verticalDisplay->setVisible(bVisible);
 	verticalPreviewEnabled = bVisible;
 
 	if (!bVisible) {
@@ -5623,7 +6804,7 @@ void PLSBasic::showVerticalDisplay(bool bVisible)
 
 void PLSBasic::showHorizontalDisplay(bool bVisible)
 {
-	ui->preview->setVisible(bVisible);
+	ui->widgetPreviewContainer->setVisible(bVisible);
 
 	if (!bVisible) {
 		ui->previewContainer->repaint();
@@ -5644,6 +6825,10 @@ bool OBSBasic::getIsVerticalPreviewFromAction()
 	auto menu = dynamic_cast<QMenu *>(sender());
 	if (menu) {
 		return menu->property(IS_VERTICAL_PREVIEW).value<bool>();
+	}
+	auto combox = dynamic_cast<QComboBox *>(sender());
+	if (combox) {
+		return combox->property(IS_VERTICAL_PREVIEW).value<bool>();
 	}
 	return false;
 }
@@ -5723,8 +6908,6 @@ void PLSBasic::changeOutputCount(int iValue)
 	}
 }
 
-void PLSBasic::ResetStatsHotkey() {}
-
 void OBSBasic::selectGroupItem(OBSSceneItem item, bool select)
 {
 	ui->sources->SelectGroupItem(item, select);
@@ -5734,6 +6917,15 @@ static bool reset_group_select(obs_scene_t * /* scene */, obs_sceneitem_t *item,
 {
 	if (!obs_sceneitem_is_group(item))
 		return true;
+
+	OBSDataAutoRelease settings = obs_sceneitem_get_private_settings(item);
+	if (obs_data_get_bool(settings, "groupSelectedWithDualOutput") || obs_data_get_bool(settings, "collapsed")) {
+		auto findSceneItemCb = [](obs_scene_t *, obs_sceneitem_t *item, void *) {
+			obs_sceneitem_select(item, false);
+			return true;
+		};
+		pls_sceneitem_group_enum_items_all(item, findSceneItemCb, nullptr);
+	}
 
 	OBSBasic::Get()->selectGroupItem(item, obs_sceneitem_selected(item));
 	return true;
@@ -5755,11 +6947,206 @@ void OBSBasic::resetAllGroupSelectStatus()
 	pls_enum_all_scenes(callback, nullptr);
 }
 
-void OBSBasic::showsPrismPlusIntroWindow()
+void PLSBasic::ResetStatsHotkey()
 {
-
+	if (m_dialogStatusPanel) {
+		m_dialogStatusPanel->Reset();
+	}
 }
 
-void OBSBasic::showsTipAndPrismPlusIntroWindow(const QString &strContent, const QString &strFeature, QWidget *parent) {
-
+void OBSBasic::createPreviewMaskWidget()
+{
+	if (m_previewMaskWidget) {
+		return;
+	}
+	m_previewMaskWidget = pls_new<PLSPreviewMaskWidget>(ui->preview, ui->widgetPreviewContainer);
+	m_previewMaskWidget->setUpdatePreviewRectCallback([this]() { ResizePreview(); });
+	ui->gridLayout->removeWidget(ui->preview);
+	ui->gridLayout->addWidget(m_previewMaskWidget, 0, 0);
 }
+
+void OBSBasic::createProgramMaskWidget()
+{
+	if (!m_programMaskWidget) {
+		m_programMaskWidget = pls_new<PLSPreviewMaskWidget>(program, ui->previewContainer);
+		m_programMaskWidget->setUpdatePreviewRectCallback([this]() { ResizeProgram(); });
+	}
+}
+
+void OBSBasic::createVerticalPreviewMaskWidget()
+{
+	if (!m_verticalPreviewMaskWidget) {
+		m_verticalPreviewMaskWidget = pls_new<PLSPreviewMaskWidget>(verticalDisplay, ui->previewContainer);
+		m_verticalPreviewMaskWidget->setUpdatePreviewRectCallback([this]() { ResizeVerticalDisplay(); });
+		m_verticalPreviewMaskWidget->hide();
+	}
+}
+
+void OBSBasic::handleResizeTrackerBeginEvent()
+{
+	ui->preview->hide();
+	if (program) {
+		program->hide();
+	}
+	if (verticalDisplay) {
+		verticalDisplay->hide();
+	}
+}
+
+void OBSBasic::handleResizeTrackerEndEvent()
+{
+	ui->preview->show();
+	if (program) {
+		program->show();
+	}
+	if (verticalDisplay) {
+		verticalDisplay->show();
+	}
+}
+
+PLSInitApiFlow::PLSInitApiFlow()
+{
+	auto servicePath = pls_get_user_path("PRISMLiveStudio/plugin_config/rtmp-services/twitch_ingests.json");
+	bool isSuccess = pls_read_json(m_twitchServiceListObj, servicePath);
+	if (!isSuccess) {
+		PLS_ERROR(MAINFRAME_MODULE, "read local twitch service json failed, path = %s", qUtf8Printable(servicePath));
+	}
+	PLSGpopData::instance()->getGpopData(nullptr);
+	PLS_INFO(MAINFRAME_MODULE, "init gcc = %s, and init gpop data from local data", pls_get_gcc().toUtf8().constData());
+	PLSSyncServerManager::instance()->updateChatTagIcon();
+	PLSLoginDataHandler::instance()->initCustomChannelObj();
+	PLSSyncServerManager::instance()->updateSupportedPlatforms();
+}
+void PLSInitApiFlow::startInitApisFlow()
+{
+	PLS_INFO(MAINFRAME_MODULE, "start init api flow");
+	requestTwitchServiceData();
+	PLSLOGINDATAHANDLER->refreshPrismToken([this](bool isOk) { m_sessionStatus = PLSInitApiFlow::SessionStatus::SessionApiFinished; });
+
+	PLSLOGINDATAHANDLER->getAppInitDataFromRemote([this]() {
+		PLS_INFO(MAINFRAME_MODULE, "getAppInitDataFromRemote request finished");
+		m_initStatus = PLSInitApiFlow::InitStatus::InitApiFinished;
+	});
+
+	PLSNoticeUpdateRepository *repo = PLSNoticeUpdateRepository::instance();
+	const bool isB2B = !PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName().isEmpty();
+	/* Full list: refreshCenterCacheAsync pages until server has no more (see refreshSingleCenterCacheAsync).
+	   Unlike fetchNoticeFromApiAsync(page 0)+setCenterCache, this preserves totalCount/hasMore correctly. */
+	repo->refreshCenterCacheAsync(
+		qApp, false,
+		[](const QString &err) {
+			if (!err.isEmpty())
+				PLS_ERROR(MAINFRAME_MODULE, "startup PRISM notice center cache refresh failed: %s", err.toUtf8().constData());
+		},
+		false);
+	if (isB2B) {
+		repo->refreshCenterCacheAsync(
+			qApp, true,
+			[](const QString &err) {
+				if (!err.isEmpty())
+					PLS_ERROR(MAINFRAME_MODULE, "startup B2B notice center cache refresh failed: %s", err.toUtf8().constData());
+			},
+			false);
+	}
+	pls::http::Requests requests;
+	auto ncpThumbnailRequest = PLSLOGINDATAHANDLER->getNCPThumbnail();
+	auto userThumbnailRequest = PLSLOGINDATAHANDLER->getUserThumbnail();
+	auto serviceTermsRequest = PLSLOGINDATAHANDLER->getServiceTermsHTML();
+	if (ncpThumbnailRequest.has_value()) {
+		PLS_INFO(MAINFRAME_MODULE, "add ncpThumbnail request");
+		requests.add(ncpThumbnailRequest.value());
+	}
+	if (userThumbnailRequest.has_value()) {
+		PLS_INFO(MAINFRAME_MODULE, "add userThumbnail request");
+		requests.add(userThumbnailRequest.value());
+	}
+	if (serviceTermsRequest.has_value()) {
+		PLS_INFO(MAINFRAME_MODULE, "add serviceTerms request");
+		requests.add(serviceTermsRequest.value());
+	}
+	pls::http::requests(requests);
+}
+
+void PLSInitApiFlow::requestTwitchServiceData()
+{
+	pls::http::Request()
+		.method(pls::http::Method::Get)
+		.jsonContentType()       //
+		.withLog()               //
+		.receiver(qApp)          //
+		.url(TWITCH_API_INGESTS) //
+		.timeout(PRISM_NET_REQUEST_TIMEOUT)
+		.objectOkResult([this](const pls::http::Reply &reply, const QJsonObject &jsonObject) {
+			m_twitchServiceListObj = jsonObject;
+			auto servicePath = pls_get_user_path("PRISMLiveStudio/plugin_config/rtmp-services/twitch_ingests.json");
+			pls_write_json(servicePath, jsonObject);
+		})
+		.failResult([this](const pls::http::Reply &reply) {
+			auto statusCode = reply.statusCode();
+			auto errorData = reply.data();
+			auto servicePath = pls_get_user_path("PRISMLiveStudio/plugin_config/rtmp-services/twitch_ingests.json");
+			bool isSuccess = pls_read_json(m_twitchServiceListObj, servicePath);
+			PLS_ERROR(MAINFRAME_MODULE, "get twitch service info failed.statusCode = %d, errorData = %s; read local twitch service json is %s", statusCode, errorData.constData(),
+				  isSuccess ? "success" : "falied");
+		});
+}
+
+const QJsonObject &PLSInitApiFlow::getTwitchServiceList() const
+{
+	return m_twitchServiceListObj;
+}
+
+QList<QPair<QString, QString>> PLSInitApiFlow::getTwitchServer() const
+{
+	QList<QPair<QString, QString>> services;
+	auto ingests = m_twitchServiceListObj["ingests"].toArray();
+	for (auto ingest : ingests) {
+		auto name = ingest.toObject().value("name").toString();
+		auto server = ingest.toObject().value("url_template").toString();
+		auto lastIndex = server.lastIndexOf('/');
+		auto serverUrl = server.left(lastIndex);
+		services.append(QPair<QString, QString>(name, serverUrl));
+	}
+	if (services.size() > 0) {
+		services.first().first = QObject::tr("setting.output.server.auto");
+	}
+	return services;
+}
+
+void PLSBasic::pauseStatistics(bool bPaused)
+{
+	if (m_dialogStatusPanel) {
+		m_dialogStatusPanel->setPaused(bPaused);
+	}
+}
+
+void OBSBasic::refreshSceneThumbnail()
+{
+	pls_async_call(this, [this]() { ui->scenesFrame->RefreshSceneThumbnail(); });
+}
+QStringList PLSBasic::getFilterSourceList(const QStringList &sourceGuideList)
+{
+	auto isContain = [sourceGuideList](const QString &sourceId) -> QString {
+		for (const QString &guideSource : sourceGuideList) {
+			bool isPrism = guideSource.contains("prism", Qt::CaseInsensitive);
+			if ((isPrism && pls_is_equal(sourceId, guideSource, Qt::CaseInsensitive)) || (!isPrism && sourceId.startsWith(guideSource)))
+				return guideSource;
+		}
+		return {};
+	};
+	QStringList filterSourceList;
+	for (int i = 0; i < ui->sources->Count(); i++) {
+		obs_sceneitem_t *sceneItem = ui->sources->Get(i);
+		const obs_source_t *source = obs_sceneitem_get_source(sceneItem);
+		if (!source) {
+			continue;
+		}
+
+		QString sourceId = obs_source_get_id(source);
+		auto guideSource = isContain(sourceId);
+		if (!guideSource.isEmpty()) {
+			filterSourceList.append(guideSource);
+		}
+	}
+	return filterSourceList;
+};

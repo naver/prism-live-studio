@@ -2,12 +2,14 @@
 #include <stdio.h>
 #include <util/dstr.h>
 #include <util/platform.h>
+#include <util/threading.h>
 #include <thread>
-#include <mutex>
 #include <obs-module.h>
 #include <pls/media-info.h>
 #include <media-io/media-remux.h>
 #include <pls/pls-source.h>
+#include <pls/pls-obs-api.h>
+#include "frontend-api.h"
 
 #define T_LOOP obs_module_text("StickerReactionLoop")
 
@@ -32,11 +34,15 @@ struct sticker_reaction {
 	int64_t duration;
 
 	bool loop = false;
+	/* true: loop was on then turned off, or media restarted with loop off — wait ENDED before poster */
+	bool loop_off_wait_finish = false;
 
 	uint32_t base_width;
 	uint32_t base_height;
 	bool landscape;
 	bool firstInit = true;
+
+	pthread_mutex_t update_mutex;
 };
 
 static const char *sticker_source_get_name(void *unused)
@@ -49,12 +55,14 @@ static void update_image_source(sticker_reaction *sticker)
 {
 	if (sticker->image_input.empty())
 		return;
+
 	obs_data_t *settings = nullptr;
 	if (!sticker->image) {
 		settings = obs_data_create();
 		obs_data_set_string(settings, "file", sticker->image_input.c_str());
 		obs_data_set_bool(settings, "unload", false);
-		sticker->image = obs_source_create_private("image_source", nullptr, settings);
+		sticker->image = obs_source_create_private("image_source", "sticker image source", settings);
+		pls_set_action_parent(sticker->image, sticker->source);
 
 	} else if (sticker->last_image_input != sticker->image_input) {
 		settings = obs_source_get_settings(sticker->image);
@@ -70,25 +78,36 @@ static void update_video_source(sticker_reaction *sticker, bool lastLoop, bool r
 {
 	obs_data_t *media_settings = nullptr;
 	if (!sticker->media) {
+
+		sticker->loop_off_wait_finish = false;
+
 		media_settings = obs_data_create();
 		obs_data_set_bool(media_settings, "looping", sticker->loop);
 		obs_data_set_string(media_settings, "local_file", sticker->video_input.c_str());
 		obs_data_set_bool(media_settings, "restart_on_activate", false);
 		obs_data_set_bool(media_settings, "close_when_inactive", true);
 		sticker->media = obs_source_create_private("ffmpeg_source", "ffmpeg_sticker", media_settings);
+		pls_set_action_parent(sticker->media, sticker->source);
 		obs_source_inc_active(sticker->media);
-
 	} else {
 		media_settings = obs_source_get_settings(sticker->media);
 		std::string last_file = obs_data_get_string(media_settings, "local_file");
 		bool file_changed = last_file != sticker->video_input;
-		obs_data_set_bool(media_settings, "looping", sticker->loop);
-		obs_data_set_string(media_settings, "local_file", sticker->video_input.c_str());
-		obs_source_update(sticker->media, media_settings);
 
 		if (lastLoop && !sticker->loop && !sticker->video_input.empty()) {
-			obs_source_media_play_pause(sticker->media, true);
+			sticker->loop_off_wait_finish = true;
+			obs_data_set_bool(media_settings, "looping", sticker->loop);
+			obs_source_update(sticker->media, media_settings);
 		} else if (!lastLoop && sticker->loop && !sticker->video_input.empty() || file_changed || reload) {
+
+			sticker->loop_off_wait_finish = false;
+
+			pls_source_clear_async_video(sticker->media);
+
+			obs_data_set_bool(media_settings, "looping", sticker->loop);
+			obs_data_set_string(media_settings, "local_file", sticker->video_input.c_str());
+			obs_source_update(sticker->media, media_settings);
+
 			obs_source_dec_active(sticker->media);
 			obs_source_media_restart(sticker->media);
 			obs_source_inc_active(sticker->media);
@@ -100,6 +119,7 @@ static void update_video_source(sticker_reaction *sticker, bool lastLoop, bool r
 static void sticker_source_update(void *data, obs_data_t *settings)
 {
 	auto sticker = static_cast<sticker_reaction *>(data);
+	pthread_mutex_lock(&sticker->update_mutex);
 	bool lastLoop = sticker->loop;
 	sticker->loop = obs_data_get_bool(settings, "loop");
 
@@ -138,6 +158,7 @@ static void sticker_source_update(void *data, obs_data_t *settings)
 
 	update_image_source(sticker);
 	update_video_source(sticker, lastLoop, reload);
+	pthread_mutex_unlock(&sticker->update_mutex);
 }
 
 static void sticker_source_defaults(obs_data_t *settings)
@@ -161,6 +182,7 @@ static void *sticker_source_create(obs_data_t *settings, obs_source_t *source)
 	auto sticker = static_cast<sticker_reaction *>(bzalloc(sizeof(struct sticker_reaction)));
 	sticker->source = source;
 	sticker->firstInit = true;
+	pthread_mutex_init(&sticker->update_mutex, nullptr);
 	return sticker;
 }
 
@@ -177,6 +199,8 @@ static void sticker_source_destroy(void *data)
 		obs_source_release(sticker->image);
 	if (sticker->media)
 		obs_source_release(sticker->media);
+
+	pthread_mutex_destroy(&sticker->update_mutex);
 }
 
 static uint32_t sticker_source_getwidth(void *data)
@@ -197,8 +221,24 @@ static void sticker_source_render(void *data, gs_effect_t *effect)
 	if (!sticker || !sticker->source_texture)
 		return;
 
-	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), sticker->source_texture);
+	const bool nonlinear_fade = gs_get_color_space() == GS_CS_SRGB;
+	const bool previous = gs_framebuffer_srgb_enabled();
+	gs_enable_framebuffer_srgb(!nonlinear_fade);
+
+	auto param = gs_effect_get_param_by_name(effect, "image");
+	if (nonlinear_fade) {
+		gs_effect_set_texture(param, sticker->source_texture);
+	} else {
+		gs_effect_set_texture_srgb(param, sticker->source_texture);
+	}
 	gs_draw_sprite(sticker->source_texture, 0, sticker->cx, sticker->cy);
+	gs_enable_framebuffer_srgb(previous);
+}
+
+static bool sticker_media_terminal_for_poster(obs_source_t *media)
+{
+	enum obs_media_state st = media ? obs_source_media_get_state(media) : OBS_MEDIA_STATE_NONE;
+	return st == OBS_MEDIA_STATE_ENDED || st == OBS_MEDIA_STATE_STOPPED || st == OBS_MEDIA_STATE_NONE || st == OBS_MEDIA_STATE_ERROR;
 }
 
 static void sticker_source_tick(void *data, float seconds)
@@ -226,8 +266,19 @@ static void sticker_source_tick(void *data, float seconds)
 	if (!sticker->media)
 		return;
 
-	if (0 == sticker->cx || 0 == sticker->cy)
+	if (0 == sticker->cx || 0 == sticker->cy) {
+		if (sticker->source_texture) {
+			obs_enter_graphics();
+			struct vec4 clear_color;
+			vec4_set(&clear_color, 0.0f, 0.0f, 0.0f, 0.0f);
+			gs_texture_t *pre_target = gs_get_render_target();
+			gs_set_render_target(sticker->source_texture, nullptr);
+			gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
+			gs_set_render_target(pre_target, nullptr);
+			obs_leave_graphics();
+		}
 		return;
+	}
 
 	obs_enter_graphics();
 	if (!sticker->source_texture) {
@@ -262,7 +313,14 @@ static void sticker_source_tick(void *data, float seconds)
 	gs_ortho(0.0f, (float)sticker->cx, 0.0f, (float)sticker->cy, -100.0f, 100.0f);
 	gs_set_viewport(0, 0, sticker->cx, sticker->cy);
 
+	bool show_poster = false;
 	if (sticker->image && !sticker->loop) {
+		if (!sticker->loop_off_wait_finish)
+			show_poster = true;
+		else
+			show_poster = sticker_media_terminal_for_poster(sticker->media);
+	}
+	if (show_poster) {
 		if (obs_source_removed(sticker->image)) {
 			obs_source_release(sticker->image);
 		} else {
@@ -333,6 +391,15 @@ void RegisterPRISMStickerSource()
 
 	pls_source_info pls_info = {};
 	pls_info.set_private_data = sticker_private_update;
+	/*pls_info.properties_edit_end = [](void *data, obs_data_t *settings, bool is_save_click) {
+		auto sticker = static_cast<sticker_reaction *>(data);
+		if (is_save_click) {
+			pls_sticker_source_apply_update_sticker(sticker->source);
+		} else {
+			pls_sticker_source_cancel_update_sticker(sticker->source);
+		}
+	};*/
+
 	register_pls_source_info(&info, &pls_info);
 
 	obs_register_source(&info);

@@ -49,6 +49,7 @@ PLSLiveInfoBand::PLSLiveInfoBand(PLSPlatformBase *pPlatformBase, QWidget *parent
 		ui->horizontalLayout_2->addWidget(ui->cancelButton);
 	}
 #endif
+	pls_uistep_v2_set_title(this, QStringLiteral("Band Channel Live Info"));
 }
 
 PLSLiveInfoBand::~PLSLiveInfoBand()
@@ -112,7 +113,7 @@ void PLSLiveInfoBand::textChangeHandler()
 	if (text.length() > MAXINPUTCONTENT) {
 		QSignalBlocker signalBlocker(ui->plainTextEdit);
 		ui->plainTextEdit->setText(text.left(MAXINPUTCONTENT));
-		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("Live.Check.Band.Description.Max.Limit"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_BAND_DESCRIPTION_MAX_LIMIT, PLSErrKeyAllAlert, {}, PLSErrorHandler::ExtraData("PLSLiveInfoBand::textChangeHandler"));
 		ui->plainTextEdit->moveCursor(QTextCursor::End);
 	}
 }

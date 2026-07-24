@@ -2,6 +2,7 @@
 #include "PLSDrawPenView.h"
 #include "window-basic-main.hpp"
 #include "pls/pls-obs-api.h"
+#include "pls-performance.h"
 #include <QPainter>
 #include <liblog.h>
 #include <log/module_names.h>
@@ -34,7 +35,6 @@ PLSDrawPenMgr::PLSDrawPenMgr()
 	releasedEvent = ::CreateEvent(nullptr, TRUE, FALSE, nullptr);
 	strokeChangedEvent = ::CreateEvent(nullptr, TRUE, FALSE, nullptr);
 	rubberEvent = ::CreateEvent(nullptr, TRUE, FALSE, nullptr);
-	visibleEvent = ::CreateEvent(nullptr, TRUE, FALSE, nullptr);
 #endif
 }
 
@@ -73,7 +73,7 @@ void PLSDrawPenMgr::UpdatePenCursor()
 	float sacle = 1.0f;
 	sacle = OBSBasic::Get()->GetPreviewScale();
 
-	int diameter = (int)((float)(GetLineWidth() / 2) * sacle) + 2;
+	int diameter = (int)((float)(GetLineWidth(DrawType::DT_PEN) / 2) * sacle) + 2;
 	int outerDiameter = diameter + 2;
 	QPixmap pixmap(outerDiameter, outerDiameter);
 	pixmap.fill(Qt::transparent);
@@ -104,7 +104,7 @@ void PLSDrawPenMgr::UpdateHighlighterCursor()
 
 	float sacle = 1.0f;
 	sacle = OBSBasic::Get()->GetPreviewScale();
-	int diameter = (int)((float)(GetLineWidth() / 2) * sacle) + 2;
+	int diameter = (int)((float)(GetLineWidth(DrawType::DT_HIGHLIGHTER) / 2) * sacle) + 2;
 
 	QPixmap pixmap((int)(diameter * 0.7), diameter + 2);
 	pixmap.fill(Qt::transparent);
@@ -136,7 +136,7 @@ void PLSDrawPenMgr::UpdateGlowCursor()
 	sacle = OBSBasic::Get()->GetPreviewScale();
 
 	float weight = 0.6f;
-	auto outerRadius = (int)((float)(GetLineWidth() / 2) * sacle + 4);
+	auto outerRadius = (int)((float)(GetLineWidth(DrawType::DT_GLOW_PEN) / 2) * sacle + 4);
 	auto mediumRadius = (int)(outerRadius * 0.7);
 	auto innerRadius = (int)((float)outerRadius * weight);
 	QPixmap pixmap(outerRadius * 2, outerRadius * 2);
@@ -176,22 +176,26 @@ void PLSDrawPenMgr::UpdateCurrentDrawPen(OBSScene scene)
 	OBSSource curSceneSource = obs_scene_get_source(scene);
 	QString name = QString::fromUtf8(obs_source_get_name(curSceneSource));
 
-	drawPenInterface = FindDrawPenData(name);
+	auto temp = FindDrawPenData(name);
+
+	{
+		std::lock_guard<std::recursive_mutex> lock(lockInterfaces);
+		drawPenInterface = temp;
+	}
 
 #if defined(_WIN32)
-	if (drawPenInterface && !drawPenCore) {
+	if (temp && !drawPenCore) {
 		drawPenCore = std::make_shared<PLSDrawPenCore>();
 	}
 	if (drawPenCore)
 		drawPenCore->UpdateSharedTexture();
 	needUpdateStrokes = true;
 #endif
-
-	return;
 }
 
 void PLSDrawPenMgr::UpdateTextureSize(uint32_t w, uint32_t h)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	width = w;
 	height = h;
 
@@ -200,9 +204,9 @@ void PLSDrawPenMgr::UpdateTextureSize(uint32_t w, uint32_t h)
 		drawPenCore->UpdateSharedTexture();
 #endif
 
-	if (drawPenInterface)
-		drawPenInterface->resize((float)width, (float)height);
-	return;
+	auto currentInterface = GetCurrentInterface();
+	if (currentInterface)
+		currentInterface->resize((float)width, (float)height);
 }
 
 void PLSDrawPenMgr::CopySceneEvent()
@@ -216,8 +220,6 @@ void PLSDrawPenMgr::AddSceneData(const QString &name)
 {
 #if defined(_WIN32)
 	auto sceneData = std::make_shared<PLSDrawPenWin>();
-	sceneDrawPen[name] = sceneData;
-
 #elif defined(__APPLE__)
 	auto sceneData = std::make_shared<PLSDrawPenMac>();
 	sceneData->setCallback(this, [](void *context, bool undoEmpty, bool redoEmpty) {
@@ -227,12 +229,16 @@ void PLSDrawPenMgr::AddSceneData(const QString &name)
 			emit p->RedoDisabled(redoEmpty);
 		}
 	});
-	sceneDrawPen[name] = sceneData;
 #endif
+
+	std::lock_guard<std::recursive_mutex> lock(lockInterfaces);
+	sceneDrawPen[name] = sceneData;
 }
 
 void PLSDrawPenMgr::RenameSceneData(const QString &preName, const QString &nextName)
 {
+	std::lock_guard<std::recursive_mutex> lock(lockInterfaces);
+
 	auto iter = sceneDrawPen.find(preName);
 	if (iter == sceneDrawPen.end())
 		return;
@@ -244,6 +250,8 @@ void PLSDrawPenMgr::RenameSceneData(const QString &preName, const QString &nextN
 
 std::shared_ptr<PLSDrawPenInterface> PLSDrawPenMgr::FindDrawPenData(const QString &name)
 {
+	std::lock_guard<std::recursive_mutex> lock(lockInterfaces);
+
 	auto iter = sceneDrawPen.find(name);
 	if (iter == sceneDrawPen.end())
 		return nullptr;
@@ -253,6 +261,8 @@ std::shared_ptr<PLSDrawPenInterface> PLSDrawPenMgr::FindDrawPenData(const QStrin
 
 void PLSDrawPenMgr::DeleteSceneData(const QString &name)
 {
+	std::lock_guard<std::recursive_mutex> lock(lockInterfaces);
+
 	auto iter = sceneDrawPen.find(name);
 	if (iter == sceneDrawPen.end())
 		return;
@@ -264,11 +274,18 @@ void PLSDrawPenMgr::DeleteSceneData(const QString &name)
 
 void PLSDrawPenMgr::DeleteAllData()
 {
+	std::lock_guard<std::recursive_mutex> lock(lockInterfaces);
+
 	for (auto item : sceneDrawPen) {
 		item.second.reset();
 		item.second = nullptr;
 	}
 	sceneDrawPen.clear();
+
+#if defined(_WIN32)
+	if (drawPenCore)
+		drawPenCore->UndoRedoCache().ClearCache();
+#endif
 }
 
 void PLSDrawPenMgr::ResetProperties()
@@ -276,8 +293,7 @@ void PLSDrawPenMgr::ResetProperties()
 	linewidth = 0;
 	rgba = C_SOLID_COLOR_0;
 	colorIndex = 0;
-	lineIndex = 1;
-	curLineWidth = LINE_1;
+	lineIndex = DEFAULT_LINE_WITDH_INDEX;
 	curDrawType = DrawType::DT_PEN;
 	curShapeType = ShapeType::ST_STRAIGHT_ARROW;
 	return;
@@ -301,7 +317,8 @@ bool PLSDrawPenMgr::MousePosInPreview(vec2 pos) const
 
 void PLSDrawPenMgr::MousePressd(PointF point)
 {
-	if (!drawPenInterface)
+	auto currentInterface = GetCurrentInterface();
+	if (!currentInterface)
 		return;
 
 	outAreaPressed = MousePosInPreview({point.x, point.y});
@@ -309,10 +326,10 @@ void PLSDrawPenMgr::MousePressd(PointF point)
 		return;
 
 	if (GetCurrentDrawType() == DrawType::DT_RUBBER) {
-		drawPenInterface->eraseOn(point);
+		currentInterface->eraseOn(point);
 	} else {
 #if (_WIN32)
-		drawPenInterface->beginDraw(point);
+		currentInterface->beginDraw(point);
 #else //if(__APPLE__)
 
 		int brushMode = -1;
@@ -331,32 +348,34 @@ void PLSDrawPenMgr::MousePressd(PointF point)
 		}
 		if (brushMode < 0)
 			return;
-		drawPenInterface->resize(width, height);
-		drawPenInterface->beginDraw(brushMode, (int)colorIndex, (int)lineIndex, point);
+		currentInterface->resize(width, height);
+		currentInterface->beginDraw(brushMode, (int)colorIndex, (int)lineIndex, point);
 #endif
 	}
 }
 
-void PLSDrawPenMgr::MouseMoved(PointF point) const
+void PLSDrawPenMgr::MouseMoved(PointF point)
 {
-	if (!drawPenInterface || !outAreaPressed)
+	auto currentInterface = GetCurrentInterface();
+	if (!currentInterface || !outAreaPressed)
 		return;
 
 	if (GetCurrentDrawType() == DrawType::DT_RUBBER) {
-		drawPenInterface->eraseOn(point);
+		currentInterface->eraseOn(point);
 	} else
-		drawPenInterface->moveTo(point);
+		currentInterface->moveTo(point);
 }
 
-void PLSDrawPenMgr::MouseReleased(PointF point) const
+void PLSDrawPenMgr::MouseReleased(PointF point)
 {
-	if (!drawPenInterface || !outAreaPressed)
+	auto currentInterface = GetCurrentInterface();
+	if (!currentInterface || !outAreaPressed)
 		return;
 
 	if (GetCurrentDrawType() == DrawType::DT_RUBBER) {
-		drawPenInterface->eraseOn(point);
+		currentInterface->eraseOn(point);
 	} else {
-		drawPenInterface->endDraw(point);
+		currentInterface->endDraw(point);
 	}
 }
 
@@ -375,17 +394,9 @@ void PLSDrawPenMgr::SetColorIndex(int index)
 	PLS_LOGEX(PLS_LOG_INFO, DRAWPEN_MODULE, {{"X-DP-SHORTCUT", "SetColor"}}, "Set Color %d", index);
 }
 
-void PLSDrawPenMgr::SetLineWidth(int width_)
-{
-	curLineWidth = width_;
-	UpdateCursorPixmap();
-}
-
 void PLSDrawPenMgr::SetLineWidthIndex(int index)
 {
 	lineIndex = index;
-	if (index < lineWidth.size())
-		curLineWidth = lineWidth.at(index);
 	UpdateCursorPixmap();
 	PLS_LOGEX(PLS_LOG_INFO, DRAWPEN_MODULE, {{"X-DP-SHORTCUT", "SetLineWidth"}}, "Set Line Width %d", index);
 }
@@ -452,33 +463,40 @@ void PLSDrawPenMgr::SetCurrentShapeType(ShapeType type)
 	}
 }
 
-void PLSDrawPenMgr::UndoStroke() const
+void PLSDrawPenMgr::UndoStroke()
 {
 	PLS_LOGEX(PLS_LOG_INFO, DRAWPEN_MODULE, {{"X-DP-SHORTCUT", "Undo"}}, "Undo Clicked");
-	if (!drawPenInterface)
-		return;
-	drawPenInterface->undo();
+	pls_on_drawpen_event(PLSDrawPenMgr::Instance()->GetCurrentScene(), ACTION_UNDO);
+
+	auto currentInterface = GetCurrentInterface();
+	if (currentInterface)
+		currentInterface->undo();
 }
 
-void PLSDrawPenMgr::RedoStroke() const
+void PLSDrawPenMgr::RedoStroke()
 {
 	PLS_LOGEX(PLS_LOG_INFO, DRAWPEN_MODULE, {{"X-DP-SHORTCUT", "Redo"}}, "Redo Clicked");
-	if (!drawPenInterface)
-		return;
-	drawPenInterface->redo();
+	pls_on_drawpen_event(PLSDrawPenMgr::Instance()->GetCurrentScene(), ACTION_REDO);
+
+	auto currentInterface = GetCurrentInterface();
+	if (currentInterface)
+		currentInterface->redo();
 }
 
-void PLSDrawPenMgr::ClearStrokes() const
+void PLSDrawPenMgr::ClearStrokes()
 {
 	PLS_LOGEX(PLS_LOG_INFO, DRAWPEN_MODULE, {{"X-DP-SHORTCUT", "Clear"}}, "Clear Clicked");
-	if (!drawPenInterface)
-		return;
+	pls_on_drawpen_event(PLSDrawPenMgr::Instance()->GetCurrentScene(), ACTION_CLEAR);
 
-	drawPenInterface->clear();
+	auto currentInterface = GetCurrentInterface();
+	if (currentInterface)
+		currentInterface->clear();
 }
 
-void PLSDrawPenMgr::ClearAllStrokes() const
+void PLSDrawPenMgr::ClearAllStrokes()
 {
+	std::lock_guard<std::recursive_mutex> lock(lockInterfaces);
+
 	for (const auto &[key, vakue] : sceneDrawPen) {
 		if (vakue)
 			vakue->clear();
@@ -500,36 +518,61 @@ void PLSDrawPenMgr::OnDrawVisible(bool visible)
 		pls_scene_update_canvas(main->GetCurrentScene(), nullptr, false);
 	}
 
-	if (drawPenInterface)
-		drawPenInterface->setVisible(visible);
+	auto currentInterface = GetCurrentInterface();
+	if (currentInterface)
+		currentInterface->setVisible(visible);
 }
 
 #if defined(_WIN32)
 
-void PLSDrawPenMgr::RemoveStroke(std::string const &id) const
+void PLSDrawPenMgr::RemoveStroke(std::string const &id)
 {
-	if (!drawPenInterface)
+	auto currentInterface = GetCurrentInterface();
+	if (!currentInterface)
 		return;
-	auto drawPenWin = dynamic_cast<PLSDrawPenWin *>(drawPenInterface.get());
+
+	auto drawPenWin = dynamic_cast<PLSDrawPenWin *>(currentInterface.get());
 	drawPenWin->RemoveStroke(id);
 }
 
-std::vector<PointF> PLSDrawPenMgr::GetPoints() const
+std::vector<PointF> PLSDrawPenMgr::GetPoints()
 {
-	if (drawPenInterface) {
-		auto drawPenWin = dynamic_cast<PLSDrawPenWin *>(drawPenInterface.get());
+	auto currentInterface = GetCurrentInterface();
+	if (currentInterface) {
+		auto drawPenWin = dynamic_cast<PLSDrawPenWin *>(currentInterface.get());
 		return drawPenWin->GetPoints();
 	}
 	return std::vector<PointF>{};
 }
 
-std::vector<Stroke> PLSDrawPenMgr::GetStrokes() const
+std::vector<Stroke> PLSDrawPenMgr::GetStrokes()
 {
-	if (drawPenInterface) {
-		auto drawPenWin = dynamic_cast<PLSDrawPenWin *>(drawPenInterface.get());
+	auto currentInterface = GetCurrentInterface();
+	if (currentInterface) {
+		auto drawPenWin = dynamic_cast<PLSDrawPenWin *>(currentInterface.get());
 		return drawPenWin->GetStrokes();
 	}
 	return std::vector<Stroke>{};
+}
+
+void PLSDrawPenMgr::RemoveCaches(const std::vector<Stroke> &strokeList, const std::vector<Stroke> &redoList)
+{
+	if (redoList.empty())
+		return;
+
+	if (!drawPenCore)
+		return;
+
+	std::vector<Stroke> strokesTemp = strokeList;
+
+	auto count = (int)redoList.size();
+	for (int i = count - 1; i >= 0; --i) {
+		strokesTemp.push_back(redoList.at(i));
+
+		auto hash = PLSUndoRedoCache::GetHashValue(strokesTemp);
+		if (hash)
+			drawPenCore->UndoRedoCache().RemoveCache(hash);
+	}
 }
 #endif
 
@@ -543,9 +586,13 @@ int PLSDrawPenMgr::GetColorIndex() const
 	return colorIndex;
 }
 
-int PLSDrawPenMgr::GetLineWidth() const
+int PLSDrawPenMgr::GetLineWidth(DrawType type) const
 {
-	return curLineWidth;
+	if (DrawType::DT_INVALID != type) {
+		return get_line_width(lineIndex, type);
+	} else {
+		return get_line_width(lineIndex, curDrawType);
+	}
 }
 
 int PLSDrawPenMgr::GetLineWidthIndex() const
@@ -574,24 +621,27 @@ QPixmap PLSDrawPenMgr::GetCurrentCursorPixmap() const
 	return cursorPixmap;
 }
 
-bool PLSDrawPenMgr::UndoEmpty() const
+bool PLSDrawPenMgr::UndoEmpty()
 {
-	if (drawPenInterface)
-		return drawPenInterface->undoEmpty();
+	auto currentInterface = GetCurrentInterface();
+	if (currentInterface)
+		return currentInterface->undoEmpty();
 	return true;
 }
 
-bool PLSDrawPenMgr::RedoEmpty() const
+bool PLSDrawPenMgr::RedoEmpty()
 {
-	if (drawPenInterface)
-		return drawPenInterface->redoEmpty();
+	auto currentInterface = GetCurrentInterface();
+	if (currentInterface)
+		return currentInterface->redoEmpty();
 	return true;
 }
 
-bool PLSDrawPenMgr::DrawVisible() const
+bool PLSDrawPenMgr::DrawVisible()
 {
-	if (drawPenInterface)
-		return drawPenInterface->visible();
+	auto currentInterface = GetCurrentInterface();
+	if (currentInterface)
+		return currentInterface->visible();
 	return true;
 }
 
@@ -602,11 +652,46 @@ bool PLSDrawPenMgr::NeedUpdateStrokesToTarget()
 	return temp;
 }
 
-gs_texture_t *PLSDrawPenMgr::GetSceneCanvasTexture()
+OBSScene PLSDrawPenMgr::GetCurrentScene()
 {
 	auto main = OBSBasic::Get();
 	if (!main)
 		return nullptr;
+
 	OBSScene scene = main->GetCurrentScene();
+	return scene;
+}
+
+gs_texture_t *PLSDrawPenMgr::GetSceneCanvasTexture()
+{
+	OBSScene scene = GetCurrentScene();
+	if (!scene)
+		return nullptr;
+
 	return pls_scene_get_canvas(scene);
+}
+
+std::shared_ptr<PLSDrawPenInterface> PLSDrawPenMgr::GetCurrentInterface()
+{
+	std::lock_guard<std::recursive_mutex> lock(lockInterfaces);
+	return drawPenInterface;
+}
+
+const char *PLSDrawPenMgr::GetPenActionName()
+{
+	switch (curDrawType) {
+	case DrawType::DT_PEN:
+		return ACTION_PEN;
+	case DrawType::DT_HIGHLIGHTER:
+		return ACTION_HIGHLIGHT;
+	case DrawType::DT_GLOW_PEN:
+		return ACTION_GLOW;
+	case DrawType::DT_2DSHAPE:
+		return ACTION_SHAPE;
+	case DrawType::DT_RUBBER:
+		return ACTION_ERASER;
+	default:
+		assert(false);
+		return "";
+	}
 }

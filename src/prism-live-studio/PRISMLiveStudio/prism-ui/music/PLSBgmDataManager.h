@@ -17,7 +17,7 @@ enum class DurationType { FifteenSeconds, ThirtySeconds, SixtySeconds, FullSecon
 enum class CustomDataRole { DataRole = Qt::UserRole, NeedPaintRole, MediaStatusRole, DropIndicatorRole, CoverPathRole, RowStatusRole };
 Q_DECLARE_METATYPE(CustomDataRole)
 
-enum class MediaStatus { stateNormal, stateLoading, statePlaying, statePause, stateInvalid };
+enum class MediaStatus { stateNormal, stateSelected, stateLoading, statePlaying, statePause, stateInvalid, stateInvisible, stateCurrentInvisible };
 Q_DECLARE_METATYPE(MediaStatus)
 
 enum class RowStatus { stateNormal, stateHover, stateSelected };

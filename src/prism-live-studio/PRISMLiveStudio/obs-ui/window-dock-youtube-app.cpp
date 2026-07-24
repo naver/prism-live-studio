@@ -36,9 +36,11 @@ static constexpr const char *INGESTION_STOPPED = "INGESTION_STOPPED";
 
 YouTubeAppDock::YouTubeAppDock(const QString &title) : BrowserDock(title), dockBrowser(nullptr)
 {
+	PLS_DISABLE_UISTEP_V2(this);
 	cef->init_browser();
 	OBSBasic::InitBrowserPanelSafeBlock();
 	AddYouTubeAppDock();
+	pls_uistep_v2_set_title(this, QStringLiteral("Youtube Dock"));
 }
 
 bool YouTubeAppDock::IsYTServiceSelected()
@@ -54,7 +56,7 @@ void YouTubeAppDock::AccountConnected()
 	UpdateChannelId();
 	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
 	connect(pPlatformYoutube, &PLSPlatformYoutube::receiveVideoId, this, &YouTubeAppDock::setVideoId,
-		    Qt::ConnectionType(Qt::QueuedConnection | Qt::UniqueConnection));
+		Qt::ConnectionType(Qt::QueuedConnection | Qt::UniqueConnection));
 }
 
 void YouTubeAppDock::AccountDisconnected()
@@ -165,7 +167,7 @@ void YouTubeAppDock::IngestionStarted()
 			if (videoId.isEmpty()) {
 				PLS_ERROR("YouTubeAppDock", "get video id is empty");
 			}
-			this->IngestionStarted(videoId.toStdString().c_str(), YouTubeAppDock::YTSM_ACCOUNT);
+			this->IngestionStarted(videoId.toUtf8().constData(), YouTubeAppDock::YTSM_ACCOUNT);
 		} else {
 			//prism don't need this
 			/*const char *stream_key =
@@ -186,7 +188,7 @@ void YouTubeAppDock::IngestionStopped()
 {
 	if (IsYouTubeService()) {
 		if (IsUserSignedIntoYT()) {
-			this->IngestionStopped(videoId.toStdString().c_str(), YouTubeAppDock::YTSM_ACCOUNT);
+			this->IngestionStopped(videoId.toUtf8().constData(), YouTubeAppDock::YTSM_ACCOUNT);
 			videoId.clear();
 		} else {
 			//prism don't need this
@@ -261,7 +263,7 @@ void YouTubeAppDock::DispatchYTEvent(const char *event, const char *video_id, st
 	dockBrowser->executeJavaScript(script);
 
 	// in case of user still not logged in in dock panel, remember last event
-	SetInitEvent(mode, event, video_id, channelId.toStdString().c_str());
+	SetInitEvent(mode, event, video_id, channelId.toUtf8().constData());
 }
 
 void YouTubeAppDock::Update()
@@ -282,7 +284,7 @@ void YouTubeAppDock::Update()
 			channelId.clear(); // renew channelId
 			UpdateChannelId();
 			const char *broadcast_id = obs_data_get_string(settings, "broadcast_id");
-			SetInitEvent(YTSM_ACCOUNT, INGESTION_STARTED, broadcast_id, channelId.toStdString().c_str());
+			SetInitEvent(YTSM_ACCOUNT, INGESTION_STARTED, broadcast_id, channelId.toUtf8().constData());
 		} else {
 			const char *stream_key = obs_data_get_string(settings, "key");
 			SetInitEvent(YTSM_STREAM_KEY, INGESTION_STARTED, stream_key);
@@ -398,9 +400,9 @@ void YouTubeAppDock::setVideoId(bool bNewCreate, QString sVideoId)
 	if (!sVideoId.isEmpty()) {
 		videoId = sVideoId;
 		if (bNewCreate) {
-			BroadcastCreated(sVideoId.toStdString().c_str());
+			BroadcastCreated(sVideoId.toUtf8().constData());
 		} else {
-			BroadcastSelected(sVideoId.toStdString().c_str());
+			BroadcastSelected(sVideoId.toUtf8().constData());
 		}
 	}
 }

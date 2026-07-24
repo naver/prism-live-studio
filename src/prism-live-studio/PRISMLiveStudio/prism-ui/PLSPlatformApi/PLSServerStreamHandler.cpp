@@ -74,7 +74,7 @@ QString PLSServerStreamHandler::getOutputFps() const
 	return QString();
 }
 
-bool PLSServerStreamHandler::isSupportedResolutionFPS(QString &outTipString) const
+bool PLSServerStreamHandler::isSupportedResolutionFPS(pls_text_t &outTipString) const
 {
 	bool result = true;
 	QMap<QString, QString> map;
@@ -130,13 +130,13 @@ bool PLSServerStreamHandler::isSupportedResolutionFPS(QString &outTipString) con
 		channelListName.append(QString(",%1").arg(platformList.at(i)));
 	}
 
-	outTipString = getResolutionAndFpsInvalidTip(channelListName);
+	outTipString = pls_text_t(channelListName);
 	return result;
 }
 
-QString PLSServerStreamHandler::getResolutionAndFpsInvalidTip(const QString &channeName) const
+pls_text_t PLSServerStreamHandler::getResolutionAndFpsInvalidTip(const QString &channelName) const
 {
-	return QTStr("Platform.resolution.fps.failed").arg(channeName);
+	return pls_text_t(QTStr("Platform.resolution.fps.failed").arg(channelName), pls_language_key_t("Platform.resolution.fps.failed"));
 }
 
 void PLSServerStreamHandler::checkChannelResolutionFpsValid(const QString &channelName, const QVariantMap &platformFPSMap, const QString &platformKey, bool &result, QList<QString> &platformList,

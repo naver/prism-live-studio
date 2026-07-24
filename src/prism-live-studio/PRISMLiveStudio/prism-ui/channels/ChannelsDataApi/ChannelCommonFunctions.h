@@ -257,6 +257,7 @@ QString getNCB2BServiceName(const QString &name);
 QString channelNameConvertMultiLang(const QString &name);
 QStringList getChatChannelNameList(bool bAddNCPPrefix = false);
 QString guessPlatformFromRTMP(const QString &rtmpUrl);
+bool checkRtmpUrlIsValid(const QString &channelName, QString &rtmpUrl);
 
 bool isPlatformOrderLessThan(const QString &left, const QString &right);
 QString simplifiedString(const QString &src);

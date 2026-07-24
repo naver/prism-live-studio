@@ -1,0 +1,96 @@
+
+PLSNCB2bBrowserDockContent #categoryButton{
+	border-radius: none;
+	min-height: 50px;
+	max-height: 50px;
+	max-width: 150px;
+	color:#ffffff;
+	font-weight: normal;
+	font-size: 12px;
+	background-color: #272727;
+	margin: 0;
+	padding: 0;
+}
+
+PLSNCB2bBrowserDockContent #categoryButton:hover{
+	color:#effc35;
+	font-weight: normal;
+}
+
+PLSNCB2bBrowserDockContent #categoryButton:checked{
+	color:#effc35;
+	font-weight: bold;
+}
+
+PLSNCB2bBrowserDockContent #noSourcesLabel{
+	font-size: 14px;
+    color: #ffffff; 
+	background: transparent;
+}
+
+PLSNCB2bBrowserDockContent #buttonFrame, PLSNCB2bBrowserDockContent #titleFrame {
+	min-height: 50px;
+	max-height: 50px;
+}
+
+PLSNCB2bBrowserDockContent #preFrame, PLSNCB2bBrowserDockContent #nextFrame{
+	min-width: 35px;
+	max-width: 35px;	
+	background: transparent;	
+}
+
+PLSNCB2bBrowserDockContent #preBtn, PLSNCB2bBrowserDockContent #nextBtn{
+	min-height: 15px;
+	max-height: 15px;
+	min-width: 8px;
+	max-width: 8px;	
+	background: transparent;	
+	margin: 0;
+	padding: 0;
+}
+
+PLSNCB2bBrowserDockContent #pageNoSources {
+	background: #1E1E1F;
+}
+
+PLSNCB2bBrowserDockContent #preBtn, PLSNCB2bBrowserDockContent #nextBtn {
+	min-height: 10px;
+	max-height: 10px;
+	min-width: 10px;
+	max-width: 10px;
+	background: transparent;
+	margin: 0;
+	padding: 0;
+}
+
+PLSNCB2bBrowserDockContent #preBtn {
+	image: url(":/resource/images/ncp/ic_fre_normal.svg");
+}
+
+PLSNCB2bBrowserDockContent #preBtn:hover{
+	image: url(":/resource/images/ncp/ic_fre_over.svg");
+}
+
+PLSNCB2bBrowserDockContent #preBtn:pressed{
+	image: url(":/resource/images/ncp/ic_fre_click.svg");
+}
+
+PLSNCB2bBrowserDockContent #preBtn:disabled{
+	image: url(":/resource/images/ncp/ic_fre_disable.svg");
+}
+
+PLSNCB2bBrowserDockContent #nextBtn {
+	image: url(":/resource/images/ncp/ic_next_normal.svg");
+}
+
+PLSNCB2bBrowserDockContent #nextBtn:hover{
+	image: url(":/resource/images/ncp/ic_next_over.svg");
+}
+
+PLSNCB2bBrowserDockContent #nextBtn:pressed{
+	image: url(":/resource/images/ncp/ic_next_click.svg");
+}
+
+PLSNCB2bBrowserDockContent #nextBtn:disabled{
+	image: url(":/resource/images/ncp/ic_next_disable.svg");
+}

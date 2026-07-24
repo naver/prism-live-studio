@@ -8,17 +8,13 @@
 #import <Foundation/Foundation.h>
 
 #import <AppKit/NSBezierPath.h>
-#include <vector>
 
 #import "PLSStrokeStruct.hpp"
-#include "PLSDrawPen/PLSDrawPenDefine.h"
-
-typedef std::vector<PointF>* PointFsPointer;
 
 #ifdef MAC_DEMO
-#import "PLSCurveSmooth.h"
 #import "PLSDrawpenDefine.h"
 #else
+#import "../PLSDrawPenDefine.h"
 #endif
 
 // MARK: - PLSStrokeAction

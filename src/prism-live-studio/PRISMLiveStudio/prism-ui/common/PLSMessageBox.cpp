@@ -1,8 +1,8 @@
 #include "PLSMessageBox.h"
 
-PLSAlertView::Button PLSMessageBox::question(QWidget *parent, const QString &title, const QString &text, PLSAlertView::Buttons buttons, PLSAlertView::Button defaultButton)
+PLSAlertView::Button PLSMessageBox::question(QWidget *parent, const QString &title, const pls_text_t &text, PLSAlertView::Buttons buttons, PLSAlertView::Button defaultButton)
 {
-	QMap<PLSAlertView::Button, QString> buttonMap;
+	QMap<PLSAlertView::Button, pls_text_t> buttonMap;
 
 #define TRANSLATE_BUTTON(x)                                                         \
 	do {                                                                        \
@@ -33,18 +33,18 @@ PLSAlertView::Button PLSMessageBox::question(QWidget *parent, const QString &tit
 	return PLSAlertView::question(parent, title, text, buttonMap, defaultButton);
 }
 
-PLSAlertView::Button PLSMessageBox::question(QWidget *parent, const QString &title, const QString &textTitle, const QString &textContent, PLSAlertView::Buttons buttons,
+PLSAlertView::Button PLSMessageBox::question(QWidget *parent, const QString &title, const pls_text_t &textTitle, const pls_text_t &textContent, PLSAlertView::Buttons buttons,
 					     PLSAlertView::Button defaultButton)
 {
 	return PLSAlertView::question(title, textTitle, textContent, parent, buttons, defaultButton);
 }
 
-void PLSMessageBox::information(QWidget *parent, const QString &title, const QString &text)
+void PLSMessageBox::information(QWidget *parent, const QString &title, const pls_text_t &text)
 {
 	PLSAlertView::information(parent, title, text, {{PLSAlertView::Button::Ok, QObject::tr("OK")}}, PLSAlertView::Button::Ok);
 }
 
-void PLSMessageBox::warning(QWidget *parent, const QString &title, const QString &text, bool enableRichText)
+void PLSMessageBox::warning(QWidget *parent, const QString &title, const pls_text_t &text, bool enableRichText)
 {
 	PLSAlertView alertView(parent, PLSAlertView::Icon::Warning, title, text, QString(), {{PLSAlertView::Button::Ok, QObject::tr("OK")}}, PLSAlertView::Button::Ok);
 	if (enableRichText) {
@@ -53,7 +53,7 @@ void PLSMessageBox::warning(QWidget *parent, const QString &title, const QString
 	alertView.exec();
 }
 
-void PLSMessageBox::critical(QWidget *parent, const QString &title, const QString &text)
+void PLSMessageBox::critical(QWidget *parent, const QString &title, const pls_text_t &text)
 {
 	PLSAlertView::critical(parent, title, text, {{PLSAlertView::Button::Ok, QObject::tr("OK")}}, PLSAlertView::Button::Ok);
 }

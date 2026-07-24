@@ -19,6 +19,7 @@ win_spout_output_settings::win_spout_output_settings(QWidget *parent) : PLSDialo
 {
 	setupUi(ui);
 	setFixedSize(QSize(410, 269));
+	setResizeEnabled(false);
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 	connect(ui->pushButton_start, SIGNAL(clicked(bool)), this, SLOT(on_start()));
 	connect(ui->pushButton_stop, SIGNAL(clicked(bool)), this, SLOT(on_stop()));

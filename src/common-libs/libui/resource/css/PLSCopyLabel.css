@@ -1,0 +1,30 @@
+PLSCopyLabel #textLabel {
+    padding: 0px;
+    margin: 0px;
+    border: none;
+    background: transparent;
+}
+
+PLSCopyLabel #copyButton {
+    min-width: 20px;
+    min-height: 20px;
+    max-width: 20px;
+    max-height: 20px;
+    background-color: transparent;
+    border: none;
+    padding: 0px;
+    margin: 0px;
+    image: url(":/libui/resource/images/ic-copy-normal.svg");
+}
+
+    PLSCopyLabel #copyButton:hover {
+        image: url(":/libui/resource/images/ic-copy-hover.svg");
+    }
+
+    PLSCopyLabel #copyButton:pressed {
+        image: url(":/libui/resource/images/ic-copy-pressed.svg");
+    }
+
+    PLSCopyLabel #copyButton:disabled {
+        image: url(":/libui/resource/images/ic-copy-disabled.svg");
+    }

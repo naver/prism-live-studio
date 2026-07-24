@@ -30,10 +30,7 @@ PLSSceneCollectionManagement #listview::item {
 	border:/*hdpi*/none;
 }
 
-PLSSceneCollectionManagement #listview::item:hover {
-	background-color: #444444;
-}
-
+/* Hover only via PLSSceneCollectionItem[status=hover] to avoid duplicate with ::item:hover */
 PLSSceneCollectionManagement #listview QScrollBar:vertical {
 	background-color: #2d2d2d;
 }
@@ -88,9 +85,9 @@ PLSSceneCollectionManagement #managementLabel{
 }
 
 PLSSceneCollectionManagement #buttonFrame, PLSSceneCollectionManagement #buttonFrame[status=normal] {
-	min-height: /*hdpi*/ 40px;
-	max-height: /*hdpi*/ 40px;
-	border-top: /*hdpi-d*/ 1px solid #1e1e1e;
+	min-height: /*hdpi*/ 46px;
+	max-height: /*hdpi*/ 46px;
+	border-bottom: /*hdpi-d*/ 1px solid #1e1e1e;
 	background-color: #2d2d2d;
 }
 
@@ -99,17 +96,17 @@ PLSSceneCollectionManagement #buttonFrame[status=clicked], PLSSceneCollectionMan
 }
 
 PLSSceneCollectionManagement #goBtn {
-	min-width: /*hdpi*/ 12px;
-	max-width: /*hdpi*/ 12px;
-	min-height: /*hdpi*/ 11px;
-	max-height: /*hdpi*/ 11px;
-    margin-top: /*hdpi*/ 1px;
-    background: transparent;
+	min-width: /*hdpi*/ 18px;
+	max-width: /*hdpi*/ 18px;
+	min-height: /*hdpi*/ 18px;
+	max-height: /*hdpi*/ 18px;
+	background: transparent;
 	margin: 0;
 	padding: 0;
-	image: url(":/resource/images/collection/ic-scene-arrow-normal.svg");
+	image: url(":/resource/images/collection/ic_Scene_edit_normal.svg");
 }
 
 PLSSceneCollectionManagement #goBtn:hover {
-	image: url(":/resource/images/collection/ic-scene-arrow-over.svg");
+	image: url(":/resource/images/collection/ic_Scene_edit_hover.svg");
 }
+

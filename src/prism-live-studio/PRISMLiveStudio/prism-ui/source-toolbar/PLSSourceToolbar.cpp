@@ -25,6 +25,9 @@ RegionCaptureToolbar::RegionCaptureToolbar(QWidget *parent, OBSSource source) : 
 	mainlayout->addWidget(btn);
 	mainlayout->addStretch();
 	setLayout(mainlayout);
+
+	auto sourceName = obs_source_get_name(source);
+	pls_uistep_v2_set_title(btn, sourceName ? sourceName : "");
 #endif //Q_OS_WIN
 
 	pls_add_css(this, {"PLSSourceToolbar"});
@@ -35,7 +38,10 @@ void RegionCaptureToolbar::OnSelectRegionClicked()
 	uint64_t max_size = pls_texture_get_max_size();
 	PLSRegionCapture *regionCapture = pls_new<PLSRegionCapture>(this);
 	connect(regionCapture, &PLSRegionCapture::selectedRegion, this, [this, regionCapture](const QRect &selectedRect) {
-		OBSDataAutoRelease settings = obs_source_get_settings(GetSource());
+		auto source = GetSource();
+		pls_on_source_property_changed(source, "region_select_toolbar");
+
+		OBSDataAutoRelease settings = obs_source_get_settings(source);
 		qInfo() << "user selected a new region=" << selectedRect;
 		if (!selectedRect.isValid()) {
 			regionCapture->deleteLater();
@@ -50,7 +56,7 @@ void RegionCaptureToolbar::OnSelectRegionClicked()
 		obs_data_set_obj(settings, "region_select", region_obj);
 		obs_data_release(region_obj);
 
-		obs_source_update(GetSource(), settings);
+		obs_source_update(source, settings);
 		regionCapture->deleteLater();
 	});
 	regionCapture->StartCapture(max_size, max_size);
@@ -67,6 +73,7 @@ TimerSourceToolbar::TimerSourceToolbar(QWidget *parent, OBSSource source) : Sour
 	m_startBtn->setText(tr("timer.btn.start"));
 	m_startBtn->setToolTip(tr("timer.btn.start"));
 	connect(m_startBtn, &QPushButton::clicked, this, &TimerSourceToolbar::OnStartClicked);
+	pls_uistep_v2_set_custom_enter_leave_name(m_startBtn, [this]() { return pls_uistep_v2_to_english(m_startBtn->text()).toUtf8(); });
 	mainlayout->addWidget(m_startBtn);
 
 	m_stopBtn = pls_new<QPushButton>(this);
@@ -74,6 +81,7 @@ TimerSourceToolbar::TimerSourceToolbar(QWidget *parent, OBSSource source) : Sour
 	m_stopBtn->setText(tr("timer.btn.cancel"));
 	m_stopBtn->setToolTip(tr("timer.btn.cancel"));
 	connect(m_stopBtn, &QPushButton::clicked, this, &TimerSourceToolbar::OnStopClicked);
+	pls_uistep_v2_set_custom_enter_leave_name(m_stopBtn, [this]() { return pls_uistep_v2_to_english(m_stopBtn->text()).toUtf8(); });
 	mainlayout->addWidget(m_stopBtn);
 
 	mainlayout->addStretch();
@@ -184,6 +192,7 @@ ChatTemplateSourceToolbar::ChatTemplateSourceToolbar(QWidget *parent, OBSSource 
 	btn->setObjectName("ResizeCT");
 	btn->setText(tr("ChatTemplate.ResizeCT.Button"));
 	btn->setToolTip(tr("ChatTemplate.ResizeCT.ToolTip"));
+	pls_uistep_v2_set_custom_enter_leave_name(btn, "Change chat size");
 	connect(btn, &QPushButton::clicked, OBSBasic::Get(), &OBSBasic::OnResizeCTClicked);
 	mainlayout->addWidget(btn);
 	mainlayout->addStretch();

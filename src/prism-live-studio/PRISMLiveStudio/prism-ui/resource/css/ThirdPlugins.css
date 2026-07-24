@@ -1,3 +1,4 @@
+PluginUpdate#PluginUpdate,
 ConnectInfo#ConnectInfo,
 #DownstreamKeyerDock,
 #CaptionsDialog,
@@ -25,10 +26,19 @@ SourceDock,
 CaptionSettingsWidget#CaptionSettingsWidget,
 MainCaptionWidget#MainCaptionWidget,
 CaptionDock#cloud_caption_caption_dock,
-#AdvSceneSwitcher #generalTab #scrollAreaWidgetContents {
+#HotkeyChaptersDialog,
+#HotkeyChaptersDialog ChapterNameDialog,
+#HotkeyChaptersDialog QToolBarSeparator,
+#AdvSceneSwitcher #generalTab #scrollAreaWidgetContents,
+#advss-status-dock {
     background-color: #272727;
     color: white;
 }
+
+#advss-status-dock QLabel {
+    color:black;
+}
+
 QMessageBox QLabel {
     color: black;
     font-size: 12px;
@@ -318,7 +328,7 @@ CanvasScenesDock #contextContainer QListWidget {
         }
 
         CanvasSourcesDock SourceTree VisibilityCheckBox::indicator:checked:pressed,
-        SourceDock #contextContainer VisibilityCheckBox::indicator::checked:pressed {
+        SourceDock #contextContainer VisibilityCheckBox::indicator:checked:pressed {
             image: url(":/resource/images/ic-source-view-click.svg");
         }
 

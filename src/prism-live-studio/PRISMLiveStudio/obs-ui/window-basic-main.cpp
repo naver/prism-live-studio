@@ -53,7 +53,6 @@
 #include "basic-controls.hpp"
 #include "window-basic-settings.hpp"
 #include "window-namedialog.hpp"
-#include "window-basic-auto-config.hpp"
 #include "window-basic-source-select.hpp"
 #include "window-basic-main.hpp"
 #include "window-basic-stats.hpp"
@@ -94,9 +93,12 @@
 #include "log/module_names.h"
 #include "frontend-internal.hpp"
 #include "PLSAddSourceView.h"
+#include "PLSAddSourceGuideView.h"
+#include "PLSSourceTemplateConfig.h"
 #include "PLSBasic.h"
 #include "PLSColorDialogView.h"
 #include "PLSMessageBox.h"
+#include "PLSErrorHandler.h"
 #include "PLSNameDialog.hpp"
 #include "pls/pls-obs-api.h"
 #include "log/log.h"
@@ -109,7 +111,12 @@
 #include "PLSPlatformPrism.h"
 #include "PLSDialogView.h"
 #include "obs-app.hpp"
+#include "PLSLoginMainView.h"
 #include "PLSSceneitemMapManager.h"
+#include "PLSPreviewMaskWidget.h"
+#include "pls/pls-base.h"
+
+#include "PLSDumpAnalyzer.h"
 
 #if defined(Q_OS_WINDOWS)
 #include "windows/PLSBlockDump.h"
@@ -121,6 +128,8 @@
 #include <signal.h>
 #include "mac/PLSPermissionHelper.h"
 #endif
+
+extern void printTotalStartTime();
 
 using namespace common;
 
@@ -166,7 +175,6 @@ using namespace std;
 #include "source-toolbar/PLSSourceToolbar.hpp"
 #include "PLSChannelDataAPI.h"
 #include "pls-shared-values.h"
-#include "PLSAction.h"
 #include "pls/pls-properties.h"
 #include "PLSGetPropertiesThread.h"
 #include "GoLivePannel.h"
@@ -175,18 +183,22 @@ using namespace std;
 #include "PLSSyncServerManager.hpp"
 #include "PLSServerStreamHandler.hpp"
 #include "PLSChatTemplateDataHelper.h"
-#include "PLSAction.h"
 #include "PLSNodeManager.h"
 #include "pls/pls-dual-output.h"
 
 #include "PLSAnalysisStack.h"
 #include "pls/pls-output.h"
-#include <QSettings>
+//PRISM/EricLi/20260520/PRISM_PC-1698/EN display name for nlog
+#include "frontend-api.h"
+#include "pls-performance.h"
+#include "PLSOnBoardingDlg.h"
+#include "PLSTrackers.h"
+#include "PLSWatchers.h"
 
 #ifdef Q_OS_MACOS
 #define CHATTEMPLATE_DIALOGTITLE_HEIGHT 0
 #else
-#define CHATTEMPLATE_DIALOGTITLE_HEIGHT 36
+#define CHATTEMPLATE_DIALOGTITLE_HEIGHT PLS_TITLE_BAR_HEIGHT
 #endif
 
 struct QCef;
@@ -290,8 +302,10 @@ static void AddExtraModulePaths()
 
 	string path = base_module_dir;
 #if defined(__APPLE__)
-	/* User Application Support Search Path */
-	obs_add_module_path((path + "/Contents/MacOS").c_str(), (path + "/Contents/Resources").c_str());
+	if (PLSMainView::isMatchOBSSupportPluginVersion()) {
+		/* User Application Support Search Path */
+		obs_add_module_path((path + "/Contents/MacOS").c_str(), (path + "/Contents/Resources").c_str());
+	}
 
 #ifndef __aarch64__
 	/* Legacy System Library Search Path */
@@ -374,6 +388,8 @@ void setupDockAction(QDockWidget *dock)
 		QSignalBlocker block(dock);
 		if (dock == PLSBasic::instance()->GetChatDock()) {
 			PLSMainView::instance()->showChatView(true);
+		} else if (dock == PLSBasic::instance()->GetBgmDock()) {
+			PLSBasic::instance()->onBgmClicked();
 		} else {
 			dock->setVisible(check);
 			dock->setProperty("vis", check);
@@ -400,6 +416,8 @@ OBSBasic::OBSBasic(PLSMainView *mainView_)
 	  ui(new Ui::OBSBasic),
 	  mainView(mainView_)
 {
+	PLS_PERFORMANCE_FUNCTION();
+
 	setWindowFlags(Qt::SubWindow);
 	setAttribute(Qt::WA_NativeWindow);
 
@@ -422,7 +440,12 @@ OBSBasic::OBSBasic(PLSMainView *mainView_)
 	api = InitializeAPIInterface(this);
 
 	ui->setupUi(this);
+	ui->sourcesToolbar->setVisible(false);
+	ui->scenesToolbar->setVisible(false);
 	ui->previewDisabledWidget->setVisible(false);
+	pls_uistep_v2_set_title(this, "Main Window");
+	pls_uistep_v2_set_title(ui->sourcesFrame, "Sources Dock");
+	pls_uistep_v2_set_title(ui->scenesFrame, "Scenes Dock");
 
 	/* Set up streaming connections */
 	connect(
@@ -453,7 +476,7 @@ OBSBasic::OBSBasic(PLSMainView *mainView_)
 	/* Parenting is done there so controls will be deleted alongside controlsDock */
 	controlsDock->setWidget(controls);
 	addDockWidget(Qt::BottomDockWidgetArea, controlsDock);
-
+	controlsDock->setVisible(false);
 	connect(controls, &OBSBasicControls::StreamButtonClicked, this, &OBSBasic::StreamActionTriggered);
 
 	connect(controls, &OBSBasicControls::StartStreamMenuActionClicked, this, &OBSBasic::StartStreaming);
@@ -492,8 +515,30 @@ OBSBasic::OBSBasic(PLSMainView *mainView_)
 	pls_add_css(ui->scenesDock, {"PLSScene", "ScenesDock"});
 	pls_add_css(ui->sourcesDock, {"PLSSource", "SourcesDock"});
 	pls_add_css(ui->mixerDock, {"PLSAudioMixer", "MixerDock"});
+	ui->vVolumeWidgets->AddListenDockWidget(ui->mixerDock);
+	ui->hVolumeWidgets->AddListenDockWidget(ui->mixerDock);
 	pls_add_css(ui->chatDock, {"ChatDock"});
+	pls_uistep_v2_set_title(ui->chatDock, QStringLiteral("Chat Dock"));
 
+	pls_add_css(ui->bgmDock, {"PLSBackgroundMusicView"});
+	pls_uistep_v2_set_title(ui->bgmDock, QStringLiteral("Background Music"));
+	pls_uistep_v2_set_title(ui->scenesDock, QStringLiteral("Scenes Dock"));
+	pls_uistep_v2_set_title(ui->sourcesDock, QStringLiteral("Sources Dock"));
+	pls_uistep_v2_set_title(ui->mixerDock, QStringLiteral("Audio Mixer Dock"));
+	pls_uistep_v2_set_custom_show_hide_name(ui->chatDock, "Chat Dock");
+	pls_uistep_v2_set_custom_show_hide_name(ui->scenesDock, "Scenes Dock");
+	pls_uistep_v2_set_custom_show_hide_name(ui->sourcesDock, "Sources Dock");
+	pls_uistep_v2_set_custom_show_hide_name(ui->bgmDock, "Background Music");
+	pls_uistep_v2_set_custom_show_hide_name(ui->mixerDock, "Audio Mixer Dock");
+
+	pls_uistep_v2_enable(ui->toggleContextBar, PLS_UI_STEPS_V2_SIGNAL_TRIGGERED, false);
+	pls_uistep_v2_custom_button(ui->toggleContextBar, PLS_UI_STEPS_V2_SIGNAL_TOGGLED);
+	pls_uistep_v2_enable(ui->toggleSourceIcons, PLS_UI_STEPS_V2_SIGNAL_TRIGGERED, false);
+	pls_uistep_v2_custom_button(ui->toggleSourceIcons, PLS_UI_STEPS_V2_SIGNAL_TOGGLED);
+	pls_uistep_v2_enable(ui->lockDocks, PLS_UI_STEPS_V2_SIGNAL_TRIGGERED, false);
+	pls_uistep_v2_custom_button(ui->lockDocks, PLS_UI_STEPS_V2_SIGNAL_TOGGLED);
+	pls_uistep_v2_enable(ui->sideDocks, PLS_UI_STEPS_V2_SIGNAL_TRIGGERED, false);
+	pls_uistep_v2_custom_button(ui->sideDocks, PLS_UI_STEPS_V2_SIGNAL_TOGGLED);
 	copyActionsDynamicProperties();
 
 	qRegisterMetaType<int64_t>("int64_t");
@@ -523,11 +568,7 @@ OBSBasic::OBSBasic(PLSMainView *mainView_)
 		if (!PLSBasic::instance())
 			return;
 
-		struct obs_video_info ovi;
-
-		if (obs_get_video_info(&ovi))
-			ResizePreview(ovi.base_width, ovi.base_height);
-
+		ResizePreview();
 		UpdateContextBarVisibility();
 		UpdatePreviewScrollbars();
 		PLSBasic::instance()->ResizeDrawPenCursorPixmap();
@@ -540,6 +581,10 @@ OBSBasic::OBSBasic(PLSMainView *mainView_)
 
 	connect(windowHandle(), &QWindow::screenChanged, displayResize);
 	connect(ui->preview, &OBSQTDisplay::DisplayResized, displayResize);
+	pls_uistep_v2_set_custom_show_hide_name(ui->preview, "Horizontal Preview");
+	pls_uistep_v2_set_name(ui->preview, PLS_UI_STEPS_V2_SIGNAL_CUSTOMCONTEXTMENUREQUESTED,
+			       "Horizontal Preview Menu");
+	pls_uistep_v2_set_value(ui->preview, PLS_UI_STEPS_V2_SIGNAL_CUSTOMCONTEXTMENUREQUESTED, "Show");
 
 	/* TODO: Move these into window-basic-preview */
 	/* Preview Scaling label */
@@ -600,6 +645,10 @@ OBSBasic::OBSBasic(PLSMainView *mainView_)
 		this, &OBSBasic::SceneNameEdited);
 #endif
 	cpuUsageInfo = os_cpu_usage_info_start();
+#if defined(Q_OS_WINDOWS)
+	sysCpuUsageInfo = sys_cpu_usage_info_start();
+#endif
+
 	cpuUsageTimer = new QTimer(this);
 	connect(cpuUsageTimer.data(), SIGNAL(timeout()), mainView->statusBar(), SLOT(UpdateCPUUsage()));
 
@@ -622,8 +671,8 @@ OBSBasic::OBSBasic(PLSMainView *mainView_)
 	ui->sourcesDock->addAction(renameSource);
 
 #ifdef __APPLE__
-	renameScene->setShortcut({Qt::Key_Return});
-	renameSource->setShortcut({Qt::Key_Return});
+	renameScene->setShortcut({Qt::Key_F2});
+	renameSource->setShortcut({Qt::Key_F2});
 
 	ui->actionRemoveSource->setShortcuts({Qt::Key_Backspace});
 	ui->actionRemoveScene->setShortcuts({Qt::Key_Backspace});
@@ -659,6 +708,7 @@ OBSBasic::OBSBasic(PLSMainView *mainView_)
 	SETUP_DOCK(ui->sourcesDock);
 	SETUP_DOCK(ui->mixerDock);
 	SETUP_DOCK(ui->chatDock);
+	SETUP_DOCK(ui->bgmDock);
 
 #undef SETUP_DOCK
 
@@ -880,7 +930,7 @@ obs_data_array_t *OBSBasic::SaveSceneListOrder()
 
 	for (auto iter = data.begin(); iter != data.end(); ++iter) {
 		obs_data_t *tmp_data = obs_data_create();
-		obs_data_set_string(tmp_data, "name", iter->first.toStdString().c_str());
+		obs_data_set_string(tmp_data, "name", iter->first.toUtf8().constData());
 		obs_data_array_push_back(sceneOrder, tmp_data);
 		obs_data_release(tmp_data);
 	}
@@ -1051,17 +1101,11 @@ void OBSBasic::Save(const char *file)
 	obs_data_set_obj(saveData, "chatTemplate", chatTemplateData);
 	obs_data_set_bool(saveData, FROM_SCENE_TEMPLATE, fromSceneTemplate);
 
-	auto arrays = PLSSceneitemMapMgrInstance->saveVerticalSceneitemInfo();
-	if (arrays) {
-		obs_data_set_array(saveData, "verticalSceneitemsInfo", arrays);
-		obs_data_array_release(arrays);
-	}
-
 	// save dual output
 	OBSDataAutoRelease newData = obs_data_create();
 	obs_data_apply(newData, saveData);
 
-	if (pls_is_dual_output_on()) {
+	if (PLSSceneitemMapMgrInstance->getDualOutputOpened()) {
 		saveDualOutputSources(audioSources, newData);
 	}
 
@@ -1073,7 +1117,7 @@ void OBSBasic::Save(const char *file)
 	uint64_t takeTime = (endTime - startTime) / 1000000;
 	if (takeTime > 500) {
 		PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE,
-			  {{"SaveCollectionDuration", QString::number(takeTime).toStdString().c_str()}},
+			  {{"SaveCollectionDuration", QString::number(takeTime).toUtf8().constData()}},
 			  "OBSBasic::Save take %llu ms", takeTime);
 	}
 }
@@ -1174,8 +1218,9 @@ void OBSBasic::DisableRelativeCoordinates(bool enable)
 void OBSBasic::CreateDefaultScene(bool firstStart)
 {
 	disableSaving++;
-
-	ClearSceneData();
+	if (PLSApp::plsApp()->isAppRunning()) {
+		ClearSceneData();
+	}
 	LoadSourceRecentColorConfig(nullptr);
 	InitDefaultTransitions();
 	// CreateDefaultQuickTransitions();
@@ -1187,8 +1232,10 @@ void OBSBasic::CreateDefaultScene(bool firstStart)
 
 	if (firstStart)
 		CreateFirstRunSources();
-
+	fromSceneTemplate = false;
 	collectionChanging = true;
+	obs_source_t *source = obs_scene_get_source(scene);
+	SetPendingRenderSceneNamePerf(source, "User create new scenecollection");
 	SetCurrentScene(scene, true);
 	collectionChanging = false;
 
@@ -1214,7 +1261,7 @@ static void ReorderSceneDisplayVecByName(const char *file, const char *name, Sce
 {
 	SceneDisplayVector dataVec = PLSSceneDataMgr::Instance()->GetDisplayVector(file);
 	for (auto iter = dataVec.begin(); iter != dataVec.end(); ++iter) {
-		if (strcmp(name, iter->first.toStdString().c_str()) == 0) {
+		if (strcmp(name, iter->first.toUtf8().constData()) == 0) {
 			reorderVector.emplace_back(SceneDisplayVector::value_type(name, iter->second));
 			break;
 		}
@@ -1337,8 +1384,33 @@ void OBSBasic::LogScenes()
 	blog(LOG_INFO, "------------------------------------------------");
 }
 
-void OBSBasic::Load(const char *file, bool loadWithoutDualOutput, bool remigrate)
+std::atomic<int> graphics_loop_count = 0;
+
+void OBSBasic::Load(const char *file, bool remigrate)
 {
+	PLS_PERFORMANCE_FUNCTION();
+	PLS_DISABLE_UISTEP_V2(this);
+
+	// PRISM/wangshaohui/20251203/PRISM_PC-4643/ignore invalid render drop ---------------------- start
+	// Firstly clear the callback, then disable render drop in libobs.
+	pls_set_graphic_callback(nullptr);
+	pls_enable_render_drop(false);
+
+	auto cleanGuard = qScopeGuard([this] {
+		// Wait graphics thread with 5 loops and then enable render drop. This ensure asynchronous initialization can complete.
+		// Theoretically, 2 loops is sufficient, but considering that some private sources may be updated inside source asynchronously, 5 is used here.
+		graphics_loop_count += 5;
+
+		pls_set_graphic_callback([]() {
+			if (graphics_loop_count > 0) {
+				--graphics_loop_count;
+				if (0 == graphics_loop_count) {
+					pls_enable_render_drop(true);
+				}
+			}
+		});
+	}); // PRISM/wangshaohui/20251203/PRISM_PC-4643/ignore invalid render drop ------------------ end
+
 	disableSaving++;
 	lastOutputResolution.reset();
 	migrationBaseResolution.reset();
@@ -1353,18 +1425,14 @@ void OBSBasic::Load(const char *file, bool loadWithoutDualOutput, bool remigrate
 		showHScrollbar = false;
 		ui->previewXScrollBar->hide();
 		ui->previewYScrollBar->hide();
-
-		return;
-	}
-
-	if (loadWithoutDualOutput) {
-		LoadData(data, file);
 		return;
 	}
 
 	obs_data_t *dualOutputObj = obs_data_get_obj(data, "dualOutput");
 	if (dualOutputObj) {
 		LoadData(dualOutputObj, file, remigrate);
+		// Only load sceneitemMaps when the project has dualOutput (was saved with dual output data).
+		PLSSceneitemMapMgrInstance->loadConfig(data);
 		return;
 	}
 
@@ -1387,6 +1455,7 @@ bool obs_load_pld_callback(void *pld_private_data, obs_source_t *source)
 {
 	AddMissingFiles(pld_private_data, source);
 	QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, FEED_UI_MAX_TIME);
+
 	return true;
 }
 
@@ -1412,12 +1481,20 @@ static void ClearRelativePosCb(obs_data_t *data, void *)
 
 void OBSBasic::LoadData(obs_data_t *data, const char *file, bool remigrate)
 {
-	ClearSceneData();
-	ClearContextBar();
+	PLS_PERFORMANCE_FUNCTION();
+	pauseStatistics(true);
+	auto _cleanGuard = qScopeGuard([this] { pauseStatistics(false); });
+
+	if (PLSApp::plsApp()->isAppRunning()) {
+		ClearSceneData();
+		ClearContextBar();
+	}
 
 	/* Exit OBS if clearing scene data failed for some reason. */
 	if (clearingFailed) {
-		OBSMessageBox::critical(this, QTStr("SourceLeak.Title"), QTStr("SourceLeak.Text"));
+		PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ALERT_SOURCELEAK_TEXT, PLSErrKeyAllAlert, QString(),
+			PLSErrorHandler::ExtraData(QStringLiteral("OBSBasic::LoadData.SourceLeak")), this);
 		mainView->close();
 		return;
 	}
@@ -1429,7 +1506,11 @@ void OBSBasic::LoadData(obs_data_t *data, const char *file, bool remigrate)
 		devicePropertiesThread.reset();
 	}
 
-	QApplication::sendPostedEvents(nullptr);
+	PLS_PERFORMANCE_START(sendPostedEvents);
+	if (PLSApp::plsApp()->isAppRunning()) {
+		QApplication::sendPostedEvents(nullptr);
+	}
+	PLS_PERFORMANCE_END(sendPostedEvents);
 
 	auto json = obs_data_get_json(obs_data_get_obj(data, "chatTemplate"));
 	static_cast<PLSChatTemplateDataHelper *>(PLSChatTemplateDataHelper::instance())
@@ -1607,7 +1688,6 @@ void OBSBasic::LoadData(obs_data_t *data, const char *file, bool remigrate)
 	PLSAudioControl::instance()->InitControlStatus(data, hasValue);
 
 	LoadSourceRecentColorConfig(data);
-	PLSSceneitemMapMgrInstance->loadConfig(data);
 	OBSDataArrayAutoRelease verticalSceneitemsInfo = obs_data_get_array(data, "verticalSceneitemsInfo");
 	PLSSceneitemMapMgrInstance->loadVerticalSceneitemInfo(verticalSceneitemsInfo);
 
@@ -1619,12 +1699,12 @@ retryScene:
 	} else {
 		const PLSSceneItemView *currentItem = ui->scenesFrame->GetCurrentItem();
 		if (currentItem) {
-			curScene = obs_get_source_by_name(currentItem->GetName().toStdString().c_str());
+			curScene = obs_get_source_by_name(currentItem->GetName().toUtf8().constData());
 		} else {
 			QString name = PLSSceneDataMgr::Instance()->GetFirstSceneName();
 			if (!name.isEmpty()) {
-				obs_data_set_string(data, "current_scene", name.toStdString().c_str());
-				curScene = obs_get_source_by_name(name.toStdString().c_str());
+				obs_data_set_string(data, "current_scene", name.toUtf8().constData());
+				curScene = obs_get_source_by_name(name.toUtf8().constData());
 			}
 		}
 	}
@@ -1830,6 +1910,8 @@ retryScene:
 
 	loadingScene = false;
 	ui->scenesFrame->RefreshScene();
+
+	emit loadSceneFinished();
 }
 
 constexpr std::string_view OBSServiceFileName = "service.json";
@@ -1901,6 +1983,7 @@ bool OBSBasic::LoadService()
 bool OBSBasic::InitService()
 {
 	ProfileScope("OBSBasic::InitService");
+	PLS_PERFORMANCE_FUNCTION();
 
 	if (LoadService())
 		return true;
@@ -2251,6 +2334,7 @@ extern bool EncoderAvailable(const char *encoder);
 
 void OBSBasic::InitBasicConfigDefaults2()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	bool oldEncDefaults = config_get_bool(App()->GetUserConfig(), "General", "Pre23Defaults");
 	bool useNV = EncoderAvailable("ffmpeg_nvenc") && !oldEncDefaults;
 
@@ -2272,6 +2356,7 @@ void OBSBasic::InitBasicConfigDefaults2()
 bool OBSBasic::InitBasicConfig()
 {
 	ProfileScope("OBSBasic::InitBasicConfig");
+	PLS_PERFORMANCE_FUNCTION();
 
 	char configPath[512];
 
@@ -2306,17 +2391,6 @@ bool OBSBasic::InitBasicConfig()
 	}
 
 	return InitBasicConfigDefaults();
-}
-
-void OBSBasic::AnalogCodecNotify(void *data, calldata_t *params)
-{
-	QString codec = calldata_string(params, "codec");
-	QString encodeDecode = calldata_string(params, "encodeDecode");
-	auto hw = calldata_bool(params, "hw");
-
-	QMetaObject::invokeMethod(static_cast<OBSBasic *>(data), [=] {
-		PLS_PLATFORM_API->sendCodecAnalog({{"codec", codec}, {"encodeDecode", encodeDecode}, {"hw", hw}});
-	});
 }
 
 bool OBSBasic::isSameChzzkSourceWithChzzkId(obs_source_t *source, PLSPlatformBase *chzzkPlatform)
@@ -2354,6 +2428,7 @@ void OBSBasic::InitOBSCallbacks()
 	signalHandlers.emplace_back(
 		obs_get_signal_handler(), "source_filter_add",
 		[](void *data, calldata_t *) {
+			PLS_UI_ACTION("Receive source filter added signal from libobs.");
 			pls_async_call_mt([basic = static_cast<OBSBasic *>(data)]() {
 				if (basic)
 					basic->UpdateEditMenu();
@@ -2363,6 +2438,7 @@ void OBSBasic::InitOBSCallbacks()
 	signalHandlers.emplace_back(
 		obs_get_signal_handler(), "source_filter_remove",
 		[](void *data, calldata_t *) {
+			PLS_UI_ACTION("Receive source filter removed signal from libobs.");
 			pls_async_call_mt([basic = static_cast<OBSBasic *>(data)]() {
 				if (basic)
 					basic->UpdateEditMenu();
@@ -2374,11 +2450,14 @@ void OBSBasic::InitOBSCallbacks()
 		[](void *data, calldata_t *param) { PLSBasic::instance()->OnSourceNotify(data, param); },
 		PLSBasic::instance());
 	signalHandlers.emplace_back(
+		obs_get_signal_handler(), "source_loading",
+		[](void *data, calldata_t *param) { PLSBasic::instance()->OnSourceLoading(data, param); },
+		PLSBasic::instance());
+	signalHandlers.emplace_back(
 		obs_get_signal_handler(), "source_message",
 		[](void *data, calldata_t *param) { PLSBasic::instance()->OnSourceMessage(data, param); },
 		PLSBasic::instance());
 
-	signalHandlers.emplace_back(obs_get_signal_handler(), "analog_codec_notify", OBSBasic::AnalogCodecNotify, this);
 	signalHandlers.emplace_back(
 		obs_get_signal_handler(), "source_load",
 		[](void *data, calldata_t *param) {
@@ -2463,6 +2542,8 @@ void OBSBasic::ReplayBufferActionTriggered()
 void OBSBasic::ResetOutputs()
 {
 	ProfileScope("OBSBasic::ResetOutputs");
+	PLS_PERFORMANCE_FUNCTION();
+
 	PLS_INFO(MAINFRAME_MODULE, "call resetoutputs");
 	const char *mode = config_get_string(activeConfiguration, "Output", "Mode");
 	bool advOut = astrcmpi(mode, "Advanced") == 0;
@@ -2522,12 +2603,20 @@ static inline void LogEncoders()
 	list_encoders(OBS_ENCODER_AUDIO);
 }
 
+static void loadModule(pls_load_module_load_callback_t callback, void *param, const struct obs_module_info2 *info)
+{
+	PLS_PERFORMANCE_FUNCTION(info->bin_path);
+	callback(param, info);
+};
+
 bool OBSBasic::OBSInit()
 {
 	ProfileScope("OBSBasic::OBSInit");
+	PLS_PERFORMANCE_FUNCTION();
 
 	if (!InitBasicConfig())
 		throw "Failed to load basic.ini";
+
 	if (!ResetAudio())
 		throw "Failed to initialize audio";
 
@@ -2535,9 +2624,7 @@ bool OBSBasic::OBSInit()
 		pls_set_dual_output_on(true);
 	}
 
-	int ret = 0;
-	ret = ResetVideo();
-
+	int ret = ResetVideo();
 	switch (ret) {
 	case OBS_VIDEO_MODULE_NOT_FOUND:
 		throw "Failed to initialize video:  Graphics module not found";
@@ -2562,7 +2649,14 @@ bool OBSBasic::OBSInit()
 
 	InitOBSCallbacks();
 	InitHotkeys();
+
+	createPreviewMaskWidget();
+
 	ui->preview->Init();
+	mainView->resizeTracker()->addWidget(ui->centralwidget);
+	connect(mainView->resizeTracker(), &PLSResizeTracker::beginResize, this,
+		&OBSBasic::handleResizeTrackerBeginEvent);
+	connect(mainView->resizeTracker(), &PLSResizeTracker::endResize, this, &OBSBasic::handleResizeTrackerEndEvent);
 
 	PLSAudioControl::instance();
 
@@ -2573,6 +2667,8 @@ bool OBSBasic::OBSInit()
 #endif
 	struct obs_module_failure_info mfi;
 
+	addPrismPlugins();
+
 	/* Safe Mode disables third-party plugins so we don't need to add earch
 	 * paths outside the OBS bundle/installation. */
 	if (GlobalVars::safe_mode || GlobalVars::disable_3p_plugins) {
@@ -2580,7 +2676,6 @@ bool OBSBasic::OBSInit()
 	} else {
 		AddExtraModulePaths();
 	}
-	addPrismPlugins();
 
 	/* Modules can access frontend information (i.e. profile and scene collection data) during their initialization, and some modules (e.g. obs-websockets) are known to use the filesystem location of the current profile in their own code.
      
@@ -2619,7 +2714,9 @@ bool OBSBasic::OBSInit()
 	LAB_LOG("end load prism-plugins folder load all module");
 	PLS_INIT_INFO(MAINFRAME_MODULE, "All plugins for the app have been loaded");
 
-	pls_load_all_modules2(&mfi, moduleCallback);
+	PLS_PERFORMANCE_START(pls_load_all_modules2);
+	pls_load_all_modules2(&mfi, moduleCallback, loadModule);
+	PLS_PERFORMANCE_END(pls_load_all_modules2);
 	pls_finish_recording_third_party_plugin();
 #else
 	auto moduleCallback = [](const char *bin_path) {
@@ -2632,15 +2729,26 @@ bool OBSBasic::OBSInit()
 
 		return true;
 	};
-	pls_load_all_modules2(&mfi, moduleCallback);
+	PLS_PERFORMANCE_START(pls_load_all_modules2);
+	pls_load_all_modules2(&mfi, moduleCallback, loadModule);
+	PLS_PERFORMANCE_END(pls_load_all_modules2);
 	PLS_INIT_INFO(MAINFRAME_MODULE, "All plugins for the app have been loaded");
 #endif
 
 	blog(LOG_INFO, "--------------------------------- finish load app plugins");
+	PLS_PERFORMANCE_START(obs_log_loaded_modules);
 	obs_log_loaded_modules();
+	PLS_PERFORMANCE_END(obs_log_loaded_modules);
 	blog(LOG_INFO, "---------------------------------");
+	PLS_PERFORMANCE_START(obs_post_load_modules);
 	obs_post_load_modules();
+	PLS_PERFORMANCE_END(obs_post_load_modules);
 
+#if defined(Q_OS_WIN)
+	PLSRegionCapture::PrewarmService();
+#endif
+
+	PLS_PERFORMANCE_START(pls_log_loaded_modules);
 	auto log_module_callback = [](const char *module_name, bool internal_module) {
 		if (!internal_module) {
 			PLS_LOGEX(PLS_LOG_INFO, MAIN_ACTION_LOG, {{"third-plugins", module_name}}, "third_plugins : %s",
@@ -2648,10 +2756,11 @@ bool OBSBasic::OBSInit()
 		}
 	};
 	pls_log_loaded_modules(log_module_callback);
+	PLS_PERFORMANCE_END(pls_log_loaded_modules);
 
 	BPtr<char *> failed_modules = mfi.failed_modules;
 
-	pls::browser::init(pls_get_current_language());
+	pls::browser::init();
 
 #ifdef BROWSER_AVAILABLE
 	cef = obs_browser_init_panel();
@@ -2731,7 +2840,6 @@ bool OBSBasic::OBSInit()
 	if (contextVisible)
 		UpdateContextBarDeferred(true);
 	UpdateEditMenu();
-
 	InitSceneCollections();
 
 	char savePath[1024];
@@ -2743,8 +2851,8 @@ bool OBSBasic::OBSInit()
 		throw "Failed to get scene collection json file path";
 	PLS_INIT_INFO(MAINFRAME_MODULE, "Start to loadProfile");
 	loadProfile(savePath, sceneCollection,
-		    App()->getAppRunningPath().isEmpty() ? LoadSceneCollectionWay::RunPrismImmediately
-							 : LoadSceneCollectionWay::RunPscWhenNoPrism);
+		    App()->openFilePath().isEmpty() ? LoadSceneCollectionWay::RunPrismImmediately
+						    : LoadSceneCollectionWay::RunPscWhenNoPrism);
 #if 0
 	{
 		ProfileScope("OBSBasic::Load");
@@ -2798,10 +2906,7 @@ bool OBSBasic::OBSInit()
 
 	auto addDisplay = [this](OBSQTDisplay *window) {
 		obs_display_add_draw_callback(window->GetDisplay(), OBSBasic::RenderMain, this);
-
-		struct obs_video_info ovi;
-		if (obs_get_video_info(&ovi))
-			ResizePreview(ovi.base_width, ovi.base_height);
+		ResizePreview();
 	};
 
 	connect(ui->preview, &OBSQTDisplay::DisplayCreated, addDisplay);
@@ -2815,7 +2920,12 @@ bool OBSBasic::OBSInit()
 
 	if (willshow) {
 		PLSBasic::instance()->PLSInit();
+		pls::lens::startLensIfNeed();
 	}
+	if (hideWindowOnStart && willshow) {
+		printTotalStartTime();
+	}
+
 #ifdef _WIN32
 	SetWin32DropStyle(this);
 	if (!hideWindowOnStart && willshow) {
@@ -2875,7 +2985,6 @@ bool OBSBasic::OBSInit()
 		ui->menuDocks->insertSeparator(ui->scenesDock->toggleViewAction());
 
 		LoadExtraBrowserDocks();
-		loadNcb2bBrowserSettingsDocks();
 	}
 #endif
 
@@ -2895,7 +3004,9 @@ bool OBSBasic::OBSInit()
 
 	if (!dockStateStr) {
 		on_resetDocks_triggered(true);
+		loadNcb2bBrowserSettingsDocks();
 	} else {
+		loadNcb2bBrowserSettingsDocks();
 		QByteArray dockState = QByteArray::fromBase64(QByteArray(dockStateStr));
 		if (!restoreState(dockState)) {
 			on_resetDocks_triggered(true);
@@ -2972,7 +3083,8 @@ bool OBSBasic::OBSInit()
 	ui->menuMultiview->addAction(QTStr("Windowed"), this, SLOT(OpenMultiviewWindow()));
 	multiviewProjectorMenu = new QMenu(QTStr("Fullscreen"), this);
 	ui->menuMultiview->addMenu(multiviewProjectorMenu);
-	AddProjectorMenuMonitors(multiviewProjectorMenu, this, &OBSBasic::OpenMultiviewProjector);
+	AddProjectorMenuMonitors(multiviewProjectorMenu, this, "Multiview Projector",
+				 &OBSBasic::OpenMultiviewProjector);
 	connect(ui->menuMultiview->menuAction(), &QAction::hovered, this, &OBSBasic::UpdateMultiviewProjectorMenu);
 
 #if 0
@@ -3033,8 +3145,10 @@ bool OBSBasic::OBSInit()
 			plugin++;
 		}
 
-		QString failed_msg = QTStr("PluginsFailedToLoad.Text").arg(failed_plugins);
-		OBSMessageBox::warning(this, QTStr("PluginsFailedToLoad.Title"), failed_msg);
+		PLSErrorHandler::ExtraData extraData(QString::fromUtf8(__FUNCTION__));
+		extraData.defaultArg = {failed_plugins};
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_PLUGIN_LOAD_FAIL, PLSErrKeyAllAlert, {},
+						      extraData, this);
 	}
 
 	PLSBasic::instance()->graphicsCardNotice();
@@ -3081,10 +3195,10 @@ void OBSBasic::OnFirstLoad()
 								 return a + (a.empty() ? "" : "\n") + "• " + b.name;
 							 });
 
-		auto pluginContent = std::string(Str("thirdpartyplugin.alert.content")) + "\n\n" + pluginDescription;
-
-		PLSAlertView::information(App()->getMainView(), QTStr("Alert.Title"),
-					  QString::fromStdString(pluginContent));
+		PLSErrorHandler::ExtraData extraData(QString::fromUtf8(__FUNCTION__));
+		extraData.defaultArg = {QString::fromStdString(pluginDescription)};
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_3RD_CRASH_PLUGIN_IGNORE, PLSErrKeyAllAlert,
+						      {}, extraData, App()->getMainView());
 	}
 }
 
@@ -3190,7 +3304,8 @@ void OBSBasic::ShowWhatsNew(const QString &url)
 void OBSBasic::UpdateMultiviewProjectorMenu()
 {
 	multiviewProjectorMenu->clear();
-	AddProjectorMenuMonitors(multiviewProjectorMenu, this, &OBSBasic::OpenMultiviewProjector);
+	AddProjectorMenuMonitors(multiviewProjectorMenu, this, "Multiview Projector",
+				 &OBSBasic::OpenMultiviewProjector);
 }
 
 void OBSBasic::InitHotkeys()
@@ -3487,15 +3602,17 @@ void OBSBasic::ClearHotkeys()
 
 OBSBasic::~OBSBasic()
 {
+	PLS_INFO(MAINFRAME_MODULE, "~OBSBasic() enter");
 	timed_mutex mutexExit;
 	mutexExit.lock();
 	auto threadExit = std::thread([&mutexExit, this] {
-		if (!mutexExit.try_lock_for(10s)) {
+		if (!pls_is_debugger_present() && !mutexExit.try_lock_for(10s)) {
 			PLS_LOGEX(PLS_LOG_ERROR, MAINFRAME_MODULE,
 				  {{"exitTimeout",
 				    to_string(static_cast<int>(init_exception_code::timeout_by_encoder)).data()}},
 				  "PRISM exit timeout");
 
+			pls_capture_force_exit_dump("timeout_by_encoder");
 			pls_log_cleanup();
 
 #if defined(Q_OS_MACOS)
@@ -3516,10 +3633,10 @@ OBSBasic::~OBSBasic()
 	/* clear out UI event queue */
 	cpuUsageTimer->stop();
 	diskFullTimer->stop();
-
+	PLS_INFO(MAINFRAME_MODULE, "~OBSBasic() start to sendPostedEvents");
 	QApplication::sendPostedEvents(nullptr);
 	QApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-
+	PLS_INFO(MAINFRAME_MODULE, "~OBSBasic() end to sendPostedEvents");
 	if (updateCheckThread && updateCheckThread->isRunning())
 		updateCheckThread->wait();
 
@@ -3554,6 +3671,9 @@ OBSBasic::~OBSBasic()
 	 * libobs. */
 	delete cpuUsageTimer;
 	os_cpu_usage_info_destroy(cpuUsageInfo);
+#if defined(Q_OS_WINDOWS)
+	sys_cpu_usage_info_destroy(sysCpuUsageInfo);
+#endif
 
 	obs_hotkey_set_callback_routing_func(nullptr, nullptr);
 	ClearHotkeys();
@@ -3572,10 +3692,6 @@ OBSBasic::~OBSBasic()
 	obs_display_remove_draw_callback(ui->preview->GetDisplay(), OBSBasic::RenderMain, this);
 	if (verticalDisplay && verticalDisplay->GetDisplay()) {
 		obs_display_remove_draw_callback(verticalDisplay->GetDisplay(), OBSBasic::RenderVerticalDisplay, this);
-	}
-	if (nullptr != secondayVideo) {
-		pls_vertical_view_remove();
-		secondayVideo = nullptr;
 	}
 
 	obs_enter_graphics();
@@ -3774,9 +3890,19 @@ void OBSBasic::CreatePropertiesWindow(obs_source_t *source, unsigned flags)
 	if (!closed)
 		return;
 
-	updateSpectralizerAudioSources(source, flags);
+	auto id = obs_source_get_id(source);
+	if (id) {
+		PLS_UI_ACTION("%s request property window", id);
+	}
 
+	updateSpectralizerAudioSources(source, flags);
+	PLS_PERFORMANCE_GLOBAL_END("source tree db click");
+	PLS_PERFORMANCE_GLOBAL_START("Properties Page Construct", "properties_show");
 	properties = new PLSBasicProperties(this, source, flags);
+	PLS_PERFORMANCE_GLOBAL_END("Properties Page Construct");
+	PLS_PERFORMANCE_GLOBAL_START("PLSBasicProperties show", "properties_show");
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(properties, PLS_PERFORMANCE_GLOBAL_END("PLSBasicProperties show");
+						    PLS_PERFORMANCE_GLOBAL_END("properties_show"));
 	properties->Init();
 	properties->setAttribute(Qt::WA_DeleteOnClose, true);
 }
@@ -3876,7 +4002,6 @@ void OBSBasic::AddScene(OBSSource source)
 
 		OBSProjector::UpdateMultiviewProjectors();
 	}
-	checkSceneDisplayMethod();
 
 	OnEvent(OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED);
 	OnEvent(OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED);
@@ -3920,7 +4045,6 @@ void OBSBasic::RemoveScene(OBSSource source)
 
 		OBSProjector::UpdateMultiviewProjectors();
 	}
-	checkSceneDisplayMethod();
 
 	OnEvent(OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED);
 }
@@ -3935,6 +4059,13 @@ static bool select_one(obs_scene_t * /* scene */, obs_sceneitem_t *item, void *p
 
 	return true;
 }
+
+static bool select_top(obs_scene_t *, obs_sceneitem_t *item, void *param)
+{
+	vector<OBSSceneItem> &items = *reinterpret_cast<vector<OBSSceneItem> *>(param);
+	items.emplace_back(item);
+	return true;
+};
 
 struct EnumSceneSourceHelper {
 	obs_scene_t *curScene; // input param
@@ -3972,6 +4103,12 @@ void OBSBasic::AddSceneItem(OBSSceneItem item)
 		ui->sources->resetMousePressed();
 		ui->sources->Add(item);
 		PLSBasic::instance()->AddBgmItem(item);
+
+		// Temporary solution for the situation where the rendered image is not displayed when adding a source.
+		QTimer::singleShot(200, [this]() {
+			pls_check_app_exiting();
+			ui->scenesFrame->RefreshSceneThumbnail();
+		});
 	}
 
 	SaveProject();
@@ -3981,6 +4118,8 @@ void OBSBasic::AddSceneItem(OBSSceneItem item)
 		obs_source_t *itemSource = obs_sceneitem_get_source(item);
 		blog(LOG_INFO, "User added source '%s' (%s) to scene '%s'", obs_source_get_name(itemSource),
 		     obs_source_get_id(itemSource), obs_source_get_name(sceneSource));
+		PLS_UI_ACTION("User added source '%s' (%s) to scene '%s'", obs_source_get_name(itemSource),
+			      obs_source_get_id(itemSource), obs_source_get_name(sceneSource));
 
 		auto cb = [](void *helper, obs_source_t *src) {
 			obs_scene_t *scene = obs_scene_from_source(src);
@@ -4005,6 +4144,18 @@ void OBSBasic::AddSceneItem(OBSSceneItem item)
 			ui->sources->SelectItem(item, helper.sourceSelected, true);
 			return;
 		}
+
+		OBSDataAutoRelease data = obs_sceneitem_get_private_settings(item);
+		auto id = obs_data_get_string(data, "source_uuid");
+		if (!pls_is_empty(id)) {
+			vector<OBSSceneItem> items;
+			obs_scene_enum_items(scene, select_top, &items);
+			if (!items.empty()) {
+				obs_sceneitem_select(items.back(), true);
+			}
+			return;
+		}
+
 		if (pls_is_dual_output_on()) {
 			pls_scene_enum_items_all(scene, select_one, (obs_sceneitem_t *)item);
 		} else {
@@ -4052,11 +4203,11 @@ void OBSBasic::RenameSources(OBSSource source, QString newName, QString prevName
 	SaveProject();
 
 	obs_sceneitem_t *sceneItem =
-		PLSBasic::instance()->GetCurrentSceneItemBySourceName(newName.toStdString().c_str());
+		PLSBasic::instance()->GetCurrentSceneItemBySourceName(newName.toUtf8().constData());
 	if (sceneItem) {
 		PLSBasic::instance()->RenameBgmSourceName(sceneItem, newName, prevName);
 	}
-	PLSSceneitemMapMgrInstance->renameConfig(source, prevName.toStdString().c_str(), newName.toStdString().c_str());
+	PLSSceneitemMapMgrInstance->renameConfig(source, prevName.toUtf8().constData(), newName.toUtf8().constData());
 
 	const char *id = obs_source_get_id(source);
 	emit sourceRenmame((qint64)source.Get(), QString(id), newName, prevName);
@@ -4071,6 +4222,7 @@ void OBSBasic::RenameSources(OBSSource source, QString newName, QString prevName
 
 void OBSBasic::ClearContextBar()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	QLayoutItem *la = ui->emptySpace->layout()->itemAt(0);
 	if (la) {
 		delete la->widget();
@@ -4173,10 +4325,10 @@ void OBSBasic::UpdateContextBar(bool force)
 			ClearContextBar();
 			if (flags & OBS_SOURCE_CONTROLLABLE_MEDIA) {
 				if (pls_is_equal(id, BGM_SOURCE_ID)) {
-					PLSBgmControlsView *bgmControls = new PLSBgmControlsView(ui->emptySpace);
-					bgmControls->SetSource(source);
-					bgmControls->UpdateUI();
-					ui->emptySpace->layout()->addWidget(bgmControls);
+					m_bgmControls = new PLSBgmControlsView(ui->emptySpace);
+					m_bgmControls->SetSource(source, (uint64_t)item.Get());
+					m_bgmControls->UpdateUI();
+					ui->emptySpace->layout()->addWidget(m_bgmControls);
 				} else if (!is_network_media_source(source, id)) {
 					MediaControls *mediaControls = new MediaControls(ui->emptySpace);
 					mediaControls->SetSource(source);
@@ -4259,8 +4411,13 @@ void OBSBasic::UpdateContextBar(bool force)
 		const char *name = obs_source_get_name(source);
 		ui->contextSourceLabel->SetText(name);
 		bool ignoreGroup = pls_is_dual_output_on() && obs_source_is_group(source);
-		ui->sourceFiltersButton->setEnabled(!ignoreGroup);
+		ui->sourceFiltersButton->setEnabled(!ignoreGroup && obs_source_configurable(source));
 		ui->sourcePropertiesButton->setEnabled(obs_source_configurable(source));
+
+		if (id) {
+			pls_uistep_v2_set_title(ui->contextContainer, QString("ToolBar For '%1'").arg(id));
+		}
+
 	} else {
 		ClearContextBar();
 		ui->contextSourceIcon->hide();
@@ -4278,6 +4435,9 @@ void OBSBasic::UpdateContextBar(bool force)
 	ui->sourcePropertiesButton->setText(QTStr("Properties"));
 	ui->sourceFiltersButton->setText(QTStr("Filters"));
 	ui->sourceInteractButton->setText(QTStr("Interact"));
+	pls_uistep_v2_set_custom_enter_leave_name(ui->sourcePropertiesButton, "Source ToolBar Properties");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->sourceFiltersButton, "Source ToolBar Filters");
+	pls_uistep_v2_set_custom_enter_leave_name(ui->sourceInteractButton, "Source ToolBar Interact");
 }
 
 static inline bool SourceMixerHidden(obs_source_t *source)
@@ -4361,6 +4521,7 @@ void OBSBasic::ToggleHideMixer()
 		SetSourceMixerHidden(source, false);
 		ActivateAudioSource(source);
 	}
+	PLS_UI_ACTION("In Main Window, the action hide in mixer triggered.");
 }
 
 void OBSBasic::MixerRenameSource()
@@ -4380,14 +4541,18 @@ void OBSBasic::MixerRenameSource()
 			return;
 
 		if (name.empty()) {
-			OBSMessageBox::warning(this, QTStr("Alert.Title"), QTStr("NoNameEntered.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_No_Name_Entered, PLSErrKeyAllAlert,
+							      QString(),
+							      PLSErrorHandler::ExtraData("MixerRenameSource"), nullptr);
 			continue;
 		}
 
 		OBSSourceAutoRelease sourceTest = obs_get_source_by_name(name.c_str());
 
 		if (sourceTest) {
-			OBSMessageBox::warning(this, QTStr("Alert.Title"), QTStr("NameExists.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_Name_Exists, PLSErrKeyAllAlert,
+							      QString(),
+							      PLSErrorHandler::ExtraData("MixerRenameSource"), nullptr);
 			continue;
 		}
 
@@ -4416,7 +4581,7 @@ void OBSBasic::LockVolumeControl(bool lock)
 	vol->EnableSlider(!lock);
 }
 
-void OBSBasic::VolControlContextMenu()
+void OBSBasic::showSingleAudioMoreMenu()
 {
 	VolControl *vol = reinterpret_cast<VolControl *>(sender());
 
@@ -4482,6 +4647,18 @@ void OBSBasic::VolControlContextMenu()
 
 	pasteFiltersAction.setEnabled(!obs_weak_source_expired(copyFiltersSource));
 
+	QString newActionName = QString("%1 Audio Mixer Config Popup Menu").arg(vol->GetName());
+	pls_uistep_v2_set_name(&lockAction, newActionName);
+	pls_uistep_v2_set_name(&hideAction, newActionName);
+	pls_uistep_v2_set_name(&unhideAllAction, newActionName);
+	pls_uistep_v2_set_name(&mixerRenameAction, newActionName);
+	pls_uistep_v2_set_name(&copyFiltersAction, newActionName);
+	pls_uistep_v2_set_name(&pasteFiltersAction, newActionName);
+	pls_uistep_v2_set_name(&toggleControlLayoutAction, newActionName);
+	pls_uistep_v2_set_name(&filtersAction, newActionName);
+	pls_uistep_v2_set_name(&propertiesAction, newActionName);
+	pls_uistep_v2_set_name(&advPropAction, newActionName);
+
 	QMenu popup;
 	vol->SetContextMenu(&popup);
 	popup.addAction(&lockAction);
@@ -4498,6 +4675,7 @@ void OBSBasic::VolControlContextMenu()
 	popup.addAction(&filtersAction);
 	popup.addAction(&propertiesAction);
 	popup.addAction(&advPropAction);
+	pls_uistep_v2_set_custom_show_hide_name(&popup, "Audio Mixer More Context Menu");
 
 	// toggleControlLayoutAction deletes and re-creates the volume controls
 	// meaning that "vol" would be pointing to freed memory.
@@ -4505,8 +4683,21 @@ void OBSBasic::VolControlContextMenu()
 		vol->SetContextMenu(nullptr);
 }
 
+void OBSBasic::VolControlContextMenu()
+{
+	PLS_UI_ACTION("Audio Mixer Single Audio Right Mouse Button Clicked");
+	showSingleAudioMoreMenu();
+}
+
+void OBSBasic::VolControlMoreButtonMenu()
+{
+	PLS_UI_ACTION("Audio Mixer Single Audio More Button Clicked");
+	showSingleAudioMoreMenu();
+}
+
 void OBSBasic::on_hMixerScrollArea_customContextMenuRequested()
 {
+	PLS_UI_ACTION("Audio Mixer White Space Right Button Clicked");
 	StackedMixerAreaContextMenuRequested();
 }
 
@@ -4540,12 +4731,19 @@ void OBSBasic::StackedMixerAreaContextMenuRequested()
 
 	/* ------------------- */
 
+	QString newActionName = QString("Audio Mixer Right Key Popup Menu");
+	pls_uistep_v2_set_name(&unhideAllAction, newActionName);
+	pls_uistep_v2_set_name(&toggleControlLayoutAction, newActionName);
+	pls_uistep_v2_set_name(&advPropAction, newActionName);
+
 	QMenu popup;
 	popup.addAction(&unhideAllAction);
 	popup.addSeparator();
 	popup.addAction(&toggleControlLayoutAction);
 	popup.addSeparator();
 	popup.addAction(&advPropAction);
+	pls_uistep_v2_set_custom_show_hide_name(&popup, "Audio Mixer White Space Context Menu");
+
 	popup.exec(QCursor::pos());
 }
 
@@ -4646,7 +4844,7 @@ void OBSBasic::ActivateAudioSource(OBSSource source)
 	vol->setContextMenuPolicy(Qt::CustomContextMenu);
 
 	connect(vol, &QWidget::customContextMenuRequested, this, &OBSBasic::VolControlContextMenu);
-	connect(vol, &VolControl::ConfigClicked, this, &OBSBasic::VolControlContextMenu);
+	connect(vol, &VolControl::ConfigClicked, this, &OBSBasic::VolControlMoreButtonMenu);
 
 	//InsertQObjectByName(volumes, vol);
 	unique_push_back(volumes, vol);
@@ -4680,6 +4878,27 @@ void OBSBasic::DeactivateAudioSource(OBSSource source)
 
 bool OBSBasic::QueryRemoveSource(obs_source_t *source, QWidget *parent)
 {
+	int count = PLSSceneDataMgr::Instance()->GetSceneSize();
+	auto sourcesCount = ui->sources->Count();
+
+	if (obs_source_get_type(source) == OBS_SOURCE_TYPE_SCENE && !obs_source_is_group(source) && count == 1 &&
+	    sourcesCount == 0) {
+		OBSMessageBox::information(this, QTStr("FinalScene.Title"), QTStr("FinalScene.Text"));
+		return false;
+	}
+
+	bool result = false;
+	const char *name = obs_source_get_name(source);
+	QString msg = QTStr("ConfirmRemove.Text.body").arg(QString::fromUtf8(name));
+
+	result = PLSAlertView::Button::Ok ==
+		 PLSMessageBox::question(parent, QTStr("ConfirmRemove.Title"), msg,
+					 PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel);
+
+	if (!result) {
+		return false;
+	}
+
 	if (obs_source_get_type(source) == OBS_SOURCE_TYPE_SCENE && !obs_source_is_group(source)) {
 		int count = PLSSceneDataMgr::Instance()->GetSceneSize();
 
@@ -4713,21 +4932,7 @@ bool OBSBasic::QueryRemoveSource(obs_source_t *source, QWidget *parent)
 			return false;
 		}
 	}
-
-	const char *name = obs_source_get_name(source);
-
-	QString text = QTStr("ConfirmRemove.Text.title");
-
-	if (0 == strcmp(App()->GetLocale(), "ko-KR")) {
-		return PLSAlertView::Button::Ok ==
-		       PLSMessageBox::question(parent, QTStr("Confirm"), name, text,
-					       PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel);
-
-	} else {
-		return PLSAlertView::Button::Ok ==
-		       PLSMessageBox::question(parent, QTStr("Confirm"), text, name,
-					       PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel);
-	}
+	return true;
 }
 
 #define UPDATE_CHECK_INTERVAL (60 * 60 * 24 * 4) /* 4 days */
@@ -4840,13 +5045,19 @@ void OBSBasic::DuplicateSelectedScene()
 			return;
 
 		if (name.empty()) {
-			OBSMessageBox::warning(this, QTStr("Alert.Title"), QTStr("NoNameEntered.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_No_Name_Entered, PLSErrKeyAllAlert,
+							      QString(),
+							      PLSErrorHandler::ExtraData("DuplicateSelectedScene"),
+							      nullptr);
 			continue;
 		}
 
 		obs_source_t *source = obs_get_source_by_name(name.c_str());
 		if (source) {
-			OBSMessageBox::warning(this, QTStr("Alert.Title"), QTStr("NameExists.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_Name_Exists, PLSErrKeyAllAlert,
+							      QString(),
+							      PLSErrorHandler::ExtraData("DuplicateSelectedScene"),
+							      nullptr);
 
 			obs_source_release(source);
 			continue;
@@ -5268,6 +5479,7 @@ void OBSBasic::DrawBackdrop(float cx, float cy)
 void OBSBasic::RenderMain(void *data, uint32_t cx, uint32_t cy)
 {
 	GS_DEBUG_MARKER_BEGIN(GS_DEBUG_COLOR_DEFAULT, "RenderMain");
+	PLS_PERFORMANCE_FUNCTION();
 
 	OBSBasic *window = static_cast<OBSBasic *>(data);
 	obs_video_info ovi;
@@ -5312,7 +5524,7 @@ void OBSBasic::RenderMain(void *data, uint32_t cx, uint32_t cy)
 			window->previewCX[PLSOutputHandler::Horizontal],
 			window->previewCY[PLSOutputHandler::Horizontal]);
 
-	if (window->IsPreviewProgramMode()) {
+	if (window->IsPreviewProgramMode() || window->ui->preview->IsCropping()) {
 		window->DrawBackdrop(float(ovi.base_width), float(ovi.base_height));
 
 		OBSScene scene = window->GetCurrentScene();
@@ -5342,10 +5554,47 @@ void OBSBasic::RenderMain(void *data, uint32_t cx, uint32_t cy)
 		RenderSafeAreas(window->rightLine[PLSOutputHandler::Horizontal], targetCX, targetCY);
 	}
 
-	window->ui->preview->DrawSceneEditing();
+#ifdef PLS_UI_ACTION_STATS
+	uint64_t currentTime = os_gettime_ns();
+	bool bRendered = false;
+	if (window->ui->preview->lastActionTime != 0 && currentTime > window->ui->preview->lastActionTime) {
+		bRendered = true;
+	}
+	auto guard1 = qScopeGuard([&bRendered, &window] {
+		if (bRendered) {
+			PLS_UI_ACTION("Previous changed in preview have been rendered");
+			PLS_PERFORMANCE_GLOBAL_END("SetCurrentSceneWithoutInterrupt");
+			window->ui->preview->lastActionTime = 0;
+		}
+	});
+	bool bRenderSelected = false;
+	if (window->ui->preview->lastSelectedActionTime != 0 &&
+	    currentTime > window->ui->preview->lastSelectedActionTime) {
+		bRenderSelected = true;
+	}
+	auto guard2 = qScopeGuard([&bRenderSelected, &window] {
+		if (bRenderSelected) {
+			PLS_UI_ACTION("Source select or unselect");
+			window->ui->preview->lastSelectedActionTime = 0;
+		}
+	});
 
+	if (window->GetCurrentScene()) {
+		obs_source_t *source = obs_scene_get_source(window->GetCurrentScene());
+		const char *sceneName = obs_source_get_name(source);
+		std::lock_guard<std::mutex> lock(window->ui->preview->pendingRenderSceneNameMutex);
+		if (window->ui->preview->pendingRenderSceneName == sceneName) {
+			PLS_UI_ACTION("Scene changed in preview have been rendered");
+			window->ui->preview->pendingRenderSceneName = "";
+		}
+	}
+#endif
+
+	window->ui->preview->DrawSceneEditing();
 	if (window->drawSpacingHelpers)
 		window->ui->preview->DrawSpacingHelpers();
+	window->ui->preview->DrawRotationHandle();
+	window->ui->preview->DrawAlignLines();
 
 	/* --------------------------------------- */
 
@@ -5411,7 +5660,18 @@ void OBSBasic::RenderVerticalDisplay(void *data, uint32_t, uint32_t)
 	gs_set_viewport(window->previewX[PLSOutputHandler::Vertical], window->previewY[PLSOutputHandler::Vertical],
 			window->previewCX[PLSOutputHandler::Vertical], window->previewCY[PLSOutputHandler::Vertical]);
 
-	pls_render_vertical_main_texture_src_color_only();
+	if (!window->verticalDisplay->IsCropping()) {
+		pls_render_vertical_main_texture_src_color_only();
+	} else {
+		window->DrawBackdrop(float(ovi.base_width), float(ovi.base_height));
+
+		OBSScene scene = window->GetCurrentScene();
+		obs_source_t *source = obs_scene_get_source(scene);
+		if (source) {
+			pls_source_video_render_vertical_when_render_display(source);
+		}
+	}
+
 	gs_load_vertexbuffer(nullptr);
 
 	/* --------------------------------------- */
@@ -5431,12 +5691,35 @@ void OBSBasic::RenderVerticalDisplay(void *data, uint32_t, uint32_t)
 		RenderSafeAreas(window->topLine[PLSOutputHandler::Vertical], targetCX, targetCY);
 		RenderSafeAreas(window->rightLine[PLSOutputHandler::Vertical], targetCX, targetCY);
 	}
-
+#ifdef PLS_UI_ACTION_STATS
+	uint64_t currentTime = os_gettime_ns();
+	bool bRendered = false;
+	if (window->verticalDisplay->lastActionTime != 0 && currentTime > window->verticalDisplay->lastActionTime) {
+		bRendered = true;
+	}
+	auto guard1 = qScopeGuard([&bRendered, &window] {
+		if (bRendered) {
+			PLS_UI_ACTION("Previous changed in preview have been rendered");
+			window->verticalDisplay->lastActionTime = 0;
+		}
+	});
+	bool bRenderSelected = false;
+	if (window->verticalDisplay->lastSelectedActionTime != 0 &&
+	    currentTime > window->verticalDisplay->lastSelectedActionTime) {
+		bRenderSelected = true;
+	}
+	auto guard2 = qScopeGuard([&bRenderSelected, &window] {
+		if (bRenderSelected) {
+			PLS_UI_ACTION("Source select or unselect");
+			window->verticalDisplay->lastSelectedActionTime = 0;
+		}
+	});
+#endif
 	window->verticalDisplay->DrawSceneEditing();
-
 	if (window->drawSpacingHelpers)
 		window->verticalDisplay->DrawSpacingHelpers();
-
+	window->verticalDisplay->DrawRotationHandle();
+	window->verticalDisplay->DrawAlignLines();
 	/* --------------------------------------- */
 
 	gs_projection_pop();
@@ -5527,6 +5810,7 @@ bool OBSBasic::Active() const
 
 static inline int AttemptToResetVideo(struct obs_video_info *ovi)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	return obs_reset_video(ovi);
 }
 
@@ -5603,6 +5887,7 @@ void OBSBasic::ResetUI()
 
 int OBSBasic::ResetVideo()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (outputHandler && outputHandler.Active())
 		return OBS_VIDEO_CURRENTLY_ACTIVE;
 
@@ -5696,6 +5981,7 @@ int OBSBasic::ResetVideo()
 
 void OBSBasic::RemoveVerticalVideo()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (nullptr != secondayVideo) {
 		if (verticalDisplay && verticalDisplay->GetDisplay()) {
 			obs_display_remove_draw_callback(verticalDisplay->GetDisplay(), OBSBasic::RenderVerticalDisplay,
@@ -5711,6 +5997,7 @@ void OBSBasic::RemoveVerticalVideo()
 
 void OBSBasic::ResetVerticalVideo()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	RemoveVerticalVideo();
 
 	struct obs_video_info ovi;
@@ -5753,6 +6040,7 @@ void OBSBasic::ResetVerticalVideo()
 bool OBSBasic::ResetAudio()
 {
 	ProfileScope("OBSBasic::ResetAudio");
+	PLS_PERFORMANCE_FUNCTION();
 
 	struct obs_audio_info2 ai = {};
 	ai.samples_per_sec = config_get_uint(activeConfiguration, "Audio", "SampleRate");
@@ -5836,9 +6124,19 @@ void nodifyTextmotionBoxsize(uint32_t cx, uint32_t cy, bool bVertical)
 
 void OBSBasic::ResizePreview(uint32_t cx, uint32_t cy)
 {
+	PLS_PERFORMANCE_FUNCTION();
+
+	if ((cx == UINT32_MAX) && (cy == UINT32_MAX)) {
+		struct obs_video_info ovi;
+		if (!obs_get_video_info(&ovi))
+			return;
+
+		cx = ovi.base_width;
+		cy = ovi.base_height;
+	}
+
 	QSize targetSize;
 	bool isFixedScaling;
-	obs_video_info ovi;
 
 	/* resize preview panel to fix to the top section of the window */
 	targetSize = GetPixelSize(ui->preview);
@@ -5858,8 +6156,6 @@ void OBSBasic::ResizePreview(uint32_t cx, uint32_t cy)
 	}
 
 	isFixedScaling = ui->preview->IsFixedScaling();
-	obs_get_video_info(&ovi);
-
 	if (isFixedScaling) {
 		previewScale[PLSOutputHandler::Horizontal] = ui->preview->GetScalingAmount();
 		ui->preview->ClampScrollingOffsets();
@@ -5881,7 +6177,106 @@ void OBSBasic::ResizePreview(uint32_t cx, uint32_t cy)
 
 	previewX[PLSOutputHandler::Horizontal] += float(PREVIEW_EDGE_SIZE);
 	previewY[PLSOutputHandler::Horizontal] += float(PREVIEW_EDGE_SIZE);
+
+	if (m_previewMaskWidget) {
+		m_previewMaskWidget->setPreviewRect(previewX[PLSOutputHandler::Horizontal] / dpi,
+						    previewY[PLSOutputHandler::Horizontal] / dpi,
+						    previewCX[PLSOutputHandler::Horizontal] / dpi,
+						    previewCY[PLSOutputHandler::Horizontal] / dpi);
+	}
 	nodifyTextmotionBoxsize(cx, cy, false);
+	PLS_UI_ACTION("Preview has been scaled");
+}
+
+//PRISM/FanZirong/20260310/PRISM_PC-5472/Game source size display in fullscreen
+static bool transform_equals(const obs_transform_info &a, const obs_transform_info &b, float eps = 1e-5f)
+{
+	return fabsf(a.pos.x - b.pos.x) <= eps && fabsf(a.pos.y - b.pos.y) <= eps && fabsf(a.rot - b.rot) <= eps &&
+	       fabsf(a.scale.x - b.scale.x) <= eps && fabsf(a.scale.y - b.scale.y) <= eps &&
+	       a.alignment == b.alignment && a.bounds_type == b.bounds_type &&
+	       a.bounds_alignment == b.bounds_alignment && fabsf(a.bounds.x - b.bounds.x) <= eps &&
+	       fabsf(a.bounds.y - b.bounds.y) <= eps && a.crop_to_bounds == b.crop_to_bounds;
+}
+
+void OBSBasic::RegisterPendingGameSourceLayout(OBSScene scene, int64_t item_id,
+					       const obs_transform_info &initial_transform)
+{
+	if (!scene || item_id == 0)
+		return;
+	obs_source_t *scene_src = obs_scene_get_source(scene);
+	if (!scene_src)
+		return;
+	const char *uuid_c = obs_source_get_uuid(scene_src);
+	if (!uuid_c || !*uuid_c)
+		return;
+	m_pendingGameSourceLayout.append({QString::fromUtf8(uuid_c), item_id, initial_transform});
+	/* CheckPendingGameSourceLayout is also triggered by source_message(PLS_SOURCE_GAME_CAPTURE_SUCCESS_MSG) when capture succeeds. When adding an already-capturing source we never get that message, so we queue one check after registration to cover that case. */
+	QMetaObject::invokeMethod(this, "CheckPendingGameSourceLayout", Qt::QueuedConnection);
+}
+
+void OBSBasic::CheckPendingGameSourceLayout()
+{
+	obs_video_info ovi;
+	if (!obs_get_video_info(&ovi) || ovi.base_height == 0)
+		return;
+
+	for (int i = m_pendingGameSourceLayout.size() - 1; i >= 0; --i) {
+		const auto &pending = m_pendingGameSourceLayout[i];
+		if (pending.sceneUuid.isEmpty()) {
+			m_pendingGameSourceLayout.removeAt(i);
+			continue;
+		}
+		OBSSourceAutoRelease scene_source = obs_get_source_by_uuid(QT_TO_UTF8(pending.sceneUuid));
+		if (!scene_source) {
+			m_pendingGameSourceLayout.removeAt(i);
+			continue;
+		}
+		obs_scene_t *scene = obs_scene_from_source(scene_source);
+		if (!scene) {
+			m_pendingGameSourceLayout.removeAt(i);
+			continue;
+		}
+		obs_sceneitem_t *item = obs_scene_find_sceneitem_by_id(scene, pending.item_id);
+		if (!item) {
+			m_pendingGameSourceLayout.removeAt(i);
+			continue;
+		}
+		obs_source_t *src = obs_sceneitem_get_source(item);
+		if (!src || !pls_is_equal(obs_source_get_id(src), GAME_SOURCE_ID)) {
+			m_pendingGameSourceLayout.removeAt(i);
+			continue;
+		}
+		uint32_t w = obs_source_get_width(src);
+		uint32_t h = obs_source_get_height(src);
+		if (w == 0 || h == 0)
+			continue;
+
+		obs_transform_info current;
+		obs_sceneitem_get_info2(item, &current);
+		if (!transform_equals(current, pending.initial_transform)) {
+			/* User has modified transform; keep user's changes, remove from pending list and do not apply auto layout. */
+			m_pendingGameSourceLayout.removeAt(i);
+			continue;
+		}
+
+		/* User has not modified: apply one-time layout based on canvas aspect ratio.
+		 * Portrait canvas (aspect < 0.7): width = canvas width, height proportional.
+		 * Otherwise (widescreen/square): height = canvas height, width proportional. */
+		obs_transform_info info;
+		obs_sceneitem_get_info2(item, &info);
+		double canvasAspect = (double)ovi.base_width / (double)ovi.base_height;
+		float scale;
+		if (canvasAspect < 0.7) {
+			scale = (float)ovi.base_width / (float)w;
+		} else {
+			scale = (float)ovi.base_height / (float)h;
+		}
+		vec2_set(&info.pos, 0.0f, 0.0f);
+		vec2_set(&info.scale, scale, scale);
+		obs_sceneitem_set_info2(item, &info);
+
+		m_pendingGameSourceLayout.removeAt(i);
+	}
 }
 
 void OBSBasic::CloseDialogs()
@@ -5889,10 +6284,6 @@ void OBSBasic::CloseDialogs()
 	QList<QDialog *> childDialogs = mainView->findChildren<QDialog *>();
 	if (!childDialogs.isEmpty()) {
 		for (int i = 0; i < childDialogs.size(); ++i) {
-			if (isSwitchingLoadSources && nullptr != qobject_cast<OBSBasicSettings *>(childDialogs.at(i))) {
-				continue;
-			}
-
 			childDialogs.at(i)->close();
 		}
 	}
@@ -5948,25 +6339,36 @@ void OBSBasic::ClearProjectors()
 
 void OBSBasic::ClearSceneData()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	disableSaving++;
 
 	setCursor(Qt::WaitCursor);
 
 	CloseDialogs();
 
+	if (m_previewMaskWidget) {
+		m_previewMaskWidget->setPreviewRect(previewX[PLSOutputHandler::Horizontal] / dpi,
+						    previewY[PLSOutputHandler::Horizontal] / dpi,
+						    previewCX[PLSOutputHandler::Horizontal] / dpi,
+						    previewCY[PLSOutputHandler::Horizontal] / dpi);
+	}
 	obs_display_remove_draw_callback(ui->preview->GetDisplay(), OBSBasic::RenderMain, this);
+	ui->preview->hide();
+	if (m_previewMaskWidget) {
+		m_previewMaskWidget->repaint();
+	}
 	PLSSceneitemMapMgrInstance->clearSource();
 
-	ui->scenesFrame->StopRefreshThumbnailTimer();
 	PLSSceneDataMgr::Instance()->DeleteAllData();
 
 	if (PLSBasic::instance()) {
 		PLSBasic::instance()->ClearMusicResource();
 	}
-
+	PLS_PERFORMANCE_START(ClearVolumeControls, "1");
 	ClearVolumeControls();
 
 	ui->sources->Clear();
+	PLS_UI_ACTION("Source tree clear finished.");
 	// ClearQuickTransitions();
 	ui->scenesFrame->repaint();
 	ui->scenesFrame->ClearTransition();
@@ -5987,6 +6389,9 @@ void OBSBasic::ClearSceneData()
 		vcamConfig.type = VCamOutputType::ProgramView;
 		outputHandler->UpdateVirtualCamOutputSource();
 	}
+	PLS_PERFORMANCE_END(ClearVolumeControls);
+
+	PLS_PERFORMANCE_START(collectionModuleData, "2");
 
 	collectionModuleData = nullptr;
 	lastScene = nullptr;
@@ -6009,6 +6414,9 @@ void OBSBasic::ClearSceneData()
 	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP);
 
 	undo_s.clear();
+	PLS_PERFORMANCE_END(collectionModuleData);
+
+	PLS_PERFORMANCE_START(sendPostedEvents, "3");
 
 	/* using QEvent::DeferredDelete explicitly is the only way to ensure
 	 * that deleteLater events are processed at this point */
@@ -6039,6 +6447,8 @@ void OBSBasic::ClearSceneData()
 
 	vector<string> orphan_sources;
 	obs_enum_sources(cb2, &orphan_sources);
+	PLS_PERFORMANCE_END(sendPostedEvents);
+	PLS_PERFORMANCE_START(accumulate, "4");
 
 	if (!orphan_sources.empty()) {
 		/* Avoid logging list twice in case it gets called after
@@ -6063,6 +6473,7 @@ void OBSBasic::ClearSceneData()
 		blog(LOG_INFO, "All scene data cleared");
 		blog(LOG_INFO, "------------------------------------------------");
 	}
+	PLS_PERFORMANCE_END(accumulate);
 }
 
 void OBSBasic::mainViewClose(QCloseEvent *event)
@@ -6128,6 +6539,8 @@ void OBSBasic::mainViewClose(QCloseEvent *event)
 	//IMPORTANT: ensureStopOutput should before pls_set_app_exiting
 	PLSPlatformApi::instance()->ensureStopOutput();
 
+	pls::lens::showLensQuitAlert(this);
+
 	pls_set_app_exiting(true);
 	pls_set_obs_exiting(true);
 
@@ -6168,19 +6581,32 @@ void OBSBasic::mainViewClose(QCloseEvent *event)
 		trayIcon->setVisible(false);
 	}
 
+#if defined(Q_OS_WIN)
+	QString shmName = QStringLiteral("PRISMDaemonShm_%1").arg(QString::fromStdString(GlobalVars::prismSubSession));
+	pls_shm_base_t *pShm = pls_shm_base_create(shmName, 100);
+	if (pShm) {
+		const char shmValue[] = "over";
+		pls_shm_base_write(pShm, shmValue, sizeof(shmValue));
+		pls_delete(pShm, pls_shm_base_destroy, nullptr);
+	}
+#elif defined(Q_OS_MACOS)
 	pls_set_temp_sharememory(shared_values::k_daemon_sm_key, "over");
+#endif
 
 	closeMainBegin();
+
+	pls::lens::closeLensIfNeed();
 
 	timed_mutex mutexExit;
 	mutexExit.lock();
 	auto threadExit = std::thread([&mutexExit, this] {
-		if (!mutexExit.try_lock_for(10s)) {
+		if (!pls_is_debugger_present() && !mutexExit.try_lock_for(10s)) {
 			PLS_LOGEX(PLS_LOG_ERROR, MAINFRAME_MODULE,
 				  {{"exitTimeout",
 				    to_string(static_cast<int>(init_exception_code::timeout_by_source)).data()}},
 				  "PRISM exit timeout");
 
+			pls_capture_force_exit_dump("timeout_by_source");
 			pls_log_cleanup();
 
 #if defined(Q_OS_MACOS)
@@ -6270,6 +6696,10 @@ bool OBSBasic::nativeEvent(const QByteArray &, void *message, qintptr *)
 		for (OBSQTDisplay *const display : findChildren<OBSQTDisplay *>()) {
 			display->OnDisplayChange();
 		}
+		break;
+	case WM_LBUTTONUP:
+		mainView->resizeTracker()->checkEndResize();
+		break;
 	}
 #else
 	UNUSED_PARAMETER(message);
@@ -6309,6 +6739,12 @@ void OBSBasic::changeEvent(QEvent *event)
 				EnablePreviewDisplay(true);
 		}
 	}
+}
+
+void OBSBasic::showEvent(QShowEvent *event)
+{
+	dpi = devicePixelRatioF();
+	OBSMainWindow::showEvent(event);
 }
 
 bool OBSBasic::checkMainViewClose(QCloseEvent *event)
@@ -6370,9 +6806,11 @@ void OBSBasic::ShowMissingFilesDialog(obs_missing_files_t *files)
 		* a bug where the window is behind OBS on startup. */
 		pls_async_call(this, [this, files]() {
 			PLS_INFO(MAINFRAME_MODULE, "showMissingFilesDialog");
-			missDialog = new OBSMissingFiles(files, this);
-			missDialog->setAttribute(Qt::WA_DeleteOnClose, true);
-			missDialog->exec();
+			PLSBasic::instance()->setAlertParentWithBanner([this, files](QWidget *parent) {
+				missDialog = new OBSMissingFiles(files, parent);
+				missDialog->setAttribute(Qt::WA_DeleteOnClose, true);
+				missDialog->exec();
+			});
 		});
 	} else {
 		obs_missing_files_destroy(files);
@@ -6400,6 +6838,7 @@ void OBSBasic::on_actionShowMissingFiles_triggered()
 void OBSBasic::on_actionAdvAudioProperties_triggered()
 {
 	if (advAudioWindow != nullptr) {
+		advAudioWindow->show();
 		advAudioWindow->raise();
 		return;
 	}
@@ -6408,7 +6847,6 @@ void OBSBasic::on_actionAdvAudioProperties_triggered()
 
 	advAudioWindow = new OBSBasicAdvAudio(this);
 	advAudioWindow->show();
-	advAudioWindow->setAttribute(Qt::WA_DeleteOnClose, true);
 	advAudioWindow->SetIconsVisible(iconsVisible);
 }
 
@@ -6508,7 +6946,6 @@ void OBSBasic::OnScenesCustomContextMenuRequested(const PLSSceneItemView *item)
 	popup.setWindowFlags(popup.windowFlags() | Qt::NoDropShadowWindowHint);
 	if (item) {
 		popup.addAction(QTStr("Copy.Scene"), this, &OBSBasic::DuplicateSelectedScene);
-
 		popup.addAction(QTStr("Rename"), this, &OBSBasic::EditSceneName);
 		popup.addAction(QTStr("Delete"), this, &OBSBasic::RemoveSelectedScene);
 		popup.addSeparator();
@@ -6530,7 +6967,8 @@ void OBSBasic::OnScenesCustomContextMenuRequested(const PLSSceneItemView *item)
 		delete sceneProjectorMenu;
 		sceneProjectorMenu = new QMenu(QTStr("SceneProjector"), ui->scenesFrame);
 		sceneProjectorMenu->setWindowFlags(sceneProjectorMenu->windowFlags() | Qt::NoDropShadowWindowHint);
-		AddProjectorMenuMonitors(sceneProjectorMenu, this, &OBSBasic::OpenSceneProjector);
+		AddProjectorMenuMonitors(sceneProjectorMenu, this, "Full Projector(Scene)",
+					 &OBSBasic::OpenSceneProjector);
 		projector->addMenu(sceneProjectorMenu);
 		auto openWindowAction = projector->addAction(QTStr("SceneWindow"), this, &OBSBasic::OpenSceneWindow);
 
@@ -6545,9 +6983,11 @@ void OBSBasic::OnScenesCustomContextMenuRequested(const PLSSceneItemView *item)
 
 		auto multiviewShow = pls_new<QAction>(QTStr("Show"), ui->scenesFrame);
 		multiviewShow->setCheckable(true);
+		pls_uistep_v2_set_name(multiviewShow, "Show in Multiview");
 
 		auto multiviewHide = pls_new<QAction>(QTStr("Hide"), ui->scenesFrame);
 		multiviewHide->setCheckable(true);
+		pls_uistep_v2_set_name(multiviewHide, "Show in Multiview");
 
 		multiviewMenu->addAction(multiviewShow);
 
@@ -6589,7 +7029,9 @@ void OBSBasic::OnScenesCustomContextMenuRequested(const PLSSceneItemView *item)
 		&OBSBasic::GridActionClicked);
 	popup.addAction(gridAction);
 #endif
+	pls_push_modal_view(&popup);
 	popup.exec(QCursor::pos());
+	pls_pop_modal_view(&popup);
 }
 
 void OBSBasic::GridActionClicked()
@@ -6613,7 +7055,7 @@ void OBSBasic::on_actionAddScene_triggered()
 	string name;
 	QString format{QTStr("Basic.Main.DefaultSceneName.Text")};
 
-	int i = 2;
+	int i = 1;
 	QString placeHolderText = format.arg(i);
 	OBSSourceAutoRelease source = nullptr;
 	while ((source = obs_get_source_by_name(QT_TO_UTF8(placeHolderText)))) {
@@ -6626,14 +7068,20 @@ void OBSBasic::on_actionAddScene_triggered()
 	if (accepted) {
 		name = QString(name.c_str()).simplified().toStdString();
 		if (name.empty()) {
-			OBSMessageBox::warning(this, QTStr("Alert.Title"), QTStr("NoNameEntered.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_No_Name_Entered, PLSErrKeyAllAlert,
+							      QString(),
+							      PLSErrorHandler::ExtraData("on_actionAddScene_triggered"),
+							      nullptr);
 			on_actionAddScene_triggered();
 			return;
 		}
 
 		OBSSourceAutoRelease source = obs_get_source_by_name(name.c_str());
 		if (source) {
-			OBSMessageBox::warning(this, QTStr("Alert.Title"), QTStr("NameExists.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_Name_Exists, PLSErrKeyAllAlert,
+							      QString(),
+							      PLSErrorHandler::ExtraData("on_actionAddScene_triggered"),
+							      nullptr);
 
 			on_actionAddScene_triggered();
 			return;
@@ -6656,6 +7104,7 @@ void OBSBasic::on_actionAddScene_triggered()
 
 		OBSSceneAutoRelease scene = obs_scene_create(name.c_str());
 		obs_source_t *scene_source = obs_scene_get_source(scene);
+		SetPendingRenderSceneNamePerf(scene_source, "User create new scene");
 		SetCurrentScene(scene_source);
 	}
 }
@@ -6718,6 +7167,82 @@ void OBSBasic::EditSceneItemName()
 	ui->sources->Edit(idx);
 }
 
+#ifdef PLS_UI_ACTION_STATS
+// Static mapping for deinterlace mode enum to string
+static const char *deinterlaceModeToString(obs_deinterlace_mode mode)
+{
+	switch (mode) {
+	case OBS_DEINTERLACE_MODE_DISABLE:
+		return "Disable";
+	case OBS_DEINTERLACE_MODE_DISCARD:
+		return "Deinterlacing.Discard";
+	case OBS_DEINTERLACE_MODE_RETRO:
+		return "Deinterlacing.Retro";
+	case OBS_DEINTERLACE_MODE_BLEND:
+		return "Deinterlacing.Blend";
+	case OBS_DEINTERLACE_MODE_BLEND_2X:
+		return "Deinterlacing.Blend2x";
+	case OBS_DEINTERLACE_MODE_LINEAR:
+		return "Deinterlacing.Linear";
+	case OBS_DEINTERLACE_MODE_LINEAR_2X:
+		return "Deinterlacing.Linear2x";
+	case OBS_DEINTERLACE_MODE_YADIF:
+		return "Deinterlacing.Yadif";
+	case OBS_DEINTERLACE_MODE_YADIF_2X:
+		return "Deinterlacing.Yadif2x";
+	default:
+		return "Deinterlacing.Unknown";
+	}
+}
+
+// Static mapping for deinterlace field order enum to string
+static const char *deinterlaceOrderToString(obs_deinterlace_field_order order)
+{
+	switch (order) {
+	case OBS_DEINTERLACE_FIELD_ORDER_TOP:
+		return "Deinterlacing.TopFieldFirst";
+	case OBS_DEINTERLACE_FIELD_ORDER_BOTTOM:
+		return "Deinterlacing.BottomFieldFirst";
+	default:
+		return "Deinterlacing.UnknownOrder";
+	}
+}
+
+static const char *blendingMethodToString(obs_blending_method mode)
+{
+	switch (mode) {
+	case OBS_BLEND_METHOD_DEFAULT:
+		return "BlendingMethod.Default";
+	case OBS_BLEND_METHOD_SRGB_OFF:
+		return "BlendingMethod.SrgbOff";
+	default:
+		return "BlendingMethod.Unknown";
+	}
+}
+
+static const char *blendingModeToString(obs_blending_type mode)
+{
+	switch (mode) {
+	case OBS_BLEND_NORMAL:
+		return "BlendingMode.Normal";
+	case OBS_BLEND_ADDITIVE:
+		return "BlendingMode.Additive";
+	case OBS_BLEND_SUBTRACT:
+		return "BlendingMode.Subtract";
+	case OBS_BLEND_SCREEN:
+		return "BlendingMode.Screen";
+	case OBS_BLEND_MULTIPLY:
+		return "BlendingMode.Multiply";
+	case OBS_BLEND_LIGHTEN:
+		return "BlendingMode.Lighten";
+	case OBS_BLEND_DARKEN:
+		return "BlendingMode.Darken";
+	default:
+		return "BlendingMode.Unknown";
+	}
+}
+#endif // PLS_UI_ACTION_STATS
+
 void OBSBasic::SetDeinterlacingMode()
 {
 	QAction *action = reinterpret_cast<QAction *>(sender());
@@ -6726,6 +7251,7 @@ void OBSBasic::SetDeinterlacingMode()
 	obs_source_t *source = obs_sceneitem_get_source(sceneItem);
 
 	obs_source_set_deinterlace_mode(source, mode);
+	PLS_UI_ACTION("In Main Window, the deinterlacing order switched to %s", deinterlaceModeToString(mode));
 }
 
 void OBSBasic::SetDeinterlacingOrder()
@@ -6736,6 +7262,7 @@ void OBSBasic::SetDeinterlacingOrder()
 	obs_source_t *source = obs_sceneitem_get_source(sceneItem);
 
 	obs_source_set_deinterlace_field_order(source, order);
+	PLS_UI_ACTION("In Main Window, the deinterlacing order switched to %s", deinterlaceOrderToString(order));
 }
 
 QMenu *OBSBasic::AddDeinterlacingMenu(QMenu *menu, obs_source_t *source)
@@ -6746,6 +7273,7 @@ QMenu *OBSBasic::AddDeinterlacingMenu(QMenu *menu, obs_source_t *source)
 
 #define ADD_MODE(name, mode)                                                             \
 	action = menu->addAction(QTStr("" name), this, &OBSBasic::SetDeinterlacingMode); \
+	pls_uistep_v2_set_name(action, "Deinterlacing mode menu");                       \
 	action->setProperty("mode", (int)mode);                                          \
 	action->setCheckable(true);                                                      \
 	action->setChecked(deinterlaceMode == mode);
@@ -6765,6 +7293,7 @@ QMenu *OBSBasic::AddDeinterlacingMenu(QMenu *menu, obs_source_t *source)
 
 #define ADD_ORDER(name, order)                                                                          \
 	action = menu->addAction(QTStr("Deinterlacing." name), this, &OBSBasic::SetDeinterlacingOrder); \
+	pls_uistep_v2_set_name(action, "Deinterlacing order menu");                                     \
 	action->setProperty("order", (int)order);                                                       \
 	action->setCheckable(true);                                                                     \
 	action->setChecked(deinterlaceOrder == order);
@@ -6781,8 +7310,10 @@ void OBSBasic::SetScaleFilter()
 	QAction *action = reinterpret_cast<QAction *>(sender());
 	obs_scale_type mode = (obs_scale_type)action->property("mode").toInt();
 	OBSSceneItem sceneItem = GetCurrentSceneItem();
-
+	PLS_UI_ACTION("Preview Scale Filter %d Changed", mode);
+	pls_on_item_attribute_changed(sceneItem, SCALE_FILTER, PROPERTY_UI_CHANGED);
 	obs_sceneitem_set_scale_filter(sceneItem, mode);
+	pls_on_item_attribute_changed(sceneItem, SCALE_FILTER, PROPERTY_UPDATED);
 
 	if (pls_is_dual_output_on()) {
 		if (auto verItem = PLSSceneitemMapMgrInstance->getVerticalSelectedSceneitem(sceneItem); verItem) {
@@ -6806,6 +7337,7 @@ QMenu *OBSBasic::AddScaleFilteringMenu(QMenu *menu, obs_sceneitem_t *item)
 
 #define ADD_MODE(name, mode)                                                       \
 	action = menu->addAction(QTStr("" name), this, &OBSBasic::SetScaleFilter); \
+	pls_uistep_v2_set_name(action, "Scale filter menu");                       \
 	action->setProperty("mode", (int)mode);                                    \
 	action->setCheckable(true);                                                \
 	action->setChecked(scaleFilter == mode);
@@ -6827,7 +7359,10 @@ void OBSBasic::SetBlendingMethod()
 	obs_blending_method method = (obs_blending_method)action->property("method").toInt();
 	OBSSceneItem sceneItem = GetCurrentSceneItem();
 	if (obs_sceneitem_selected(sceneItem)) {
+		PLS_UI_ACTION("Preview Blending Method %d Changed", method);
+		pls_on_item_attribute_changed(sceneItem, BELEND_METHOD, PROPERTY_UI_CHANGED);
 		obs_sceneitem_set_blending_method(sceneItem, method);
+		pls_on_item_attribute_changed(sceneItem, BELEND_METHOD, PROPERTY_UPDATED);
 	}
 
 	if (pls_is_dual_output_on()) {
@@ -6835,6 +7370,7 @@ void OBSBasic::SetBlendingMethod()
 			obs_sceneitem_set_blending_method(verItem, method);
 		}
 	}
+	PLS_UI_ACTION("In Main Window, the blending method switched to %s", blendingMethodToString(method));
 }
 
 QMenu *OBSBasic::AddBlendingMethodMenu(QMenu *menu, obs_sceneitem_t *item)
@@ -6844,6 +7380,7 @@ QMenu *OBSBasic::AddBlendingMethodMenu(QMenu *menu, obs_sceneitem_t *item)
 
 #define ADD_MODE(name, method)                                                        \
 	action = menu->addAction(QTStr("" name), this, &OBSBasic::SetBlendingMethod); \
+	pls_uistep_v2_set_name(action, "Blending method menu");                       \
 	action->setProperty("method", (int)method);                                   \
 	action->setCheckable(true);                                                   \
 	action->setChecked(blendingMethod == method);
@@ -6861,7 +7398,10 @@ void OBSBasic::SetBlendingMode()
 	obs_blending_type mode = (obs_blending_type)action->property("mode").toInt();
 	OBSSceneItem sceneItem = GetCurrentSceneItem();
 	if (obs_sceneitem_selected(sceneItem)) {
+		PLS_UI_ACTION("Preview Blending Mode %d Changed", mode);
+		pls_on_item_attribute_changed(sceneItem, BELEND_MODE, PROPERTY_UI_CHANGED);
 		obs_sceneitem_set_blending_mode(sceneItem, mode);
+		pls_on_item_attribute_changed(sceneItem, BELEND_MODE, PROPERTY_UPDATED);
 	}
 
 	if (pls_is_dual_output_on()) {
@@ -6869,6 +7409,8 @@ void OBSBasic::SetBlendingMode()
 			obs_sceneitem_set_blending_mode(verItem, mode);
 		}
 	}
+
+	PLS_UI_ACTION("In Main Window, the blending mode switched to %s", blendingModeToString(mode));
 }
 
 QMenu *OBSBasic::AddBlendingModeMenu(QMenu *menu, obs_sceneitem_t *item)
@@ -6878,6 +7420,7 @@ QMenu *OBSBasic::AddBlendingModeMenu(QMenu *menu, obs_sceneitem_t *item)
 
 #define ADD_MODE(name, mode)                                                        \
 	action = menu->addAction(QTStr("" name), this, &OBSBasic::SetBlendingMode); \
+	pls_uistep_v2_set_name(action, "Blending mode menu");                       \
 	action->setProperty("mode", (int)mode);                                     \
 	action->setCheckable(true);                                                 \
 	action->setChecked(blendingMode == mode);
@@ -6904,7 +7447,6 @@ const std::vector<QString> presetColorListWithOpacity = {"rgba(158,55,55,55%)", 
 QMenu *OBSBasic::AddBackgroundColorMenu(QMenu *menu, QWidgetAction *widgetAction, ColorSelectNew *select,
 					obs_sceneitem_t *item)
 {
-	QAction *action;
 #if 0
 	menu->setStyleSheet(QString(
 		"*[bgColor=\"1\"]{background-color:rgba(255,68,68,33%);}"
@@ -6922,15 +7464,21 @@ QMenu *OBSBasic::AddBackgroundColorMenu(QMenu *menu, QWidgetAction *widgetAction
 	obs_data_set_default_int(privData, "color-preset", 0);
 	int preset = obs_data_get_int(privData, "color-preset");
 
-	action = menu->addAction(QTStr("NoColor"), this, &OBSBasic::ColorChange);
-	action->setCheckable(true);
-	action->setProperty("bgColor", 0);
-	action->setChecked(preset == 0);
+	auto actionNoColor = pls_new<QAction>(QTStr("NoColor"), menu);
+	menu->addAction(actionNoColor);
+	connect(actionNoColor, &QAction::triggered, this, &OBSBasic::ColorChange);
+	pls_uistep_v2_set_name(actionNoColor, "Set Color");
+	actionNoColor->setCheckable(true);
+	actionNoColor->setProperty("bgColor", 0);
+	actionNoColor->setChecked(preset == 0);
 
-	action = menu->addAction(QTStr("CustomColor"), this, &OBSBasic::ColorChange);
-	action->setCheckable(true);
-	action->setProperty("bgColor", 1);
-	action->setChecked(preset == 1);
+	auto actionCustomColor = pls_new<QAction>(QTStr("CustomColor"), menu);
+	menu->addAction(actionCustomColor);
+	connect(actionCustomColor, &QAction::triggered, this, &OBSBasic::ColorChange);
+	pls_uistep_v2_set_name(actionCustomColor, "Set Color");
+	actionCustomColor->setCheckable(true);
+	actionCustomColor->setProperty("bgColor", 1);
+	actionCustomColor->setChecked(preset == 1);
 
 	menu->addSeparator();
 
@@ -6949,9 +7497,11 @@ QMenu *OBSBasic::AddBackgroundColorMenu(QMenu *menu, QWidgetAction *widgetAction
 			colorButton->SetSelect(true);
 		else
 			colorButton->SetSelect(false);
+		pls_uistep_v2_set_name(colorButton, "Preset Color");
+		pls_uistep_v2_set_value(colorButton, presetColorList[i - 1]);
 		colorButton->SetColor(presetColorList[i - 1]);
 		colorButton->setProperty("bgColor", i);
-		QObject::connect(colorButton, SIGNAL(released()), this, SLOT(ColorChange()));
+		QObject::connect(colorButton, SIGNAL(released()), this, SLOT(ColorChange()), Qt::QueuedConnection);
 	}
 
 	// recent button
@@ -6968,6 +7518,8 @@ QMenu *OBSBasic::AddBackgroundColorMenu(QMenu *menu, QWidgetAction *widgetAction
 			customButton->SetSelect(true);
 		else
 			customButton->SetSelect(false);
+		pls_uistep_v2_set_name(customButton, "Recent Color");
+		pls_uistep_v2_set_value(customButton, bgColor);
 		QObject::connect(customButton, &QPushButton::released, this, &OBSBasic::ColorChange);
 	}
 
@@ -7000,9 +7552,17 @@ ColorSelect::ColorSelect(QWidget *parent) : QWidget(parent), ui(new Ui::ColorSel
 
 void OBSBasic::CreateSourcePopupMenu(int idx, bool preview, QWidget *parent, bool verticalPreview)
 {
+	const char *name = nullptr;
+	bool chooseSource = idx != -1;
+	if (preview) {
+		name = chooseSource ? "Preview Source Context Menu" : "Preview Blank Context Menu";
+	} else {
+		name = chooseSource ? "Source Tree Context Menu" : "Source Blank Context Menu";
+	}
+
+	PLS_PERFORMANCE_GLOBAL_START(name);
 	QMenu popup(parent);
 	popup.setWindowFlags(popup.windowFlags() | Qt::NoDropShadowWindowHint);
-
 	delete previewProjectorSource;
 	delete sourceProjector;
 	delete scaleFilteringMenu;
@@ -7012,6 +7572,8 @@ void OBSBasic::CreateSourcePopupMenu(int idx, bool preview, QWidget *parent, boo
 	delete colorWidgetAction;
 	delete colorSelect;
 	delete deinterlaceMenu;
+
+	pls_uistep_v2_set_custom_show_hide_name(&popup, name);
 
 	if (preview) {
 		QMenu *previewMenu = popup.addMenu(QTStr("Basic.Main.Preview"));
@@ -7052,24 +7614,20 @@ void OBSBasic::CreateSourcePopupMenu(int idx, bool preview, QWidget *parent, boo
 		previewProjectorSource = new QMenu(QTStr("Basic.MainMenu.PreviewProjector.Fullscreen"), parent);
 		previewProjectorSource->setWindowFlags(previewProjectorSource->windowFlags() |
 						       Qt::NoDropShadowWindowHint);
-		AddProjectorMenuMonitors(previewProjectorSource, this, &OBSBasic::OpenPreviewProjector);
+		pls_uistep_v2_set_name(sourceProjector, "PreviewProjector");
+		AddProjectorMenuMonitors(previewProjectorSource, this, "Preview Projector",
+					 &OBSBasic::OpenPreviewProjector);
 		previewProjector_->addMenu(previewProjectorSource);
 
 		QAction *previewWindow = previewProjector_->addAction(QTStr("Basic.MainMenu.PreviewProjector.Window"),
 								      this, &OBSBasic::OpenPreviewWindow);
+		pls_uistep_v2_set_name(previewWindow, "PreviewProjector");
 		previewProjector_->addAction(previewWindow);
 
 		auto screenShotAction = popup.addAction(QTStr("Screenshot.Preview"), this, &OBSBasic::ScreenshotScene);
 	}
 
-	popup.addAction(QTStr("Add.Source"), ui->sources, [this]() {
-		PLSAddSourceView view(this);
-		if (QDialog::Accepted == view.exec()) {
-			pls_modal_check_app_exiting();
-			if (!view.selectSourceId().isEmpty())
-				OBSBasic::Get()->AddSource(view.selectSourceId().toUtf8().constData());
-		}
-	});
+	popup.addAction(QTStr("Add.Source"), this, &OBSBasic::addSourceFromAddSourceView);
 
 	//QPointer<QMenu> addSourceMenu = CreateAddSourcePopupMenu();
 	//if (addSourceMenu)
@@ -7219,10 +7777,12 @@ void OBSBasic::CreateSourcePopupMenu(int idx, bool preview, QWidget *parent, boo
 			sourceMenu->setWindowFlags(sourceMenu->windowFlags() | Qt::NoDropShadowWindowHint);
 			sourceProjector = new QMenu(QTStr("Basic.MainMenu.SourceProjector.Fullscreen"), parent);
 			sourceProjector->setWindowFlags(sourceProjector->windowFlags() | Qt::NoDropShadowWindowHint);
-			AddProjectorMenuMonitors(sourceProjector, this, &OBSBasic::OpenSourceProjector);
+			AddProjectorMenuMonitors(sourceProjector, this, "SourceProjector",
+						 &OBSBasic::OpenSourceProjector);
 
 			QAction *sourceWindow = sourceMenu->addAction(QTStr("Basic.MainMenu.SourceProjector.Window"),
 								      this, &OBSBasic::OpenSourceWindow);
+			pls_uistep_v2_set_name(sourceWindow, "SourceProjector");
 
 			sourceMenu->addMenu(sourceProjector);
 			sourceMenu->addAction(sourceWindow);
@@ -7235,8 +7795,8 @@ void OBSBasic::CreateSourcePopupMenu(int idx, bool preview, QWidget *parent, boo
 		popup.addSeparator();
 
 		// show/hide transition
-		popup.addMenu(CreateVisibilityTransitionMenu(true, verticalPreview));
-		popup.addMenu(CreateVisibilityTransitionMenu(false, verticalPreview));
+		popup.addMenu(CreateVisibilityTransitionMenu(true, parent, verticalPreview));
+		popup.addMenu(CreateVisibilityTransitionMenu(false, parent, verticalPreview));
 		popup.addSeparator();
 
 		// Interact
@@ -7277,6 +7837,9 @@ void OBSBasic::CreateSourcePopupMenu(int idx, bool preview, QWidget *parent, boo
 
 	setDynamicPropertyForMenuAndAction(&popup, verticalPreview);
 
+	PLS_PERFORMANCE_GLOBAL_START("menuToShow", name);
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&popup, PLS_PERFORMANCE_GLOBAL_END("menuToShow");
+						    PLS_PERFORMANCE_GLOBAL_END(name));
 	pls_push_modal_view(&popup);
 	popup.exec(QCursor::pos());
 	pls_pop_modal_view(&popup);
@@ -7346,16 +7909,37 @@ void OBSBasic::AddSource(const char *id)
 			return;
 		}
 
-		OBSBasicSourceSelect sourceSelect(this, id, undo_s);
-		if (QDialog::Accepted == sourceSelect.exec()) {
-			PLSBasic::instance()->OnSourceCreated(id);
-			pls_send_analog(AnalogType::ANALOG_ADD_SOURCE,
-					{{ANALOG_SOURCE_TYPE_KEY, action::GetActionSourceID(id)},
-					 {ANALOG_ITEM_KEY, ""},
-					 {ANALOG_DETAIL_KEY, ""}});
+		bool isSceneSource = pls_is_equal(id, SCENE_SOURCE_ID);
+		if (isSceneSource && 1 == PLSSceneDataMgr::Instance()->GetSceneSize()) {
+			PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("main.scenes.only.one.scene"));
+			return;
 		}
-		if (should_show_properties(sourceSelect.newSource, id)) {
-			CreatePropertiesWindow(sourceSelect.newSource, OPERATION_ADD_SOURCE);
+
+		OBSSource newSource;
+		if (OBSBasicSourceSelect::checkSourceExisted(id) || isSceneSource ||
+		    pls_is_equal(id, GROUP_SOURCE_ID)) {
+			OBSBasicSourceSelect sourceSelect(this, id, undo_s);
+			if (QDialog::Accepted != sourceSelect.exec()) {
+				return;
+			}
+			newSource = sourceSelect.newSource;
+		} else {
+			PLS_UI_ACTION("Start create new source by source id : %s", id);
+			std::function<void(const std::string &)> undo, redo;
+			std::string wrapper;
+			auto defaultSourceName = OBSBasicSourceSelect::getDefaultAddSourceName(id);
+			if (!OBSBasicSourceSelect::addNewSource(id, defaultSourceName.toUtf8().constData(), true,
+								newSource, undo, redo, wrapper)) {
+				return;
+			}
+			undo_s.add_action(QTStr("Undo.Add").arg(defaultSourceName.toUtf8().constData()), undo, redo,
+					  std::string(obs_source_get_name(newSource)), wrapper);
+		}
+
+		PLSBasic::instance()->OnSourceCreated(id);
+
+		if (should_show_properties(newSource, id)) {
+			CreatePropertiesWindow(newSource, OPERATION_ADD_SOURCE);
 		} else {
 #if defined(Q_OS_MACOS)
 			PLSPermissionHelper::AVType avType;
@@ -7468,12 +8052,7 @@ void OBSBasic::AddSourcePopupMenu(const QPoint &pos)
 
 void OBSBasic::on_actionAddSource_triggered()
 {
-	PLSAddSourceView view(this);
-	if (QDialog::Accepted == view.exec()) {
-		pls_modal_check_app_exiting();
-		if (!view.selectSourceId().isEmpty())
-			PLSBasic::Get()->AddSource(view.selectSourceId().toUtf8().constData());
-	}
+	addSourceFromAddSourceView();
 }
 
 static bool remove_items(obs_scene_t *, obs_sceneitem_t *item, void *param)
@@ -7603,9 +8182,10 @@ void OBSBasic::on_actionRemoveSource_triggered()
 
 	if (items.size() > 1) {
 		QString text = QTStr("ConfirmRemove.TextMultiple").arg(QString::number(items.size()));
-		PLSAlertView::Button button = PLSMessageBox::question(
-			this, QTStr("Confirm"), text, PLSAlertView::Button::Yes | PLSAlertView::Button::No);
-		confirmed = button == PLSAlertView::Button::Yes;
+		PLSAlertView::Button button =
+			PLSMessageBox::question(this, QTStr("ConfirmRemove.Title"), text,
+						PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel);
+		confirmed = button == PLSAlertView::Button::Ok;
 	} else {
 		OBSSceneItem &item = items[0];
 		obs_source_t *source = obs_sceneitem_get_source(item);
@@ -7614,7 +8194,8 @@ void OBSBasic::on_actionRemoveSource_triggered()
 	}
 	if (!confirmed)
 		return;
-
+	PLS_UI_ACTION("Start to remove sources.");
+	PLS_PERFORMANCE_GLOBAL_START("QueryRemoveSource");
 	/* ----------------------------------------------- */
 	/* save undo data                                  */
 
@@ -7622,7 +8203,7 @@ void OBSBasic::on_actionRemoveSource_triggered()
 
 	/* ----------------------------------------------- */
 	/* remove items                                    */
-
+	PLS_PERFORMANCE_GLOBAL_START("obs_sceneitem_remove", "QueryRemoveSource");
 	for (auto &item : items) {
 		PLSSceneitemMapMgrInstance->removeItem(item);
 		obs_sceneitem_remove(item);
@@ -7676,7 +8257,10 @@ void OBSBasic::MoveSceneItem(enum obs_order_movement movement, const QString &ac
 
 	OBSData undo_data = BackupScene(scene, &sources);
 
+	PLS_UI_ACTION("Preview Move Order %d Changed", movement);
+	pls_on_item_attribute_changed(item, MOVE_ORDER, PROPERTY_UI_CHANGED);
 	obs_sceneitem_set_order(item, movement);
+	pls_on_item_attribute_changed(item, MOVE_ORDER, PROPERTY_UPDATED);
 	if (auto verItem = PLSSceneitemMapMgrInstance->getCurVerticalSceneitem(item); verItem) {
 		obs_sceneitem_set_order(verItem, movement);
 	}
@@ -7691,31 +8275,37 @@ void OBSBasic::MoveSceneItem(enum obs_order_movement movement, const QString &ac
 void OBSBasic::on_actionSourceUp_triggered()
 {
 	MoveSceneItem(OBS_ORDER_MOVE_UP, QTStr("Undo.MoveUp"));
+	PLS_UI_ACTION("In Main Window, the action source move up has been finished.");
 }
 
 void OBSBasic::on_actionSourceDown_triggered()
 {
 	MoveSceneItem(OBS_ORDER_MOVE_DOWN, QTStr("Undo.MoveDown"));
+	PLS_UI_ACTION("In Main Window, the action source move to down has been finished.");
 }
 
 void OBSBasic::on_actionMoveUp_triggered()
 {
 	MoveSceneItem(OBS_ORDER_MOVE_UP, QTStr("Undo.MoveUp"));
+	PLS_UI_ACTION("In Main Window, the action move up has been finished.");
 }
 
 void OBSBasic::on_actionMoveDown_triggered()
 {
 	MoveSceneItem(OBS_ORDER_MOVE_DOWN, QTStr("Undo.MoveDown"));
+	PLS_UI_ACTION("In Main Window, the action move dwon has been finished.");
 }
 
 void OBSBasic::on_actionMoveToTop_triggered()
 {
 	MoveSceneItem(OBS_ORDER_MOVE_TOP, QTStr("Undo.MoveToTop"));
+	PLS_UI_ACTION("In Main Window, the action move to top has been finished.");
 }
 
 void OBSBasic::on_actionMoveToBottom_triggered()
 {
 	MoveSceneItem(OBS_ORDER_MOVE_BOTTOM, QTStr("Undo.MoveToBottom"));
+	PLS_UI_ACTION("In Main Window, the action move to bottom has been finished.");
 }
 
 static BPtr<char> ReadLogFile(const char *subdir, const char *log)
@@ -7905,9 +8495,13 @@ static void RenameListItem(OBSBasic *parent, QListWidget *listWidget, obs_source
 		listItem->setText(QT_UTF8(prevName));
 
 		if (foundSource) {
-			OBSMessageBox::warning(parent, QTStr("Alert.Title"), QTStr("NameExists.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_Name_Exists, PLSErrKeyAllAlert,
+							      QString(), PLSErrorHandler::ExtraData("RenameListItem"),
+							      nullptr);
 		} else if (name.empty()) {
-			OBSMessageBox::warning(parent, QTStr("Alert.Title"), QTStr("NoNameEntered.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_No_Name_Entered, PLSErrKeyAllAlert,
+							      QString(), PLSErrorHandler::ExtraData("RenameListItem"),
+							      nullptr);
 		}
 	} else {
 		auto undo = [prev = std::string(prevName)](const std::string &data) {
@@ -8025,7 +8619,7 @@ void OBSBasic::DisplayStreamStartError()
 		sysTrayStream->setEnabled(true);
 	}
 
-	pls_alert_error_message(this, QTStr("Output.StartStreamFailed"), message);
+	showOutputStartErrorAlert(QTStr("Output.StartStreamFailed"), message, outputHandler->isEncoderError);
 }
 
 #ifdef YOUTUBE_ENABLED
@@ -8150,8 +8744,9 @@ void OBSBasic::StartStreaming()
 		PLS_PLATFORM_API->sendLiveAbortOperation(reason, detailReason, ANALOG_LIVE_OUTPUT_DUPLICATED_ACTIVE);
 
 		PLS_PLATFORM_API->onLiveEnded();
-		pls_alert_error_message(this, QTStr("Output.StreamEncodeError.Title"),
-					QTStr("live.abort.stream.active"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ErrCode::ALERT_LIVE_ABORT_STREAM_ACTIVE,
+						      PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData("Live abort stream active"), this);
 
 		return;
 	}
@@ -9001,36 +9596,26 @@ void OBSBasic::StartRecording()
 
 	if (outputHandler == nullptr) {
 		PLS_INFO(MAINMENU_MODULE, "record abort because outputHandler object is nul");
-		PLS_PLATFORM_API->sendRecordAnalog(false, "record abort outputHandler object is null",
-						   common::ANALOG_RECORD_HANDLER_NULL);
 		return;
 	}
 	if (outputHandler->RecordingActive()) {
 		PLS_INFO(MAINMENU_MODULE, "[%s] outputHandler->RecordingActive", __func__);
-		PLS_PLATFORM_API->sendRecordAnalog(false, "record abort because dupulicated record activel",
-						   common::ANALOG_RECORD_OUTPUT_DUPLICATED_ACTIVE);
 		return;
 	}
 	if (disableOutputsRef) {
 		PLS_INFO(MAINMENU_MODULE, "[%s] disableOutputsRef", __func__);
-		PLS_PLATFORM_API->sendRecordAnalog(false, "record abort because disable output ref",
-						   common::ANALOG_RECORD_DISABLED_OUTPUT_REF);
 		return;
 	}
 
 	if (!OutputPathValid()) {
 		OutputPathInvalidMessage();
 		PLS_INFO(MAINMENU_MODULE, "[%s] OutputPathValid", __func__);
-		PLS_PLATFORM_API->sendRecordAnalog(false, "record abort because output directory is not exist",
-						   common::ANALOG_RECORD_DIRECTORY_NOT_EXIST);
 		return;
 	}
 
 	if (!IsFFmpegOutputToURL() && LowDiskSpace()) {
 		DiskSpaceMessage();
 		PLS_INFO(MAINMENU_MODULE, "[%s] LowDiskSpace", __func__);
-		PLS_PLATFORM_API->sendRecordAnalog(false, "record abort because low disk space",
-						   common::ANALOG_RECORD_LOW_DISK_SPACE);
 		return;
 	}
 
@@ -9044,8 +9629,6 @@ void OBSBasic::StartRecording()
 
 	if (!outputHandler->StartRecording()) {
 		OnEvent(OBS_FRONTEND_EVENT_RECORDING_STOPPED);
-		PLS_PLATFORM_API->sendRecordAnalog(false, "record abort because start record failed",
-						   common::ANALOG_RECORD_START_STREAM_FAILED);
 	}
 	markState(OBS_FRONTEND_EVENT_RECORDING_STARTING, 1);
 }
@@ -9201,11 +9784,10 @@ void OBSBasic::RecordingFileChanged(QString lastRecordingPath)
 void OBSBasic::ShowReplayBufferPauseWarning()
 {
 	auto msgBox = []() {
-		auto result = PLSAlertView::information(App()->getMainView(),
-							QTStr("Output.ReplayBuffer.PauseWarning.Title"),
-							QTStr("Output.ReplayBuffer.PauseWarning.Text"),
-							QTStr("DoNotShowAgain"));
-		if (result.isChecked) {
+		auto data = PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ErrCode::ALERT_REPLAY_BUFFER_PAUSE_WARNING, PLSErrKeyAllAlert, {},
+			PLSErrorHandler::ExtraData("Replay buffer pause warning"), App()->getMainView());
+		if (data.isCheckBoxClick) {
 			config_set_bool(App()->GetUserConfig(), "General", "WarnedAboutReplayBufferPausing", true);
 			config_save_safe(App()->GetUserConfig(), "tmp", nullptr);
 		}
@@ -9307,6 +9889,7 @@ void OBSBasic::ReplayBufferStart()
 	OnActivate();
 
 	blog(LOG_INFO, REPLAY_BUFFER_START);
+	PLS_UI_ACTION(REPLAY_BUFFER_START);
 }
 
 void OBSBasic::ReplayBufferSave()
@@ -9578,11 +10161,13 @@ bool OBSBasic::stopRecordCheck()
 	if (outputHandler->RecordingActive()) {
 
 		if (bool confirm = config_get_bool(App()->GetUserConfig(), "BasicWindow", "WarnBeforeStoppingRecord");
-		    confirm && isVisible() &&
-		    PLSMessageBox::question(this, QTStr("ConfirmStopRecord.Title"), QTStr("ConfirmStopRecord.Text")) !=
-			    PLSAlertView::Button::Yes) {
-
-			return false;
+		    confirm && isVisible()) {
+			auto stopRecordRet = PLSErrorHandler::showAlertByPrismCode(
+				PLSErrorHandler::ErrCode::ALERT_CONFIRM_STOP_RECORD, PLSErrKeyAllAlert, {},
+				PLSErrorHandler::ExtraData("Confirm stop record"), this);
+			if (stopRecordRet.clickedBtn != QDialogButtonBox::Yes) {
+				return false;
+			}
 		}
 	}
 	return true;
@@ -9613,12 +10198,19 @@ void OBSBasic::RecordActionTriggered()
 void OBSBasic::VirtualCamActionTriggered()
 {
 	if (!vcamEnabled) {
-		PLSMessageBox::warning(this, QObject::tr("Alert.Title"), tr("main.virtualcamera.unavailable"));
+		PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ErrCode::ALERT_VIRTUALCAM_UNAVAILABLE,
+						      PLSErrKeyAllAlert, {},
+						      PLSErrorHandler::ExtraData("Virtual camera unavailable"), this);
+		auto action = dynamic_cast<QAction *>(sender());
+		if (action) {
+			action->setChecked(false);
+		}
 		return;
 	}
 
 	if (outputHandler->VirtualCamActive()) {
 		StopVirtualCam();
+		PLS_UI_ACTION("stop virtual cam");
 	} else {
 		if (!UIValidation::NoSourcesConfirmation(this)) {
 			auto action = dynamic_cast<QAction *>(sender());
@@ -9628,11 +10220,21 @@ void OBSBasic::VirtualCamActionTriggered()
 			return;
 		}
 		StartVirtualCam();
+		PLS_UI_ACTION("start virtual cam");
+
+		if (!outputHandler->VirtualCamActive()) {
+			auto action = dynamic_cast<QAction *>(sender());
+			if (action) {
+				action->setChecked(false);
+			}
+		}
 	}
 }
 
 void OBSBasic::OpenVirtualCamConfig()
 {
+	PLS_UI_ACTION("request vcam config dialog");
+
 	OBSBasicVCamConfig dialog(vcamConfig, outputHandler->VirtualCamActive(), this);
 
 	connect(&dialog, &OBSBasicVCamConfig::Accepted, this, &OBSBasic::UpdateVirtualCamConfig);
@@ -9740,6 +10342,7 @@ void OBSBasic::on_actionShowSettingsFolder_triggered()
 	const QString userConfigLocation = QString::fromStdString(userConfigPath);
 
 	QDesktopServices::openUrl(QUrl::fromLocalFile(userConfigLocation));
+	PLS_UI_ACTION("Show Settings Folder View");
 }
 
 void OBSBasic::on_actionShowProfileFolder_triggered()
@@ -9753,7 +10356,7 @@ void OBSBasic::on_actionShowProfileFolder_triggered()
 	oldFile = QT_TO_UTF8(action->property("file_name").value<QString>());
 	if (oldFile.isEmpty())
 		return;
-	QString fileName = strrchr(oldFile.toStdString().c_str(), '/') + 1;
+	QString fileName = strrchr(oldFile.toUtf8().constData(), '/') + 1;
 	QString path = pls_get_user_path("PRISMLiveStudio/basic/profiles/");
 
 	QDesktopServices::openUrl(QUrl::fromLocalFile(path + fileName));
@@ -9787,7 +10390,8 @@ void OBSBasic::ProgramViewContextMenuRequested()
 
 	studioProgramProjector = new QMenu(QTStr("StudioProgramProjector"));
 	studioProgramProjector->setWindowFlags(studioProgramProjector->windowFlags() | Qt::NoDropShadowWindowHint);
-	AddProjectorMenuMonitors(studioProgramProjector, this, &OBSBasic::OpenStudioProgramProjector);
+	AddProjectorMenuMonitors(studioProgramProjector, this, "Stuido Program Projector",
+				 &OBSBasic::OpenStudioProgramProjector);
 
 	popup.addMenu(studioProgramProjector);
 
@@ -9813,7 +10417,7 @@ void OBSBasic::on_previewDisabledWidget_customContextMenuRequested()
 	action->setChecked(obs_display_enabled(ui->preview->GetDisplay()));
 
 	previewProjectorMain = new QMenu(QTStr("PreviewProjector"));
-	AddProjectorMenuMonitors(previewProjectorMain, this, &OBSBasic::OpenPreviewProjector);
+	AddProjectorMenuMonitors(previewProjectorMain, this, "Preview Projector", &OBSBasic::OpenPreviewProjector);
 
 	QAction *previewWindow = popup.addAction(QTStr("PreviewWindow"), this, &OBSBasic::OpenPreviewWindow);
 
@@ -9843,6 +10447,7 @@ void OBSBasic::ToggleAlwaysOnTop()
 	SetAlwaysOnTop(mainView, !isAlwaysOnTop);
 
 	show();
+	PLS_UI_ACTION("%s Show MainView", isAlwaysOnTop ? "Always" : "Nomal");
 }
 
 void OBSBasic::GetFPSCommon(uint32_t &num, uint32_t &den, const char *szKey) const
@@ -9964,6 +10569,7 @@ void OBSBasic::DeleteYouTubeAppDock()
 
 void OBSBasic::UpdateEditMenu()
 {
+	pls_check_app_exiting();
 	QModelIndexList items = GetAllSelectedSourceItems();
 	int totalCount = items.count();
 	size_t filter_count = 0;
@@ -10086,6 +10692,7 @@ void OBSBasic::on_actionCopyTransform_triggered()
 
 	ui->actionPasteTransform->setEnabled(true);
 	hasCopiedTransform = true;
+	PLS_UI_ACTION("In Main Window, the action copy transform has been triggered.");
 }
 
 void undo_redo(const std::string &data)
@@ -10117,6 +10724,7 @@ void OBSBasic::on_actionPasteTransform_triggered()
 	};
 
 	pls_scene_enum_items_all(GetCurrentScene(), func, this);
+	PLS_UI_ACTION("In Main Window, the action paste transform has been finished.");
 
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
 
@@ -10141,7 +10749,13 @@ static void reset_sceneitem(const char *id, OBSSource source, obs_sceneitem_t *i
 	if (pls_is_equal(id, PRISM_CHATV2_SOURCE_ID)) {
 		obs_video_info ovi;
 		vec3 center;
-		obs_get_video_info(&ovi);
+
+		if (pls_is_vertical_sceneitem(item)) {
+			pls_get_vertical_video_info(&ovi);
+		} else {
+			obs_get_video_info(&ovi);
+		}
+
 		vec3_set(&center, float(ovi.base_width), float(ovi.base_height), 0.0f);
 		vec3_mulf(&center, &center, 0.5f);
 
@@ -10155,11 +10769,15 @@ static void reset_sceneitem(const char *id, OBSSource source, obs_sceneitem_t *i
 	} else {
 		if (for_group) {
 			vec2_set(&info.pos, old.pos.x, old.pos.y);
-			vec2_set(&info.scale, old.scale.x, old.scale.y);
 		} else {
 			vec2_set(&info.pos, 0.0f, 0.0f);
-			vec2_set(&info.scale, 1.0f, 1.0f);
 		}
+	}
+
+	if (for_group) {
+		vec2_set(&info.scale, old.scale.x, old.scale.y);
+	} else {
+		vec2_set(&info.scale, 1.0f, 1.0f);
 	}
 
 	info.bounds_type = OBS_BOUNDS_NONE;
@@ -10195,7 +10813,10 @@ static bool reset_tr(obs_scene_t * /* scene */, obs_sceneitem_t *item, void *par
 	if (!id)
 		return true;
 
+	pls_on_item_attribute_changed(item, RESET_TRANSFORM, PROPERTY_UI_CHANGED);
 	reset_sceneitem(id, source, item);
+	pls_on_item_attribute_changed(item, RESET_TRANSFORM, PROPERTY_UPDATED);
+
 	return true;
 }
 
@@ -10237,7 +10858,7 @@ void OBSBasic::resetAllGroupTransforms()
 void OBSBasic::on_actionResetTransform_triggered()
 {
 	OBSScene scene = GetCurrentScene();
-
+	PLS_UI_ACTION("Preview Transform Reset Changed");
 	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(scene, false);
 	pls_scene_enum_items_all(scene, reset_tr, nullptr);
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(scene, false);
@@ -10248,6 +10869,7 @@ void OBSBasic::on_actionResetTransform_triggered()
 			  undo_redo, undo_redo, undo_data, redo_data);
 
 	pls_scene_enum_items_all(GetCurrentScene(), reset_tr, nullptr);
+	PLS_UI_ACTION("Reset transform finished.");
 }
 
 static void GetItemBox(obs_sceneitem_t *item, vec3 &tl, vec3 &br)
@@ -10309,6 +10931,8 @@ static void rotate_sceneitem(float rot, obs_sceneitem_t *item)
 
 static bool RotateSelectedSources(obs_scene_t * /* scene */, obs_sceneitem_t *item, void *param)
 {
+	pls_on_item_attribute_changed(item, ROTATE_ITEM, PROPERTY_UI_CHANGED);
+
 	if (obs_sceneitem_is_group(item))
 		obs_sceneitem_group_enum_items(item, RotateSelectedSources, param);
 	if (!obs_sceneitem_selected(item))
@@ -10319,6 +10943,7 @@ static bool RotateSelectedSources(obs_scene_t * /* scene */, obs_sceneitem_t *it
 	float rot = *reinterpret_cast<float *>(param);
 	rotate_sceneitem(rot, item);
 
+	pls_on_item_attribute_changed(item, ROTATE_ITEM, PROPERTY_UPDATED);
 	return true;
 };
 
@@ -10326,7 +10951,11 @@ void OBSBasic::on_actionRotate90CW_triggered()
 {
 	float f90CW = 90.0f;
 	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
+	PLS_UI_ACTION("Preview Transform Rotate90CW Changed");
 	pls_scene_enum_items_all(GetCurrentScene(), RotateSelectedSources, &f90CW);
+
+	PLS_UI_ACTION("In Main Window, the action rotate90cw has been finished.");
+
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
 
 	std::string undo_data(obs_data_get_json(wrapper));
@@ -10340,7 +10969,10 @@ void OBSBasic::on_actionRotate90CCW_triggered()
 {
 	float f90CCW = -90.0f;
 	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
+	PLS_UI_ACTION("Preview Transform Rotate90CCW Changed");
 	pls_scene_enum_items_all(GetCurrentScene(), RotateSelectedSources, &f90CCW);
+
+	PLS_UI_ACTION("In Main Window, the action rotate90ccw has been finished.");
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
 
 	std::string undo_data(obs_data_get_json(wrapper));
@@ -10354,7 +10986,11 @@ void OBSBasic::on_actionRotate180_triggered()
 {
 	float f180 = 180.0f;
 	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
+	PLS_UI_ACTION("Preview Transform Rotate180 Changed");
 	pls_scene_enum_items_all(GetCurrentScene(), RotateSelectedSources, &f180);
+
+	PLS_UI_ACTION("In Main Window, the action rotate180 has been finished.");
+
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
 
 	std::string undo_data(obs_data_get_json(wrapper));
@@ -10366,6 +11002,8 @@ void OBSBasic::on_actionRotate180_triggered()
 
 static bool MultiplySelectedItemScale(obs_scene_t * /* scene */, obs_sceneitem_t *item, void *param)
 {
+	pls_on_item_attribute_changed(item, FLIP_H_V, PROPERTY_UI_CHANGED);
+
 	vec2 &mul = *reinterpret_cast<vec2 *>(param);
 
 	if (obs_sceneitem_is_group(item))
@@ -10386,6 +11024,7 @@ static bool MultiplySelectedItemScale(obs_scene_t * /* scene */, obs_sceneitem_t
 
 	SetItemTL(item, tl);
 
+	pls_on_item_attribute_changed(item, FLIP_H_V, PROPERTY_UPDATED);
 	return true;
 }
 
@@ -10394,6 +11033,10 @@ void OBSBasic::on_actionFlipHorizontal_triggered()
 	vec2 scale;
 	vec2_set(&scale, -1.0f, 1.0f);
 	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
+
+	PLS_UI_ACTION("Preview Transform FlipHorizontal Changed");
+	PLS_UI_ACTION("In Main Window, the action flip horizontal has been finished.");
+
 	pls_scene_enum_items_all(GetCurrentScene(), MultiplySelectedItemScale, &scale);
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
 
@@ -10409,7 +11052,10 @@ void OBSBasic::on_actionFlipVertical_triggered()
 	vec2 scale;
 	vec2_set(&scale, 1.0f, -1.0f);
 	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
+	PLS_UI_ACTION("Preview Transform FlipVertical Changed");
 	pls_scene_enum_items_all(GetCurrentScene(), MultiplySelectedItemScale, &scale);
+	PLS_UI_ACTION("In Main Window, the action flip vertical has been finished.");
+
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
 
 	std::string undo_data(obs_data_get_json(wrapper));
@@ -10421,6 +11067,8 @@ void OBSBasic::on_actionFlipVertical_triggered()
 
 static bool CenterAlignSelectedItems(obs_scene_t * /* scene */, obs_sceneitem_t *item, void *param)
 {
+	pls_on_item_attribute_changed(item, FIT_STRETCH_TO_SCREEN, PROPERTY_UI_CHANGED);
+
 	obs_bounds_type boundsType = *reinterpret_cast<obs_bounds_type *>(param);
 
 	if (obs_sceneitem_is_group(item)) {
@@ -10455,6 +11103,7 @@ static bool CenterAlignSelectedItems(obs_scene_t * /* scene */, obs_sceneitem_t 
 
 	obs_sceneitem_set_info2(item, &itemInfo);
 
+	pls_on_item_attribute_changed(item, FIT_STRETCH_TO_SCREEN, PROPERTY_UPDATED);
 	return true;
 }
 
@@ -10462,7 +11111,9 @@ void OBSBasic::on_actionFitToScreen_triggered()
 {
 	obs_bounds_type boundsType = OBS_BOUNDS_SCALE_INNER;
 	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
+	PLS_UI_ACTION("Preview Transform FitToScreen Changed");
 	pls_scene_enum_items_all(GetCurrentScene(), CenterAlignSelectedItems, &boundsType);
+	PLS_UI_ACTION("In Main Window, the action fit to screen has been finished.");
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
 
 	std::string undo_data(obs_data_get_json(wrapper));
@@ -10476,6 +11127,9 @@ void OBSBasic::on_actionStretchToScreen_triggered()
 {
 	obs_bounds_type boundsType = OBS_BOUNDS_STRETCH;
 	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
+
+	PLS_UI_ACTION("In Main Window, the action stretch to screen has been finished.");
+
 	pls_scene_enum_items_all(GetCurrentScene(), CenterAlignSelectedItems, &boundsType);
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
 
@@ -10534,6 +11188,8 @@ void OBSBasic::CenterSelectedSceneItems(const CenterType &centerType)
 		float bottom = 0.0f;
 
 		for (auto &item : items) {
+			pls_on_item_attribute_changed(item, CENTER_TO_SCREEN, PROPERTY_UI_CHANGED);
+
 			vec3 tl, br;
 
 			GetItemBox(item, tl, br);
@@ -10581,6 +11237,8 @@ void OBSBasic::CenterSelectedSceneItems(const CenterType &centerType)
 				tl.y = itemTL.y;
 
 			SetItemTL(item, tl);
+
+			pls_on_item_attribute_changed(item, CENTER_TO_SCREEN, PROPERTY_UPDATED);
 		}
 	};
 	centerFunc(items, false);
@@ -10597,10 +11255,13 @@ void OBSBasic::on_actionCenterToScreen_triggered()
 		PLS_INFO(MAINFRAME_MODULE, "Ingore group source to center to screen action when dual output on.");
 		return;
 	}
-
 	CenterType centerType = CenterType::Scene;
 	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
+	PLS_UI_ACTION("Preview Transform CenterToScreen Changed");
 	CenterSelectedSceneItems(centerType);
+
+	PLS_UI_ACTION("In Main Window, the action center to screen has been finished.");
+
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
 
 	std::string undo_data(obs_data_get_json(wrapper));
@@ -10614,7 +11275,11 @@ void OBSBasic::on_actionVerticalCenter_triggered()
 {
 	CenterType centerType = CenterType::Vertical;
 	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
+	PLS_UI_ACTION("Preview Transform CenterToVertically Changed");
 	CenterSelectedSceneItems(centerType);
+
+	PLS_UI_ACTION("In Main Window, the action vertical center has been finished.");
+
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
 
 	std::string undo_data(obs_data_get_json(wrapper));
@@ -10628,7 +11293,11 @@ void OBSBasic::on_actionHorizontalCenter_triggered()
 {
 	CenterType centerType = CenterType::Horizontal;
 	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
+	PLS_UI_ACTION("Preview Transform CenterToHorizontal Changed");
 	CenterSelectedSceneItems(centerType);
+
+	PLS_UI_ACTION("In Main Window, the action horizontal center has been finished.");
+
 	OBSDataAutoRelease rwrapper = pls_scene_save_transform_states_all(GetCurrentScene(), false);
 
 	std::string undo_data(obs_data_get_json(wrapper));
@@ -10646,6 +11315,7 @@ void OBSBasic::EnablePreviewDisplay(bool enable)
 	if (enable) {
 		ui->previewDisabledWidget->setVisible(false);
 		ui->previewContainer->setVisible(true);
+		SetPreviewRenderPerf("Preview Enabled");
 	} else {
 		ui->previewContainer->setVisible(false);
 		ui->previewDisabledWidget->setVisible(true);
@@ -10825,12 +11495,14 @@ static void newProjector(PLSDialogView *&dialogView, OBSProjector *&projector, o
 
 	if (monitor < 0) {
 		OBSProjector::setParentDialogTitleBarButtons(dialogView, false);
+		dialogView->setObjectName("Window Projector(Scene)");
 		dialogView->initSize({480, 320});
 		dialogView->showNormal();
 
 	} else {
 		OBSProjector::setParentDialogTitleBarButtons(dialogView, true);
 		const QScreen *screen = QGuiApplication::screens()[monitor];
+		dialogView->setObjectName("Fullscreen Projector(Scene)");
 		dialogView->setGeometry(screen->geometry());
 		dialogView->showNormal();
 		dialogView->showFullScreen();
@@ -11074,10 +11746,11 @@ void OBSBasic::on_resetDocks_triggered(bool force)
 	if ((oldExtraDocks.size() || extraDocks.size() || extraCustomDocks.size()) && !force)
 #endif
 	{
-		PLSAlertView::Button button =
-			PLSAlertView::question(this, QTStr("ResetUIWarning.Title"), QTStr("ResetUIWarning.Text"));
+		auto resetRet = PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ALERT_RESET_UI_WARNING, PLSErrKeyAllAlert, {},
+			PLSErrorHandler::ExtraData("OBSBasic::on_resetDocks_triggered"), this);
 
-		if (button == PLSAlertView::Button::No)
+		if (resetRet.clickedBtn == QDialogButtonBox::No)
 			return;
 	}
 
@@ -11131,7 +11804,9 @@ void OBSBasic::on_resetDocks_triggered(bool force)
 	ui->mixerDock->setVisible(true);
 	controlsDock->setVisible(false);
 	ui->chatDock->setVisible(false);
+	ui->bgmDock->setVisible(false);
 	config_set_bool(App()->GetUserConfig(), "ChatConfig", "isResetDockClicked", true);
+	config_set_bool(App()->GetUserConfig(), "BgmConfig", "isResetDockClicked", true);
 	config_save(App()->GetUserConfig());
 
 	setDocksVisibleProperty();
@@ -11162,6 +11837,7 @@ void OBSBasic::on_lockDocks_toggled(bool lock)
 	controlsDock->setFeatures(mainFeatures);
 	statsDock->setFeatures(features);
 	ui->chatDock->setFeatures(features);
+	ui->bgmDock->setFeatures(features);
 
 	for (int i = extraDocks.size() - 1; i >= 0; i--)
 		extraDocks[i]->setFeatures(features);
@@ -11185,7 +11861,7 @@ void OBSBasic::on_lockDocks_toggled(bool lock)
 			oldExtraDocks[i]->setFeatures(features);
 		}
 	}
-	PLSBasic::instance()->setDockDetachEnabled(lock);
+	PLS_UI_ACTION("Main Menu's View %s Docks", lock ? "Lock" : "UnLock");
 }
 
 void OBSBasic::on_sideDocks_toggled(bool side)
@@ -11201,6 +11877,7 @@ void OBSBasic::on_sideDocks_toggled(bool side)
 		setCorner(Qt::BottomLeftCorner, Qt::BottomDockWidgetArea);
 		setCorner(Qt::BottomRightCorner, Qt::BottomDockWidgetArea);
 	}
+	PLS_UI_ACTION("Main Menu's View %s Docks", side ? "Side" : "UnSide");
 }
 
 void OBSBasic::on_resetUI_triggered()
@@ -11250,6 +11927,7 @@ void OBSBasic::on_toggleContextBar_toggled(bool visible)
 	if (!PLSBasic::instance()->IsDrawPenMode())
 		this->ui->contextContainer->setVisible(visible);
 	UpdateContextBarDeferred(true);
+	PLS_UI_ACTION("%s Source ToolBar", visible ? "Show" : "Hide");
 }
 
 void OBSBasic::on_toggleStatusBar_toggled(bool visible)
@@ -11266,6 +11944,7 @@ void OBSBasic::on_toggleSourceIcons_toggled(bool visible)
 		advAudioWindow->SetIconsVisible(visible);
 
 	config_set_bool(App()->GetUserConfig(), "BasicWindow", "ShowSourceIcons", visible);
+	PLS_UI_ACTION("%s Sources Icon", visible ? "Show" : "Hide");
 }
 
 void OBSBasic::on_actionLockPreview_triggered()
@@ -11283,6 +11962,7 @@ void OBSBasic::on_actionLockPreview_triggered()
 		preview->SetCacheLocked(locked);
 
 		ui->actionLockPreview->setChecked(locked);
+		PLS_UI_ACTION("Preview has been %s.", locked ? "locked" : "unLocked");
 	};
 
 	auto preview = ui->preview;
@@ -11321,12 +12001,14 @@ void OBSBasic::on_scalingMenu_aboutToShow()
 
 void OBSBasic::on_actionScaleWindow_triggered()
 {
+	PLS_UI_ACTION("Preview Scale Window Changed");
 	auto scaleWindow = [](OBSBasicPreview *preview) {
 		if (!preview) {
 			return;
 		}
 		preview->SetFixedScaling(false);
 		preview->ResetScrollingOffset();
+		PLS_UI_ACTION("Preview scale to window finished.");
 		emit preview->DisplayResized();
 	};
 	if (!pls_is_dual_output_on()) {
@@ -11343,12 +12025,14 @@ void OBSBasic::on_actionScaleWindow_triggered()
 
 void OBSBasic::on_actionScaleCanvas_triggered()
 {
+	PLS_UI_ACTION("Preview Scale Canvas Changed");
 	auto scaleCanvas = [](OBSBasicPreview *preview) {
 		if (!preview) {
 			return;
 		}
 		preview->SetFixedScaling(true);
 		preview->SetScalingLevel(0);
+		PLS_UI_ACTION("Preview scale to canvas finished.");
 		emit preview->DisplayResized();
 	};
 
@@ -11366,6 +12050,7 @@ void OBSBasic::on_actionScaleCanvas_triggered()
 
 void OBSBasic::on_actionScaleOutput_triggered()
 {
+	PLS_UI_ACTION("Preview Scale Output Changed");
 	auto scaleOutput = [this](OBSBasicPreview *preview, bool isVerticalPreview) {
 		obs_video_info ovi;
 		if (isVerticalPreview) {
@@ -11379,6 +12064,7 @@ void OBSBasic::on_actionScaleOutput_triggered()
 		// log base ZOOM_SENSITIVITY of x = log(x) / log(ZOOM_SENSITIVITY)
 		int32_t approxScalingLevel = int32_t(round(log(scalingAmount) / log(ZOOM_SENSITIVITY)));
 		preview->SetScalingLevelAndAmount(approxScalingLevel, scalingAmount);
+		PLS_UI_ACTION("Preview scale to output finished.");
 		emit preview->DisplayResized();
 	};
 
@@ -11398,6 +12084,14 @@ void OBSBasic::on_actionQuitApp_triggered()
 {
 	PLS_INFO(MAINFRAME_MODULE, "Command+Q menu clicked");
 	if (!mainView || !mainView->isVisible()) {
+#ifdef Q_OS_MACOS
+
+		if (PLSLoginMainView::instance() && PLSLoginMainView::instance()->isVisible()) {
+			PLS_INFO(MAINFRAME_MODULE, "click mac action, close login view ");
+			PLSLoginMainView::instance()->close();
+		}
+#endif // Q_OS_MACOS
+
 		PLS_INFO(MAINFRAME_MODULE, "ignore Command+Q to quit prism, because the mainView is not already!");
 		return;
 	}
@@ -11430,14 +12124,24 @@ void OBSBasic::SetShowing(bool showing, bool isChangePreviewState)
 			mainView->hide();
 		});
 
+#ifdef Q_OS_MACOS
+		// Must run before hiding preview/main window. Otherwise AppKit may
+		// validate first responder while it still belongs to a floating dock.
+		if (QWidget *focusWidget = QApplication::focusWidget();
+		    focusWidget && focusWidget->window() != mainView) {
+			focusWidget->clearFocus();
+		}
+		setDocksVisible(false);
+		QApplication::setActiveWindow(mainView);
+		mainView->setFocus(Qt::OtherFocusReason);
+#endif
+
 		if (previewEnabled && isChangePreviewState)
 			EnablePreviewDisplay(false);
 
 		mainView->setVisible(false);
 #ifdef Q_OS_WIN
 		mainView->showMinimized();
-#elif __APPLE__
-		setDocksVisible(false);
 #endif
 
 	} else if (showing && !mainView->isVisible()) {
@@ -11458,6 +12162,11 @@ void OBSBasic::SetShowing(bool showing, bool isChangePreviewState)
 #ifdef __APPLE__
 		EnableOSXDockIcon(true);
 		setDocksVisible(true);
+		if (mainView->isFullScreen()) {
+			auto screenIdx = QGuiApplication::screens().indexOf(mainView->screen());
+			screenIdx = (screenIdx < 0) ? 0 : screenIdx;
+			mainView->customMacWindow()->moveToFullScreen(this, static_cast<int>(screenIdx));
+		}
 #endif
 
 		/* raise and activate window to ensure it is on top */
@@ -11565,14 +12274,21 @@ void OBSBasic::SystemTrayInit(bool isVisible)
 	exit = new QAction(QTStr("Exit"), trayIcon.data());
 	exit->setObjectName("exit");
 
+	auto getTitle = [this]() {
+		return pls_uistep_v2_get_title(this);
+	};
 	trayMenu = new QMenu;
+	pls_uistep_v2_set_title(trayMenu, getTitle);
 	previewProjector = new QMenu(QTStr("PreviewProjector"));
+	pls_uistep_v2_set_title(previewProjector, getTitle);
 	previewProjector->setObjectName("previewProjector");
 	studioProgramProjector = new QMenu(QTStr("StudioProgramProjector"));
+	pls_uistep_v2_set_title(studioProgramProjector, getTitle);
 	studioProgramProjector->setObjectName("studioProgramProjector");
 
-	AddProjectorMenuMonitors(previewProjector, this, &OBSBasic::OpenPreviewProjector);
-	AddProjectorMenuMonitors(studioProgramProjector, this, &OBSBasic::OpenStudioProgramProjector);
+	AddProjectorMenuMonitors(previewProjector, this, "Preview Projector", &OBSBasic::OpenPreviewProjector);
+	AddProjectorMenuMonitors(studioProgramProjector, this, "Studio program Projector",
+				 &OBSBasic::OpenStudioProgramProjector);
 	trayMenu->addAction(showHide);
 	trayMenu->addSeparator();
 	trayMenu->addMenu(previewProjector);
@@ -11619,8 +12335,9 @@ void OBSBasic::IconActivated(QSystemTrayIcon::ActivationReason reason)
 	// Refresh projector list
 	previewProjector->clear();
 	studioProgramProjector->clear();
-	AddProjectorMenuMonitors(previewProjector, this, &OBSBasic::OpenPreviewProjector);
-	AddProjectorMenuMonitors(studioProgramProjector, this, &OBSBasic::OpenStudioProgramProjector);
+	AddProjectorMenuMonitors(previewProjector, this, "Preview Projector", &OBSBasic::OpenPreviewProjector);
+	AddProjectorMenuMonitors(studioProgramProjector, this, "Studio Program Projector",
+				 &OBSBasic::OpenStudioProgramProjector);
 
 #ifdef __APPLE__
 	UNUSED_PARAMETER(reason);
@@ -11684,11 +12401,13 @@ bool OBSBasic::sysTrayMinimizeToTray()
 void OBSBasic::on_actionMainUndo_triggered()
 {
 	undo_s.undo();
+	PLS_UI_ACTION("Undo Sources");
 }
 
 void OBSBasic::on_actionMainRedo_triggered()
 {
 	undo_s.redo();
+	PLS_UI_ACTION("Redo Sources");
 }
 
 void OBSBasic::on_actionCopySource_triggered()
@@ -11722,6 +12441,8 @@ void OBSBasic::on_actionCopySource_triggered()
 	}
 
 	UpdateEditMenu();
+
+	PLS_UI_ACTION("In Main Window, the action copy source has been triggered.");
 }
 
 void OBSBasic::on_actionPasteRef_triggered()
@@ -11821,6 +12542,7 @@ void OBSBasic::SceneCopyFilters()
 {
 	copyFiltersSource = obs_source_get_weak_source(GetCurrentSceneSource());
 	ui->actionPasteFilters->setEnabled(true);
+	PLS_UI_ACTION("Scene copy filter triggered.");
 }
 
 void OBSBasic::ScenePasteFilters()
@@ -11847,6 +12569,7 @@ void OBSBasic::on_actionCopyFilters_triggered()
 	copyFiltersSource = obs_source_get_weak_source(source);
 
 	ui->actionPasteFilters->setEnabled(true);
+	PLS_UI_ACTION("In Main Window, the action copy filters has been triggered.");
 }
 
 void OBSBasic::CreateFilterPasteUndoRedoAction(const QString &text, obs_source_t *source, obs_data_array_t *undo_array,
@@ -11883,6 +12606,7 @@ void OBSBasic::on_actionPasteFilters_triggered()
 	OBSSource dstSource = obs_sceneitem_get_source(sceneItem);
 
 	SourcePasteFilters(source.Get(), dstSource);
+	PLS_UI_ACTION("In Main Window, the action paste filters has been triggered.");
 }
 
 static void ConfirmColor(SourceTree *sources, const QColor &color, QModelIndexList selectedItems)
@@ -11891,8 +12615,7 @@ static void ConfirmColor(SourceTree *sources, const QColor &color, QModelIndexLi
 
 	for (int x = 0; x < selectedItems.count(); x++) {
 		SourceTreeItem *treeItem = sources->GetItemWidget(selectedItems[x].row());
-		treeItem->SetBgColor(SourceTreeItem::SourceItemBgType::BgCustom,
-				     (void *)strColor.toStdString().c_str());
+		treeItem->SetBgColor(SourceTreeItem::SourceItemBgType::BgCustom, (void *)strColor.toUtf8().constData());
 
 		OBSSceneItem sceneItem = sources->Get(selectedItems[x].row());
 		OBSDataAutoRelease privData = obs_sceneitem_get_private_settings(sceneItem);
@@ -11950,6 +12673,7 @@ void OBSBasic::ColorChange()
 					continue;
 				button->SetSelect(false);
 			}
+			PLS_UI_ACTION("In Source Context Menu, set preset color finished for source tree item.");
 		}
 		//custom
 		else if (objectName.contains("custom")) {
@@ -11977,6 +12701,7 @@ void OBSBasic::ColorChange()
 				cButton->SetSelect(false);
 			}
 		}
+		PLS_UI_ACTION("In Source Context Menu, set preset color finished for source tree item.");
 
 	} else if (action) {
 		int preset = action->property("bgColor").value<int>();
@@ -11993,7 +12718,7 @@ void OBSBasic::ColorChange()
 					QColor showColor = color;
 					QString strColor = showColor.name(QColor::HexArgb);
 					curTreeItem->SetBgColor(SourceTreeItem::SourceItemBgType::BgCustom,
-								(void *)strColor.toStdString().c_str());
+								(void *)strColor.toUtf8().constData());
 				}
 			};
 
@@ -12036,6 +12761,7 @@ void OBSBasic::ColorChange()
 				OBSDataAutoRelease privData = obs_sceneitem_get_private_settings(sceneItem);
 				obs_data_set_int(privData, "color-preset", preset);
 				obs_data_set_string(privData, "color", "");
+				PLS_UI_ACTION("In Source Context Menu, clear color finished for source tree item.");
 			}
 		}
 	}
@@ -12058,33 +12784,9 @@ SourceTreeItem *OBSBasic::GetItemWidgetFromSceneItem(obs_sceneitem_t *sceneItem)
 	return nullptr;
 }
 
-void OBSBasic::on_autoConfigure_triggered()
-{
-	//obs update logic
-	return;
+void OBSBasic::on_autoConfigure_triggered() {}
 
-	AutoConfig test(this);
-	test.setModal(true);
-	test.show();
-	test.exec();
-}
-
-void OBSBasic::on_stats_triggered()
-{
-
-	return;
-
-	if (!stats.isNull()) {
-		stats->show();
-		stats->raise();
-		return;
-	}
-
-	OBSBasicStats *statsDlg;
-	statsDlg = new OBSBasicStats(nullptr);
-	statsDlg->show();
-	stats = statsDlg;
-}
+void OBSBasic::on_stats_triggered() {}
 
 void OBSBasic::on_actionShowAbout_triggered()
 {
@@ -12102,14 +12804,13 @@ void OBSBasic::ResizeOutputSizeOfSource()
 	if (obs_video_active())
 		return;
 
-	PLSAlertView::Button button = PLSAlertView::question(
-		pls_get_main_view(), QTStr("ResizeOutputSizeOfSource"),
-		QTStr("ResizeOutputSizeOfSource.Text") + "\n\n" + QTStr("ResizeOutputSizeOfSource.Continue"),
-		{{PLSAlertView::Button::Yes, QTStr("Yes")}, {PLSAlertView::Button::No, QTStr("No")}});
-
-	if (button != PLSAlertView::Button::Yes) {
+	auto resizeRet = PLSErrorHandler::showAlertByPrismCode(
+		PLSErrorHandler::ErrCode::ALERT_RESIZE_OUTPUT_SIZE_OF_SOURCE, PLSErrKeyAllAlert, {},
+		PLSErrorHandler::ExtraData("Resize output size of source"), pls_get_main_view());
+	if (resizeRet.clickedBtn != QDialogButtonBox::Yes) {
 		return;
 	}
+	PLS_UI_ACTION("Preview Advanced ResizeOutput Changed");
 	auto currentItem = GetCurrentSceneItem();
 	OBSSource source = obs_sceneitem_get_source(currentItem);
 
@@ -12156,6 +12857,14 @@ void OBSBasic::addPrismPlugins()
 	obs_add_module_path("../../prism-plugins/64bit", "../../data/prism-plugins/%module%");
 	obs_add_module_path("../../lab-plugins/64bit", "../../data/lab-plugins/%module%");
 	addOBSThirdPlugins();
+#elif defined(__APPLE__)
+	/*PRISMLiveStudio User Application Support Search Path */
+	char base_module_dir[512];
+	int ret = GetAppConfigPath(base_module_dir, sizeof(base_module_dir), "PRISMLiveStudio/plugins/%module%.plugin");
+	if (ret <= 0)
+		return;
+	string path = base_module_dir;
+	obs_add_module_path((path + "/Contents/MacOS").c_str(), (path + "/Contents/Resources").c_str());
 #endif
 }
 
@@ -12164,37 +12873,10 @@ void OBSBasic::addOBSThirdPlugins()
 #if defined(Q_OS_WIN)
 	QSettings settings("HKEY_LOCAL_MACHINE\\SOFTWARE\\OBS Studio", QSettings::NativeFormat);
 	auto obsAppPath = settings.value("Default").toString();
-
-	pls_win_ver_t vers;
-	memset(&vers, 0, sizeof(vers));
-	auto successed = pls_get_win_dll_ver(vers, obsAppPath + "/bin/64bit/obs64.exe");
-
-	QString obsVer;
-	if (successed) {
-		obsVer = QString("%1.%2.%3").arg(vers.major).arg(vers.minor).arg(vers.build);
-	} else {
-		obsVer = QString::fromUtf8(u8"notInstalled");
-	}
-	std::string obsStdVer = obsVer.toStdString();
-
-	bool isRunningOk = (LIBOBS_API_MAJOR_VER == vers.major && LIBOBS_API_MINOR_VER == vers.minor);
-
-	PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE,
-		  {
-			  {"obsPluginUsed", isRunningOk ? "yes" : "no"},
-			  {"obsInstalled", successed ? "yes" : "no"},
-			  {"obsVersion", obsStdVer.c_str()},
-		  },
-		  "current OBS version = %d.%d.%d (PRISM), "
-		  "OBS installed = %s, "
-		  "OBS version = %s, "
-		  "use 3rd-plugin from OBS: %s",
-		  LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER, successed ? "yes" : "no",
-		  obsStdVer.c_str(), isRunningOk ? "yes" : "no");
-
-	if (!isRunningOk) {
+	if (!PLSMainView::isMatchOBSSupportPluginVersion(obsAppPath)) {
 		return;
 	}
+
 	auto obsPlguinPath = obsAppPath + "/obs-plugins/64bit";
 	auto obsPlguinDataPath = obsAppPath + "/data/obs-plugins/%module%";
 
@@ -12337,7 +13019,6 @@ void OBSBasic::RemoveDockWidget(const QString &name)
 	} else if (ncb2bCustomDockNames.contains(name)) {
 		int idx = ncb2bCustomDockNames.indexOf(name);
 		ncb2bCustomDockNames.removeAt(idx);
-		ncb2bCustomDockUrls.removeAt(idx);
 		ncb2bCustomDocks[idx].reset();
 		ncb2bCustomDocks.removeAt(idx);
 
@@ -12636,7 +13317,8 @@ void OBSBasic::OutputPathInvalidMessage()
 {
 	blog(LOG_ERROR, "Recording stopped because of bad output path");
 
-	pls_alert_error_message(this, QTStr("Output.BadPath.Title"), QTStr("Output.BadPath.Text"));
+	PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ErrCode::ALERT_OUTPUT_BAD_PATH, PLSErrKeyAllAlert, {},
+					      PLSErrorHandler::ExtraData("Output bad path"), this);
 }
 
 bool OBSBasic::IsFFmpegOutputToURL() const
@@ -12863,6 +13545,15 @@ QColor OBSBasic::GetHoverColor() const
 	}
 }
 
+QColor OBSBasic::GetAlignLineColor() const
+{
+	if (config_get_bool(App()->GetUserConfig(), "Accessibility", "OverrideColors")) {
+		return color_from_int(config_get_int(App()->GetUserConfig(), "Accessibility", "SelectPurple"));
+	} else {
+		return QColor::fromRgb(255, 0, 238);
+	}
+}
+
 void OBSBasic::UpdatePreviewSpacingHelpers()
 {
 	drawSpacingHelpers = config_get_bool(App()->GetUserConfig(), "BasicWindow", "SpacingHelpersEnabled");
@@ -12902,12 +13593,14 @@ float OBSBasic::GetDevicePixelRatio()
 }
 void OBSBasic::OnEvent(enum obs_frontend_event event)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (api)
 		api->on_event(event);
 }
 
 void OBSBasic::OnPLSEvent(enum pls_frontend_event event)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (api)
 		api->on_event(event);
 }
@@ -12973,12 +13666,16 @@ OBSPromptResult OBSBasic::PromptForName(const OBSPromptRequest &request, const O
 		}
 
 		if (result.promptValue.empty()) {
-			OBSMessageBox::warning(this, QTStr("NoNameEntered.Title"), QTStr("NoNameEntered.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_No_Name_Entered, PLSErrKeyAllAlert,
+							      QString(), PLSErrorHandler::ExtraData("PromptForName"),
+							      nullptr);
 			continue;
 		}
 
 		if (!callback(result)) {
-			OBSMessageBox::warning(this, QTStr("NameExists.Title"), QTStr("NameExists.Text"));
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_Name_Exists, PLSErrKeyAllAlert,
+							      QString(), PLSErrorHandler::ExtraData("PromptForName"),
+							      nullptr);
 			continue;
 		}
 
@@ -13155,6 +13852,24 @@ double OBSBasic::GetStreamingNetworkMilliTime(bool vertical)
 	return pls_output_avg_send_time_ms(stream_output);
 }
 
+void OBSBasic::showOutputStartErrorAlert(const QString &title, const QString &message, bool is_encoder_error)
+{
+	if (is_encoder_error) {
+		PLSAlertView::Button ret = PLSAlertView::warning(
+			PLSBasic::Get(), title, message,
+			{
+				{PLSAlertView::Button::Close, QObject::tr("OK")},
+				{PLSAlertView::Button::Help, QObject::tr("Live.Button.View.Help")},
+			},
+			PLSAlertView::Button::Close);
+		if (ret == PLSAlertView::Button::Help) {
+			QDesktopServices::openUrl(g_encoderErrorHelp);
+		}
+	} else {
+		pls_alert_error_message(PLSBasic::Get(), title, message);
+	}
+}
+
 double OBSBasic::GetStreamingOutputFPS(bool vertical)
 {
 	if (!outputHandler)
@@ -13223,4 +13938,88 @@ void OBSBasic::resetGroupTransforms(OBSSceneItem item)
 	reset_group_tr(nullptr, item, nullptr);
 }
 
+void OBSBasic::addSourceFromAddSourceView()
+{
+	PLS_PERFORMANCE_GLOBAL_START("Show PLSAddSourceView");
 
+	PLSAddSourceView view(this);
+	PLS_PERFORMANCE_GLOBAL_END("Build PLSAddSourceView");
+	PLS_PERFORMANCE_GLOBAL_START("PLSAddSourceView Exec", "Show PLSAddSourceView");
+	PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&view, PLS_PERFORMANCE_GLOBAL_END("PLSAddSourceView Exec");
+						    PLS_PERFORMANCE_GLOBAL_END("Show PLSAddSourceView"));
+
+	auto result = view.exec();
+	pls_modal_check_app_exiting();
+	if (QDialog::Accepted == result) {
+		PLS_PERFORMANCE_GLOBAL_END("Sources_Click_ShowSource1-done");
+		PLS_PERFORMANCE_GLOBAL_START("Sources_Click_ShowSource1-add-source");
+
+		auto selectId = view.selectSourceId();
+		if (!selectId.isEmpty())
+			OBSBasic::Get()->AddSource(selectId.toUtf8().constData());
+	} else if (GUID_EVIEW_RESULT_VALUE == result) {
+		PLS_PERFORMANCE_GLOBAL_START("Show SourceGuideView");
+
+		PLSAddSourceGuideView guideDialog;
+		PLS_PERFORMANCE_GLOBAL_END("Build SourceGuideView");
+		PLS_PERFORMANCE_GLOBAL_START("SourceGuideView Exec", "Show SourceGuideView");
+		PLS_PERFORMANCE_GLOBAL_END_WHEN_WIDGET_SHOW(&guideDialog,
+							    PLS_PERFORMANCE_GLOBAL_END("SourceGuideView Exec");
+							    PLS_PERFORMANCE_GLOBAL_END("Show SourceGuideView"));
+		if (PLSDialogView::Accepted == guideDialog.exec()) {
+			pls_modal_check_app_exiting();
+			auto sourceList = guideDialog.selectSourceList();
+			int tabIndex = guideDialog.currentTabIndex();
+			QVector<obs_sceneitem_t *> addedItems;
+
+			// Add sources and collect scene items
+			bool containStickerSource = false;
+			for (const auto &sourceId : std::as_const(sourceList)) {
+				if (sourceId == common::PRISM_STICKER_SOURCE_ID) {
+					containStickerSource = true;
+					addedItems.append(nullptr);
+					continue;
+				}
+				std::function<void(const std::string &)> undo, redo;
+				std::string wrapper;
+				auto sourceIdBtyeArray = sourceId.toUtf8();
+				auto defaultSourceName =
+					OBSBasicSourceSelect::getDefaultAddSourceName(sourceIdBtyeArray.constData());
+				OBSSource newSource;
+				if (!OBSBasicSourceSelect::addNewSource(sourceIdBtyeArray.constData(),
+									defaultSourceName.toUtf8().constData(), true,
+									newSource, undo, redo, wrapper)) {
+					addedItems.append(nullptr);
+					continue;
+				}
+
+				// Get the scene item that was just added by finding it in the current scene
+				OBSScene scene = GetCurrentScene();
+				obs_sceneitem_t *item = nullptr;
+				if (scene) {
+					// Find the scene item by source pointer (more reliable than by name)
+					item = obs_scene_sceneitem_from_source(scene, newSource);
+				}
+				addedItems.append(item);
+
+				undo_s.add_action(QTStr("Undo.Add").arg(defaultSourceName), undo, redo,
+						  std::string(obs_source_get_name(newSource)), wrapper);
+				PLSBasic::instance()->OnSourceCreated(sourceIdBtyeArray.constData());
+			}
+			if (containStickerSource) {
+				pls_sticker_source_start_add_sticker();
+			}
+
+			// Apply template positions
+			QStringList unmatchedSources = applySourceTemplatePositions(sourceList, tabIndex, addedItems);
+			if (!unmatchedSources.isEmpty()) {
+				// Notify user about unmatched sources for confirmation
+				QString message =
+					QString("The following sources were not found in the template configuration:\n\n%1\n\nPlease confirm if these should use default positioning.")
+						.arg(unmatchedSources.join("\n"));
+				// TODO: Show user dialog for confirmation
+				qDebug() << "Unmatched sources:" << unmatchedSources;
+			}
+		}
+	}
+}

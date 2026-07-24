@@ -30,13 +30,11 @@ static std::optional<std::pair<QString, QString>> getStickerConfigInfo(const pls
 		auto rule = rules.front();
 		QFileInfo fileInfo(rule.savedFilePath());
 		QDir dstDir = fileInfo.dir();
-
 		QString baseName = QFileInfo(rule.url().fileName()).baseName();
 		auto path = dstDir.absolutePath() + "/" + baseName + "/";
 		auto configFile = path + baseName + ".json";
 		info.emplace(path, configFile);
 	}
-
 	return info;
 }
 

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>683</width>
-    <height>100</height>
+    <height>108</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -66,7 +66,7 @@
      <item>
       <spacer name="verticalSpacer_2">
        <property name="orientation">
-        <enum>Qt::Vertical</enum>
+        <enum>Qt::Orientation::Vertical</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
@@ -107,24 +107,20 @@
        <property name="spacing">
         <number>4</number>
        </property>
-       <item alignment="Qt::AlignLeft">
+       <item alignment="Qt::AlignmentFlag::AlignLeft">
         <widget class="QLabel" name="label_3">
          <property name="text">
           <string>Contact.Email.Report.ID.Prefix</string>
          </property>
         </widget>
        </item>
-       <item alignment="Qt::AlignLeft">
-        <widget class="QLabel" name="userCode">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
+       <item>
+        <widget class="PLSCopyLabel" name="userCode" native="true"/>
        </item>
        <item>
         <spacer name="horizontalSpacer">
          <property name="orientation">
-          <enum>Qt::Horizontal</enum>
+          <enum>Qt::Orientation::Horizontal</enum>
          </property>
          <property name="sizeHint" stdset="0">
           <size>
@@ -180,7 +176,7 @@
          </property>
         </widget>
        </item>
-       <item alignment="Qt::AlignLeft">
+       <item alignment="Qt::AlignmentFlag::AlignLeft">
         <widget class="QPushButton" name="pushButton_change_pwd">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -198,7 +194,7 @@
      <item>
       <spacer name="verticalSpacer">
        <property name="orientation">
-        <enum>Qt::Vertical</enum>
+        <enum>Qt::Orientation::Vertical</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
@@ -218,6 +214,12 @@
    <class>PLSComplexHeaderIcon</class>
    <extends>QLabel</extends>
    <header>pls-complex-header-icon.hpp</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSCopyLabel</class>
+   <extends>QWidget</extends>
+   <header>PLSCopyLabel.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

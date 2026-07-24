@@ -1,0 +1,71 @@
+{
+    "data": [
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "401",
+                "errorCode": "3000"
+            },
+            "err": {
+                "prismCode": 11001,
+                "prismName": "CHANNEL_CUSTOM_RTMP_TOKEN_EXPIRED",
+                "msgKey": "main.message.prism.login.session.expired",
+                "alertType": "Normal_Code",
+                "msgText": "Your account verification information has expired. You will be transferred to the login page."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "403",
+                "errorCode": "025"
+            },
+            "err": {
+                "prismCode": 11002,
+                "prismName": "CHANNEL_CUSTOM_RTMP_SYSTEMTIMEERROR",
+                "msgKey": "Prism.Login.Systemtime.Error",
+                "alertType": "Error",
+                "msgText": "The app cannot run normally due to an incorrect system time setting. Please change the setting to the current time and try again."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "404",
+                "errorCode": "9000"
+            },
+            "err": {
+                "prismCode": 56002,
+                "prismName": "CHANNEL_CUSTOM_RTMP_NOTEXIST",
+                "msgKey": "Channels.rtmp.notexist",
+                "alertType": "Error",
+                "msgText": "The Custom channel you added does not exist. Refresh the channel or add the Custom channel again."
+            }
+        },
+        {
+            "phase": "channel",
+            "api": {
+                "$statusCode": "500",
+                "errorCode": "-1"
+            },
+            "err": {
+                "prismCode": 56001,
+                "prismName": "CHANNEL_CUSTOM_RTMP_RUNTIMEEXCEPTION",
+                "msgKey": "server.unknown.error",
+                "alertType": "Error",
+                "msgText": "An unknown error has occurred."
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "errorCode": [
+                "code",
+                "errorCode"
+            ]
+        },
+        "inherit": [
+            "PRISM"
+        ]
+    }
+}

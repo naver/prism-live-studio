@@ -13,16 +13,27 @@ PLSSearchLineEdit{
 }
 
 PLSSearchLineEdit[showPlaceholder="true"]{
-    color: #666666
+    color: #666666;
 }
 
 PLSSearchLineEdit[showPlaceholder="false"]{
-    color: #FFFFFF
+    color: #FFFFFF;
 }
 
 PLSSearchLineEdit[usedFor="collection"]{
     padding-right: /*hdpi*/ 62px;
     background-color: #272727;
+}
+
+/* padding when search button is on the left */
+PLSSearchLineEdit[searchButtonPosition="left"]{
+    padding-left: /*hdpi*/ 35px;
+    padding-right: /*hdpi*/ 10px;
+}
+
+PLSSearchLineEdit[searchButtonPosition="left"][usedFor="addsource"]{
+    padding-left: /*hdpi*/ 35px;
+    padding-right: /*hdpi*/ 35px;
 }
 
 PLSSearchLineEdit:focus {
@@ -36,7 +47,13 @@ PLSSearchLineEdit[usedFor="giphy"]:!focus {
 PLSSearchLineEdit[usedFor="collection"]:!focus {
 	border: /*hdpi*/ 1px solid #343435;
 }
-
+PLSSearchLineEdit[usedFor="addsource"]:!focus {
+	border: /*hdpi*/ 1px solid #555555;
+}
+PLSSearchLineEdit[usedFor="addsource"]{
+	background-color:#2D2D2D;
+	border-radius: 5px;
+}
 PLSSearchLineEdit #toolBtnSearch {
 	min-width: /*hdpi*/ 22px;
 	min-height: /*hdpi*/ 22px;
@@ -56,12 +73,15 @@ PLSSearchLineEdit[usedFor="giphy"] #toolBtnSearch[searchOn=false] {
 	image: url(":/libui/resource/images/btn-search-normal-g.svg");
 }
 
-PLSSearchLineEdit[usedFor="collection"] #toolBtnSearch[searchOn=true] {
+PLSSearchLineEdit[usedFor="collection"] #toolBtnSearch[searchOn=true],
+PLSSearchLineEdit[usedFor="addsource"] #toolBtnSearch[searchOn=true] {
 	image: url(":/libui/resource/images/btn-search-on-normal.svg");
 }
 
 PLSSearchLineEdit[usedFor="collection"] #toolBtnSearch,
-PLSSearchLineEdit[usedFor="collection"] #toolBtnSearch[searchOn=false] {
+PLSSearchLineEdit[usedFor="collection"] #toolBtnSearch[searchOn=false],
+PLSSearchLineEdit[usedFor="addsource"] #toolBtnSearch[searchOn=false]
+{
 	image: url(":/libui/resource/images/btn-search-normal.svg");
 }
 

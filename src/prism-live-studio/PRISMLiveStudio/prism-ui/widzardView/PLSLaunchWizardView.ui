@@ -68,28 +68,60 @@
        <property name="bottomMargin">
         <number>0</number>
        </property>
-       <item alignment="Qt::AlignmentFlag::AlignHCenter|Qt::AlignmentFlag::AlignTop">
-        <widget class="QLabel" name="userThumbnailLabel">
-         <property name="text">
-          <string>user thumbnail</string>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <property name="spacing">
+          <number>16</number>
          </property>
-         <property name="scaledContents">
-          <bool>true</bool>
+         <property name="leftMargin">
+          <number>40</number>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignmentFlag::AlignCenter</set>
+         <property name="topMargin">
+          <number>0</number>
          </property>
-        </widget>
-       </item>
-       <item alignment="Qt::AlignmentFlag::AlignTop">
-        <widget class="QLabel" name="nickNameLabel">
-         <property name="text">
-          <string>user nickname</string>
+         <property name="rightMargin">
+          <number>0</number>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignmentFlag::AlignCenter</set>
+         <property name="bottomMargin">
+          <number>0</number>
          </property>
-        </widget>
+         <item alignment="Qt::AlignmentFlag::AlignVCenter">
+          <widget class="QLabel" name="userThumbnailLabel">
+           <property name="text">
+            <string>user thumbnail</string>
+           </property>
+           <property name="scaledContents">
+            <bool>true</bool>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item alignment="Qt::AlignmentFlag::AlignVCenter">
+          <widget class="QLabel" name="nickNameLabel">
+           <property name="text">
+            <string>user nickname</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
        </item>
        <item>
         <widget class="QWidget" name="rightMarginWidget" native="true">
@@ -104,7 +136,7 @@
            <number>0</number>
           </property>
           <property name="rightMargin">
-           <number>3</number>
+           <number>0</number>
           </property>
           <property name="bottomMargin">
            <number>0</number>
@@ -113,6 +145,9 @@
            <widget class="QScrollArea" name="wizardScrollArea">
             <property name="frameShape">
              <enum>QFrame::Shape::NoFrame</enum>
+            </property>
+            <property name="verticalScrollBarPolicy">
+             <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
             </property>
             <property name="horizontalScrollBarPolicy">
              <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
@@ -128,8 +163,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>510</width>
-               <height>504</height>
+               <width>513</width>
+               <height>528</height>
               </rect>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -193,7 +228,7 @@
                   <number>4</number>
                  </property>
                  <property name="topMargin">
-                  <number>9</number>
+                  <number>10</number>
                  </property>
                  <property name="bottomMargin">
                   <number>0</number>
@@ -214,7 +249,7 @@
                   <number>0</number>
                  </property>
                  <property name="topMargin">
-                  <number>0</number>
+                  <number>20</number>
                  </property>
                  <property name="rightMargin">
                   <number>0</number>
@@ -223,7 +258,7 @@
                   <number>0</number>
                  </property>
                  <property name="spacing">
-                  <number>10</number>
+                  <number>7</number>
                  </property>
                 </layout>
                </widget>
@@ -280,10 +315,10 @@
             <property name="bottomMargin">
              <number>0</number>
             </property>
-            <item>
+            <item alignment="Qt::AlignmentFlag::AlignLeft">
              <widget class="PLSCheckBox" name="checkBox">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>

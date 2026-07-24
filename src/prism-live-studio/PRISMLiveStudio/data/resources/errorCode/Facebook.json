@@ -1,0 +1,135 @@
+{
+    "data": [
+        {
+            "phase": "channel",
+            "api": {
+                "code": "200",
+                "error_subcode": "1363120"
+            },
+            "err": {
+                "prismCode": 29001,
+                "prismName": "CHANNEL_FACEBOOK_DECLINED_60DAYS",
+                "msgKey": "facebook.living.permissions.60Days",
+                "buttons": "[{\"button\":\"Ok\"},{\"button\":\"Help\",\"tr\":\"facebook.living.permissions.help\",\"action\":\"open.facebook.living.permissions.60Days.url\"}]",
+                "msgText": "You’re not eligible to go live. Your profile needs to be at least 60 days old before you can go live on Facebook."
+            }
+        },
+        {
+            "api": {
+                "code": "200",
+                "error_subcode": "1363144"
+            },
+            "err": {
+                "prismCode": 29002,
+                "prismName": "CHANNEL_FACEBOOK_DECLINED_100FOLLOWERS",
+                "msgKey": "facebook.living.permissions.100Followers",
+                "buttons": "[{\"button\":\"Ok\"},{\"button\":\"Help\",\"tr\":\"facebook.living.permissions.help\",\"action\":\"open.facebook.living.permissions.100Followers.url\"}]",
+                "msgText": "You’re not eligible to go live. You need at least 100 followers before you can go live from your profile."
+            }
+        },
+        {
+            "api": {
+                "code": "200"
+            },
+            "err": {
+                "prismCode": 29000,
+                "prismName": "CHANNEL_FACEBOOK_DECLINED",
+                "msgKey": "facebook.liveinfo.request.permission.refused",
+                "msgText": "You can no longer broadcast to this channel as you do not have permission. Please check the Facebook service page."
+            }
+        },
+        {
+            "api": {
+                "code": "200",
+                "requestType": "StartLiving"
+            },
+            "err": {
+                "prismCode": 29000,
+                "prismName": "CHANNEL_FACEBOOK_DECLINED",
+                "msgKey": "facebook.liveinfo.living.permission.refused",
+                "msgText": "Required permissions for Facebook streaming are missing. Reconnect your Facebook channel and allow the required permissions, or check your timeline/page/group permissions, then try again."
+            }
+        },
+        {
+            "api": {
+                "code": "200",
+                "requestType": "UpdatLiving"
+            },
+            "err": {
+                "prismCode": 29000,
+                "prismName": "CHANNEL_FACEBOOK_DECLINED",
+                "msgKey": "facebook.living.no.living.permissions",
+                "msgText": "Failed to update live information.\nAdd PRISM via Facebook app and website settings, and try again."
+            }
+        },
+        {
+            "api": {
+                "code": "190",
+                "requestType": "StartLiving"
+            },
+            "err": {
+                "prismCode": 29004,
+                "prismName": "CHANNEL_FACEBOOK_OBJECTNOTEXIST",
+                "msgKey": "facebook.liveinfo.living.permission.refused",
+                "msgText": "Required permissions for Facebook streaming are missing. Reconnect your Facebook channel and allow the required permissions, or check your timeline/page/group permissions, then try again."
+            }
+        },
+        {
+            "api": {
+                "code": "190"
+            },
+            "err": {
+                "errorType": "TokenExpired",
+                "prismCode": 29003,
+                "alertType": "Normal_Code",
+                "prismName": "CHANNEL_FACEBOOK_INVALIDACCESSTOKEN",
+                "msgKey": "facebook.liveinfo.login.token.expired",
+                "msgText": "Your Facebook channel authentication has expired. Your login session may have ended, or the necessary permissions may have been revoked. Please reconnect your channel."
+            }
+        },
+        {
+            "api": {
+                "code": "100",
+                "requestType": "StartLiving"
+            },
+            "err": {
+                "prismCode": 29004,
+                "prismName": "CHANNEL_FACEBOOK_OBJECTNOTEXIST",
+                "msgKey": "facebook.liveinfo.living.permission.refused",
+                "msgText": "Required permissions for Facebook streaming are missing. Reconnect your Facebook channel and allow the required permissions, or check your timeline/page/group permissions, then try again."
+            }
+        },
+        {
+            "api": {
+                "code": "100",
+                "requestType": "UpdatLiving"
+            },
+            "err": {
+                "prismCode": 29004,
+                "prismName": "CHANNEL_FACEBOOK_OBJECTNOTEXIST",
+                "msgKey": "facebook.living.no.living.permissions",
+                "msgText": "Failed to update live information.\nAdd PRISM via Facebook app and website settings, and try again."
+            }
+        }
+    ],
+    "extra": {
+        "path": {
+            "code": [
+                "code",
+                "error.code"
+            ],
+            "message": [
+                "message",
+                "error.message"
+            ],
+            "type": [
+                "type",
+                "error.type"
+            ],
+            "error_subcode": [
+                "error_subcode",
+                "error.error_subcode"
+            ]
+        }
+    }
+}

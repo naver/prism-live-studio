@@ -2,6 +2,8 @@
 #include "PLSDrawPenWin.h"
 #include "PLSD2DGeometry.h"
 #include "../PLSDrawPenMgr.h"
+#include <liblog.h>
+#include <log/module_names.h>
 
 constexpr auto curvegeometry = "drawpen calculate_curve_geometry";
 constexpr auto linegeometry = "drawpen calculate_line_geometry";
@@ -10,35 +12,27 @@ constexpr auto ellipsegeometry = "drawpen calculate_ellipse_geometry";
 constexpr auto arrowgeometry = "drawpen calculate_arrow_geometry";
 constexpr auto trianglegeometry = "drawpen calculate_triangle_geometry";
 
-static const char *generate_guid()
+static std::string generate_guid()
 {
-	static std::array<char, 64> buf{0};
-	GUID guid;
-	if (S_OK == ::CoCreateGuid(&guid)) {
-		_snprintf(buf.data(), sizeof(buf), "{%08X-%04X-%04x-%02X%02X-%02X%02X%02X%02X%02X%02X}", guid.Data1, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
-			  guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
-	}
-	return buf.data();
+	static std::atomic<uint64_t> count = 0;
+	auto value = ++count;
+	return std::to_string(value); // Using incrementing numbers can make searching faster.
 }
 
 PLSDrawPenWin::PLSDrawPenWin()
 {
-	points.clear();
-	strokes.clear();
-	undoStrokes.clear();
-	redoStrokes.clear();
+	PLS_LOG(PLS_LOG_INFO, DRAWPEN_MODULE, "%s enter, this=%p", __FUNCTION__, this);
+
 	connect(this, &PLSDrawPenWin::UndoDisabled, PLSDrawPenMgr::Instance(), &PLSDrawPenMgr::UndoDisabled);
 	connect(this, &PLSDrawPenWin::RedoDisabled, PLSDrawPenMgr::Instance(), &PLSDrawPenMgr::RedoDisabled);
 }
 
 PLSDrawPenWin::~PLSDrawPenWin()
 {
+	PLS_LOG(PLS_LOG_INFO, DRAWPEN_MODULE, "%s enter, this=%p", __FUNCTION__, this);
+
 	disconnect(this, &PLSDrawPenWin::UndoDisabled, PLSDrawPenMgr::Instance(), &PLSDrawPenMgr::UndoDisabled);
 	disconnect(this, &PLSDrawPenWin::RedoDisabled, PLSDrawPenMgr::Instance(), &PLSDrawPenMgr::RedoDisabled);
-	points.clear();
-	strokes.clear();
-	undoStrokes.clear();
-	redoStrokes.clear();
 }
 
 void PLSDrawPenWin::beginDraw(unsigned int brushMode, unsigned int colorMode, unsigned int thicknessMode, PointF point) {}
@@ -65,6 +59,8 @@ void PLSDrawPenWin::moveTo(PointF point)
 
 void PLSDrawPenWin::endDraw(PointF point)
 {
+	pls_on_drawpen_event(PLSDrawPenMgr::Instance()->GetCurrentScene(), PLSDrawPenMgr::Instance()->GetPenActionName());
+
 	CAutoLockCS AutoLock(lock);
 
 	if (points.empty())
@@ -89,8 +85,13 @@ void PLSDrawPenWin::endDraw(PointF point)
 		stroke.rgba = PLSDrawPenMgr::Instance()->GetColor();
 		stroke.id = generate_guid();
 		stroke.geometry = calculateGeometry(points);
+
+		if (!redoStrokes.empty())
+			PLSDrawPenMgr::Instance()->RemoveCaches(strokes, redoStrokes);
+
 		strokes.push_back(stroke);
 		pushUndoStrokes(stroke);
+
 		if (!redoStrokes.empty()) {
 			redoStrokes.clear();
 			emit RedoDisabled(true);
@@ -105,6 +106,8 @@ void PLSDrawPenWin::endDraw(PointF point)
 
 void PLSDrawPenWin::eraseOn(PointF point)
 {
+	pls_on_drawpen_event(PLSDrawPenMgr::Instance()->GetCurrentScene(), PLSDrawPenMgr::Instance()->GetPenActionName());
+
 	CAutoLockCS AutoLock(lock);
 	if (!points.empty())
 		points.clear();
@@ -186,6 +189,9 @@ void PLSDrawPenWin::clear()
 	}
 	pushUndoStrokes(bStroke);
 
+	if (!redoStrokes.empty())
+		PLSDrawPenMgr::Instance()->RemoveCaches(strokes, redoStrokes);
+
 	strokes.clear();
 	if (!redoStrokes.empty()) {
 		redoStrokes.clear();
@@ -223,8 +229,13 @@ void PLSDrawPenWin::RemoveStroke(std::string const &id)
 	if (item != strokes.end()) {
 		item->show = false;
 		item->index = std::distance(strokes.begin(), item);
+
+		if (!redoStrokes.empty())
+			PLSDrawPenMgr::Instance()->RemoveCaches(strokes, redoStrokes);
+
 		pushUndoStrokes(*item);
 		strokes.erase(item);
+
 		if (!redoStrokes.empty()) {
 			redoStrokes.clear();
 			emit RedoDisabled(true);

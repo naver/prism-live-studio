@@ -126,9 +126,54 @@ QString PLSPlatformNCB2B::getShareUrlEnc()
 	return getShareUrl(true);
 }
 
+void PLSPlatformNCB2B::onResumeStreaming(const QMap<QString, QVariant> &params)
+{
+	if (!params.contains("_id")) {
+		return;
+	}
+
+	m_selectData._id = params["_id"].toString();
+	m_selectData.title = params["title"].toString();
+	m_selectData.description = params["description"].toString();
+	m_selectData.startTimeOrigin = params["startTimeOrigin"].toString();
+	m_selectData.startTimeUTC = params["startTimeUTC"].toString();
+	m_selectData.startTimeShort = params["startTimeShort"].toString();
+	m_selectData.timeStamp = params["timeStamp"].toLongLong();
+	m_selectData.status = params["status"].toString();
+	m_selectData.scope = params["scope"].toString();
+	m_selectData.streamKey = params["streamKey"].toString();
+	m_selectData.streamUrl = params["streamUrl"].toString();
+	m_selectData.liveLink = params["liveLink"].toString();
+	m_selectData.isNormalLive = params["isNormalLive"].toBool();
+
+	if (!m_selectData.isNormalLive) {
+		m_vecSchedules.emplace_back(m_selectData);
+	}
+	setSelectData(m_selectData);
+}
+
+QMap<QString, QVariant> PLSPlatformNCB2B::getResumeStreamingParams() const
+{
+	QMap<QString, QVariant> map;
+	map["_id"] = m_selectData._id;
+	map["title"] = m_selectData.title;
+	map["description"] = m_selectData.description;
+	map["startTimeOrigin"] = m_selectData.startTimeOrigin;
+	map["startTimeUTC"] = m_selectData.startTimeUTC;
+	map["startTimeShort"] = m_selectData.startTimeShort;
+	map["timeStamp"] = static_cast<qlonglong>(m_selectData.timeStamp);
+	map["status"] = m_selectData.status;
+	map["scope"] = m_selectData.scope;
+	map["streamKey"] = m_selectData.streamKey;
+	map["streamUrl"] = m_selectData.streamUrl;
+	map["liveLink"] = m_selectData.liveLink;
+	map["isNormalLive"] = m_selectData.isNormalLive;
+	return map;
+}
+
 QString PLSPlatformNCB2B::getChannelToken() const
 {
-	return PLSLoginUserInfo::getInstance()->getNCPPlatformToken();
+	return PLSLoginUserInfo::getInstance()->getSNSPlatformToken();
 }
 
 void PLSPlatformNCB2B::liveInfoIsShowing()
@@ -411,7 +456,7 @@ QJsonObject PLSPlatformNCB2B::getLiveStartParams()
 	platform["channelId"] = channelData.value(ChannelData::g_subChannelId, "").toString();
 	platform["simulcastChannel"] = channelData.value(ChannelData::g_nickName, "").toString();
 	platform["serviceId"] = PLSLoginUserInfo::getInstance()->getNCPPlatformServiceId();
-	platform["accessToken"] = PLSLoginUserInfo::getInstance()->getNCPPlatformToken();
+	platform["accessToken"] = PLSLoginUserInfo::getInstance()->getSNSPlatformToken();
 	platform["ncpLiveId"] = m_selectData._id;
 	return platform;
 }
@@ -421,7 +466,7 @@ QJsonObject PLSPlatformNCB2B::getMqttChatParams()
 	QJsonObject platform;
 	platform.insert("cookie", getChannelCookie());
 	platform["serviceId"] = PLSLoginUserInfo::getInstance()->getNCPPlatformServiceId();
-	platform["accessToken"] = PLSLoginUserInfo::getInstance()->getNCPPlatformToken();
+	platform["accessToken"] = PLSLoginUserInfo::getInstance()->getSNSPlatformToken();
 	return platform;
 }
 
@@ -601,8 +646,7 @@ QString PLSPlatformNCB2B::subChannelID() const
 }
 PLSErrorHandler::ExtraData PLSPlatformNCB2B::getErrorExtraData(const QString &urlEn, const QString &urlKr)
 {
-	PLSErrorHandler::ExtraData extraData;
-	extraData.urlEn = urlEn;
+	PLSErrorHandler::ExtraData extraData(urlEn);
 	extraData.pathValueMap = {{"b2bLiveId", m_selectData._id}};
 	if (PLS_PLATFORM_API->isPrepareLive()) {
 		extraData.pathValueMap["str_isPrepareLive"] = "1";

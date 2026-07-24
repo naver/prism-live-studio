@@ -91,7 +91,8 @@ protected:
 
 class ImageButton : public QPushButton {
 public:
-	ImageButton(QButtonGroup *buttonGroup, pls_image_style_type type, QString pixpath, int id, bool checked);
+	ImageButton(pls_image_style_type type, QString pixpath, int id, bool checked);
+	void updateCheckedState(bool checked);
 	~ImageButton() final = default;
 
 protected:
@@ -103,8 +104,9 @@ private:
 
 class BorderImageButton : public QPushButton {
 public:
-	explicit BorderImageButton(QButtonGroup *buttonGroup, pls_image_style_type type, QString extraStr, int id, bool checked, bool isBgImg = true);
+	explicit BorderImageButton(pls_image_style_type type, QString extraStr, int id, bool checked, bool isBgImg = true);
 	QString getTabButtonCss(const QString &objectName, int idx, QString url) const;
+	void updateCheckedState(bool checked);
 	~BorderImageButton() final = default;
 
 protected:
@@ -117,7 +119,8 @@ private:
 
 class ImageAPNGButton : public QPushButton {
 public:
-	explicit ImageAPNGButton(QButtonGroup *buttonGroup, pls_image_style_type type, QString url, int id, bool checked, QSize scaleSize);
+	explicit ImageAPNGButton(pls_image_style_type type, QString url, int id, bool checked, QSize scaleSize);
+	void updateCheckedState(bool checked);
 };
 
 class CameraVirtualBackgroundStateButton : public QFrame {
@@ -181,8 +184,14 @@ public:
 	explicit NewFlagButton(bool isNew = false, QWidget *parent = nullptr);
 	~NewFlagButton() = default;
 
+	/// Re-establish internal signal connections after reuse (e.g. when resumeNewWidget called disconnect).
+	void setupConnections();
+
+	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
+
 protected:
-	void showEvent(QShowEvent *event) override;
+	void resizeEvent(QResizeEvent *event) override;
 
 private:
 	QPointer<QLabel> m_newLabel;

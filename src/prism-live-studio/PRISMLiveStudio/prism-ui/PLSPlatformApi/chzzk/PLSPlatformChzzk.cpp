@@ -131,7 +131,7 @@ void PLSPlatformChzzk::requestChannelInfo(const QVariantMap &srcInfo, const Upda
 			chStatus = ChannelData::ChannelStatus::Expired;
 		}
 		QVariantMap info = srcInfo;
-		info[ChannelData::g_channelSreLoginFailed] = QString("Get Channel List Failed, result:%1").arg((int)retData.prismCode);
+		info[ChannelData::g_channelSreLoginFailed] = retData.extraData.urlEn + " " + retData.failedLogString;
 		info[ChannelData::g_channelStatus] = chStatus;
 		info[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
 		info[ChannelData::g_errorString] = retData.alertMsg;
@@ -148,9 +148,9 @@ void PLSPlatformChzzk::dealRequestChannelInfoSucceed(const QVariantMap &srcInfo,
 	QString errMsg;
 	QVariantMap info = srcInfo;
 	if (!PLSAPICommon::getErrorCallBack(data, channelList, errMsg, "channels")) {
-		PLS_ERROR(MODULE_PLATFORM_CHZZK, "requestChannelInfo failed, %s", errMsg.toUtf8().constData());
+		PLS_ERROR(MODULE_PLATFORM_CHZZK, "%s requestChannelInfo failed, %s", CZ_API_GetChannelList.toUtf8().constData(), errMsg.toUtf8().constData());
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::EmptyChannel;
-		info[ChannelData::g_channelSreLoginFailed] = QString("Get Channel List Failed, %1").arg(errMsg);
+		info[ChannelData::g_channelSreLoginFailed] = QString("%1 Get Channel List Failed, %2").arg(CZ_API_GetChannelList, errMsg);
 		finishedCall(QList<QVariantMap>{info});
 		return;
 	}
@@ -194,9 +194,9 @@ void PLSPlatformChzzk::dealRequestChannelInfoSucceed(const QVariantMap &srcInfo,
 	}
 	if (infos.isEmpty()) {
 		errMsg = "all channel is disable";
-		PLS_ERROR(MODULE_PLATFORM_CHZZK, "requestChannelInfo failed, %s", errMsg.toUtf8().constData());
+		PLS_ERROR(MODULE_PLATFORM_CHZZK, "%s requestChannelInfo failed, %s", CZ_API_GetChannelList.toUtf8().constData(), errMsg.toUtf8().constData());
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::EmptyChannel;
-		info[ChannelData::g_channelSreLoginFailed] = QString("Get Channel List Failed, %1").arg(errMsg);
+		info[ChannelData::g_channelSreLoginFailed] = QString("%1 Get Channel List Failed, %1").arg(CZ_API_GetChannelList, errMsg);
 		finishedCall(QList<QVariantMap>{info});
 		return;
 	}
@@ -301,21 +301,31 @@ bool PLSPlatformChzzk::dealCurrentLiveSucceed(const QByteArray &data, const QStr
 
 void PLSPlatformChzzk::requestUploadImage(const QObject *receiver, const PLSChzzkLiveinfoData &liveData, const QString &imagePath, const std::function<void(bool)> &onNext)
 {
-	auto _onSucceed = [this, onNext, imagePath](QByteArray data) {
+	bool isCanFailed = PLS_PLATFORM_API->isPrepareLive();
+	auto _dealNext = [onNext, this, isCanFailed](bool isOK) {
+		if (isCanFailed && !isOK) {
+			appendUpdateFailedTypes(PLSPlatformChzzk::Thum);
+			isOK = true;
+		}
+		pls_invoke_safe(onNext, isOK);
+	};
+
+	auto _onSucceed = [this, _dealNext, imagePath, isCanFailed](QByteArray data) {
 		QString thumbnailUrl;
 		QString errMsg;
 		if (!PLSAPICommon::getErrorCallBack(data, thumbnailUrl, errMsg, "thumbnailUrl")) {
 			PLS_ERROR(MODULE_PLATFORM_CHZZK, "chzzk %s failed, %s", CZ_API_PostThumbnail.toUtf8().constData(), errMsg.toUtf8().constData());
-			showAlertByCustName(PLSErrCustomKey_UploadImageFailed, CZ_API_PostThumbnail, "body not valid");
-			if (nullptr != onNext) {
-				onNext(false);
+			if (isCanFailed) {
+				PLSErrorHandler::getAlertStringByCustomErrName(PLSErrCustomKey_UploadImageFailed, getChannelName(), getErrorExtraData(CZ_API_PostThumbnail));
+			} else {
+				showAlertByCustName(PLSErrCustomKey_UploadImageFailed, CZ_API_PostThumbnail, "body not valid");
 			}
+
+			_dealNext(false);
 			return;
 		}
 		m_tmpData.thumbnailUrl = thumbnailUrl;
-		if (nullptr != onNext) {
-			onNext(true);
-		}
+		_dealNext(true);
 		auto mapedLocalPath = PLSAPICommon::getMd5ImagePath(thumbnailUrl);
 		if (QFile(mapedLocalPath).exists()) {
 			QFile::remove(mapedLocalPath);
@@ -323,12 +333,13 @@ void PLSPlatformChzzk::requestUploadImage(const QObject *receiver, const PLSChzz
 		QFile::copy(imagePath, mapedLocalPath);
 	};
 
-	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
-		showAlert({code, error, data}, PLSErrCustomKey_UploadImageFailed, CZ_API_PostThumbnail);
-
-		if (nullptr != onNext) {
-			onNext(false);
+	auto _onFail = [this, _dealNext, isCanFailed](int code, QByteArray data, QNetworkReply::NetworkError error) {
+		if (isCanFailed) {
+			PLSErrorHandler::getAlertString({code, error, data}, getChannelName(), PLSErrCustomKey_UploadImageFailed, getErrorExtraData(CZ_API_PostThumbnail));
+		} else {
+			showAlert({code, error, data}, PLSErrCustomKey_UploadImageFailed, CZ_API_PostThumbnail);
 		}
+		_dealNext(false);
 	};
 
 	PLSAPIChzzk::uploadImage(receiver, liveData, imagePath, this, _onSucceed, _onFail);
@@ -519,8 +530,7 @@ QString PLSPlatformChzzk::getChannelToken() const
 
 PLSErrorHandler::ExtraData PLSPlatformChzzk::getErrorExtraData(const QString &urlEn, const QString &urlKr)
 {
-	PLSErrorHandler::ExtraData extraData;
-	extraData.urlEn = urlEn;
+	PLSErrorHandler::ExtraData extraData(urlEn);
 	extraData.pathValueMap = {{"chzzkLiveId", m_selectData._id}};
 	return extraData;
 }

@@ -37,6 +37,7 @@ private:
 	void drawProducer(const PLSBgmItemData &data, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
 	void drawName(const PLSBgmItemData &data, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
 	void drawDeleteIcon(const PLSBgmItemData &data, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
+	void drawDragIcon(const PLSBgmItemData &data, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
 	void drawStateIcon(const PLSBgmItemData &data, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
 	void drawDropIndicator(const PLSBgmItemData &data, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
 	void UpdateIndex(const QModelIndex &index);
@@ -44,11 +45,14 @@ private:
 	void doMouseMove(QEvent *event, const QAbstractItemModel *model, const QStyleOptionViewItem &option, const QModelIndex &index);
 	void doMouseButtonPress(QEvent *event, const QStyleOptionViewItem &option, const QModelIndex &index);
 	void doMouseButtonRelease(QEvent *event, const QStyleOptionViewItem &option, const QModelIndex &index);
-	void doMouseButtonDblClick(QEvent *event, const QStyleOptionViewItem &option, const QModelIndex &index);
+	void setButtonState(const QStyleOptionViewItem &option, const QModelIndex &index, const QRect &btnRect, const QPoint &eventPos, ButtonState &state);
 
+	QRect getDelBtnRect(const QStyleOptionViewItem &option) const;
+	QRect getDragBtnRect(const QStyleOptionViewItem &option) const;
 signals:
 	void delBtnClicked(const QModelIndex &index);
-	void doubleClicked(const QModelIndex &index);
+	void dragBtnClicked(const QModelIndex &index);
+	void mouseClicked(const QModelIndex &index);
 
 private:
 	// for render svg icons
@@ -56,6 +60,7 @@ private:
 	QSvgRenderer *svgRendererDelBtn;
 	QSvgRenderer *svgRendererFlag;
 	QSvgRenderer *svgRendererDot;
+	QSvgRenderer *svgRendererDrag{nullptr};
 	// keep a view pointer to update viewport
 	QAbstractItemView *view = nullptr;
 	// for render loading icons
@@ -64,5 +69,7 @@ private:
 	// for adapte dpis
 	static float dpi;
 	ButtonState deleteBtnState{ButtonState::Normal};
+	ButtonState dragBtnState{ButtonState::Normal};
+	mutable MediaStatus m_currentStatus{MediaStatus::stateNormal};
 	bool entered = false;
 };

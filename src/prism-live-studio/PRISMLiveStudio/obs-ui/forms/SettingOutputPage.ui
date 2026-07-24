@@ -1,0 +1,501 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SettingOutputPage</class>
+ <widget class="QWidget" name="SettingOutputPage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>935</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QFrame" name="widget">
+     <layout class="QFormLayout" name="formLayout_5">
+      <property name="fieldGrowthPolicy">
+       <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+      </property>
+      <property name="horizontalSpacing">
+       <number>20</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>10</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>35</number>
+      </property>
+      <property name="bottomMargin">
+       <number>10</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="serviceLabel">
+        <property name="text">
+         <string>Basic.AutoConfig.StreamPage.Service</string>
+        </property>
+        <property name="useFor" stdset="0">
+         <string notr="true">FormLabelRole</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="PLSComboBox" name="service"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="serverLabel">
+        <property name="text">
+         <string>Basic.AutoConfig.StreamPage.Server</string>
+        </property>
+        <property name="useFor" stdset="0">
+         <string notr="true">FormLabelRole</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QStackedWidget" name="stackedWidget_3">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <widget class="QWidget" name="page_4">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_36">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="PLSComboBox" name="server"/>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="page_5">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_37">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="PLSLineEdit" name="customServer"/>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="outputModeLabel">
+        <property name="minimumSize">
+         <size>
+          <width>170</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Basic.Settings.Output.Mode</string>
+        </property>
+        <property name="useFor" stdset="0">
+         <string notr="true">FormLabelRole</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="PLSComboBox" name="outputMode">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string>Basic.Settings.Output.Mode.Simple</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Basic.Settings.Output.Mode.Adv</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_24">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLabel" name="severiceExplainLabel">
+        <property name="text">
+         <string>setting.service.explain</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QStackedWidget" name="outputModePages">
+     <widget class="QWidget" name="easyOutputsPage"/>
+     <widget class="QTabWidget" name="advOutTabs">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Ignored">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="usesScrollButtons">
+       <bool>true</bool>
+      </property>
+      <property name="useFor" stdset="0">
+       <string notr="true">FormLabelRole</string>
+      </property>
+      <widget class="QWidget" name="advOutputStreamTab">
+       <attribute name="title">
+        <string>Basic.Settings.Output.Adv.Streaming</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="advOutputRecordTab">
+       <attribute name="title">
+        <string>Basic.Settings.Output.Adv.Recording</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="advOutputAudioTracksTab">
+       <attribute name="title">
+        <string>Basic.Settings.Audio</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="advOutputReplayTab">
+       <attribute name="title">
+        <string>Prism.ReplayBuffer</string>
+       </attribute>
+      </widget>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="multitrackVideoGroupBox">
+     <property name="title">
+      <string>Basic.Settings.Stream.MultitrackVideoLabel</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout">
+      <property name="fieldGrowthPolicy">
+       <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+      </property>
+      <property name="horizontalSpacing">
+       <number>20</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>10</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_19"/>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLabel" name="multitrackVideoInfo">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>MultitrackVideo.Info</string>
+        </property>
+        <property name="textFormat">
+         <enum>Qt::TextFormat::RichText</enum>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+        <property name="openExternalLinks">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="PLSCheckBox" name="enableMultitrackVideo">
+        <property name="text">
+         <string>Basic.Settings.Stream.EnableMultitrackVideo</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="multitrackVideoMaximumAggregateBitrateLabel">
+        <property name="text">
+         <string>Basic.Settings.Stream.MultitrackVideoMaximumAggregateBitrate</string>
+        </property>
+        <property name="useFor" stdset="0">
+         <string>FormLabelRole</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <layout class="QHBoxLayout" name="hBoxLayout_3" stretch="0,0">
+        <property name="spacing">
+         <number>6</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="PLSCheckBox" name="multitrackVideoMaximumAggregateBitrateAuto">
+          <property name="text">
+           <string>Basic.Settings.Stream.MultitrackVideoMaximumAggregateBitrateAuto</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="PLSSpinBox" name="multitrackVideoMaximumAggregateBitrate">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="suffix">
+           <string notr="true"> Kbps</string>
+          </property>
+          <property name="minimum">
+           <number>0</number>
+          </property>
+          <property name="maximum">
+           <number>1000000</number>
+          </property>
+          <property name="singleStep">
+           <number>50</number>
+          </property>
+          <property name="value">
+           <number>0</number>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="multitrackVideoMaximumVideoTracksLabel">
+        <property name="text">
+         <string>Basic.Settings.Stream.MultitrackVideoMaximumVideoTracks</string>
+        </property>
+        <property name="useFor" stdset="0">
+         <string>FormLabelRole</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <layout class="QHBoxLayout" name="hBoxLayout_4" stretch="0,0">
+        <property name="spacing">
+         <number>6</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="PLSCheckBox" name="multitrackVideoMaximumVideoTracksAuto">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Basic.Settings.Stream.MultitrackVideoMaximumVideoTracksAuto</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="PLSSpinBox" name="multitrackVideoMaximumVideoTracks">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimum">
+           <number>0</number>
+          </property>
+          <property name="maximum">
+           <number>100</number>
+          </property>
+          <property name="value">
+           <number>0</number>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="4" column="1">
+       <widget class="PLSCheckBox" name="multitrackVideoStreamDumpEnable">
+        <property name="text">
+         <string>Basic.Settings.Stream.MultitrackVideoStreamDumpEnable</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="PLSCheckBox" name="multitrackVideoConfigOverrideEnable">
+        <property name="text">
+         <string>Basic.Settings.Stream.MultitrackVideoConfigOverrideEnable</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="multitrackVideoConfigOverrideLabel">
+        <property name="text">
+         <string>Basic.Settings.Stream.MultitrackVideoConfigOverride</string>
+        </property>
+        <property name="useFor" stdset="0">
+         <string>FormLabelRole</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="QPlainTextEdit" name="multitrackVideoConfigOverride">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PLSComboBox</class>
+   <extends>QComboBox</extends>
+   <header>PLSComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSCheckBox</class>
+   <extends>QCheckBox</extends>
+   <header>PLSCheckBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header location="global">PLSEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSSpinBox</class>
+   <extends>QSpinBox</extends>
+   <header>PLSSpinBox.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>outputMode</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>outputModePages</receiver>
+   <slot>setCurrentIndex(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>498</x>
+     <y>88</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>367</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

@@ -1,0 +1,136 @@
+PLSAddSourceGuideView#PLSAddSourceGuideView {
+    qproperty-hasHLine: false;
+    qproperty-hasMinButton: false;
+    qproperty-captionButtonMargin: 10;
+}
+
+#PLSAddSourceGuideView > #content, #PLSAddSourceGuideView > #titleBar {
+    background-color: #272727;
+    border: none;
+}
+
+    #PLSAddSourceGuideView > #titleBar > #titleLabel, #PLSAddSourceGuideView > #titleBar > #close {
+        background-color: transparent;
+    }
+
+PLSAddSourceGuideView #sourceTitleLabel {
+    font-size: 18px;
+    font-weight: bold;
+    color: #effc35;
+    background-color: transparent;
+    padding: 0px;
+    min-height: 26px;
+    max-height: 26px;
+}
+
+
+PLSAddSourceGuideView #sourceTab {
+    padding: 0;
+    margin: 0;
+    font-size: 14px;
+    font-weight: bold;
+    color: #BABABA;
+    background-color: #2d2d2d;
+    border-radius: 17px;
+    min-height: 35px;
+    max-height: 35px;
+    padding-left:25px;
+    padding-right:25px;
+}
+
+    PLSAddSourceGuideView #sourceTab:hover {
+        color: #ffffff;
+        background-color: #444444;
+    }
+
+    PLSAddSourceGuideView #sourceTab:checked {
+        color: #effc35;
+        background-color: #444444;
+    }
+
+    PLSAddSourceGuideView #sourceTab:pressed {
+        color: #effc35;
+        background-color: #444444;
+    }
+
+
+PLSAddSourceGuideView #iconLabel {
+    background-color: transparent;
+    border: none;
+    border-radius: 3px;
+    min-width: 500px;
+    max-width: 500px;
+    min-height: 312px;
+    max-height: 312px;
+}
+
+PLSAddSourceGuideView PLSCheckBox {
+    background-color: transparent;
+    border: none;
+}
+
+PLSAddSourceGuideView PLSCheckBox #plsCheckBox_text {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+    background-color: transparent;
+}
+
+    PLSAddSourceGuideView PLSCheckBox #plsCheckBox_text:hover {
+        color: #ffffff;
+    }
+
+    PLSAddSourceGuideView PLSCheckBox #plsCheckBox_text:disabled {
+        color: #666666;
+    }
+
+
+PLSAddSourceGuideView #sourceAddButton {
+    min-width: 260px;
+    max-width: 260px;
+    min-height: 40px;
+    max-height: 40px;
+    font-size: 14px;
+    font-weight: bold;
+    color: black;
+    background-color: #effc35;
+    border: none;
+    border-radius: 3px;
+}
+
+    PLSAddSourceGuideView #sourceAddButton:hover {
+        background-color: #F1FA75;
+    }
+
+    PLSAddSourceGuideView #sourceAddButton:pressed {
+        background-color: #7A7F34;
+    }
+
+    PLSAddSourceGuideView #sourceAddButton:disabled {
+        background-color: #444444;
+        color: #666666;
+    }
+
+PLSAddSourceGuideView #bottomFrame {
+    border: none;
+    border-top: 1px solid #111111;
+    min-height: 79px;
+    max-height: 79px;
+    background-color:transparent;
+}
+
+PLSAddSourceGuideView #tooltipFrame {
+    background-color: transparent;
+    border: none;
+    min-height: 20px;
+    max-height: 20px;
+}
+PLSAddSourceGuideView #tooltipLabel {
+    background-color: transparent;
+    font-size: 14px;
+    font-weight: bold;
+    color:#BABABA;
+}
+PLSAddSourceGuideView #helpIcon {
+    margin-left:0px;
+}

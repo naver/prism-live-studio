@@ -11,6 +11,9 @@
 #include "pls-common-define.hpp"
 #include "loading-event.hpp"
 #include "giphy/PLSGiphyStickerView.h"
+#include "PLSStickerDataHandler.h"
+#include <QtConcurrent/QtConcurrent>
+#include <QThread>
 
 const int LOADING_TIME_MS = 200;
 
@@ -18,6 +21,11 @@ class PLSThumbnailLabel : public QPushButton {
 	Q_OBJECT
 	Q_PROPERTY(QSize loadingIconSize READ loadingIconSize WRITE setLoadingIconSize)
 	Q_PROPERTY(qreal radio READ radio WRITE setRadio)
+
+signals:
+	void selectedOutlineItem(const QPixmap &pix);
+	void itemDownloadedFinished(const QPixmap &pix);
+
 public:
 	void SetTimer(QTimer *timer)
 	{
@@ -59,6 +67,7 @@ public:
 		labelThumbnail = pls_new<QLabel>(this);
 		labelThumbnail->setObjectName("thunbnailLabelBorder");
 		layoutInner->addWidget(labelThumbnail);
+		connect(PLSFileDownloader::instance(), &PLSFileDownloader::downloadResult, this, &PLSThumbnailLabel::RefreshDownload, Qt::QueuedConnection);
 	}
 	~PLSThumbnailLabel() final = default;
 
@@ -154,7 +163,6 @@ public:
 				task.rawDataCallback = [guarded](const QByteArray &data, const TaskResponData &result) {
 					if (!guarded || result.resultType == ResultStatus::ERROR_OCCUR)
 						return;
-					QMetaObject::invokeMethod(guarded, "RefreshDownload", Qt::QueuedConnection, Q_ARG(const QByteArray &, data));
 				};
 				task.randomId = PLSGiphyStickerView::ConvertPointer(this);
 				PLSFileDownloader::instance()->Get(task, true);
@@ -166,12 +174,13 @@ public:
 			m_pixmap = QPixmap(fileName);
 		}
 		setProperty("useDefault", false);
+		emit itemDownloadedFinished(m_pixmap);
 		pls_flush_style(this);
 		UpdateRect();
 		repaint();
 	}
 
-	void SetUrl(const QUrl &url, qint64 version = 0LL)
+	void SetInfo(const QUrl &url, qint64 version = 0LL)
 	{
 		m_url = url;
 		m_version = version;
@@ -195,6 +204,9 @@ public:
 	void SetShowOutline(bool visible)
 	{
 		labelThumbnail->setProperty("select", visible);
+		if (visible) {
+			emit selectedOutlineItem(m_pixmap);
+		}
 		pls_flush_style(labelThumbnail);
 	}
 
@@ -233,6 +245,16 @@ protected:
 		dc.drawPixmap(m_rect, m_pixmap);
 	ENDOFPAINT:
 		if (showLoading) {
+			// Draw overlay mask with opacity 0.8, radius 3px, color #1E1E1F
+			dc.save();
+			dc.setRenderHint(QPainter::Antialiasing);
+			QColor overlayColor(0x1E, 0x1E, 0x1F);
+			overlayColor.setAlphaF(0.8);
+			dc.setBrush(overlayColor);
+			dc.setPen(Qt::NoPen);
+			dc.drawRoundedRect(m_rect, 3, 3);
+			dc.restore();
+
 			render.load(QString::asprintf(":/resource/images/loading/loading-%d.svg", loadingIndex));
 			render.render(&dc, m_loadingRect);
 		}
@@ -256,11 +278,22 @@ protected:
 	}
 
 private slots:
-	void RefreshDownload(const QByteArray &data)
-	{ // Embedded version info into file.
-		DeleteCache();
-		SaveCache(data, m_version);
-		SetUrl(m_url, m_version);
+	void RefreshDownload(const TaskResponData &responData)
+	{
+		if (responData.taskData.randomId == 0)
+			return;
+
+		if (responData.rawData.length() == 0) {
+			return;
+		}
+
+		if (responData.resultType == ResultStatus::GIPHY_NO_ERROR && responData.taskData.url == m_url.toString()) {
+
+			// Embedded version info into file.
+			DeleteCache();
+			SaveCache(responData.rawData, m_version);
+			SetInfo(m_url, m_version);
+		}
 	}
 
 private:

@@ -13,7 +13,8 @@ using namespace common;
 #include <QRadioButton>
 #include <QTimer>
 #include <QLabel>
-#include "PLSBgmControlsBase.h"
+#include <QMetaEnum>
+#include "PLSBackgroundMusicView.h"
 
 PLSBgmControlsBase::PLSBgmControlsBase(QWidget *parent)
 {
@@ -26,9 +27,10 @@ OBSSource PLSBgmControlsBase::GetSource()
 	return OBSGetStrongRef(weakSource);
 }
 
-void PLSBgmControlsBase::SetSource(OBSSource newSource)
+void PLSBgmControlsBase::SetSource(OBSSource newSource, uint64_t item)
 {
 	sigs.clear();
+	sceneitem = item;
 
 	if (newSource) {
 		weakSource = OBSGetWeakRef(newSource);
@@ -39,18 +41,14 @@ void PLSBgmControlsBase::SetSource(OBSSource newSource)
 	}
 }
 
-void PLSBgmControlsBase::OnMediaLoopStateChanged(bool loop)
+void PLSBgmControlsBase::OnMediaLoopStateChanged(int loop)
 {
 	OBSSource source = OBSGetStrongRef(weakSource);
 	if (!source) {
 		return;
 	}
-
-	OBSData settings = obs_data_create();
-	obs_data_set_string(settings, "method", "bgm_loop");
-	obs_data_set_bool(settings, IS_LOOP, loop);
-	pls_source_set_private_data(source, settings);
-	obs_data_release(settings);
+	auto mode = static_cast<LoopMode>(loop);
+	setLoopMode(mode);
 }
 
 void PLSBgmControlsBase::OnPreButtonClicked()
@@ -93,7 +91,7 @@ void PLSBgmControlsBase::OnSourceNotify(void *data, calldata_t *params)
 		obs_media_state state = static_cast<obs_media_state>(code);
 		QMetaObject::invokeMethod(view, "OnMediaStateChanged", Qt::QueuedConnection, Q_ARG(obs_media_state, state));
 	} else if (type == OBS_SOURCE_MUSIC_LOOP_STATE_CHANGED) {
-		QMetaObject::invokeMethod(view, "OnMediaLoopStateChanged", Qt::QueuedConnection, Q_ARG(bool, static_cast<bool>(code)));
+		QMetaObject::invokeMethod(view, "OnMediaLoopStateChanged", Qt::QueuedConnection, Q_ARG(int, code));
 	} else if (type == OBS_SOURCE_MUSIC_MODE_STATE_CHANGED) {
 		QMetaObject::invokeMethod(view, "OnMediaModeStateChanged", Qt::QueuedConnection, Q_ARG(int, code));
 	}
@@ -101,6 +99,11 @@ void PLSBgmControlsBase::OnSourceNotify(void *data, calldata_t *params)
 
 void PLSBgmControlsBase::OnMediaStateChanged(obs_media_state state)
 {
+	if (!obs_sceneitem_visible(pls_get_sceneitem_by_pointer_address((void *)sceneitem))) {
+		SetDisabledState(true);
+		return;
+	}
+
 	switch (state) {
 	case OBS_MEDIA_STATE_PLAYING: {
 		OBSSource source = OBSGetStrongRef(weakSource);
@@ -113,7 +116,7 @@ void PLSBgmControlsBase::OnMediaStateChanged(obs_media_state state)
 		pls_source_get_private_data(source, settings);
 		const char *url = obs_data_get_string(settings, BGM_URL);
 		if (pls_is_empty(url)) {
-			SetDisabledState(true);
+			updateState();
 		} else {
 			SetPlayingState();
 		}
@@ -126,7 +129,7 @@ void PLSBgmControlsBase::OnMediaStateChanged(obs_media_state state)
 	case OBS_MEDIA_STATE_STOPPED:
 	case OBS_MEDIA_STATE_ERROR:
 	case OBS_MEDIA_STATE_NONE:
-		SetDisabledState(true);
+		updateState();
 		break;
 	default:
 		break;
@@ -156,7 +159,7 @@ void PLSBgmControlsBase::OnPlayButtonClicked()
 	}
 }
 
-void PLSBgmControlsBase::OnLoopButtonClicked(bool checked)
+void PLSBgmControlsBase::setLoopMode(LoopMode mode)
 {
 	OBSSource source = OBSGetStrongRef(weakSource);
 	if (!source) {
@@ -165,7 +168,8 @@ void PLSBgmControlsBase::OnLoopButtonClicked(bool checked)
 
 	OBSData settings = obs_data_create();
 	obs_data_set_string(settings, "method", "bgm_loop");
-	obs_data_set_bool(settings, IS_LOOP, checked);
+	obs_data_set_bool(settings, IS_LOOP, mode == LoopMode::LoopAll || mode == LoopMode::LoopOne);
+	obs_data_set_string(settings, "loopMode", QMetaEnum::fromType<LoopMode>().valueToKey(static_cast<int>(mode)));
 	pls_source_set_private_data(source, settings);
 	obs_data_release(settings);
 }
@@ -249,6 +253,16 @@ void PLSBgmControlsBase::StopSliderPlayingTimer()
 
 	if (sliderTimer->isActive()) {
 		sliderTimer->stop();
+	}
+}
+
+void PLSBgmControlsBase::updateState()
+{
+	auto data = PLSBasic::instance()->getMusicPlaylistCurrentRow();
+	if (data.title.isEmpty()) {
+		SetDisabledState(true);
+	} else {
+		setSelectState(data);
 	}
 }
 

@@ -103,14 +103,16 @@
 #include "pls-shared-values.h"
 #include "frontend-internal.hpp"
 #include "PLSApp.h"
+#include "PLSLoginDataHandler.h"
+#include "PLSLoginMainView.h"
 #include "PLSGuideTipsframe.h"
 #include "PLSErrorHandler.h"
+#include "pls-performance.h"
+#include <pls/pls-base.h>
 
 #ifdef _WIN32
 #pragma comment(lib, "Gdiplus.lib")
 #endif
-
-#include <QSettings>
 
 using namespace std;
 
@@ -186,7 +188,6 @@ bool GlobalVars::opt_always_on_top = false;
 bool GlobalVars::remuxAfterRecord = false;
 string GlobalVars::opt_starting_scene;
 string GlobalVars::remuxFilename;
-string GlobalVars::gcc = "KR";
 QStringList GlobalVars::gpuNames;
 bool GlobalVars::restart = false;
 QPointer<OBSLogViewer> GlobalVars::obsLogViewer = nullptr;
@@ -546,6 +547,8 @@ void OBSApp::InitUserConfigDefaults()
 	config_set_default_bool(appConfig, "BasicWindow", "MultiviewDrawAreas", true);
 
 	config_set_default_bool(appConfig, "BasicWindow", "MediaControlsCountdownTimer", true);
+	config_set_default_bool(appConfig, common::CONFIG_SECTION_RTMP_CHANNEL, common::CONFIG_KEY_ONLY_PASTE_KEY,
+				true);
 }
 
 static bool do_mkdir(const char *path)
@@ -561,6 +564,8 @@ static bool do_mkdir(const char *path)
 
 static bool MakeUserDirs()
 {
+	PLS_PERFORMANCE_FUNCTION();
+
 	char path[512];
 
 	if (GetAppConfigPath(path, sizeof(path), "PRISMLiveStudio/basic") <= 0)
@@ -634,6 +639,8 @@ constexpr std::string_view OBSScenesSubDirectory = "PRISMLiveStudio/basic/scenes
 
 static bool MakeUserProfileDirs()
 {
+	PLS_PERFORMANCE_FUNCTION();
+
 	const std::filesystem::path userProfilePath =
 		App()->userProfilesLocation / std::filesystem::u8path(OBSProfileSubDirectory);
 	const std::filesystem::path userScenesPath =
@@ -696,6 +703,8 @@ bool OBSApp::UpdatePre22MultiviewLayout(const char *layout)
 
 bool OBSApp::InitGlobalConfig()
 {
+	PLS_PERFORMANCE_FUNCTION();
+
 	char path[512];
 	bool changed = false;
 
@@ -883,8 +892,10 @@ static void loadLocaleDir(TextLookup &lookup, const QString &languageDir, const 
 bool OBSApp::InitLocale()
 {
 	ProfileScope("OBSApp::InitLocale");
+	PLS_PERFORMANCE_FUNCTION();
+
 	PLS_INIT_INFO(MAINFRAME_MODULE, "initialize app language");
-	locale = pls_prism_get_locale().toStdString();
+	locale = pls_get_locale().toStdString();
 
 	// set basic default application locale
 	if (!locale.empty())
@@ -1018,6 +1029,8 @@ std::vector<UpdateBranch> OBSApp::GetBranches()
 OBSApp::OBSApp(int &argc, char **argv, profiler_name_store_t *store) : PLSUiApp(argc, argv), profilerNameStore(store)
 {
 	pls_set_translate_cb(Str);
+	pls_uistep_v2_set_to_english_cb(getEnglishTranslateStringByLang);
+	pls_uistep_v2_set_get_english_cb(getEnglishTranslateStringByKey);
 	InitializeGeneralAPIInterface();
 
 	/* fix float handling */
@@ -1085,6 +1098,7 @@ OBSApp::~OBSApp()
 
 static void move_basic_to_profiles(void)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	char path[512];
 
 	if (GetAppConfigPath(path, 512, "PRISMLiveStudio/basic") <= 0) {
@@ -1149,6 +1163,7 @@ static void move_basic_to_profiles(void)
 
 static void move_basic_to_scene_collections(void)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	char path[512];
 
 	if (GetAppConfigPath(path, 512, "PRISMLiveStudio/basic") <= 0) {
@@ -1192,10 +1207,10 @@ static void move_basic_to_scene_collections(void)
 void OBSApp::AppInit()
 {
 	ProfileScope("OBSApp::AppInit");
+	PLS_PERFORMANCE_FUNCTION();
 
 	if (!MakeUserDirs())
 		throw init_exception_code::failed_create_required_user_directory;
-
 	if (!InitGlobalConfig())
 		throw init_exception_code::failed_init_global_config;
 	if (!InitLocale())
@@ -1261,6 +1276,7 @@ inline void OBSApp::ResetHotkeyState(bool inFocus)
 
 void OBSApp::UpdateHotkeyFocusSetting(bool resetState)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	if (appConfig == nullptr) {
 		return;
 	}
@@ -1307,6 +1323,7 @@ static void ui_task_handler(obs_task_t task, void *param, bool wait)
 
 static PLSBasic *newMainView(QPointer<PLSMainView> &mainView, QPointer<OBSMainWindow> &mainWindow)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	mainView = pls_new<PLSMainView>(nullptr);
 	PLSBasic *basic = pls_new<PLSBasic>(mainView);
 	mainWindow = basic;
@@ -1315,6 +1332,7 @@ static PLSBasic *newMainView(QPointer<PLSMainView> &mainView, QPointer<OBSMainWi
 
 bool OBSApp::OBSInit()
 {
+	PLS_PERFORMANCE_FUNCTION();
 	ProfileScope("OBSApp::OBSInit");
 
 	qRegisterMetaType<VoidFunc>("VoidFunc");
@@ -1343,13 +1361,11 @@ bool OBSApp::OBSInit()
 
 	if (!StartupOBS(locale.c_str(), GetProfilerNameStore())) {
 		PLS_ERROR(MAINFRAME_MODULE, "start obs config failed");
-		PLSApp::uploadAnalogInfo(RUNAPP_API_PATH,
-					 {{SUCCESSFAIL, false}, {FAILREASON, "start obs config failed"}}, true);
 		throw init_exception_code::failed_startup_obs;
 	}
 
-	pls_set_dev_mode(pls_prism_is_dev());
-	pls_set_local_log(pls_prism_save_local_log());
+	pls_set_dev_mode(pls_is_dev());
+	pls_set_local_log(pls_save_local_log());
 
 	libobs_initialized = true;
 
@@ -1360,6 +1376,10 @@ bool OBSApp::OBSInit()
 	signal_handler_add(signal_handler, "void source_create_finished(int source_address)");
 	signal_handler_add(signal_handler, "void source_notify(ptr source, int message, int sub_code)");
 	signal_handler_add(signal_handler, "void source_message(ptr source, int event_type, ptr msg_data)");
+	signal_handler_add(signal_handler, "void source_loading(ptr source, bool loading)");
+
+	//PRISM/chenguoxi/20251017/PRISM_PC-3683/notify got first video frame
+	signal_handler_add(signal_handler, "void source_got_first_video_frame(ptr source)");
 
 #if defined(_WIN32) || defined(__APPLE__)
 	bool browserHWAccel = config_get_bool(appConfig, "General", "BrowserHWAccel");
@@ -1389,7 +1409,6 @@ bool OBSApp::OBSInit()
 	setQuitOnLastWindowClosed(false);
 
 	auto basic = newMainView(mainView, mainWindow);
-
 	PLS_INIT_INFO(MAINFRAME_MODULE, "main window create success.");
 	mainView->setCloseEventCallback(std::bind(&OBSBasic::mainViewClose, basic, std::placeholders::_1));
 
@@ -1412,6 +1431,7 @@ bool OBSApp::OBSInit()
 #else
 	connect(mainView, SIGNAL(destroyed()), this, SLOT(quit()), Qt::QueuedConnection);
 #endif
+
 	bool initialized = mainWindow->OBSInit();
 	if (initialized) {
 		connect(this, &QGuiApplication::applicationStateChanged,
@@ -1515,6 +1535,39 @@ bool OBSApp::TranslateString(const char *lookupVal, const char **out) const
 	return text_lookup_getstr(App()->GetTextLookup(), lookupVal, out);
 }
 
+QString OBSApp::getEnglishTranslateStringByLang(const QString &lang)
+{
+	QString tranStr;
+	if (PLSErrorHandler::instance()->getEnglishStrByOtherLang(lang, tranStr)) {
+		return tranStr;
+	}
+	const char *out = nullptr;
+	for (obs_frontend_translate_ui_cb cb : App()->translatorHooks) {
+		if (getstring_pointer_get_english_str((void *)cb, QT_TO_UTF8(lang), &out))
+			return QString::fromUtf8(out);
+	}
+	if (text_lookup_get_english_str(App()->GetTextLookup(), QT_TO_UTF8(lang), &out))
+		return QString::fromUtf8(out);
+	return lang;
+}
+
+QString OBSApp::getEnglishTranslateStringByKey(const QByteArray &key)
+{
+	QString tranStr;
+	if (PLSErrorHandler::instance()->getTranslateString(key, tranStr, true)) {
+		return tranStr;
+	}
+
+	const char *out = nullptr;
+	for (obs_frontend_translate_ui_cb cb : App()->translatorHooks) {
+		if (getstring_pointer_get_english_str_by_key((void *)cb, key.constData(), &out))
+			return QString::fromUtf8(out);
+	}
+	if (text_lookup_get_english_str_by_key(App()->GetTextLookup(), key.constData(), &out))
+		return QString::fromUtf8(out);
+	return QString::fromUtf8(key);
+}
+
 // Global handler to receive all QEvent::Show events so we can apply
 // display affinity on any newly created windows and dialogs without
 // caring where they are coming from (e.g. plugins).
@@ -1526,6 +1579,10 @@ bool OBSApp::notify(QObject *receiver, QEvent *e)
 
 	if (!receiver->isWidgetType())
 		goto skip;
+
+	if (e->type() == QEvent::MouseButtonPress && m_cbMousePress) {
+		m_cbMousePress(receiver, e);
+	}
 
 	if (e->type() != QEvent::Show)
 		goto skip;
@@ -1549,7 +1606,7 @@ bool OBSApp::notify(QObject *receiver, QEvent *e)
 	}
 
 skip:
-	return QApplication::notify(receiver, e);
+	return PLSUiApp::notify(receiver, e);
 }
 
 QString OBSTranslator::translate(const char *context, const char *sourceText, const char *disambiguation, int n) const
@@ -1870,9 +1927,11 @@ string GetOutputFilename(const char *path, const char *container, bool noSpace, 
 	os_dir_t *dir = path && path[0] ? os_opendir(path) : nullptr;
 
 	if (!dir) {
-		if (main->isVisible())
-			OBSMessageBox::warning(main, QTStr("Output.BadPath.Title"), QTStr("Output.BadPath.Text"));
-		else
+		if (main->isVisible()) {
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_OUTPUT_BADPATH_TEXT,
+							      PLSErrKeyAllAlert, {},
+							      PLSErrorHandler::ExtraData("GetOutputFilename"));
+		} else
 			main->SysTrayNotify(QTStr("Output.BadPath.Text"), QSystemTrayIcon::Warning);
 		return "";
 	}
@@ -2026,7 +2085,10 @@ void luncherMsgReceived(IPCTypeD, pls::ipc::Event, const QVariantHash &params)
 
 int run_program(int argc, char *argv[])
 {
+	PLS_PERFORMANCE_FUNCTION();
+
 	int ret = -1;
+	pls_update_prism_version(PRISM_VERSION_MAJOR, PRISM_VERSION_MINOR, PRISM_VERSION_PATCH, PRISM_VERSION_BUILD);
 	pls_set_config_path(&GetAppConfigPath);
 
 	auto profilerNameStore = CreateNameStore();
@@ -2083,14 +2145,7 @@ int run_program(int argc, char *argv[])
 	auto args = pls_cmdline_args();
 	for (int i = 0; i < args.size(); ++i) {
 		QString str = args[i];
-		if (str.startsWith("--running-path=") || str.endsWith(".psc", Qt::CaseInsensitive)) {
-			QString pscPath = str.mid(str.lastIndexOf("=") + 1);
-			pscPath.replace("\\", "/");
-			PLS_INIT_INFO(MAINFRAME_MODULE, "set psc path: %s",
-				      pls_get_path_file_name(pscPath).toStdString().c_str());
-			program.setAppRunningPath(pscPath);
-		} else if (str ==
-			   QString(shared_values::k_launcher_command_type + shared_values::k_launcher_command_daemon)) {
+		if (str == QString(shared_values::k_launcher_command_type + shared_values::k_launcher_command_daemon)) {
 			GlobalVars::isStartByDaemon = true;
 		} else if (str.startsWith(shared_values::k_launcher_command_log_prism_session)) {
 			daemonPrismSession = str.remove(0, shared_values::k_launcher_command_log_prism_session.size());
@@ -2102,6 +2157,25 @@ int run_program(int argc, char *argv[])
 		      "prism is started by daemon process:%d, the daemon prism session is: %s, limit retry count:%s",
 		      GlobalVars::isStartByDaemon, daemonPrismSession.toUtf8().constData(),
 		      limitRetryCount.toUtf8().constData());
+
+#if defined(Q_OS_WIN)
+	if (!GlobalVars::isStartByDaemon && !pls_is_debugger_present()) {
+		QString appDir = pls_get_app_dir() + "/" + "PRISMLiveStudio.exe";
+		QStringList params;
+		params.append(shared_values::k_launcher_command_log_sub_prism_session +
+			      GlobalVars::prismSubSession.c_str());
+		params.append(shared_values::k_launcher_command_log_prism_session + GlobalVars::prismSession.c_str());
+		params.append(shared_values::k_launcher_prism_version + PLS_VERSION);
+		auto daemonPro = pls_process_create(appDir, params, "", true);
+		if (!daemonPro) {
+			PLS_ERROR(MAINFRAME_MODULE, "create daemon process failed, error: %d", pls_last_error());
+		} else {
+			PLS_INFO(MAINFRAME_MODULE, "create daemon process succeed");
+			pls_process_destroy(daemonPro);
+		}
+		return 0;
+	}
+#endif
 
 	QAccessible::installFactory(accessibleFactory);
 	QFontDatabase::addApplicationFont(":/fonts/OpenSans-Regular.ttf");
@@ -2496,9 +2570,11 @@ static bool vc_runtime_outdated()
 
 int main(int argc, char *argv[])
 {
+	PLS_PERFORMANCE_FUNCTION();
+	PLS_PERFORMANCE_GLOBAL_START("PRISM Startup Time");
+
 	pls_set_cmdline_args(argc, argv);
 	GlobalVars::startTime = std::chrono::steady_clock::now();
-
 #if __APPLE__
 	InstallNSApplicationSubclass();
 #endif
@@ -2532,7 +2608,7 @@ int main(int argc, char *argv[])
 	// Try to keep this as early as possible
 	install_dll_blocklist_hook();
 
-	pls_catch_unhandled_exceptions("PRISMLiveStudio.exe");
+	pls_catch_unhandled_exceptions("obs64.exe");
 
 	/*obs_init_win32_crash_handler();
 	SetErrorMode(SEM_FAILCRITICALERRORS);
@@ -2556,12 +2632,11 @@ int main(int argc, char *argv[])
 	//if (LocalGlobalVars::handle) {
 	//	cw_set_file_mutex_uuid(GlobalVars::crashFileMutexUuid.c_str());
 	//}
-
 	log_init(GlobalVars::prismSession.c_str(), GlobalVars::startTime, GlobalVars::prismSubSession.c_str());
+
 	PLS_INFO(MAINFRAME_MODULE, "============================ PRISM APP Startup ============================");
 	PLS_INFO(MAINFRAME_MODULE, "prism session = %s,\tprism subSession = %s", GlobalVars::prismSession.c_str(),
 		 GlobalVars::prismSubSession.c_str());
-	pls_set_cmdline_args(argc, argv);
 	obs_set_cmdline_args(argc, argv);
 
 #if defined(__FreeBSD__)
@@ -2573,6 +2648,9 @@ int main(int argc, char *argv[])
 	pls_set_prism_sub_session(GlobalVars::prismSubSession);
 	pls_set_prism_pid(std::to_string(getpid()));
 	pls_catch_unhandled_exceptions(pn.c_str());
+	// Install fallback signal handlers to ensure KSCrash is notified of crashes
+	// even if its own monitors fail to capture them
+	pls_install_fallback_crash_handlers();
 #endif
 
 	for (int i = 1; i < argc; i++) {

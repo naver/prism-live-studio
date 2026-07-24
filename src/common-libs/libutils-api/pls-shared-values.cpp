@@ -59,9 +59,14 @@ LIBUTILSAPI_API const int k_task_crash_return_code = 2;
 LIBUTILSAPI_API const QString k_launcher_command_restarted_session = "--log-restarted-prism-session=";
 LIBUTILSAPI_API const QString k_launcher_command_log_process_ids = "--log-process-ids=";
 LIBUTILSAPI_API const QString k_launcher_command_prism_pid = "--prism-pid=";
+LIBUTILSAPI_API const QString k_launcher_command_loading_app_pid = "--loading-app-pid=";
 LIBUTILSAPI_API const QString k_launcher_prism_version = "--prism-version=";
+LIBUTILSAPI_API const QString k_launcher_command_locale = "--locale=";
+LIBUTILSAPI_API const QString k_launcher_command_parent_geometry = "--geometry=";
+
 LIBUTILSAPI_API const QString k_daemon_limit_retry_count = "--prism-daemon-limit-retry-count=";
 LIBUTILSAPI_API const QString k_daemon_parent_is_debugger = "--prism-daemon-parent-is-debugger";
+LIBUTILSAPI_API const QString k_auth2_apple_id_callback = "--auth-callback=";
 
 LIBUTILSAPI_API const QString k_daemon_sm_key = "prism_daemon_exit_key";
 }

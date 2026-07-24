@@ -1,117 +1,106 @@
 
 PLSDialogView {
-	qproperty-captionHeight: /*hdpi*/ 34;
-	qproperty-captionButtonSize: /*hdpi*/ 22;
-	qproperty-textMarginLeft: /*hdpi*/ 17;
-	qproperty-closeButtonMarginRight: /*hdpi*/ 8;
-	qproperty-captionButtonMargin: /*hdpi*/ 9;
+	qproperty-captionBarHeight: 34;
+	qproperty-captionHeight: 34;
+	qproperty-captionButtonSize: 22;
+	qproperty-textMarginLeft: 17;
+	qproperty-textMarginRight: 5;
+	qproperty-closeButtonMarginRight: 8;
+	qproperty-captionButtonMargin: 9;
+	qproperty-captionButtonTopMargin: 6;
 	background-color: #272727;
 	qproperty-titleBarBkgColor: #272727;
 }
-	PLSDialogView > #plsDialogViewBorderFrame {
-		background-color: transparent;
-	}
-	PLSDialogView[afterWin10="false"] > #plsDialogViewBorderFrame {
-		border: 1px solid #111111;
-	}
-
-	PLSDialogView[afterWin10="true"] > #plsDialogViewBorderFrame {
-		border: none;
-	}
-	PLSDialogView > #plsDialogViewBorderFrame > #hline {
+	PLSDialogView > #hline {
 		background-color: #111111;
-		min-height: /*hdpi*/ 1px;
-		max-height: /*hdpi*/ 1px;
+		min-height: 1px;
+		max-height: 1px;
 	}
-	PLSDialogView > #plsDialogViewBorderFrame > #titleBar {
+	PLSDialogView > #titleBar {
 		border: none;
 	}
-		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #titleLabel,
-		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #min,
-		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #maxres,
-		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #close {
+		PLSDialogView > #titleBar > #titleLabel,
+		PLSDialogView > #titleBar > #min,
+		PLSDialogView > #titleBar > #maxres,
+		PLSDialogView > #titleBar > #close {
 			background-color: #272727;
 			border: none;
 		}
 
-
-
-		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #titleLabel {
-			font-size: /*hdpi*/ 12px;
+		PLSDialogView > #titleBar > #titleLabel {
+			font-size: 12px;
 			color: #ffffff;
 		}
 
-		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #min {
+		PLSDialogView > #titleBar > #min {
 			image: url(":/libui/resource/images/btn-min-normal.svg");
 		}
 
-		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #min:hover {
+		PLSDialogView > #titleBar > #min:hover {
 			image: url(":/libui/resource/images/btn-min-over.svg");
 		}
-		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #min:pressed {
+		PLSDialogView > #titleBar > #min:pressed {
 			image: url(":/libui/resource/images/btn-min-click.svg");
 		}
-		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #min:disabled {
+		PLSDialogView > #titleBar > #min:disabled {
 			image: url(":/libui/resource/images/btn-min-disable.svg");
 		}
 
-	PLSDialogView[maxState="false"] > #plsDialogViewBorderFrame > #titleBar > #maxres {
+	PLSDialogView[maxState="false"] > #titleBar > #maxres {
 		image: url(":/libui/resource/images/btn-max-normal.svg");
 	}
 
-	PLSDialogView[maxState="false"] > #plsDialogViewBorderFrame > #titleBar > #maxres:hover {
+	PLSDialogView[maxState="false"] > #titleBar > #maxres:hover {
 		image: url(":/libui/resource/images/btn-max-over.svg");
 	}
-	PLSDialogView[maxState="false"] > #plsDialogViewBorderFrame > #titleBar > #maxres:pressed {
+	PLSDialogView[maxState="false"] > #titleBar > #maxres:pressed {
 		image: url(":/libui/resource/images/btn-max-click.svg");
 	}
-	PLSDialogView[maxState="false"] > #plsDialogViewBorderFrame > #titleBar > #maxres:disabled {
+	PLSDialogView[maxState="false"] > #titleBar > #maxres:disabled {
 		image: url(":/libui/resource/images/btn-max-disable.svg");
 	}
 
-	PLSDialogView[maxState="true"] > #plsDialogViewBorderFrame > #titleBar > #maxres {
+	PLSDialogView[maxState="true"] > #titleBar > #maxres {
 		image: url(":/libui/resource/images/btn-maxres-normal.svg");
 	}
 
-	PLSDialogView[maxState="true"] > #plsDialogViewBorderFrame > #titleBar > #maxres:hover {
+	PLSDialogView[maxState="true"] > #titleBar > #maxres:hover {
 		image: url(":/libui/resource/images/btn-maxres-over.svg");
 	}
-	PLSDialogView[maxState="true"] > #plsDialogViewBorderFrame > #titleBar > #maxres:pressed {
+	PLSDialogView[maxState="true"] > #titleBar > #maxres:pressed {
 		image: url(":/libui/resource/images/btn-maxres-click.svg");
 	}
-	PLSDialogView[maxState="true"] > #plsDialogViewBorderFrame > #titleBar > #maxres:disabled {
+	PLSDialogView[maxState="true"] > #titleBar > #maxres:disabled {
 		image: url(":/libui/resource/images/btn-maxres-disable.svg");
 	}
 
-	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #close {
+	PLSDialogView > #titleBar > #close {
 		image: url(":/libui/resource/images/btn-close-normal.svg");
 	}
 
-	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #close:hover {
+	PLSDialogView > #titleBar > #close:hover {
 		image: url(":/libui/resource/images/btn-close-over.svg");
 	}
-	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #close:pressed {
+	PLSDialogView > #titleBar > #close:pressed {
 		image: url(":/libui/resource/images/btn-close-click.svg");
 	}
-	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #close:disabled {
+	PLSDialogView > #titleBar > #close:disabled {
 		image: url(":/libui/resource/images/btn-close-disable.svg");
 	}
 
-	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #helpBtn {
-		min-width: /*hdpi*/ 15px;
-		max-width: /*hdpi*/ 15px;
-		min-height: /*hdpi*/ 16px;
-		max-height: /*hdpi*/ 16px;
-		margin-top: /*hdpi*/ -1px;
-		margin-left: /*hdpi*/ 1px;
+	PLSDialogView > #titleBar > #helpBtn {
+		min-width: 15px;
+		max-width: 15px;
+		min-height: 15px;
+		max-height: 15px;
 		margin: 0;
 		padding: 0;
 		background: transparent;
 	}
-	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #helpBtn {
+	PLSDialogView > #titleBar > #helpBtn {
 		image: url(":/libui/resource/images/ic-scene-help-normal.svg");
 	}
-		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #helpBtn:hover {
+		PLSDialogView > #titleBar > #helpBtn:hover {
 			image: url(":/libui/resource/images/ic-scene-help-over.svg");
 		}
 

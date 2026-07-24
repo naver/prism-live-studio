@@ -116,11 +116,20 @@ static void crash_report_written_callback(int64_t reportID)
 		pathComponents[pathCount - 2] = @"BlockDump";
 	}
 
-	NSString *targetPath = [pathComponents componentsJoinedByString:@"/"];
+	NSString *targetPath = [NSString pathWithComponents:pathComponents];
+	NSString *targetDir = [targetPath stringByDeletingLastPathComponent];
 
-	[[NSFileManager defaultManager] moveItemAtPath:blockDumpPath toPath:targetPath error:nil];
+	NSFileManager *fm = [NSFileManager defaultManager];
+	if (![fm fileExistsAtPath:targetDir]) {
+		[fm createDirectoryAtPath:targetDir withIntermediateDirectories:YES attributes:nil error:nil];
+	}
 
-	latest_report_path = targetPath.UTF8String;
+	NSError *moveError = nil;
+	if ([fm moveItemAtPath:blockDumpPath toPath:targetPath error:&moveError]) {
+		latest_report_path = targetPath.UTF8String;
+	} else {
+		latest_report_path = blockDumpPath.UTF8String;
+	}
 }
 
 std::string mac_generate_dump_file(std::string info, std::string message)

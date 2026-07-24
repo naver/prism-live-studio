@@ -1,5 +1,5 @@
 #include "PLSDualOutputTitle.h"
-
+#include "pls-performance.h"
 #include <QLabel>
 #include <QPushButton>
 #include <QStackedLayout>
@@ -17,6 +17,8 @@ const int SETTING_LEFT_MARGING = 5;
 
 PLSDualOutputTitle::PLSDualOutputTitle(QWidget *parent) : QFrame(parent)
 {
+	PLS_PERFORMANCE_FUNCTION();
+	pls_uistep_v2_set_custom_show_hide_name(this, "Dual Output Title");
 	pls_set_css(this, {"PLSDualOutputTitle"});
 
 	setFixedHeight(40);
@@ -84,23 +86,26 @@ PLSDualOutputTitle::PLSDualOutputTitle(QWidget *parent) : QFrame(parent)
 	m_buttonHPreview->setChecked(true);
 	m_buttonHPreview->setToolTip(tr("DualOutput.Preview.Title.Horizontal.Tip.Hide"));
 	hboxLayout->addWidget(m_buttonHPreview);
-
+	pls_uistep_v2_enable(m_buttonHPreview, PLS_UI_STEPS_V2_SIGNAL_CLICKED, false);
+	pls_uistep_v2_custom(m_buttonHPreview, PLS_UI_STEPS_V2_SIGNAL_TOGGLED, PLS_UI_STEPS_V2_ACTION_CLICK, "DualOutputTitle Horizontal Button",
+			     [this]() -> QString { return m_buttonHPreview->isChecked() ? "Show Horizontal Preview" : "Hide Horizontal Preview"; });
 	m_buttonVPreview = new QPushButton();
 	m_buttonVPreview->setObjectName("buttonVPreview");
 	m_buttonVPreview->setCheckable(true);
 	m_buttonVPreview->setChecked(true);
 	m_buttonVPreview->setToolTip(tr("DualOutput.Preview.Title.Vertical.Tip.Hide"));
 	hboxLayout->addWidget(m_buttonVPreview);
-
+	pls_uistep_v2_enable(m_buttonVPreview, PLS_UI_STEPS_V2_SIGNAL_CLICKED, false);
+	pls_uistep_v2_custom(m_buttonVPreview, PLS_UI_STEPS_V2_SIGNAL_TOGGLED, PLS_UI_STEPS_V2_ACTION_CLICK, "DualOutputTitle Vertical Button",
+			     [this]() -> QString { return m_buttonVPreview->isChecked() ? "Show Vertical Preview" : "Hide Vertical Preview"; });
 	hboxLayout->addStretch(1);
-
 	m_buttonSetting = new QRadioButton(tr("DualOutput.Preview.Title.Settings"));
 	m_buttonSetting->installEventFilter(this);
 	m_buttonSetting->setObjectName("buttonSetting");
 	m_buttonSetting->setCheckable(false);
 	m_buttonSetting->setLayoutDirection(Qt::RightToLeft);
 	hboxLayout->addWidget(m_buttonSetting);
-
+	pls_uistep_v2_custom(m_buttonSetting, PLS_UI_STEPS_V2_SIGNAL_CLICKED, PLS_UI_STEPS_V2_ACTION_CLICK);
 	pls_async_call(this, [this] { initPlatformIcon(); });
 
 	connect(m_buttonHPreview, &QPushButton::toggled, PLSBasic::instance(), &PLSBasic::showHorizontalDisplay);

@@ -32,6 +32,7 @@ private slots:
 	void titleEdited();
 
 private:
+	void initUI();
 	void setupFirstUI();
 	void refreshUI();
 	void refreshThumButton();

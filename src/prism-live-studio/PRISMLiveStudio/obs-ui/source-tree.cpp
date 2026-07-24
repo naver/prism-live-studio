@@ -3,7 +3,6 @@
 #include "source-tree.hpp"
 #include "platform.hpp"
 #include "pls-common-define.hpp"
-#include "PLSAction.h"
 #include "action.h"
 #include "liblog.h"
 #include "log/module_names.h"
@@ -23,6 +22,7 @@
 #include <QMouseEvent>
 #include <QAccessible>
 #include <QSet>
+#include <QDrag>
 #include "pls/pls-source.h"
 #include "pls/pls-dual-output.h"
 #include "PLSSceneitemMapManager.h"
@@ -30,6 +30,8 @@
 #if defined(Q_OS_MACOS)
 #include "mac/PLSPermissionHelper.h"
 #endif
+#include "pls-performance.h"
+#include "PLSErrorHandler.h"
 
 using namespace common;
 
@@ -59,7 +61,6 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_)
 	setAttribute(Qt::WA_TranslucentBackground);
 	setMouseTracking(true);
 	setProperty("showHandCursor", true);
-
 	connect(tree_->scrollBar, &QSourceScrollBar::SourceScrollShow, this, &SourceTreeItem::OnSourceScrollShow);
 	obs_source_t *source = obs_sceneitem_get_source(sceneitem);
 	const char *name = obs_source_get_name(source);
@@ -98,34 +99,53 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_)
 
 	// horizontal visible icon
 	horVisBtn = new QCheckBox(this);
+	pls_uistep_v2_set_name(horVisBtn, QStringLiteral("Horizontal visible button"));
 	horVisBtn->setObjectName("horVisBtnViewCheckbox");
 	horVisBtn->setChecked(sourceVisible);
+	horVisBtn->setToolTip(sourceVisible ? tr("main.sources.tree.hor.hide") : tr("main.sources.tree.hor.show"));
+	pls_uistep_v2_set_custom_enter_leave_name(horVisBtn, verVisible ? "Hide in Horizontal Output"
+									: "Show in Horizontal Output");
 	horVisBtn->setVisible(false);
 
 	// vertical visible icon
 	verVisBtn = new QCheckBox(this);
+	pls_uistep_v2_set_name(verVisBtn, QStringLiteral("Vertical visible button"));
 	verVisBtn->setObjectName("verVisBtnViewCheckbox");
 	verVisBtn->setChecked(verVisible);
+	verVisBtn->setToolTip(verVisible ? tr("main.sources.tree.ver.hide") : tr("main.sources.tree.ver.show"));
+	pls_uistep_v2_set_custom_enter_leave_name(horVisBtn, verVisible ? "Hide in Horizontal Output"
+									: "Show in Horizontal Output");
 	verVisBtn->setVisible(false);
 
 	vis = new QCheckBox();
 	vis->setProperty("visibilityCheckBox", true);
+	pls_uistep_v2_set_name(vis, QStringLiteral("Visible button"));
 	vis->setObjectName("sourceIconViewCheckbox");
 	vis->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 	vis->setChecked(allVisible);
+	vis->setToolTip(allVisible ? tr("main.sources.tree.hide") : tr("main.sources.tree.show"));
+	pls_uistep_v2_set_custom_enter_leave_name(vis, allVisible ? "Source Hide" : "Source Show");
 	vis->setAccessibleName(QTStr("Basic.Main.Sources.Visibility"));
 	vis->setAccessibleDescription(QTStr("Basic.Main.Sources.VisibilityDescription").arg(name));
 
 	lock = new QCheckBox();
+	pls_uistep_v2_set_name(lock, QStringLiteral("Lock button"));
 	lock->setProperty("lockCheckBox", true);
 	lock->setObjectName("sourceLockCheckbox");
 	lock->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 	lock->setChecked(obs_sceneitem_locked(sceneitem));
+	lock->setToolTip(obs_sceneitem_locked(sceneitem) ? tr("main.sources.tree.unlock")
+							 : tr("main.sources.tree.lock"));
+	pls_uistep_v2_set_custom_enter_leave_name(lock,
+						  obs_sceneitem_locked(sceneitem) ? "Source Unlock" : "Source Lock");
 	lock->setAccessibleName(QTStr("Basic.Main.Sources.Lock"));
 	lock->setAccessibleDescription(QTStr("Basic.Main.Sources.LockDescription").arg(name));
 
 	deleteBtn = new QPushButton();
+	pls_uistep_v2_set_value(deleteBtn, QStringLiteral("Delete Source"));
 	deleteBtn->setObjectName("sourceIconDeleteBtn");
+	deleteBtn->setToolTip(tr("main.sources.tree.delete"));
+	pls_uistep_v2_set_custom_enter_leave_name(deleteBtn, "Delete Source");
 
 	label = new OBSSourceLabel(source);
 	connect(label, &OBSSourceLabel::Renamed, this, [=](const char *name) {
@@ -201,7 +221,6 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_)
 		SetBgColor(SourceItemBgType::BgDefault, nullptr);
 	}
 
-	UpdateIcon(allVisible);
 	Update(false);
 
 	auto undo_redo = [](const std::string &uuid, int64_t id, bool val, bool all) {
@@ -242,6 +261,9 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_)
 
 	/* --------------------------------------------------------- */
 	auto setItemVisible = [this](obs_scene_item *sceneitem_, bool val) {
+		//PRISM/wangshaohui/20260112/PRISM_PC-5037/action log
+		pls_on_item_attribute_changed(sceneitem_, val ? SHOW_ITEM : HIDE_ITEM, PROPERTY_UI_CHANGED);
+
 		QSignalBlocker sourcesSignalBlocker(this);
 		obs_sceneitem_set_visible(sceneitem_, val);
 	};
@@ -268,7 +290,6 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_)
 	auto setItemLocked = [this](bool checked) {
 		QSignalBlocker sourcesSignalBlocker(this);
 		obs_sceneitem_set_locked(sceneitem, checked);
-
 		auto item = PLSSceneitemMapMgrInstance->getVerticalSceneitem(sceneitem);
 		if (nullptr == item) {
 			return;
@@ -291,6 +312,7 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_)
 	connect(deleteBtn, &QAbstractButton::clicked, deleteItem);
 	OnSelectChanged(checkItemSelected(obs_sceneitem_selected(sceneitem_)), sceneitem_);
 	OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_NORMAL);
+	updateSceneitemUIStatus(allVisible);
 }
 
 void SourceTreeItem::paintEvent(QPaintEvent *event)
@@ -325,6 +347,9 @@ void SourceTreeItem::ReconnectSignals()
 
 	auto removeItem = [](void *data, calldata_t *cd) {
 		pls_unused(cd);
+		PLS_PERFORMANCE_GLOBAL_END("obs_sceneitem_remove");
+		PLS_PERFORMANCE_GLOBAL_START("QMetaObject::invokeMethod::Remove", "QueryRemoveSource");
+
 		auto this_ = static_cast<SourceTreeItem *>(data);
 		auto curItem = (obs_sceneitem_t *)calldata_ptr(cd, "item");
 		obs_scene_t *curScene = (obs_scene_t *)calldata_ptr(cd, "scene");
@@ -345,7 +370,7 @@ void SourceTreeItem::ReconnectSignals()
 		bool visible = calldata_bool(cd, "visible");
 
 		if (curItem == this_->sceneitem) {
-			QMetaObject::invokeMethod(this_, "HorVisibilityChanged", Qt::QueuedConnection,
+			QMetaObject::invokeMethod(this_, "VisibilityChanged", Qt::QueuedConnection,
 						  Q_ARG(bool, visible));
 		} else {
 			auto verItem = PLSSceneitemMapMgrInstance->getVerticalSceneitem(this_->sceneitem);
@@ -428,8 +453,10 @@ void SourceTreeItem::ReconnectSignals()
 
 void SourceTreeItem::mouseDoubleClickEvent(QMouseEvent *event)
 {
+	PLS_PERFORMANCE_GLOBAL_START("properties_show");
+	PLS_PERFORMANCE_GLOBAL_START("source tree db click", "properties_show");
 	QWidget::mouseDoubleClickEvent(event);
-
+	PLS_UI_ACTION("SourceTreeItem mouse double clicked.");
 	if (expand) {
 		expand->setChecked(!expand->isChecked());
 	} else {
@@ -458,6 +485,9 @@ void SourceTreeItem::mouseDoubleClickEvent(QMouseEvent *event)
 
 void SourceTreeItem::mousePressEvent(QMouseEvent *event)
 {
+	auto source = obs_sceneitem_get_source(sceneitem);
+	auto name = obs_source_get_name(source);
+	pls_uistep_v2(this, "Choose", "Sources", name ? name : "");
 	QWidget::mousePressEvent(event);
 	mousePressed = true;
 	if (!editing)
@@ -474,7 +504,11 @@ void SourceTreeItem::mouseReleaseEvent(QMouseEvent *event)
 void SourceTreeItem::enterEvent(QEnterEvent *event)
 {
 	QWidget::enterEvent(event);
-
+	PLS_UI_ACTION("SourceTreeItem enterEvent");
+	// On macOS, leaveEvent of the previous item can be delivered after enterEvent of the next,
+	// or not delivered when moving to a child of the next item, causing two items to show hover.
+	// Clear hover on all other items so only this one has hover (avoids double hover and flicker).
+	tree->ClearHoverExcept(this);
 	if (!editing)
 		OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_HOVER);
 
@@ -585,7 +619,7 @@ void SourceTreeItem::EnterEditMode()
 {
 	editing = true;
 	OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_NORMAL);
-
+	PLS_UI_ACTION("In Source Tree, the source tree item enter edit mode.");
 	const obs_source_t *source = obs_sceneitem_get_source(sceneitem);
 	const char *name = obs_source_get_name(source);
 
@@ -648,7 +682,9 @@ void SourceTreeItem::ExitEditModeInternal(bool save)
 		return;
 
 	if (newName.empty()) {
-		OBSMessageBox::information(main, QTStr("Alert.Title"), QTStr("NoNameEntered.Text"));
+		PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ALERT_NONAMEENTERED_TEXT, PLSErrKeyAllAlert, QString(),
+			PLSErrorHandler::ExtraData(QStringLiteral("source-tree::ExitEditModeInternal.empty")), main);
 		return;
 	}
 
@@ -673,7 +709,9 @@ void SourceTreeItem::ExitEditModeInternal(bool save)
 	bool exists = !!existingSource;
 
 	if (exists) {
-		OBSMessageBox::information(main, QTStr("Alert.Title"), QTStr("NameExists.Text"));
+		PLSErrorHandler::showAlertByPrismCode(
+			PLSErrorHandler::ALERT_NAMEEXISTS_TEXT, PLSErrKeyAllAlert, QString(),
+			PLSErrorHandler::ExtraData(QStringLiteral("source-tree::ExitEditModeInternal.exists")), main);
 		return;
 	}
 
@@ -724,11 +762,18 @@ bool SourceTreeItem::eventFilter(QObject *object, QEvent *event)
 	return false;
 }
 
-void SourceTreeItem::HorVisibilityChanged(bool visible)
+void SourceTreeItem::VisibilityChanged(bool visible)
 {
 	//PRISM/ZengQin/20200811/#4026/for media controller
 	tree->OnVisibleItemChanged(sceneitem, visible);
-	horVisBtn->setChecked(visible);
+	horVisBtn->setToolTip(visible ? tr("main.sources.tree.hor.hide") : tr("main.sources.tree.hor.show"));
+
+	if (!pls_is_dual_output_on()) {
+		PLS_DISABLE_UISTEP_V2(verVisBtn);
+		horVisBtn->setChecked(visible);
+	} else {
+		horVisBtn->setChecked(visible);
+	}
 
 	if (pls_is_dual_output_on()) {
 		if (auto verItem = PLSSceneitemMapMgrInstance->getVerticalSceneitem(sceneitem); verItem) {
@@ -736,15 +781,20 @@ void SourceTreeItem::HorVisibilityChanged(bool visible)
 		}
 	}
 	vis->setChecked(visible);
+	vis->setToolTip(visible ? tr("main.sources.tree.hide") : tr("main.sources.tree.show"));
+	pls_uistep_v2_set_custom_enter_leave_name(vis, visible ? "Source Hide" : "Source Show");
+	auto vis = visible ? "show" : "hide";
+	PLS_UI_ACTION("source tree item visibility changed to %s.", vis);
 
-	//PRISM/ZengQin/20200818/#4026/for all sources
-	UpdateIcon(visible);
-	UpdateNameColor(selected, visible);
+	updateSceneitemUIStatus(visible);
 }
 
 void SourceTreeItem::VerVisibilityChanged(bool visible)
 {
 	verVisBtn->setChecked(visible);
+	verVisBtn->setToolTip(visible ? tr("main.sources.tree.ver.hide") : tr("main.sources.tree.ver.show"));
+	pls_uistep_v2_set_custom_enter_leave_name(verVisBtn,
+						  visible ? "Hide in Vertical Output" : "Show in Vertical Output");
 	auto horItemVis = obs_sceneitem_visible(sceneitem);
 
 	if (pls_is_dual_output_on()) {
@@ -752,13 +802,20 @@ void SourceTreeItem::VerVisibilityChanged(bool visible)
 	}
 
 	vis->setChecked(visible);
-	UpdateIcon(visible);
-	UpdateNameColor(selected, visible);
+	vis->setToolTip(visible ? tr("main.sources.tree.hide") : tr("main.sources.tree.show"));
+	pls_uistep_v2_set_custom_enter_leave_name(vis, visible ? "Source Hide" : "Source Show");
+	auto vis = visible ? "show" : "hide";
+	PLS_UI_ACTION("source tree item visibility changed to %s.", vis);
+	updateSceneitemUIStatus(visible);
 }
 
 void SourceTreeItem::LockedChanged(bool locked)
 {
 	lock->setChecked(locked);
+	lock->setToolTip(locked ? tr("main.sources.tree.unlock") : tr("main.sources.tree.lock"));
+	pls_uistep_v2_set_custom_enter_leave_name(lock, locked ? "Source Unlock" : "Source Lock");
+	auto lockStr = locked ? "locked" : "unlocked";
+	PLS_UI_ACTION("SourceTreeItem locked status changed to %s.", lockStr);
 	OBSBasic::Get()->UpdateEditMenu();
 }
 
@@ -852,7 +909,12 @@ void SourceTreeItem::OnIconTypeChanged(QString value)
 
 void SourceTreeItem::OnMouseStatusChanged(const char *s)
 {
-	isItemNormal = (s && 0 == strcmp(s, PROPERTY_VALUE_MOUSE_STATUS_NORMAL));
+	bool willBeNormal = (s && 0 == strcmp(s, PROPERTY_VALUE_MOUSE_STATUS_NORMAL));
+	// Skip redundant update only when already in hover/pressed and setting hover/pressed,
+	// so that initial NORMAL state is always applied on startup.
+	if (!willBeNormal && !isItemNormal)
+		return;
+	isItemNormal = willBeNormal;
 	if (isItemNormal) {
 		horVisBtn->hide();
 		verVisBtn->hide();
@@ -867,7 +929,7 @@ void SourceTreeItem::OnMouseStatusChanged(const char *s)
 		lock->show();
 	}
 	UpdateRightMargin();
-
+	PLS_UI_ACTION("handle SourceTreeItem mouse event");
 	this->setProperty(PROPERTY_NAME_MOUSE_STATUS, s);
 	this->style()->unpolish(this);
 	this->style()->polish(this);
@@ -897,6 +959,26 @@ void SourceTreeItem::UpdateIndicator(IndicatorType t)
 	}
 }
 
+void SourceTreeItem::UpdateSourceUI()
+{
+	updateSceneitemUIStatus(getSceneitemVisible(sceneitem));
+}
+
+void SourceTreeItem::updateSourceLabelInvalidUI(bool visible, bool invalid)
+{
+	invalid = visible && invalid;
+	label->setSourceInvalid(invalid);
+	label->setToolTip(invalid ? tr("main.sources.tree.invalid.tooltip") : "");
+	label->repaint();
+}
+
+void SourceTreeItem::updateSourceInvalidUI(bool visible, bool invalid)
+{
+	UpdateIcon(visible, invalid);
+	UpdateNameColor(visible, invalid);
+	updateSourceLabelInvalidUI(visible, invalid);
+}
+
 void SourceTreeItem::SelectGroupItem(bool selected)
 {
 	int cnt = tree->GetStm()->Count();
@@ -918,10 +1000,10 @@ void SourceTreeItem::SelectGroupItem(bool selected)
 void SourceTreeItem::OnSelectChanged(bool isSelected, OBSSceneItem sceneitem_, bool sendSignal)
 {
 	selected = isSelected;
+	PLS_UI_ACTION("SourceTreeItem selected changed.");
 
 	bool visible = vis->isChecked();
-	UpdateIcon(visible);
-	UpdateNameColor(isSelected, visible);
+	updateSceneitemUIStatus(visible);
 
 	if (sendSignal) {
 		emit SelectItemChanged(sceneitem_, isSelected);
@@ -1137,10 +1219,17 @@ QString GetIconKey(obs_icon_type type)
 	}
 }
 
-void SourceTreeItem::UpdateNameColor(bool isSelected, bool isVisible)
+void SourceTreeItem::UpdateNameColor(bool isVisible, bool invalid)
 {
+	obs_source_t *source = obs_sceneitem_get_source(sceneitem);
+	if (!source)
+		return;
+
 	QString visibleStr = isVisible ? SOURCE_ICON_VISIBLE : SOURCE_ICON_INVIS;
-	QString selectStr = isSelected ? SOURCE_ICON_SELECT : SOURCE_ICON_UNSELECT;
+	if (isVisible && invalid) {
+		visibleStr = SOURCE_ICON_INVALID;
+	}
+	QString selectStr = selected ? SOURCE_ICON_SELECT : SOURCE_ICON_UNSELECT;
 
 	QString value = visibleStr + QString(".") + selectStr;
 	label->setProperty(PROPERTY_NAME_STATUS, value);
@@ -1149,9 +1238,9 @@ void SourceTreeItem::UpdateNameColor(bool isSelected, bool isVisible)
 	label->style()->polish(label);
 }
 
-void SourceTreeItem::UpdateIcon(bool visible)
+void SourceTreeItem::UpdateIcon(bool visible, bool invalid)
 {
-	const obs_source_t *source = obs_sceneitem_get_source(sceneitem);
+	obs_source_t *source = obs_sceneitem_get_source(sceneitem);
 	if (!source)
 		return;
 
@@ -1160,6 +1249,10 @@ void SourceTreeItem::UpdateIcon(bool visible)
 		return;
 
 	QString visibleStr = visible ? SOURCE_ICON_VISIBLE : SOURCE_ICON_INVIS;
+	if (visible && invalid) {
+		visibleStr = SOURCE_ICON_INVIS;
+	}
+
 	QString selectStr = selected ? SOURCE_ICON_SELECT : SOURCE_ICON_UNSELECT;
 
 	if (strcmp(id, "scene") == 0) {
@@ -1171,6 +1264,62 @@ void SourceTreeItem::UpdateIcon(bool visible)
 				QString(".") + GetIconKey(obs_source_get_icon_type(id));
 		OnIconTypeChanged(value);
 	}
+}
+
+void SourceTreeItem::updateSceneitemUIStatus(bool visible)
+{
+	// check self is group
+	if (auto isGroup = obs_sceneitem_is_group(sceneitem); isGroup) {
+		QVector<OBSSceneItem> invalidItems;
+		obs_sceneitem_group_enum_items(
+			sceneitem,
+			[](obs_scene_t *, obs_sceneitem_t *item, void *ptr) {
+				if (auto source = obs_sceneitem_get_source(item);
+				    pls_source_get_failed_status_sub_code(source) == OBS_SOURCE_STATUS_SUCCESS) {
+					return true;
+				}
+				QVector<OBSSceneItem> &invalidItems = *static_cast<QVector<OBSSceneItem> *>(ptr);
+				invalidItems.push_back(item);
+				return true;
+			},
+			&invalidItems);
+		for (auto item : invalidItems) {
+			auto itemVisible = getSceneitemVisible(item);
+			if (auto treeItem = getItemWidget(item); treeItem) {
+				treeItem->updateSourceInvalidUI(itemVisible, visible);
+			}
+		}
+
+		updateSourceInvalidUI(visible, false);
+		return;
+	}
+
+	// check self source valid
+	if (auto source = obs_sceneitem_get_source(sceneitem);
+	    pls_source_get_failed_status_sub_code(source) == OBS_SOURCE_STATUS_SUCCESS) {
+		updateSourceInvalidUI(visible, false);
+		return;
+	}
+
+	// check parent is group
+	if (auto group = obs_sceneitem_get_group(GetCurrentScene(), sceneitem); group) {
+		// check group visible status
+		auto groupVisible = getSceneitemVisible(group);
+		updateSourceInvalidUI(visible, groupVisible);
+	} else {
+		updateSourceInvalidUI(visible, true);
+	}
+}
+
+bool SourceTreeItem::getSceneitemVisible(OBSSceneItem horItem)
+{
+	auto visible = obs_sceneitem_visible(horItem);
+	if (pls_is_dual_output_on()) {
+		if (auto verItem = PLSSceneitemMapMgrInstance->getVerticalSceneitem(horItem); verItem) {
+			visible |= obs_sceneitem_visible(verItem);
+		}
+	}
+	return visible;
 }
 
 void SourceTreeItem::OnSourceScrollShow(bool isShow)
@@ -1260,6 +1409,7 @@ static bool enumItemForParent(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
 
 void SourceTreeModel::SceneChanged()
 {
+	PLS_PERFORMANCE_GLOBAL_START("SceneChanged");
 	OBSScene scene = GetCurrentScene();
 
 	beginResetModel();
@@ -1269,24 +1419,8 @@ void SourceTreeModel::SceneChanged()
 
 	UpdateGroupState(false);
 	st->ResetWidgets();
-
-	for (int i = 0; i < items.count(); i++) {
-		bool select = obs_sceneitem_selected(items[i]);
-		if (pls_is_dual_output_on()) {
-			if (auto item = st->GetItemWidget(i); item)
-				select = item->checkItemSelected(select);
-			if (obs_sceneitem_is_group(items[i])) {
-				select = st->CheckGroupAllItemSelected(items[i]);
-				st->NotifyVerticalItemSelect(i, items[i], select);
-			}
-		}
-
-		QModelIndex index = createIndex(i, 0);
-		pls_async_call(this, [this, index, select]() {
-			st->selectionModel()->select(index, select ? QItemSelectionModel::Select
-								   : QItemSelectionModel::Deselect);
-		});
-	}
+	st->UpdateGroupSelected();
+	PLS_PERFORMANCE_GLOBAL_END("SceneChanged");
 }
 
 /* moves a scene item index (blame linux distros for using older Qt builds) */
@@ -1568,17 +1702,12 @@ void SourceTreeModel::GroupSelectedItems(QModelIndexList &indices)
 
 	QVector<obs_sceneitem_t *> item_order;
 
-	auto id = 0;
-	bool isDualOutput = pls_is_dual_output_on();
 	for (int i = indices.count() - 1; i >= 0; i--) {
 		obs_sceneitem_t *item = items[indices[i].row()];
 		item_order << item;
-		if (isDualOutput) {
-			auto verItem = PLSSceneitemMapMgrInstance->getVerticalSceneitem(item);
-			if (verItem) {
-				id = obs_sceneitem_get_id(verItem);
-				item_order << verItem;
-			}
+		auto verItem = PLSSceneitemMapMgrInstance->getVerticalSceneitem(item);
+		if (verItem) {
+			item_order << verItem;
 		}
 	}
 
@@ -1596,7 +1725,7 @@ void SourceTreeModel::GroupSelectedItems(QModelIndexList &indices)
 
 	main->undo_s.push_disabled();
 
-	if (isDualOutput) {
+	if (pls_is_dual_output_on()) {
 		OBSDataAutoRelease settings = obs_sceneitem_get_private_settings(item);
 		obs_data_set_bool(settings, "groupSelectedWithDualOutput", true);
 		PLSSceneitemMapMgrInstance->groupItems(obs_source_get_name(obs_scene_get_source(scene)),
@@ -1713,6 +1842,7 @@ void SourceTreeModel::ExpandGroup(obs_sceneitem_t *item)
 	endInsertRows();
 
 	st->UpdateWidgets();
+	st->UpdateGroupSelected();
 }
 
 void SourceTreeModel::CollapseGroup(const obs_sceneitem_t *item)
@@ -1768,9 +1898,11 @@ SourceTree::SourceTree(QWidget *parent_) : QListView(parent_)
 	connect(stm_, &SourceTreeModel::itemReorder, this, [this] { emit itemsReorder(); });
 	setModel(stm_);
 
+	pls_uistep_v2_set_name(this, PLS_UI_STEPS_V2_SIGNAL_CUSTOMCONTEXTMENUREQUESTED, "Source Tree Menu");
+	pls_uistep_v2_set_value(this, PLS_UI_STEPS_V2_SIGNAL_CUSTOMCONTEXTMENUREQUESTED, "Show");
+
 	connect(PLSSceneitemMapMgrInstance, &PLSSceneitemMapManager::duplicateItemSuccess, this,
 		[this](OBSSceneItem horItem, OBSSceneItem verItem) { updateVerItemIconVisible(horItem, verItem); });
-
 	pls_add_css(this, {"PLSSource"});
 
 	scrollBar = pls_new<QSourceScrollBar>(this);
@@ -1829,6 +1961,18 @@ void SourceTree::ResetDragOver()
 	}
 
 	preDragOver = nullptr;
+}
+
+void SourceTree::ClearHoverExcept(SourceTreeItem *exceptItem)
+{
+	int cnt = GetStm()->Count();
+	for (int i = 0; i < cnt; ++i) {
+		SourceTreeItem *item = GetItemWidget(i);
+		// Only clear hover on items that are actually in hover/pressed state to avoid
+		// unnecessary layout updates and flicker (especially when source is invalid).
+		if (item && item != exceptItem && !item->isItemNormal)
+			item->OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_NORMAL);
+	}
 }
 
 bool SourceTree::GetDestGroupItem(QPoint pos, obs_sceneitem_t *&item_output) const
@@ -2011,8 +2155,9 @@ bool SourceTree::IsValidDrag(obs_sceneitem_t *destGroupItem, QVector<OBSSceneIte
 		if (iter->second.first == destGroupItem) {
 			continue;
 		}
-		// Since the source reference count problem has been solved,
-		// we will temporarily remove the restriction on dragging in and out of the group and verify whether there is any problem.
+// Since the source reference count problem has been solved,
+// we will temporarily remove the restriction on dragging in and out of the group and verify whether there is any problem.
+#if 0
 		if (iter->second.first != nullptr && obs_sceneitem_is_group(iter->second.first) &&
 		    !iter->second.second) {
 			isDragValid = false; // cann't drag out of invisible group
@@ -2023,8 +2168,9 @@ bool SourceTree::IsValidDrag(obs_sceneitem_t *destGroupItem, QVector<OBSSceneIte
 			isDragValid = false; // cann't drag out of when dual output on
 			break;
 		}
-
+#endif
 		if (destGroupItem && isDestGroup) {
+#if 0
 			if (!isDestVisible) {
 				isDragValid = false; // cann't drag into invisible group
 				break;
@@ -2034,7 +2180,7 @@ bool SourceTree::IsValidDrag(obs_sceneitem_t *destGroupItem, QVector<OBSSceneIte
 				isDragValid = false; // cann't drag into group when dual output on
 				break;
 			}
-
+#endif
 			if (!CheckDragSceneToGroup(iter->first, destGroupItem)) {
 				isDragValid = false; // cann't drag scene into group which is included in scene
 				break;
@@ -2059,6 +2205,7 @@ void SourceTree::ResetWidgets()
 			Qt::QueuedConnection);
 		connect(uiItem, &SourceTreeItem::VisibleItemChanged, this, &SourceTree::OnVisibleItemChanged,
 			Qt::QueuedConnection);
+		updateGeometry(index, uiItem);
 		setIndexWidget(index, uiItem);
 	}
 }
@@ -2070,6 +2217,7 @@ void SourceTree::UpdateWidget(const QModelIndex &idx, obs_sceneitem_t *item)
 		Qt::QueuedConnection);
 	connect(uiItem, &SourceTreeItem::VisibleItemChanged, this, &SourceTree::OnVisibleItemChanged,
 		Qt::QueuedConnection);
+	updateGeometry(idx, uiItem);
 	setIndexWidget(idx, uiItem);
 }
 
@@ -2087,6 +2235,15 @@ void SourceTree::UpdateWidgets(bool force)
 			widget->Update(force);
 		}
 	}
+}
+
+void SourceTree::updateGeometry(const QModelIndex &idx, SourceTreeItem *item)
+{
+	if (!item) {
+		return;
+	}
+	auto topLeft = rect().topLeft();
+	item->setGeometry(topLeft.x(), topLeft.y() + idx.row() * 40, width(), 40);
 }
 
 void SourceTree::NotifyItemSelect(obs_sceneitem_t *sceneitem, bool select)
@@ -2250,6 +2407,7 @@ void SourceTree::mouseDoubleClickEvent(QMouseEvent *event)
 void SourceTree::mousePressEvent(QMouseEvent *event)
 {
 	if (event->button() == Qt::LeftButton) {
+		pls_uistep_v2(this, "Click", "SourceTree", "Source");
 		mousePressed = true;
 	}
 	int row = indexAt(event->pos()).row();
@@ -2263,7 +2421,7 @@ void SourceTree::mousePressEvent(QMouseEvent *event)
 		}
 		item->resetMousePressed(false);
 		auto sceneitem = item->SceneItem().Get();
-		if (obs_sceneitem_is_group(sceneitem)) {
+		if (obs_sceneitem_is_group(sceneitem) && pls_is_dual_output_on()) {
 			obs_sceneitem_select(sceneitem, false);
 			SelectGroupItem(sceneitem, false, true);
 		}
@@ -2294,20 +2452,6 @@ void SourceTree::mousePressEvent(QMouseEvent *event)
 	});
 
 	QListView::mousePressEvent(event);
-}
-
-bool TravelGroupChilds(obs_scene_t *, obs_sceneitem_t *item, void *val)
-{
-	const obs_source_t *source = obs_sceneitem_get_source(item);
-	const char *id = obs_source_get_id(source);
-	QString actionID = action::GetActionSourceID(id);
-
-	if (!actionID.isEmpty()) {
-		auto output = (std::vector<QString> *)val;
-		output->push_back(actionID);
-	}
-
-	return true;
 }
 
 void SourceTree::dragEnterEvent(QDragEnterEvent *event)
@@ -2581,12 +2725,6 @@ void SourceTree::dropEvent(QDropEvent *event)
 
 	obs_sceneitem_t *dropGroup = itemIsGroup ? dropItem : obs_sceneitem_get_group(scene, dropItem);
 
-	std::vector<QString> srcChilds;
-	std::vector<QString> destChilds;
-
-	if (dropGroup && obs_sceneitem_is_group(dropGroup))
-		pls_sceneitem_group_enum_items_all(dropGroup, TravelGroupChilds, (void *)&srcChilds);
-
 	/* not a group if moving above the group */
 	if (indicator == QAbstractItemView::AboveItem && itemIsGroup)
 		dropGroup = nullptr;
@@ -2630,11 +2768,11 @@ void SourceTree::dropEvent(QDropEvent *event)
 	/* below another group                     */
 
 	obs_sceneitem_t *itemBelow;
-	if (row == stm->items.count())
+	if (row == stm->items.count()) {
 		itemBelow = nullptr;
-	else
+	} else {
 		itemBelow = stm->items[row];
-
+	}
 	if (hasGroups) {
 		if (!itemBelow || obs_sceneitem_get_group(scene, itemBelow) != dropGroup) {
 			dropGroup = nullptr;
@@ -2660,13 +2798,55 @@ void SourceTree::dropEvent(QDropEvent *event)
 	/* --------------------------------------- */
 	/* save undo data                          */
 	std::vector<obs_source_t *> sources;
+	QStringList draggedItemName;
+	bool dragGroupItems = false;
+	QString dragItemOrigicalSceneName = obs_source_get_name(obs_scene_get_source(scene));
 	for (int i = 0; i < indices.size(); i++) {
 		obs_sceneitem_t *item = items[indices[i].row()];
-		if (obs_sceneitem_get_scene(item) != scene)
-			sources.push_back(obs_scene_get_source(obs_sceneitem_get_scene(item)));
+		draggedItemName << obs_source_get_name(obs_sceneitem_get_source(item));
+		if (obs_sceneitem_get_scene(item) != scene) {
+			auto s = obs_scene_get_source(obs_sceneitem_get_scene(item));
+			sources.push_back(s);
+			if (!dragGroupItems) {
+				dragItemOrigicalSceneName = obs_source_get_name(s);
+			}
+		} else {
+			dragGroupItems = true;
+			dragItemOrigicalSceneName.clear();
+		}
 	}
-	if (dropGroup)
+
+	QString dragItemsName;
+	for (auto name : draggedItemName) {
+		dragItemsName.append("'").append(name).append("'").append(" ");
+	}
+
+	if (dropGroup) { // drag to group
+		QString dropGroupName = obs_source_get_name(obs_sceneitem_get_source(dropGroup));
+		if (dropGroupName != dragItemOrigicalSceneName) {
+			QString dragToGroupLog =
+				dragItemsName + "from " + dragItemOrigicalSceneName + " to " + dropGroupName;
+			pls_uistep_v2(this, "Drag In", "source", dragToGroupLog);
+		}
 		sources.push_back(obs_sceneitem_get_source(dropGroup));
+	} else if (!dragItemOrigicalSceneName.isEmpty()) { // darg out from group
+		QString dragToGroupLog = dragItemsName + "from " + dragItemOrigicalSceneName + " to " +
+					 obs_source_get_name(obs_scene_get_source(scene));
+		pls_uistep_v2(this, "Drag Out", "source", dragToGroupLog);
+	}
+
+	// drag in same group or scene
+	QString dragLog = dragItemsName;
+	if (!itemBelow) { // drag to bottom
+		auto item = stm->items[row - 1];
+		QString itemAfterName = obs_source_get_name(obs_sceneitem_get_source(item));
+		dragLog.append("after ").append(itemAfterName);
+	} else {
+		QString itemBeforeName = obs_source_get_name(obs_sceneitem_get_source(itemBelow));
+		dragLog.append("before ").append(itemBeforeName);
+	}
+	pls_uistep_v2(this, "Drag", "source", dragLog);
+
 	OBSData undo_data = main->BackupScene(scene, &sources);
 
 	/* --------------------------------------- */
@@ -2697,6 +2877,11 @@ void SourceTree::dropEvent(QDropEvent *event)
 		      });
 
 	std::sort(persistentIndices.begin(), persistentIndices.end());
+	if (persistentIndices.isEmpty()) {
+		PLS_WARN(SOURCE_MODULE, "No persistent indices in dropEvent, ignore this drag.");
+		QListView::dropEvent(event);
+		return;
+	}
 	int firstIdx = persistentIndices.front().row();
 	int lastIdx = persistentIndices.back().row();
 
@@ -2783,12 +2968,6 @@ void SourceTree::dropEvent(QDropEvent *event)
 	event->accept();
 	event->setDropAction(Qt::CopyAction);
 
-	if (pls_chk_ptr_invoke(obs_sceneitem_is_group, dropGroup)) {
-		pls_sceneitem_group_enum_items_all(dropGroup, TravelGroupChilds, (void *)&destChilds);
-		if (srcChilds.size() != destChilds.size())
-			action::OnGroupChildAdded(destChilds);
-	}
-
 	emit itemsReorder();
 	QListView::dropEvent(event);
 }
@@ -2874,11 +3053,13 @@ void SourceTree::selectionChanged(const QItemSelection &selected, const QItemSel
 					continue;
 				}
 				widget->SelectGroupItem(false);
-				if (widget->getMousePressed() || noValidClick) {
+				OBSDataAutoRelease data = obs_sceneitem_get_private_settings(stm->items[idx]);
+				bool collapsed = obs_data_get_bool(data, "collapsed");
+				// unselect all child items when group was clicked to unselect or group was collapsed
+				if (widget->getMousePressed() || noValidClick || collapsed) {
 					pls_sceneitem_group_enum_items_all(stm->items[idx], unselectGroupChilds,
 									   nullptr);
 				}
-
 			} else {
 				if (pls_is_dual_output_on()) {
 					auto iter = groupSelectedItems.find((int64_t)stm->items[idx].Get());
@@ -3048,7 +3229,7 @@ bool SourceTree::GroupsSelected() const
 	}
 
 	if (pls_is_dual_output_on()) {
-		return false;
+		return GroupsSelectedWithDualOutput(selectedIndices);
 	}
 
 	SourceTreeModel *stm = GetStm();
@@ -3164,8 +3345,33 @@ void SourceTree::CheckGroupItemUnselectStatus(obs_sceneitem_t *sceneitem)
 	SelectGroupItem(groupItem, false);
 }
 
+void SourceTree::UpdateGroupSelected()
+{
+	auto items = GetItems();
+	for (int i = 0; i < items.count(); i++) {
+		bool select = obs_sceneitem_selected(items[i]);
+		if (pls_is_dual_output_on()) {
+			if (auto item = GetItemWidget(i); item)
+				select = item->checkItemSelected(select);
+			if (obs_sceneitem_is_group(items[i])) {
+				select = CheckGroupAllItemSelected(items[i]);
+				NotifyVerticalItemSelect(i, items[i], select);
+			}
+		}
+
+		QModelIndex index = GetStm()->createIndex(i, 0);
+		pls_async_call(this, [this, index, select]() {
+			selectionModel()->select(index,
+						 select ? QItemSelectionModel::Select : QItemSelectionModel::Deselect);
+		});
+	}
+}
+
 void SourceTree::Remove(OBSSceneItem item, OBSScene scene) const
 {
+	PLS_PERFORMANCE_GLOBAL_END("QMetaObject::invokeMethod::Remove");
+	PLS_PERFORMANCE_GLOBAL_START("SourceTree::Remove", "QueryRemoveSource");
+
 	OBSBasic *main = reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
 	GetStm()->Remove(item);
 	main->SaveProject();
@@ -3178,7 +3384,11 @@ void SourceTree::Remove(OBSSceneItem item, OBSScene scene) const
 		main->UpdateContextBarDeferred();
 		blog(LOG_INFO, "User Removed source '%s' (%s) from scene '%s'", obs_source_get_name(itemSource),
 		     obs_source_get_id(itemSource), obs_source_get_name(sceneSource));
+		PLS_UI_ACTION("User Removed source '%s' (%s) from scene '%s'", obs_source_get_name(itemSource),
+			      obs_source_get_id(itemSource), obs_source_get_name(sceneSource));
 	}
+	PLS_PERFORMANCE_GLOBAL_END("SourceTree::Remove");
+	PLS_PERFORMANCE_GLOBAL_END("QueryRemoveSource");
 }
 
 void SourceTree::GroupSelectedItems() const
@@ -3307,19 +3517,31 @@ void SourceTree::updateVisibleIcon(int index, OBSSceneItem horItem, OBSSceneItem
 	bool verItemVis = obs_sceneitem_visible(verItem);
 	bool horItemVis = obs_sceneitem_visible(horItem);
 	itemUi->horVisBtn->setChecked(horItemVis);
+	itemUi->horVisBtn->setToolTip(horItemVis ? tr("main.sources.tree.hor.hide") : tr("main.sources.tree.hor.show"));
+	pls_uistep_v2_set_custom_enter_leave_name(itemUi->horVisBtn, horItemVis ? "Hide in Horizontal Output"
+										: "Show in Horizontal Output");
 	itemUi->verVisBtn->setChecked(verItemVis);
+	itemUi->verVisBtn->setToolTip(verItemVis ? tr("main.sources.tree.ver.hide") : tr("main.sources.tree.ver.show"));
+	pls_uistep_v2_set_custom_enter_leave_name(itemUi->verVisBtn,
+						  verItemVis ? "Hide in Vertical Output" : "Show in Vertical Output");
 	if (pls_is_dual_output_on()) {
 		itemUi->vis->setChecked(verItemVis || horItemVis);
-		itemUi->UpdateIcon(verItemVis || horItemVis);
-		itemUi->UpdateNameColor(itemUi->selected, verItemVis || horItemVis);
+		itemUi->vis->setToolTip((verItemVis || horItemVis) ? tr("main.sources.tree.hide")
+								   : tr("main.sources.tree.show"));
+		pls_uistep_v2_set_custom_enter_leave_name(itemUi->vis,
+							  (verItemVis || horItemVis) ? "Source Hide" : "Source Show");
+		itemUi->updateSceneitemUIStatus(verItemVis || horItemVis);
 	} else {
 		if (!horItemVis) {
 			obs_sceneitem_set_visible(verItem, false);
 			itemUi->verVisBtn->setChecked(false);
+			itemUi->verVisBtn->setToolTip(tr("main.sources.tree.ver.show"));
+			pls_uistep_v2_set_custom_enter_leave_name(itemUi->verVisBtn, "Show in Vertical Output");
 		}
 		itemUi->vis->setChecked(horItemVis);
-		itemUi->UpdateIcon(horItemVis);
-		itemUi->UpdateNameColor(itemUi->selected, horItemVis);
+		itemUi->vis->setToolTip(horItemVis ? tr("main.sources.tree.hide") : tr("main.sources.tree.show"));
+		pls_uistep_v2_set_custom_enter_leave_name(itemUi->vis, horItemVis ? "Source Hide" : "Source Show");
+		itemUi->updateSceneitemUIStatus(horItemVis);
 	}
 }
 
@@ -3354,6 +3576,21 @@ bool SourceTreeItem::checkItemSelected(bool horSelected)
 	return horSelected;
 }
 
+SourceTreeItem *SourceTreeItem::getItemWidget(OBSSceneItem item)
+{
+	int cnt = tree->GetStm()->Count();
+	for (int i = 0; i < cnt; ++i) {
+		SourceTreeItem *sourceItem = tree->GetItemWidget(i);
+		if (!sourceItem) {
+			continue;
+		}
+		if (sourceItem->SceneItem() == item) {
+			return sourceItem;
+		}
+	}
+	return nullptr;
+}
+
 void SourceTree::keyPressEvent(QKeyEvent *event)
 {
 	Qt::KeyboardModifiers modifiers = event->modifiers();
@@ -3378,4 +3615,23 @@ void SourceTree::mouseReleaseEvent(QMouseEvent *event)
 {
 	mousePressed = false;
 	QListView::mouseReleaseEvent(event);
+}
+
+void SourceTree::startDrag(Qt::DropActions supportedActions)
+{
+	PLS_UI_ACTION("SourceTree start to drag.");
+
+#ifdef Q_OS_WIN
+	QMimeData *mimeData = model()->mimeData(selectedIndexes());
+	if (!mimeData) {
+		QListView::startDrag(supportedActions);
+		return;
+	}
+
+	QDrag *drag = pls_new<QDrag>(this);
+	drag->setMimeData(mimeData);
+	drag->setDragCursor(pls_get_win_custom_drag_pixmap(this), Qt::MoveAction);
+	drag->exec(supportedActions);
+#endif //  Q_OS_WIN
+	QListView::startDrag(supportedActions);
 }

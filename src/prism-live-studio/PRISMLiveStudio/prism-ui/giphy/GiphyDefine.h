@@ -92,6 +92,7 @@ struct TaskResponData {
 	QString fileName;
 	QString errorString;
 	ErrorSubType subType = ErrorSubType::Error_Other;
+	QByteArray rawData;
 };
 
 Q_DECLARE_METATYPE(TaskResponData)

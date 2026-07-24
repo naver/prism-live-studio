@@ -7,6 +7,8 @@
 #include "PLSTransparentForMouseEvents.h"
 #include <QPainterPath>
 #include <QPainter>
+#include <QGuiApplication>
+#include <QScreen>
 
 #ifdef Q_OS_WIN
 #include <Windows.h>
@@ -20,6 +22,10 @@
 #endif
 #include "liblog.h"
 #include "PLSUIApp.h"
+#include "private/qwidget_p.h"
+#include "PLSTrackers.h"
+#include <qpalette.h>
+#include <qcolor.h>
 
 class PLSToplevelWidgetAccess {
 public:
@@ -156,9 +162,9 @@ static bool wmNcHitTest(qintptr *result, PLSToplevelWidget *widget, HWND hwnd, U
 		} else if (widget->resizeEnabled()) {
 			*result = hit;
 		} else if (widget->widthResizeEnabled()) {
-			*result = (hit == HTLEFT || hit == HTRIGHT) ? hit : (widget->moveInContent() ? HTCAPTION : HTCLIENT);
+			*result = (hit == HTLEFT || hit == HTRIGHT) ? hit : HTCLIENT;
 		} else if (widget->heightResizeEnabled()) {
-			*result = (hit == HTTOP || hit == HTBOTTOM) ? hit : (widget->moveInContent() ? HTCAPTION : HTCLIENT);
+			*result = (hit == HTTOP || hit == HTBOTTOM) ? hit : HTCLIENT;
 		}
 		return true;
 	default:
@@ -227,7 +233,7 @@ static bool wmNcHitTest(qintptr *result, PLSToplevelWidget *widget, HWND hwnd, U
 	} else if (pt.y < cy) {
 		if (!isMaxAndFull && widget->heightResizeEnabled())
 			*result = HTTOP;
-		else if (widget->hasTitleBar() || widget->moveInContent())
+		else if (widget->hasTitleBar())
 			*result = HTCAPTION;
 		else
 			*result = HTCLIENT;
@@ -236,7 +242,7 @@ static bool wmNcHitTest(qintptr *result, PLSToplevelWidget *widget, HWND hwnd, U
 		*result = HTCAPTION;
 		return true;
 	}
-	*result = widget->moveInContent() ? HTCAPTION : HTCLIENT;
+	*result = HTCLIENT;
 	return true;
 }
 static bool wmCreate(HWND hwnd)
@@ -270,8 +276,32 @@ static bool isWidgetFullscreen(QWidget *widget)
 LIBUI_API void toplevelView_event(PLSToplevelWidget *widget, QEvent *event)
 {
 	switch (event->type()) {
+	case QEvent::Paint:
+		widget->setFirstPainting(false);
+		break;
 	case QEvent::WindowStateChange:
 		widget->windowStateChanged(static_cast<QWindowStateChangeEvent *>(event));
+		widget->resizeTracker()->enableTracking();
+		break;
+	case QEvent::ScreenChangeInternal:
+		widget->resizeTracker()->disableTracking(true);
+		break;
+	case QEvent::WinIdChange:
+		if (!pls_is_main_window_closing()) {
+			auto winid = QWidgetPrivate::get(widget->self())->data.winid;
+#ifdef Q_OS_WIN
+			if (winid > 0) {
+				auto hwnd = (HWND)winid;
+				auto menu = CreateMenu();
+				SetMenu(hwnd, menu);
+				if (pls::ui::g_afterWin10) {
+					COLORREF color = RGB(17, 17, 17);
+					DwmSetWindowAttribute(hwnd, 34, &color, sizeof(color));
+				}
+			}
+#endif
+			widget->winIdChanged(winid);
+		}
 		break;
 #ifdef Q_OS_WIN
 	case QEvent::Show:
@@ -318,6 +348,30 @@ LIBUI_API bool toplevelView_nativeEvent(PLSToplevelWidget *widget, const QByteAr
 		if (auto app = PLSUiApp::instance(); app)
 			app->setAppState(msg->wParam ? true : false);
 		break;
+	case WM_NCLBUTTONDBLCLK:
+		widget->resizeTracker()->disableTracking();
+		break;
+	case WM_DPICHANGED:
+	case WM_DISPLAYCHANGE:
+		widget->resizeTracker()->disableTracking(true);
+		break;
+	case WM_NCMOUSEMOVE:
+	case WM_NCLBUTTONUP:
+		widget->resizeTracker()->checkEndResize();
+		break;
+	case WM_ERASEBKGND:
+		if (widget->isFirstPainting()) {
+			auto hdc = GetWindowDC(msg->hwnd);
+			RECT rcw;
+			GetWindowRect(msg->hwnd, &rcw);
+			RECT rc{0, 0, rcw.right - rcw.left, rcw.bottom - rcw.top};
+			auto brush = CreateSolidBrush(RGB(0x27, 0x27, 0x27));
+			FillRect(hdc, &rc, brush);
+			DeleteObject(brush);
+			ReleaseDC(msg->hwnd, hdc);
+			return true;
+		}
+		break;
 	default:
 		break;
 	}
@@ -338,22 +392,22 @@ LIBUI_API void toplevelView_restoreGeometry(PLSToplevelWidget *tlwidget, const Q
 }
 }
 
-void PLSToplevelWidget::init(QWidget *widget)
+void PLSToplevelWidget::init(QWidget *widget, CreateWinId createWinId)
 {
+	pls_uistep_v2_listen_window_state(widget, true);
+	pls_uistep_v2_listen_window_close(widget, true);
+
+	widget->setAttribute(Qt::WA_AlwaysShowToolTips);
 #if defined(Q_OS_WIN)
 	widget->setProperty("windows", true);
 	widget->setProperty("afterWin10", pls::ui::g_afterWin10);
-	auto hwnd = (HWND)widget->winId();
-	auto menu = CreateMenu();
-	SetMenu(hwnd, menu);
-	if (pls::ui::g_afterWin10) {
-		COLORREF color = RGB(17, 17, 17);
-		DwmSetWindowAttribute(hwnd, 34, &color, sizeof(color));
-	}
 #elif defined(Q_OS_MACOS)
 	widget->setProperty("windows", false);
 	m_customMacWindow = new PLSCustomMacWindow();
 #endif
+
+	if (createWinId == CreateWinId::Create)
+		widget->winId();
 }
 
 #if defined(Q_OS_MACOS)
@@ -390,15 +444,6 @@ void PLSToplevelWidget::setHeightResizeEnabled(bool heightResizeEnabled)
 	m_heightResizeEnabled = heightResizeEnabled;
 }
 
-bool PLSToplevelWidget::moveInContent() const
-{
-	return m_moveInContent;
-}
-void PLSToplevelWidget::setMoveInContent(bool moveInContent)
-{
-	m_moveInContent = moveInContent;
-}
-
 bool PLSToplevelWidget::hasTitleBar() const
 {
 	return titleBarHeight() != 0;
@@ -432,9 +477,27 @@ void PLSToplevelWidget::disableWinSystemBorder(const QWidget *widget)
 		COLORREF color = RGB(17, 17, 17);
 		DwmSetWindowAttribute(hwnd, 34, &color, sizeof(color));
 	}
-#else
-
 #endif
+}
+
+bool PLSToplevelWidget::isAfterWin10() const
+{
+#ifdef Q_OS_WIN
+	return pls::ui::g_afterWin10;
+#else
+	return false;
+#endif
+}
+
+PLSResizeTracker *PLSToplevelWidget::resizeTracker() const
+{
+	auto &resizeTracker = pls_ptr(this)->m_resizeTracker;
+	if (!resizeTracker) {
+		auto widget = self();
+		resizeTracker = pls_new<PLSResizeTracker>(widget);
+		resizeTracker->addWidget(widget);
+	}
+	return resizeTracker;
 }
 
 int PLSToplevelWidget::titleBarHeight() const
@@ -446,13 +509,9 @@ void PLSToplevelWidget::initSize(const QSize &size)
 	m_initSize = size;
 }
 
-bool PLSToplevelWidget::moveInContentIncludeChild(QWidget *parentWidget, QWidget *childWidget) const
+bool PLSToplevelWidget::moveExcludeChild(QWidget *child) const
 {
-	return pls::ui::transparentForMouseEvents_moveInContentIncludeChild(parentWidget, childWidget);
-}
-bool PLSToplevelWidget::moveInContentExcludeChild(QWidget *parentWidget, QWidget *childWidget) const
-{
-	return pls::ui::transparentForMouseEvents_moveInContentExcludeChild(parentWidget, childWidget);
+	return pls::ui::transparentForMouseEvents_moveExcludeChild(child);
 }
 
 #if defined(Q_OS_MACOS)
@@ -478,18 +537,24 @@ void PLSToplevelWidget::onRestoreGeometry()
 	auto widget = self();
 	auto parentWidgt = widget->parentWidget();
 	auto parent = getToplevel(widget->parentWidget());
-	auto screen = parent ? parent->screen() : widget->screen();
+	// Center in the parent only when the parent is already shown (e.g. login notice before first show() used default top-left geometry).
+	QWidget *positionParent = (parent && parent->isVisible()) ? parent : nullptr;
+	QScreen *screen = positionParent ? positionParent->screen() : widget->screen();
+	if (!screen)
+		screen = QGuiApplication::primaryScreen();
+	if (!screen)
+		return;
 	QRect availableRect = screen->availableGeometry();
 	QSize size = m_initSize.expandedTo(widget->minimumSize()).boundedTo(widget->maximumSize()).boundedTo(availableRect.size());
-	QRect showRect = parent ? parent->geometry() : availableRect;
+	QRect showRect = positionParent ? positionParent->geometry() : availableRect;
 	QPoint pos(showRect.x() + (showRect.width() - size.width()) / 2, showRect.y() + (showRect.height() - size.height()) / 2);
 
 #if defined(Q_OS_MACOS)
 	bool hasParentTitleBar = false;
 	bool hasTitleBar = customMacWindow()->hasTitleBar(widget);
 	float titleBarHeight = customMacWindow()->getTitlebarHeight(widget);
-	if (parent) {
-		hasParentTitleBar = customMacWindow()->hasTitleBar(parent);
+	if (positionParent) {
+		hasParentTitleBar = customMacWindow()->hasTitleBar(positionParent);
 	}
 
 	if (hasParentTitleBar && !hasTitleBar) {
@@ -522,7 +587,7 @@ QSize PLSToplevelWidget::calcSize(const QSize &size) const
 {
 #ifdef Q_OS_WIN
 	auto newSize = size;
-	if (pls_is_after_win10())
+	if (pls::ui::g_afterWin10)
 		newSize = QSize(size.width() - 2, size.height() - 2);
 	auto dpi = self()->devicePixelRatioF();
 	auto width = pls::ui::getDpiScaleOriginal(newSize.width(), dpi);

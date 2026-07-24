@@ -22,6 +22,12 @@ OBSBasicVCamConfig::OBSBasicVCamConfig(const VCamConfig &_config, bool _vcamActi
 
 	ui->setupUi(this->content());
 
+	//PRISM/Fanzirong/20250915/PRISM_PC-3892/cannot resize
+	setResizeEnabled(false);
+
+	pls_uistep_v2_set_name(ui->outputType, "Output Type");
+	pls_uistep_v2_set_name(ui->outputSelection, "Output Selection");
+
 	ui->outputType->addItem(QTStr("Basic.VCam.OutputType.Program"), (int)VCamOutputType::ProgramView);
 	ui->outputType->addItem(QTStr("StudioMode.Preview"), (int)VCamOutputType::PreviewOutput);
 	ui->outputType->addItem(QTStr("Basic.Scene"), (int)VCamOutputType::SceneOutput);
@@ -36,6 +42,16 @@ OBSBasicVCamConfig::OBSBasicVCamConfig(const VCamConfig &_config, bool _vcamActi
 	connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
 
 	connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+}
+
+void OBSBasicVCamConfig::showEvent(QShowEvent *event)
+{
+	PLSDialogView::showEvent(event);
+
+	if (firstShow) {
+		firstShow = false;
+		PLS_UI_ACTION("show vcam config dialog");
+	}
 }
 
 void OBSBasicVCamConfig::OutputTypeChanged()

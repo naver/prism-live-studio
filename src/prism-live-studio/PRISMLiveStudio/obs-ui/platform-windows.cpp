@@ -35,6 +35,7 @@
 #include <util/windows/WinHandle.hpp>
 #include <util/windows/HRError.hpp>
 #include <util/windows/ComPtr.hpp>
+#include <pls-performance.h>
 
 using namespace std;
 
@@ -241,6 +242,7 @@ bool SetDisplayAffinitySupported(void)
 
 bool DisableAudioDucking(bool disable)
 {
+	PLS_PERFORMANCE_FUNCTION();
 	ComPtr<IMMDeviceEnumerator> devEmum;
 	ComPtr<IMMDevice> device;
 	ComPtr<IAudioSessionManager2> sessionManager2;

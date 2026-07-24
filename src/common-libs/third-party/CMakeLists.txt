@@ -1,4 +1,3 @@
-
 add_subdirectory(QREncoder)
 add_subdirectory(openssl)
 add_subdirectory(MQTT)

@@ -1,73 +1,69 @@
 PLSAddSourceView#PLSAddSourceView {
-    qproperty-hasHLine: /*hdpi*/ true;
-    qproperty-hasMinButton: /*hdpi*/ false;
-    qproperty-isMoveInContent: /*hdpi*/ true;
-    qproperty-captionButtonMargin: /*hdpi*/ 10;
+    qproperty-hasHLine: true;
+    qproperty-hasMinButton: false;
+    qproperty-captionButtonMargin: 10;
 }
 
-#PLSAddSourceView > #plsDialogViewBorderFrame > #content {
+#PLSAddSourceView > #content {
     background-color: #1e1e1f;
     border: none;
 }
 
-PLSAddSourceView #buttonTip {
-    margin-top: 10px;
-    margin-left:0px;
-    margin-right:0px;
-    margin-bottom:0px;
-    padding:
-    /*hdpi*/
-    0px;
-    font-size:
-    /*hdpi*/
-    14px;
+#PLSAddSourceView #guideButton {
+    padding:0;
+    margin:0;
+    font-size: 13px;
+    font-weight: normal;
+    color: #1e1e1f;
+    background-color: #ffffff;
     border: none;
-    color: #258edd;
-    text-decoration: underline;
-    background-color:transparent;
+    border-radius: 3px;
+    margin-left: 12px;
+
 }
 
-    PLSAddSourceView #buttonTip:hover {
-        color: white;
-    }
+#PLSAddSourceView #guideButton:hover {
+    background-color: #f5f5f5;
+}
 
-    PLSAddSourceView #buttonTip:pressed {
-        color: white;
-    }
+#PLSAddSourceView #guideButton:pressed {
+    background-color: #dedede;
+}
+
+#PLSAddSourceView #guideButton:disabled {
+    background-color: #444444;
+    color: #888888;
+}
 
 QFrame #frame_desc {
-    border: /*hdpi*/ 1px solid #272727;
-    border-radius: /*hdpi*/ 3px;
-    qproperty-minimumSize: /*hdpi*/ 320px /*hdpi*/ 580px;
-    qproperty-maximumSize: /*hdpi*/ 320px /*hdpi*/ 580px;
+    border: none;
+    min-width: 292px;
+    max-width: 292px;
+    background-color: #1e1e1f;
 }
 
 QFrame #frame_baseSource, QFrame #frame_prismSource {
-    border: /*hdpi*/ 1px solid #272727;
-    border-radius: /*hdpi*/ 3px;
-    min-width: 318px;
-    max-width: 318px;
+    border: 1px solid #272727;
+    border-radius: 3px;
 }
 
-QFrame #frame_desc {
-    background-color: #1e1e1f;
+PLSAddSourceView QGroupBox {
     border: none;
+    font-size: 12px;
+    font-weight: bold;
+    color: #999999;
+}
+
+PLSAddSourceView QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 3px;
+    top: 1px;
+    font-size: 12px;
+    color: #999999;
 }
 
 QScrollArea #scrollArea_2, QScrollArea #scrollArea {
     border: none;
-}
-
-QLabel#label_baseTitle, QLabel#label_prismTitle {
-    font-size: /*hdpi*/ 12px;
-    font-weight: bold;
-    color: #a3a3a3;
-    background-color: transparent;
-    min-height: /*hdpi*/ 16px;
-    max-height: /*hdpi*/ 16px;
-    border: none;
-    padding-top: /*hdpi*/ 18px;
-    padding-bottom: /*hdpi*/ 14px;
 }
 
 QLabel#label_space {
@@ -78,9 +74,9 @@ QLabel#label_space {
 }
 
 QLabel#label_descTitle {
-    min-width: /*hdpi*/ 260px;
-    max-width: /*hdpi*/ 260px;
-    font-size: /*hdpi*/ 20px;
+    min-width: 260px;
+    max-width: 260px;
+    font-size: 20px;
     font-weight: bold;
     color: #ffffff;
     background-color: transparent;
@@ -89,11 +85,11 @@ QLabel#label_descTitle {
 }
 
 QLabel#label_descContent {
-    min-width: /*hdpi*/ 260px;
-    max-width: /*hdpi*/ 260px;
-    font-size: /*hdpi*/ 14px;
+    min-width: 260px;
+    max-width: 260px;
+    font-size: 12px;
     font-weight: normal;
-    color: #a3a3a3;
+    color: #A3A3A3;
     background-color: transparent;
     padding: 0px;
     margin: 0px;
@@ -101,31 +97,31 @@ QLabel#label_descContent {
 
 
 QLabel#label_descPic {
-    min-width: /*hdpi*/ 280px;
-    max-width: /*hdpi*/ 280px;
-    min-height: /*hdpi*/ 140px;
-    max-height: /*hdpi*/ 140px;
+    min-width: 280px;
+    max-width: 280px;
+    min-height: 140px;
+    max-height: 140px;
     background-color: transparent;
 }
 
 QFrame #frame_buttonBox {
-    min-height: /*hdpi*/ 78px;
-    max-height: /*hdpi*/ 78px;
+    min-height: 78px;
+    max-height: 78px;
     background-color: #272727;
     border: none;
-    border-top: /*hdpi*/ 1px solid #151515;
+    border-top: 1px solid #151515;
 }
 
 #frame_buttonBox #buttonOK, #frame_buttonBox #buttonCancel {
-    qproperty-minimumSize: /*hdpi*/ 128px /*hdpi*/ 40px;
-    qproperty-maximumSize: /*hdpi*/ 128px /*hdpi*/ 40px;
+    qproperty-minimumSize: 128px 40px;
+    qproperty-maximumSize: 128px 40px;
 }
 
 PLSAddSourceItem#PLSAddSourceItem {
-    min-height: /*hdpi-u*/ 40px;
-    max-height: /*hdpi-u*/ 58px;
-    min-width: /*hdpi-u*/ 296px;
-    max-width: /*hdpi-u*/ 296px;
+    min-height: 56px;
+    max-height: 88px;
+    min-width: 217px;
+    max-width: 217px;
     padding: 0;
     margin: 0;
     background-color: #272727;
@@ -144,41 +140,148 @@ PLSAddSourceItem#PLSAddSourceItem {
     }
 
 PLSAddSourceItem #label_icon {
-    qproperty-minimumSize: /*hdpi-u*/ 30px /*hdpi-u*/ 30px;
-    qproperty-maximumSize: /*hdpi-u*/ 30px /*hdpi-u*/ 30px;
-    background-color: transparent;
+    min-height: 36px;
+    max-height: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    background-color: #555555;
+    background-position: center;
+    border-radius: 18px;
 }
 
 PLSAddSourceItem #label_text {
-    font-size: /*hdpi-d*/ 14px;
-    font-weight: normal;
+    font-size: 12px;
+    font-weight: bold;
     color: white;
     background-color: transparent;
-    padding-left: /*hdpi-u*/ 2px;
-    padding-top: /*hdpi-u*/ 10px;
-    padding-right: /*hdpi-u*/ 5px;
-    padding-bottom: /*hdpi-u*/ 11px;
+    padding:0;
+}
+PLSAddSourceItem #label_short_desc {
+    font-size: 11px;
+    font-weight: normal;
+    color: #999999;
+    background-color: transparent;
+    padding:0;
+}
+PLSAddSourceItem #label_short_desc[select="false"] {
+    color: #999999;
+}
+PLSAddSourceItem #label_short_desc[select="true"] {
+    color: white;
+}
+PLSAddSourceItem #label_text[select="false"] {
+    color: white;
 }
 
-    PLSAddSourceItem #label_text[select="false"] {
-        font-size: /*hdpi-d*/ 14px;
-        font-weight: normal;
-        color: white;
-        background-color: transparent;
-    }
-
     PLSAddSourceItem #label_text[select="true"] {
-        font-size: /*hdpi-d*/ 14px;
-        font-weight: bold;
         color: #effc35;
-        background-color: transparent;
     }
 
 PLSAddSourceItem #label_status {
-    min-width: /*hdpi-u*/ 34px;
-    max-width: /*hdpi-u*/ 34px;
-    min-height: /*hdpi-u*/ 16px;
-    max-height: /*hdpi-u*/ 16px;
+    min-width: 34px;
+    max-width: 34px;
+    min-height: 16px;
+    max-height: 16px;
     background-color: transparent;
-    image: url(":resource/images/ic-badge-new.svg");
+    image: url(":/resource/images/add-source-view/ic-badge-new.svg");
+}
+PLSAddSourceItem #betaLabel {
+    min-width: 30px;
+    max-width: 30px;
+    min-height: 16px;
+    max-height: 16px;
+    background-color: transparent;
+    image: url(":/resource/images/add-source-view/ic_badge_source_beta.svg");
+}
+PLSRecommendationBanner {
+    qproperty-minimumSize: 433px 45px;
+    qproperty-maximumSize: 433px 45px;
+    padding: 0;
+    margin: 0;
+    background-color: #2D2D2D;
+    border-radius: 5px;
+    border: 1px solid #555555;
+    box-sizing: border-box;
+}
+
+PLSRecommendationBanner:hover {
+    background-color: #343435;
+    border: 1px solid #effc35;
+}
+PLSRecommendationBanner:pressed {
+    background-color: #1e1e1f;
+    border: 1px solid #effc35;
+}
+    PLSRecommendationBanner #Avatar {
+        min-width: 44px;
+        max-width: 44px;
+        min-height: 27px;
+        max-height: 27px;
+        background-color: transparent;
+    }
+PLSRecommendationBanner #Message {
+    font-size: 12px;
+    font-weight: Bold;
+    color: #ffffff;
+    background-color: transparent;
+}
+PLSRecommendationBanner[hovered="true"] #Message {
+    color: #effc35;
+}
+PLSRecommendationBanner[pressed="true"] #Message {
+    color: #effc35;
+}
+PLSRecommendationBanner #Arrow {
+    min-width: 10px;
+    max-width: 10px;
+    min-height: 10px;
+    max-height: 10px;
+    background-color: transparent;
+    image: url(":/resource/images/add-source-view/ic_next_normal.svg");
+}
+PLSRecommendationBanner[hovered="true"] #Arrow {
+    image: url(":/resource/images/add-source-view/ic_next_over.svg");
+}
+PLSRecommendationBanner[pressed="true"] #Arrow {
+    image: url(":/resource/images/add-source-view/ic_next_over.svg");
+}
+
+PLSAddSourceView #searchLineEdit {
+    qproperty-minimumSize: 217px 45px;
+    qproperty-maximumSize: 217px 45px;
+    border-radius: 5px;
+    background-color: #2d2d2d;
+    placeholder-text-color: #ffffff;
+}
+
+PLSAddSourceView #searchLineEdit[searchButtonPosition="left"] {
+    padding-left: /*hdpi*/ 0px; 
+    border-radius: 5px;
+
+}
+
+#emptyStateWidget {
+    background-color: transparent;
+    width: 100%;
+    height: 100%;
+}
+
+#emptyStateWidget #emptyStateIcon {
+    min-width: 90px;
+    max-width:90px;
+    min-height: 90px;
+    max-height: 90px;
+    background-color: transparent;
+    padding: 0px;
+    margin: 0px;
+}
+
+#emptyStateWidget #emptyStateText {
+    font-size: 14px;
+    font-weight: normal;
+    color: #666666; 
+    background-color: transparent;
+    padding: 0px;
+    margin: 0px;
+    text-align: center;
 }

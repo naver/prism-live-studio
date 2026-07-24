@@ -17,16 +17,19 @@ struct PLSSearchData {
 		id = obj["id"].toString();
 		name = obj["name"].toString();
 		url = obj["logoUrl"].toString();
+		type = obj["type"].toString();
 	}
 	QString id{};
 	QString name{};
 	QString url{};
+	QString type{};
 
 	void resetData()
 	{
 		id = "";
 		name = "";
 		url = "";
+		type = "";
 	}
 };
 Q_DECLARE_METATYPE(PLSSearchData)
@@ -53,6 +56,7 @@ public:
 
 	void setSelectData(const PLSSearchData &data);
 	PLSSearchData getSelectData();
+	bool isValidInput();
 
 protected:
 	void showEvent(QShowEvent *event) override;

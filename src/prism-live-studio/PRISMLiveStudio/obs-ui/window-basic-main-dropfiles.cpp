@@ -12,10 +12,11 @@
 #include <qt-wrappers.hpp>
 
 #include "window-basic-main.hpp"
-#include "PLSAction.h"
 #include "PLSBasic.h"
 #include "pls/pls-dual-output.h"
 #include "PLSSceneitemMapManager.h"
+#include "PLSErrorHandler.h"
+#include "frontend-api.h"
 
 using namespace std;
 
@@ -199,10 +200,7 @@ void OBSBasic::AddDropSource(const char *data, DropType image)
 		undo_s.add_action(QTStr("Undo.Add").arg(sourceName.c_str()), undo, redo, "",
 				  std::string(obs_data_get_json(wrapper)));
 		obs_scene_add(scene, source);
-		//PRISM/Xiewei/20230428/none/add SRC log
-		OBSDataAutoRelease oldSettings = obs_data_create();
 		PLSBasic::instance()->OnSourceCreated(type);
-		action::CheckPropertyAction(source.Get(), oldSettings.Get(), settings.Get(), OPERATION_ADD_SOURCE);
 	}
 }
 
@@ -234,14 +232,12 @@ void OBSBasic::ConfirmDropUrl(const QString &url)
 
 		activateWindow();
 
-		QString msg = QTStr("AddUrl.Text");
-		msg += "\n\n";
-		msg += QTStr("AddUrl.Text.Url").arg(url);
-
-		PLSAlertView::Button button = PLSAlertView::warning(
-			nullptr, QTStr("Alert.Title"), msg,
-			QMap<PLSAlertView::Button, QString>(
-				{{PLSAlertView::Button::Yes, tr("Yes")}, {PLSAlertView::Button::No, tr("No")}}));
+		PLSErrorHandler::ExtraData extra(QStringLiteral("OBSBasic::ConfirmDropUrl"));
+		extra.pathValueMap = {{"savedUrl", url}};
+		PLSAlertView::Button button = static_cast<PLSAlertView::Button>(
+			PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ALERT_ADDURL_TEXT, PLSErrKeyAllAlert,
+							      QString(), extra)
+				.clickedBtn);
 
 		if (button == PLSAlertView::Button::Yes)
 			AddDropSource(QT_TO_UTF8(url), DropType_Url);
