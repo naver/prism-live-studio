@@ -4,11 +4,11 @@
 
 ## Releases
 
-### PRISM Live Studio 6.0.0
+### PRISM Live Studio 5.1.3
 
-[Download PRISM Live Studio 6.0.0 for Windows](https://resource-prismlive.pstatic.net/202607072241/PrismLiveStudio_Setup_x64_5.1.3.719.exe)
+[Download PRISM Live Studio 5.1.3 for Windows](https://resource-prismlive.pstatic.net/202607072241/PrismLiveStudio_Setup_x64_5.1.3.719.exe)
 
-- 6.0.0 New Features
+- 5.1.3 New Features
  
   - Added [feature description].
   - Added [feature description].
@@ -25,28 +25,7 @@
   - Fixed an issue where [problem description]. 
   - Fixed several crashes and stability issues.
 
-## Known Issues
 
-- [Describe known issue and workaround, if applicable.]
-
-## System Requirements
-
-- Windows 10 or later (64-bit)
-- macOS [supported version] or later
-
-## Checksums
-
-SHA-256 checksums are provided for verifying downloaded files:
-
-```text
-<INSTALLER_FILENAME>.exe: <SHA256>
-<INSTALLER_FILENAME>.dmg: <SHA256>
-
-## About PRISM Live Studio
-PRISM Live studio PC version helps beginners stream like professionals. It is a desktop application for live broadcasting.
-With easy operation, anyone can easily make broadcasts and send it stably to various platforms.
-
-PRISM Live Studio used the OBS engine as the core module. We would thank all the developers with their wonderful work of OBS project.
 
 ## Overview
 ![PRISM Live Studio](https://resource-prismlive.pstatic.net/20231221002/pc/img/live_stream_img1.png)
