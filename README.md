@@ -1,15 +1,15 @@
 # PRISM Live Studio
 **Learn more about PRISM Live Studio and get the latest updates on our [official website](http://prismlive.com/ko_kr/pcapp/).**
 
-### Downloads
+## Downloads
 
 - [PRISM Live Studio 6.0.0 Beta for Windows]()
 
-#### What’s New in 6.0.0 Beta
+## What’s New in 6.0.0 Beta
 
 PRISM Live Studio 6.0.0 Beta is based on OBS Studio 32.2.2 and is currently available for Windows only.
 
-**Before installing:**
+**Before installing**
 
 - B2B support is not yet available in the Beta. B2B customers should continue using the previous version.
 - The Beta cannot be installed alongside the existing PRISM Live Studio on the same PC. Installing it will remove and replace the existing version.
@@ -18,7 +18,7 @@ PRISM Live Studio 6.0.0 Beta is based on OBS Studio 32.2.2 and is currently avai
 - The existing PRISM Lens app will not be removed, but it cannot be used with the Beta through the previous capture-device connection method. Lens effects, such as face retouching, can be applied to an in-app camera source using the Lens Filter and must be configured again.
 - The Beta has a different interface and workflow, so it may take some time to get used to. We recommend installing it when you have enough time rather than shortly before a scheduled broadcast.
 
-#### Changes
+## Changes
 
 - Changed the OBS base version to 32.2.2 and adapted PRISM features accordingly.
 - Changed the application interface and settings to follow OBS, with support for installing and using OBS plugins.
