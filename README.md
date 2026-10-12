@@ -3,7 +3,7 @@
 
 ## Downloads
 
-- [PRISM Live Studio 6.0.0 Beta for Windows]()
+- [PRISM Live Studio 6.0.0 Beta for Windows](https://resource-prismlive.pstatic.net/202610121421/PrismLiveStudio_Setup_x64_6.0.0.99.exe)
 
 ## What’s New in 6.0.0 Beta
 
@@ -42,45 +42,6 @@ PRISM Live Studio 6.0.0 Beta is based on OBS Studio 32.2.2 and is currently avai
 - Added migration support for existing scenes, settings, channel lists, and some sources' My / Recent data. Unsupported sources cannot be migrated and are removed. Some Docks, including Chat and Control Panel, may require users to log in again.
 - Removed system file association for `.psc` files. Double-clicking these files no longer opens PRISM Live Studio.
 
-
-## Build on Windows
-Before build, please prepare install Visual Studio 2022 and QT 6.3.1 version first and set the enviroment variables as:
-```
-QT631: QT install directory/6.3.1/msvc2019_64
-```
-
-1. Please enter in build/windows directory and config project:
-```
-> configure.cmd
-```
-
-2. Please enter in src/prism-live-studio/build, and use VS2022 to open the solution under:
-```
-> open prism-live-studio.sln
-```
-
-Then, you could find a bin/prism/windows/Debug or bin/prism/windows/Release directory generated under root.
-And please find the file PRISMLiveStudio.exe in bin/64bit
-which is the main program file of PRISM Live Studio
-
-## Build on Mac OS
-Before build, please prepare install XCode and QT 6.3.1 version first and set the enviroment variables as:
-```
-QTDIR: QT install directory/6.3.1/macos
-```
-
-1. Please enter in build/mac directory and config project:
-```
-> ./01_configure.sh
-```
-
-2. Please enter in src/prism-live-studio/build, and use XCode to open the solution under:
-```
-> open prism-live-studio.xcodeproj
-```
-
-Then, you could find a src/prism-live-studio/build/prism-live-studio/PRISMLiveStudio/Debug/PRISMLiveStudio.app or src/prism-live-studio/build/prism-live-studio/PRISMLiveStudio/Release/PRISMLiveStudio.app,
-which is the bundle file of PRISM Live Studio
 
 ## Community
 
