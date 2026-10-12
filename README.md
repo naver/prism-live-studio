@@ -1,17 +1,22 @@
 # PRISM Live Studio
 **Learn more about PRISM Live Studio and get the latest updates on our [official website](http://prismlive.com/ko_kr/pcapp/).**
 
-## Releases
+### Downloads
 
-### PRISM Live Studio 6.0.0 Beta
+- [PRISM Live Studio 6.0.0 Beta for Windows]()
 
-[Download PRISM Live Studio 6.0.0 Beta for Windows]()
-
-### PRISM Live Studio 6.0.0 Beta Release Notes
+#### What’s New in 6.0.0 Beta
 
 PRISM Live Studio 6.0.0 Beta is based on OBS Studio 32.2.2 and is currently available for Windows only.
 
-**Before installing:** Installing the Beta replaces the existing PRISM Live Studio installation on the same PC. The two versions cannot be installed together. The previous version remains available for download from the PRISM website. B2B features are not yet available; B2B customers should continue using the existing version.
+**Before installing:**
+
+- B2B support is not yet available in the Beta. B2B customers should continue using the previous version.
+- The Beta cannot be installed alongside the existing PRISM Live Studio on the same PC. Installing it will remove and replace the existing version.
+- The previous version can be reinstalled from the PRISM website at any time.
+- Your existing scenes and settings will be migrated. However, some sources that are no longer supported cannot be migrated and will be removed.
+- The existing PRISM Lens app will not be removed, but it cannot be used with the Beta through the previous capture-device connection method. Lens effects, such as face retouching, can be applied to an in-app camera source using the Lens Filter and must be configured again.
+- The Beta has a different interface and workflow, so it may take some time to get used to. We recommend installing it when you have enough time rather than shortly before a scheduled broadcast.
 
 #### Changes
 
@@ -37,11 +42,6 @@ PRISM Live Studio 6.0.0 Beta is based on OBS Studio 32.2.2 and is currently avai
 - Added migration support for existing scenes, settings, channel lists, and some sources' My / Recent data. Unsupported sources cannot be migrated and are removed. Some Docks, including Chat and Control Panel, may require users to log in again.
 - Removed system file association for `.psc` files. Double-clicking these files no longer opens PRISM Live Studio.
 
-
-## Overview
-![PRISM Live Studio](https://resource-prismlive.pstatic.net/20231221002/pc/img/live_stream_img1.png)
-
-This application currently only supports 64-bit Windows.
 
 ## Build on Windows
 Before build, please prepare install Visual Studio 2022 and QT 6.3.1 version first and set the enviroment variables as:
@@ -84,6 +84,6 @@ which is the bundle file of PRISM Live Studio
 
 ## Community
 
-[Github issues](https://github.com/naver/prismlivestudio/issues)  
-[Blog](https://blog.naver.com/prismlivestudio)  
-If you have any question, please contact us by [mail:prismlive@navercorp.com](mailto://prismlive@navercorp.com)
+- [Github issues](https://github.com/naver/prismlivestudio/issues)  
+- [Blog](https://blog.naver.com/prismlivestudio)  
+- If you have any question, please contact us by [mail:prismlive@navercorp.com](mailto://prismlive@navercorp.com)
