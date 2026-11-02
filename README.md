@@ -3,7 +3,8 @@
 
 ## Versions
 
-- [6.0.1 Beta](#version-601) — Latest
+- [6.0.2 Beta](#version-602) — Latest
+- [6.0.1 Beta](#version-601)
 - [6.0.0 Beta](#version-600-beta)
 
 **Before installing**
@@ -14,6 +15,62 @@
 - Your existing scenes and settings will be migrated. However, some sources that are no longer supported cannot be migrated and will be removed.
 - The existing PRISM Lens app will not be removed, but it cannot be used with the Beta through the previous capture-device connection method. Lens effects, such as face retouching, can be applied to an in-app camera source using the Lens Filter and must be configured again.
 - The Beta has a different interface and workflow, so it may take some time to get used to. We recommend installing it when you have enough time rather than shortly before a scheduled broadcast.
+
+<a id="version-602"></a>
+## 6.0.2 Beta
+
+### Downloads
+
+- [PRISM Live Studio 6.0.2 Beta for Windows](https://resource-prismlive.pstatic.net/202611021112/PrismLiveStudio_Setup_x64_6.0.2.117.exe)
+
+### Changes
+
+- Updated the OBS base version to 33.0.0 and adapted PRISM features accordingly.
+- Expanded Lens support to more source types that support effect filters, with updated source selection and guidance in the Sidebar.
+- Added support for applying multiple Lens filters to a single source.
+- Updated Facebook login and channel connection authorization to request the permissions required for publishing videos.
+- Added an 8000 kbps maximum video bitrate check for SOOP. Users are prompted to adjust their settings if the limit is exceeded.
+- Improved application startup by deferring initialization of hidden platform chat Docks, reducing startup delays and interface stalls.
+- Improved multistreaming preparation to reduce waiting time caused by preparing channels sequentially.
+- Reduced memory and rendering overhead for GIF thumbnails, hidden animated backgrounds, Stickers, and Blur Filter.
+- Streaming and Platforms
+  - Fixed SRT / RIST streaming not using the selected audio track.
+  - Fixed authentication errors during Custom RTMP streaming potentially triggering account logout and an application restart.
+  - Fixed delayed responses causing incorrect streaming states after multistreaming preparation timed out.
+  - Fixed conflicts between restoring YouTube rehearsal settings and starting another broadcast.
+  - Fixed YouTube automatic start guidance appearing when its output had failed to start.
+  - Fixed CHZZK and YouTube Docks not loading correctly when browser initialization was slow.
+  - Fixed missing feedback when some platform refresh requests failed.
+  - Fixed NAVER Shopping LIVE broadcasts potentially remaining active on the server after a stop request failed.
+  - Fixed migrated or automatically linked channels being unexpectedly enabled by default.
+- Dual Output
+  - Fixed vertical source positions being reset when duplicating a scene.
+  - Fixed scene collection operations not being properly restricted while Replay Buffer or other protected output states were active.
+  - Fixed some Dual Output state updates being missed, causing the interface to become inconsistent with the actual output state.
+  - Fixed some previously ended channels being restarted during crash recovery.
+- Chat, Sources, and Lens
+  - Fixed saved Chat Overlay My Themes potentially being overwritten after a theme data read failure.
+  - Fixed existing chat sources displaying the wrong theme when a deleted My Theme ID was reused.
+  - Fixed some chat My Themes and Sticker Recent items not being preserved when migrating scene collections from older versions.
+  - Fixed Text Template potentially appearing blank after an interrupted configuration write.
+  - Fixed repeated repainting of Text Template alignment and text case controls.
+  - Fixed Scene Template thumbnails briefly disappearing during resource scans and image loading causing interface stalls.
+  - Fixed Scene Template installation remaining available while Replay Buffer was active.
+  - Fixed potential application termination during GIPHY playback under certain error conditions.
+  - Fixed Sticker edits potentially being applied to the wrong source and incorrect loading states after selecting multiple Stickers.
+  - Fixed inefficient Viewer Count font list loading and handling of invalid display dimensions.
+  - Fixed YouTube Chat placeholder text being clipped in narrow Docks.
+  - Fixed display issues with selected chat template borders, Background Template loading indicators, and Viewer Count notifications.
+  - Fixed source properties dialog positioning, title bar visibility, and Background Template control layout at high DPI settings.
+  - Fixed some source property sliders not updating correctly when clicking their tracks.
+  - Fixed Lens slider rendering and disabled-state behavior.
+  - Fixed Mobile Connect failing to establish a connection in some timeout scenarios and improved state reset after a phone disconnected.
+- Installation, Stability, and Security
+  - Fixed the installer potentially waiting too long during exit.
+  - Fixed potential crashes involving windows and callbacks during application shutdown.
+  - Fixed error handling when login animation loading failed or the application closed.
+  - Strengthened update package authenticity verification, with clearer failure messages and cleanup of invalid cached packages.
+  - Strengthened security handling for resource cache paths, malformed Mobile Connect data, and sensitive information in diagnostic logs.
 
 <a id="version-601"></a>
 ## 6.0.1 Beta
