@@ -3,7 +3,8 @@
 
 ## Versions
 
-- [6.0.2 Beta](#version-602) — Latest
+- [6.0.3 Beta](#version-603) — Latest
+- [6.0.2 Beta](#version-602)
 - [6.0.1 Beta](#version-601)
 - [6.0.0 Beta](#version-600-beta)
 
@@ -15,6 +16,73 @@
 - Your existing scenes and settings will be migrated. However, some sources that are no longer supported cannot be migrated and will be removed.
 - The existing PRISM Lens app will not be removed, but it cannot be used with the Beta through the previous capture-device connection method. Lens effects, such as face retouching, can be applied to an in-app camera source using the Lens Filter and must be configured again.
 - The Beta has a different interface and workflow, so it may take some time to get used to. We recommend installing it when you have enough time rather than shortly before a scheduled broadcast.
+
+<a id="version-603"></a>
+## 6.0.3 Beta
+
+### Downloads
+
+- [PRISM Live Studio 6.0.3 Beta for Windows](https://resource-prismlive.pstatic.net/202611121044/PrismLiveStudio_Setup_x64_6.0.3.129.exe)
+
+### New Features
+
+- Added KICK account linking, including channel connection, broadcast title and category settings, and support for single-platform streaming and multistreaming.
+- Added KICK support to All Chat, Chat Overlay, and Viewer Count Widget, including chat moderation and subscription and gift subscription messages.
+
+### Changes
+
+- PRISM Live Studio 6.0 Beta now supports NAVER Cloud B2B login and streaming, including service channels, scheduled broadcasts, service browser Docks, notices, output settings guides, chat, and viewer counts.
+- Optimized Dual Output encoding to reduce redundant horizontal video encoding when recording or Replay Buffer uses the stream encoder with compatible settings.
+- Improved responsiveness during application startup, channel restoration, and scene collection switching.
+- Improved responsiveness when preparing YouTube broadcasts and stopping streams.
+- Improved Scene Template browsing, detail previews, and thumbnail loading, and added a loading indicator when fetching more templates.
+- Reduced resource usage for inactive Lens effects, chat sources, Clock Widgets, GIPHY Stickers, and hidden portrait previews, and optimized Blur Filter and Spout2 processing.
+- Optimized static Background Templates to reduce unnecessary rendering when the image content and dimensions remain unchanged.
+- Improved loading of NAVER Shopping LIVE schedules, product lists, and images, and reduced cache usage.
+- Unified platform ordering across channel lists and menus, and improved compatibility with customized Windows contrast themes.
+
+### Bug Fixes
+
+#### Streaming and Channels
+
+- Fixed incomplete cleanup after some channel startup failures that could affect subsequent attempts.
+- Fixed issues with editing broadcast information, stopping a stream, or starting another broadcast after recovering a Facebook Page stream.
+- Fixed missing error feedback, unavailable retries, and duplicate authorization-expiry prompts in NAVER Shopping LIVE broadcast information.
+- Fixed failures to retrieve NAVER Shopping LIVE broadcast information during recovery potentially preventing the original broadcast from stopping correctly.
+- Fixed a channel being unexpectedly deselected when its broadcast was ended by the platform during multistreaming.
+- Fixed YouTube scheduled broadcasts not retaining their original automatic start and stop settings after a rehearsal ended.
+- Fixed YouTube chat Docks remaining blank or becoming unavailable after disappearing in some situations.
+- Fixed the floating All Chat Dock title bar appearing off-screen, preventing the window from being dragged.
+
+#### Dual Output
+
+- Fixed portrait layouts potentially being reset when duplicating scenes containing groups.
+- Fixed some scene collection operations not being properly restricted, potentially affecting portrait layouts and output during streaming.
+- Fixed new scenes potentially inheriting the portrait layout of a deleted scene with the same name.
+- Fixed issues with transition synchronization and scene structure updates.
+- Fixed previously ended channels potentially restarting when recovering a stream after an application crash.
+
+#### Sources and Lens
+
+- Fixed Text Template and Viewer Count Widget potentially displaying blank frames when shown again after being hidden.
+- Fixed downloaded Text Templates potentially being applied to the wrong source after switching sources.
+- Fixed incorrect Text Template dimensions, text, or colors after canvas changes or asynchronous template downloads.
+- Fixed Chat Overlay backgrounds selected while offline failing to appear after the network connection was restored.
+- Fixed Viewer Count Widget jumping or briefly showing black edges when changing settings.
+- Fixed incorrect colors on translucent edges and shadows in PRISM Stickers.
+- Fixed Save to My Effects remaining unavailable after Lens reconnected, along with display issues affecting some effects and controls.
+- Fixed Lens effects not being applied correctly under certain multi-GPU configurations.
+- Fixed Clock Widget hotkeys potentially causing brief video stalls.
+- Fixed Spout2 capture failing to recover from certain initialization errors.
+
+#### Installation and Stability
+
+- Fixed saving or closing source properties dialogs potentially overwriting newer scene collection settings.
+- Fixed issues affecting Mobile Connect during connection errors and application shutdown, and corrected installer firewall rules.
+- Fixed excessive waiting in some installation, update, and shutdown scenarios, and added a notification when virtual camera setup fails.
+- Fixed crashes in some application startup and shutdown scenarios.
+- Strengthened protection of stream recovery data and resource access, and reduced sensitive information in diagnostic logs.
+
 
 <a id="version-602"></a>
 ## 6.0.2 Beta
