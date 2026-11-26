@@ -3,19 +3,60 @@
 
 ## Versions
 
-- [6.0.3 Beta](#version-603) — Latest
+- [6.0.4](#version-604) — Latest
+- [6.0.3 Beta](#version-603)
 - [6.0.2 Beta](#version-602)
 - [6.0.1 Beta](#version-601)
 - [6.0.0 Beta](#version-600-beta)
 
 **Before installing**
 
-- B2B support is not yet available in the Beta. B2B customers should continue using the previous version.
-- The Beta cannot be installed alongside the existing PRISM Live Studio on the same PC. Installing it will remove and replace the existing version.
-- The previous version can be reinstalled from the PRISM website at any time.
-- Your existing scenes and settings will be migrated. However, some sources that are no longer supported cannot be migrated and will be removed.
-- The existing PRISM Lens app will not be removed, but it cannot be used with the Beta through the previous capture-device connection method. Lens effects, such as face retouching, can be applied to an in-app camera source using the Lens Filter and must be configured again.
-- The Beta has a different interface and workflow, so it may take some time to get used to. We recommend installing it when you have enough time rather than shortly before a scheduled broadcast.
+- Installing PRISM Live Studio v6.0 replaces the existing PRISM Live Studio installation. The two versions cannot be installed side by side on the same PC.
+- Your existing scenes and settings will be migrated. Sources that are no longer supported cannot be migrated and will be removed.
+- The standalone PRISM Lens app will remain installed, but its previous capture-device connection method is not supported in PRISM Live Studio v6.0. To use Lens effects such as face retouching, add a Lens Filter to a camera source within PRISM Live Studio and configure the effects again.
+- PRISM Live Studio v6.0 introduces a new interface and workflow. Allow time to review your migrated scenes, configure Lens effects, and test your streaming setup before your next broadcast.
+- If needed, you can reinstall the previous version from the PRISM website.
+
+<a id="version-604"></a>
+## 6.0.4
+
+### Downloads
+
+- [PRISM Live Studio 6.0.4 for Windows](https://resource-prismlive.pstatic.net/202611261040/PrismLiveStudio_Setup_x64_6.0.4.139.exe)
+
+### Changes
+
+- Updated OBS Studio to 33.0.3.
+- Changed streaming options to allow vertical-only streaming without requiring a horizontal channel to be active, including vertical rehearsal on platforms that already offer rehearsal.
+- Changed horizontal and vertical streaming configuration so that each channel's output canvas can be selected in PRISM Streaming. The Vertical Output Canvas sidebar button now only shows or hides the vertical canvas and does not affect streaming.
+- Changed PRISM Streaming to a dockable panel positioned on the right side of the main window by default, with support for floating and restoring its layout.
+- Changed Chat to combine All Chat and individual platform chats in one window with tabs. Connecting a channel no longer automatically opens a separate platform chat dock.
+- Changed pre-stream configuration checks to remove PRISM-maintained policy checks for third-party platforms while retaining applicable requirements for NAVER services and multistreaming. Improved error messages to explain incompatible settings, applicable limits, and where to change them, with a shortcut to open Settings.
+- Improved the setup wizard's introduction to PRISM Streaming, including guidance on where to add and manage channels.
+- Increased the Chat Overlay preview area and removed the Chat Background tab and its legacy border features. Chat Motion now uses a single-choice selection, with None selected by default.
+- Changed the Background Template Motion control to keep it below the asset list and disable motion by default.
+- Improved Lens source and filter selection by labeling Source and Filter separately and renaming the add button to Add Lens Filter.
+- Changed Facebook authorization-expiry handling to retain channel configurations without immediately prompting for reconnection when a stream ends. Also updated field labels and the layout of the live information window.
+- Added a Dashboard link to the SOOP category message to make it easier to change the category on the platform.
+- Improved authorization-expiry guidance when automatically connecting NAVER Cloud B2B channels and image format compatibility for service assets, including JPEG loading and caching.
+- Changed the B2B Output Setting Guide to retrieve the latest content whenever it opens and removed the manual refresh button.
+- Updated the logout confirmation to explain that connected channels will be removed and must be reconnected after logging in again.
+- Changed installation and upgrade behavior to allow installation to continue while the virtual camera is in use by another application. Updated repair guidance to clarify that the installer can be run again without uninstalling first.
+- Changed the network scope of Windows Firewall rules used for mobile connections.
+- Updated selected icons in PRISM Sidebar and the Add Source list, and standardized loading animations for selected resources.
+- Improved smoothness when switching Lens effects.
+
+### Bug Fixes
+
+- Fixed issues where expired KICK authorization was incorrectly reported as a network error and some stream preparation failures did not display an error message.
+- Fixed an issue where an invalid entry in the Facebook Page list prevented other valid Pages from loading.
+- Fixed an issue where reopening the NAVER Shopping LIVE information window could display duplicate connection-expiry messages.
+- Fixed an issue where the same Sticker could not be downloaded again after a download timed out.
+- Fixed an issue where a corrupted scene collection prevented Sticker recent-use history from being recovered from other valid scene collections.
+- Fixed an issue where failures to apply Lens effects were not reported when adjusting effect settings.
+- Fixed an issue where the installer could become unresponsive while waiting for virtual camera registration.
+- Fixed an issue where the total attachment size limit in Contact Us was not correctly enforced when selecting multiple files.
+
 
 <a id="version-603"></a>
 ## 6.0.3 Beta
