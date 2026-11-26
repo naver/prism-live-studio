@@ -31,7 +31,7 @@
 - Changed horizontal and vertical streaming configuration so that each channel's output canvas can be selected in PRISM Streaming. The Vertical Output Canvas sidebar button now only shows or hides the vertical canvas and does not affect streaming.
 - Changed PRISM Streaming to a dockable panel positioned on the right side of the main window by default, with support for floating and restoring its layout.
 - Changed Chat to combine All Chat and individual platform chats in one window with tabs. Connecting a channel no longer automatically opens a separate platform chat dock.
-- Changed pre-stream configuration checks to remove PRISM-maintained policy checks for third-party platforms while retaining applicable requirements for NAVER services and multistreaming. Improved error messages to explain incompatible settings, applicable limits, and where to change them, with a shortcut to open Settings.
+- Changed pre-stream configuration checks to remove PRISM-maintained policy checks for third-party platforms while retaining applicable requirements for certain services and multistreaming. Improved error messages to explain incompatible settings, applicable limits, and where to change them, with a shortcut to open Settings.
 - Improved the setup wizard's introduction to PRISM Streaming, including guidance on where to add and manage channels.
 - Increased the Chat Overlay preview area and removed the Chat Background tab and its legacy border features. Chat Motion now uses a single-choice selection, with None selected by default.
 - Changed the Background Template Motion control to keep it below the asset list and disable motion by default.
