@@ -3,11 +3,12 @@
 
 ## Versions
 
-- [6.0.4](#version-604) — Latest
-- [6.0.3 Beta](#version-603)
-- [6.0.2 Beta](#version-602)
-- [6.0.1 Beta](#version-601)
-- [6.0.0 Beta](#version-600-beta)
+- [6.0.5](#605) — Latest
+- [6.0.4](#604)
+- [6.0.3 Beta](#603-beta)
+- [6.0.2 Beta](#602-beta)
+- [6.0.1 Beta](#601-beta)
+- [6.0.0 Beta](#600-beta)
 
 **Before installing**
 
@@ -16,6 +17,16 @@
 - The standalone PRISM Lens app will remain installed, but its previous capture-device connection method is not supported in PRISM Live Studio v6.0. To use Lens effects such as face retouching, add a Lens Filter to a camera source within PRISM Live Studio and configure the effects again.
 - PRISM Live Studio v6.0 introduces a new interface and workflow. Allow time to review your migrated scenes, configure Lens effects, and test your streaming setup before your next broadcast.
 - If needed, you can reinstall the previous version from the PRISM website.
+
+## 6.0.5
+
+### Downloads
+
+- [PRISM Live Studio 6.0.5 for Windows](https://resource-prismlive.pstatic.net/202611271419/PrismLiveStudio_Setup_x64_6.0.5.140.exe)
+
+### Changes
+
+- This update includes routine security improvements.
 
 <a id="version-604"></a>
 ## 6.0.4
